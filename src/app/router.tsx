@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router'
 
 import { EmBreve } from '@/components/EmBreve'
+import { AvisosPage } from '@/features/avisos/AvisosPage'
 import { DefinirSenhaPage } from '@/features/auth/DefinirSenhaPage'
 import { EntrarPage } from '@/features/auth/EntrarPage'
 import { EsqueciSenhaPage } from '@/features/auth/EsqueciSenhaPage'
@@ -8,6 +9,11 @@ import { ExigePapel, RotaProtegida } from '@/features/auth/RotaProtegida'
 import { ClienteFichaPage } from '@/features/clientes/ClienteFichaPage'
 import { ClienteFormPage } from '@/features/clientes/ClienteFormPage'
 import { ClientesPage } from '@/features/clientes/ClientesPage'
+import { CadastrosPage } from '@/features/financeiro/CadastrosPage'
+import { FinanceiroLayout } from '@/features/financeiro/FinanceiroLayout'
+import { LancamentoFormPage } from '@/features/financeiro/LancamentoFormPage'
+import { LancamentosPage } from '@/features/financeiro/LancamentosPage'
+import { PainelPage } from '@/features/financeiro/PainelPage'
 import { InicioPage } from '@/features/inicio/InicioPage'
 import { UsuariosPage } from '@/features/usuarios/UsuariosPage'
 import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
@@ -48,13 +54,16 @@ export const router = createBrowserRouter([
         path: 'financeiro',
         element: (
           <ExigePapel papeis={PAPEIS_ACESSO_TOTAL}>
-            <EmBreve
-              titulo="Financeiro"
-              fase={2}
-              descricao="Contas a pagar e a receber, confirmação de pagamentos, atrasados e fluxo de caixa."
-            />
+            <FinanceiroLayout />
           </ExigePapel>
         ),
+        children: [
+          { index: true, element: <PainelPage /> },
+          { path: 'lancamentos', element: <LancamentosPage /> },
+          { path: 'lancamentos/novo', element: <LancamentoFormPage /> },
+          { path: 'lancamentos/:id', element: <LancamentoFormPage /> },
+          { path: 'cadastros', element: <CadastrosPage /> },
+        ],
       },
       {
         path: 'propostas',
@@ -86,16 +95,7 @@ export const router = createBrowserRouter([
           />
         ),
       },
-      {
-        path: 'avisos',
-        element: (
-          <EmBreve
-            titulo="Avisos"
-            fase={2}
-            descricao="Cobranças atrasadas, serviços vencendo e outros lembretes num lugar só."
-          />
-        ),
-      },
+      { path: 'avisos', element: <AvisosPage /> },
       { path: '*', element: <NaoEncontradaPage /> },
     ],
   },

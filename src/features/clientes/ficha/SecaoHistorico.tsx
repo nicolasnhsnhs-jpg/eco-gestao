@@ -4,10 +4,17 @@ import { useState } from 'react'
 import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
 import { Carregando } from '@/components/ui/Carregando'
-import { formatarDataHora } from '@/lib/datas'
+import { formatarData, formatarDataHora } from '@/lib/datas'
+import { formatarReais } from '@/lib/dinheiro'
 import { formatarCep, formatarDocumento, formatarTelefone } from '@/lib/documentos'
 import { mensagemDeErro } from '@/lib/erros'
 
+import {
+  NOME_FORMA,
+  NOME_SITUACAO,
+  type FormaPagamento,
+  type Situacao,
+} from '../../financeiro/rotulos'
 import { useEquipe, useHistoricoCliente, type RegistroAuditoria } from '../api'
 import { CANAIS } from '../esquemas'
 import { Secao, Vazio } from './Secao'
@@ -21,6 +28,7 @@ const NOME_TABELA: Record<string, string> = {
   enderecos: 'Endereço',
   contatos_cliente: 'Contato',
   atendimentos: 'Atendimento',
+  lancamentos: 'Lançamento',
 }
 
 const NOME_ACAO: Record<string, string> = {
@@ -55,6 +63,16 @@ const NOME_CAMPO: Record<string, string> = {
   resumo: 'Resumo',
   data_hora: 'Data',
   tipo_pessoa: 'Tipo',
+  descricao: 'Descrição',
+  valor: 'Valor',
+  valor_pago: 'Valor pago',
+  vencimento: 'Vencimento',
+  competencia: 'Competência',
+  data_pagamento: 'Data do pagamento',
+  status: 'Situação',
+  forma_pagamento: 'Forma',
+  numero_nota_fiscal: 'Nota fiscal',
+  tipo: 'Tipo',
 }
 
 const CAMPOS_TECNICOS = new Set([
@@ -66,6 +84,14 @@ const CAMPOS_TECNICOS = new Set([
   'atualizado_em',
   'atualizado_por',
   'anonimizado_em',
+  'categoria_id',
+  'conta_bancaria_id',
+  'fornecedor_id',
+  'grupo_parcelamento_id',
+  'parcela_numero',
+  'parcela_total',
+  'confirmado_por',
+  'confirmado_em',
 ])
 
 type Mudanca = { campo: string; antes: unknown; depois: unknown }
@@ -101,6 +127,13 @@ export function SecaoHistorico({ clienteId }: { clienteId: string }) {
       return formatarDocumento(doc, doc.length === 11 ? 'PF' : 'PJ')
     }
     if (campo === 'canal') return NOME_CANAL[String(v)] ?? String(v)
+    if (campo === 'valor' || campo === 'valor_pago') return formatarReais(Number(v))
+    if (['vencimento', 'competencia', 'data_pagamento'].includes(campo))
+      return formatarData(String(v))
+    if (campo === 'status') return NOME_SITUACAO[v as Situacao] ?? String(v)
+    if (campo === 'forma_pagamento') return NOME_FORMA[v as FormaPagamento] ?? String(v)
+    if (campo === 'tipo')
+      return v === 'entrada' ? 'A receber' : v === 'saida' ? 'A pagar' : String(v)
     return String(v)
   }
 

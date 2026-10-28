@@ -132,7 +132,7 @@ function FormAtendimentoModal({
         <Textarea
           id="resumo"
           rows={5}
-          autoFocus
+          data-autofocus
           aria-invalid={!!errors.resumo}
           {...form.register('resumo')}
         />

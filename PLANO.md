@@ -1,7 +1,7 @@
 # Plano do Sistema de Gestão — Eco Ambiental SC
 
 > Documento de referência do projeto. Toda sessão de trabalho começa relendo este arquivo.
-> Status: **aprovado em 28/10/2026** · Fases 0 e 1 prontas (no projeto dev) · Próxima: Fase 2 (Financeiro)
+> Status: **aprovado em 28/10/2026** · Fases 0, 1 e 2 prontas (no projeto dev) · Próxima: Fase 3 (Propostas)
 
 ---
 
@@ -610,5 +610,16 @@ Boas práticas que vamos seguir:
   para os membros da equipe do projeto Supabase. Configurar antes de convidar vendedores e recepção.
 - **Backup diário:** criar o repositório privado e os segredos (docs/BACKUP.md) antes de cadastrar
   clientes reais.
+- **Proteção contra senhas vazadas** (Supabase Auth): só existe no plano pago; ativar se migrar para o Pro.
+
+## 11. Decisões tomadas durante a construção
+
+- **Fase 2:** cada conta bancária tem um saldo inicial **com data**; só os pagamentos a partir dessa
+  data mexem no saldo, e o resumo mensal só conta a conta a partir desse mês.
+- **Fase 2:** parcelas têm a competência no mês do próprio vencimento (base para a comissão parcelada
+  da Fase 5). Os centavos que sobram da divisão vão na 1ª parcela.
+- **Fase 2:** lançamento confirmado (realizado) só o Administrador altera ou reabre.
+- **Fase 2:** os avisos do financeiro são gerados às 6h (pg_cron) e também ao abrir o painel ou a central
+  de avisos; resolvem-se sozinhos quando o lançamento é confirmado, cancelado ou adiado.
 
 1. **Feriados de SC e de Palhoça:** você vai conferir a lista com a contabilidade antes da Fase 5.

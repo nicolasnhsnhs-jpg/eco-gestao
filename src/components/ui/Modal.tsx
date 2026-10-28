@@ -19,7 +19,15 @@ export function Modal({ aberto, aoFechar, titulo, children }: Props) {
   useEffect(() => {
     const dialogo = ref.current
     if (!dialogo) return
-    if (aberto && !dialogo.open) dialogo.showModal()
+    if (aberto && !dialogo.open) {
+      dialogo.showModal()
+      // O navegador põe o foco no primeiro botão (o "fechar"). Para quem vai digitar, é melhor
+      // começar no campo marcado com data-autofocus ou, sem ele, no primeiro campo do formulário.
+      const campo =
+        dialogo.querySelector<HTMLElement>('[data-autofocus]') ??
+        dialogo.querySelector<HTMLElement>('input:not([type=hidden]):not([type=radio]), textarea')
+      campo?.focus()
+    }
     if (!aberto && dialogo.open) dialogo.close()
   }, [aberto])
 

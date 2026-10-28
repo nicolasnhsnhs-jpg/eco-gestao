@@ -34,15 +34,21 @@ create function pg_temp.como(usuario text) returns void language sql as $$
                     json_build_object('sub', usuario, 'role', 'authenticated')::text, true);
 $$;
 
+-- Os documentos dos clientes de teste podem coincidir com clientes já cadastrados:
+-- dentro desta transação (desfeita no final), os documentos existentes são limpos.
+alter table public.clientes disable trigger user;
+update public.clientes set cpf_cnpj = null where cpf_cnpj is not null;
+alter table public.clientes enable trigger user;
+
 -- Clientes de teste (criados como administrador do banco, sem RLS) -------------
 insert into public.clientes (id, tipo_pessoa, nome, cpf_cnpj, whatsapp, vendedor_responsavel_id) values
-  ('00000000-0000-0000-0000-00000000c0a1', 'PF', 'João da Silva Teste', '52998224725', '48999990001',
+  ('00000000-0000-0000-0000-00000000c0a1', 'PF', 'João da Silva [teste]', '52998224725', '48999990001',
    '00000000-0000-0000-0000-0000000000b1'),
-  ('00000000-0000-0000-0000-00000000c0a2', 'PJ', 'Restaurante Teste Ltda', '11222333000181', null,
+  ('00000000-0000-0000-0000-00000000c0a2', 'PJ', 'Restaurante Teste Ltda [teste]', '11222333000181', null,
    '00000000-0000-0000-0000-0000000000b1'),
-  ('00000000-0000-0000-0000-00000000c0b1', 'PF', 'Maria Teste', null, '48999990002',
+  ('00000000-0000-0000-0000-00000000c0b1', 'PF', 'Maria [teste]', null, '48999990002',
    '00000000-0000-0000-0000-0000000000b2'),
-  ('00000000-0000-0000-0000-00000000c0c1', 'PF', 'Sem Vendedor Teste', null, null, null);
+  ('00000000-0000-0000-0000-00000000c0c1', 'PF', 'Sem Vendedor [teste]', null, null, null);
 
 insert into public.enderecos (cliente_id, logradouro, cidade, uf, principal) values
   ('00000000-0000-0000-0000-00000000c0a1', 'Rua A', 'Palhoça', 'SC', true),
@@ -55,7 +61,7 @@ select pg_temp.como('00000000-0000-0000-0000-0000000000b1');
 set local role authenticated;
 
 do $$ begin
-  assert (select count(*) from public.clientes where nome like '%Teste%') = 2,
+  assert (select count(*) from public.clientes where nome like '%[teste]%') = 2,
     'Vendedor A deveria ver só os 2 clientes dele';
   assert not exists (select 1 from public.clientes where id = '00000000-0000-0000-0000-00000000c0b1'),
     'Vendedor A não deveria ver cliente do Vendedor B';
@@ -120,7 +126,7 @@ select pg_temp.como('00000000-0000-0000-0000-0000000000c1');
 set local role authenticated;
 
 do $$ begin
-  assert (select count(*) from public.clientes where nome like '%Teste%') = 4,
+  assert (select count(*) from public.clientes where nome like '%[teste]%') = 4,
     'Recepção deveria ver todos os clientes';
   assert (select count(*) from public.auditoria) = 0,
     'Recepção não deveria ver a auditoria';
@@ -171,7 +177,7 @@ select pg_temp.como('00000000-0000-0000-0000-0000000000f1');
 set local role authenticated;
 
 do $$ declare n int; begin
-  assert (select count(*) from public.clientes where nome like '%Teste%') = 4,
+  assert (select count(*) from public.clientes where nome like '%[teste]%') = 4,
     'Financeiro deveria ver todos os clientes';
   assert exists (select 1 from public.auditoria where tabela = 'clientes'),
     'Financeiro deveria ver a auditoria';

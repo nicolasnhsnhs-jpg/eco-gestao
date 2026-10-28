@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router'
 
 import { useAuth, usePerfil } from '@/features/auth/useAuth'
+import { useAvisosNaoLidos } from '@/features/avisos/api'
 import { NOME_DO_PAPEL } from '@/lib/papeis'
 import { cn } from '@/lib/utils'
 
@@ -104,7 +105,10 @@ export function AppLayout() {
                 )
               }
             >
-              <item.icone className="size-5" aria-hidden />
+              <span className="relative">
+                <item.icone className="size-5" aria-hidden />
+                {item.caminho === '/avisos' && <ContadorAvisos flutuante />}
+              </span>
               {item.rotulo}
             </NavLink>
           ))}
@@ -129,8 +133,26 @@ function ItemLateral({ item, aoClicar }: { item: ItemMenu; aoClicar?: () => void
       }
     >
       <item.icone className="size-5" aria-hidden />
-      {item.rotulo}
+      <span className="flex-1">{item.rotulo}</span>
+      {item.caminho === '/avisos' && <ContadorAvisos />}
     </NavLink>
+  )
+}
+
+/** Número de avisos não lidos, ao lado de "Avisos" no menu. */
+function ContadorAvisos({ flutuante }: { flutuante?: boolean }) {
+  const { data: total = 0 } = useAvisosNaoLidos()
+  if (total === 0) return null
+  return (
+    <span
+      className={cn(
+        'grid min-w-5 place-items-center rounded-full bg-perigo px-1.5 text-xs leading-5 font-bold text-white',
+        flutuante && 'absolute -top-2 -right-3',
+      )}
+      aria-label={`${total} aviso(s) não lido(s)`}
+    >
+      {total > 99 ? '99+' : total}
+    </span>
   )
 }
 

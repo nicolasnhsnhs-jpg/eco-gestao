@@ -35,6 +35,7 @@ import { Secao } from './ficha/Secao'
 import { SecaoAtendimentos } from './ficha/SecaoAtendimentos'
 import { SecaoContatos } from './ficha/SecaoContatos'
 import { SecaoEnderecos } from './ficha/SecaoEnderecos'
+import { SecaoFinanceira } from './ficha/SecaoFinanceira'
 import { SecaoHistorico } from './ficha/SecaoHistorico'
 import { TransferirModal } from './ficha/TransferirModal'
 
@@ -178,6 +179,12 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
             </div>
           </Secao>
 
+          {acessoTotal && (
+            <SecaoFinanceira
+              clienteId={cliente.id}
+              clienteNome={cliente.nome_fantasia || cliente.nome}
+            />
+          )}
           <SecaoAtendimentos clienteId={cliente.id} />
           <SecaoEnderecos
             clienteId={cliente.id}
@@ -227,7 +234,6 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
 
           <EmBreveNaFicha titulo="Propostas" fase={3} />
           <EmBreveNaFicha titulo="Serviços e vencimentos" fase={4} />
-          {acessoTotal && <EmBreveNaFicha titulo="Situação financeira" fase={2} />}
 
           {acessoTotal && (
             <Secao titulo="Administração">

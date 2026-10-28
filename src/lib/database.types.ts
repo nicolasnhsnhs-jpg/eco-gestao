@@ -112,6 +112,128 @@ export type Database = {
         }
         Relationships: []
       }
+      avisos: {
+        Row: {
+          chave_unica: string
+          criado_em: string
+          destinatario_id: string | null
+          id: string
+          lancamento_id: string | null
+          lido_em: string | null
+          link: string | null
+          mensagem: string | null
+          papel_destino: Database['public']['Enums']['papel'] | null
+          resolvido_em: string | null
+          tipo: string
+          titulo: string
+        }
+        Insert: {
+          chave_unica: string
+          criado_em?: string
+          destinatario_id?: string | null
+          id?: string
+          lancamento_id?: string | null
+          lido_em?: string | null
+          link?: string | null
+          mensagem?: string | null
+          papel_destino?: Database['public']['Enums']['papel'] | null
+          resolvido_em?: string | null
+          tipo: string
+          titulo: string
+        }
+        Update: {
+          chave_unica?: string
+          criado_em?: string
+          destinatario_id?: string | null
+          id?: string
+          lancamento_id?: string | null
+          lido_em?: string | null
+          link?: string | null
+          mensagem?: string | null
+          papel_destino?: Database['public']['Enums']['papel'] | null
+          resolvido_em?: string | null
+          tipo?: string
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'avisos_destinatario_id_fkey'
+            columns: ['destinatario_id']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'avisos_lancamento_id_fkey'
+            columns: ['lancamento_id']
+            isOneToOne: false
+            referencedRelation: 'lancamentos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'avisos_lancamento_id_fkey'
+            columns: ['lancamento_id']
+            isOneToOne: false
+            referencedRelation: 'v_lancamentos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'avisos_lancamento_id_fkey'
+            columns: ['lancamento_id']
+            isOneToOne: false
+            referencedRelation: 'v_movimentos'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      categorias_financeiras: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          criado_em: string
+          criado_por: string | null
+          id: string
+          nome: string
+          tipo: Database['public']['Enums']['tipo_categoria']
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          nome: string
+          tipo: Database['public']['Enums']['tipo_categoria']
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          nome?: string
+          tipo?: Database['public']['Enums']['tipo_categoria']
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'categorias_financeiras_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'categorias_financeiras_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       clientes: {
         Row: {
           anonimizado_em: string | null
@@ -194,6 +316,63 @@ export type Database = {
           {
             foreignKeyName: 'clientes_vendedor_responsavel_id_fkey'
             columns: ['vendedor_responsavel_id']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      contas_bancarias: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          banco: string | null
+          criado_em: string
+          criado_por: string | null
+          data_saldo_inicial: string
+          id: string
+          nome: string
+          saldo_inicial: number
+          tipo: Database['public']['Enums']['tipo_conta']
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          banco?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_saldo_inicial?: string
+          id?: string
+          nome: string
+          saldo_inicial?: number
+          tipo?: Database['public']['Enums']['tipo_conta']
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          banco?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_saldo_inicial?: string
+          id?: string
+          nome?: string
+          saldo_inicial?: number
+          tipo?: Database['public']['Enums']['tipo_conta']
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'contas_bancarias_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'contas_bancarias_criado_por_fkey'
+            columns: ['criado_por']
             isOneToOne: false
             referencedRelation: 'perfis'
             referencedColumns: ['id']
@@ -346,6 +525,204 @@ export type Database = {
           },
         ]
       }
+      fornecedores: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          cpf_cnpj: string | null
+          criado_em: string
+          criado_por: string | null
+          email: string | null
+          id: string
+          nome: string
+          observacoes: string | null
+          telefone: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cpf_cnpj?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          email?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          telefone?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cpf_cnpj?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          email?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          telefone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'fornecedores_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'fornecedores_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      lancamentos: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          categoria_id: string
+          cliente_id: string | null
+          competencia: string
+          confirmado_em: string | null
+          confirmado_por: string | null
+          conta_bancaria_id: string | null
+          criado_em: string
+          criado_por: string | null
+          data_pagamento: string | null
+          descricao: string
+          forma_pagamento: Database['public']['Enums']['forma_pagamento'] | null
+          fornecedor_id: string | null
+          grupo_parcelamento_id: string | null
+          id: string
+          numero_nota_fiscal: string | null
+          observacoes: string | null
+          parcela_numero: number | null
+          parcela_total: number | null
+          status: Database['public']['Enums']['status_lancamento']
+          tipo: Database['public']['Enums']['tipo_lancamento']
+          valor: number
+          valor_pago: number | null
+          vencimento: string
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          categoria_id: string
+          cliente_id?: string | null
+          competencia: string
+          confirmado_em?: string | null
+          confirmado_por?: string | null
+          conta_bancaria_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_pagamento?: string | null
+          descricao: string
+          forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
+          fornecedor_id?: string | null
+          grupo_parcelamento_id?: string | null
+          id?: string
+          numero_nota_fiscal?: string | null
+          observacoes?: string | null
+          parcela_numero?: number | null
+          parcela_total?: number | null
+          status?: Database['public']['Enums']['status_lancamento']
+          tipo: Database['public']['Enums']['tipo_lancamento']
+          valor: number
+          valor_pago?: number | null
+          vencimento: string
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          categoria_id?: string
+          cliente_id?: string | null
+          competencia?: string
+          confirmado_em?: string | null
+          confirmado_por?: string | null
+          conta_bancaria_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_pagamento?: string | null
+          descricao?: string
+          forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
+          fornecedor_id?: string | null
+          grupo_parcelamento_id?: string | null
+          id?: string
+          numero_nota_fiscal?: string | null
+          observacoes?: string | null
+          parcela_numero?: number | null
+          parcela_total?: number | null
+          status?: Database['public']['Enums']['status_lancamento']
+          tipo?: Database['public']['Enums']['tipo_lancamento']
+          valor?: number
+          valor_pago?: number | null
+          vencimento?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'lancamentos_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_categoria_id_fkey'
+            columns: ['categoria_id']
+            isOneToOne: false
+            referencedRelation: 'categorias_financeiras'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_confirmado_por_fkey'
+            columns: ['confirmado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_conta_bancaria_id_fkey'
+            columns: ['conta_bancaria_id']
+            isOneToOne: false
+            referencedRelation: 'contas_bancarias'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_conta_bancaria_id_fkey'
+            columns: ['conta_bancaria_id']
+            isOneToOne: false
+            referencedRelation: 'v_saldos_contas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_fornecedor_id_fkey'
+            columns: ['fornecedor_id']
+            isOneToOne: false
+            referencedRelation: 'fornecedores'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       perfis: {
         Row: {
           ativo: boolean
@@ -454,10 +831,213 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_lancamentos: {
+        Row: {
+          atrasado: boolean | null
+          atualizado_em: string | null
+          atualizado_por: string | null
+          categoria_id: string | null
+          cliente_id: string | null
+          competencia: string | null
+          confirmado_em: string | null
+          confirmado_por: string | null
+          conta_bancaria_id: string | null
+          criado_em: string | null
+          criado_por: string | null
+          data_pagamento: string | null
+          descricao: string | null
+          forma_pagamento: Database['public']['Enums']['forma_pagamento'] | null
+          fornecedor_id: string | null
+          grupo_parcelamento_id: string | null
+          id: string | null
+          numero_nota_fiscal: string | null
+          observacoes: string | null
+          parcela_numero: number | null
+          parcela_total: number | null
+          situacao: string | null
+          status: Database['public']['Enums']['status_lancamento'] | null
+          tipo: Database['public']['Enums']['tipo_lancamento'] | null
+          valor: number | null
+          valor_pago: number | null
+          vencimento: string | null
+        }
+        Insert: {
+          atrasado?: never
+          atualizado_em?: string | null
+          atualizado_por?: string | null
+          categoria_id?: string | null
+          cliente_id?: string | null
+          competencia?: string | null
+          confirmado_em?: string | null
+          confirmado_por?: string | null
+          conta_bancaria_id?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          data_pagamento?: string | null
+          descricao?: string | null
+          forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
+          fornecedor_id?: string | null
+          grupo_parcelamento_id?: string | null
+          id?: string | null
+          numero_nota_fiscal?: string | null
+          observacoes?: string | null
+          parcela_numero?: number | null
+          parcela_total?: number | null
+          situacao?: never
+          status?: Database['public']['Enums']['status_lancamento'] | null
+          tipo?: Database['public']['Enums']['tipo_lancamento'] | null
+          valor?: number | null
+          valor_pago?: number | null
+          vencimento?: string | null
+        }
+        Update: {
+          atrasado?: never
+          atualizado_em?: string | null
+          atualizado_por?: string | null
+          categoria_id?: string | null
+          cliente_id?: string | null
+          competencia?: string | null
+          confirmado_em?: string | null
+          confirmado_por?: string | null
+          conta_bancaria_id?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          data_pagamento?: string | null
+          descricao?: string | null
+          forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
+          fornecedor_id?: string | null
+          grupo_parcelamento_id?: string | null
+          id?: string | null
+          numero_nota_fiscal?: string | null
+          observacoes?: string | null
+          parcela_numero?: number | null
+          parcela_total?: number | null
+          situacao?: never
+          status?: Database['public']['Enums']['status_lancamento'] | null
+          tipo?: Database['public']['Enums']['tipo_lancamento'] | null
+          valor?: number | null
+          valor_pago?: number | null
+          vencimento?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'lancamentos_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_categoria_id_fkey'
+            columns: ['categoria_id']
+            isOneToOne: false
+            referencedRelation: 'categorias_financeiras'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_confirmado_por_fkey'
+            columns: ['confirmado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_conta_bancaria_id_fkey'
+            columns: ['conta_bancaria_id']
+            isOneToOne: false
+            referencedRelation: 'contas_bancarias'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_conta_bancaria_id_fkey'
+            columns: ['conta_bancaria_id']
+            isOneToOne: false
+            referencedRelation: 'v_saldos_contas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_fornecedor_id_fkey'
+            columns: ['fornecedor_id']
+            isOneToOne: false
+            referencedRelation: 'fornecedores'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      v_movimentos: {
+        Row: {
+          conta_bancaria_id: string | null
+          data_pagamento: string | null
+          id: string | null
+          valor_com_sinal: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'lancamentos_conta_bancaria_id_fkey'
+            columns: ['conta_bancaria_id']
+            isOneToOne: false
+            referencedRelation: 'contas_bancarias'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_conta_bancaria_id_fkey'
+            columns: ['conta_bancaria_id']
+            isOneToOne: false
+            referencedRelation: 'v_saldos_contas'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      v_saldos_contas: {
+        Row: {
+          ativo: boolean | null
+          atualizado_em: string | null
+          atualizado_por: string | null
+          banco: string | null
+          criado_em: string | null
+          criado_por: string | null
+          data_saldo_inicial: string | null
+          id: string | null
+          nome: string | null
+          saldo_atual: number | null
+          saldo_inicial: number | null
+          tipo: Database['public']['Enums']['tipo_conta'] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'contas_bancarias_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'contas_bancarias_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Functions: {
       anonimizar_cliente: { Args: { cliente: string }; Returns: undefined }
+      atualizar_avisos: { Args: never; Returns: number }
       buscar_clientes: {
         Args: { incluir_inativos?: boolean; termo?: string }
         Returns: {
@@ -488,6 +1068,20 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      painel_financeiro: { Args: never; Returns: Json }
+      resumo_mensal: {
+        Args: { meses_antes?: number; meses_depois?: number }
+        Returns: {
+          despesas: number
+          faturamento: number
+          fluxo: number
+          mes: string
+          pago: number
+          recebido: number
+          resultado: number
+          saldo_acumulado: number
+        }[]
+      }
       transferir_carteira: {
         Args: { motivo?: string; novo_vendedor: string; vendedor_atual: string }
         Returns: number
@@ -499,7 +1093,13 @@ export type Database = {
     }
     Enums: {
       canal_atendimento: 'telefone' | 'whatsapp' | 'presencial' | 'email' | 'outro'
+      forma_pagamento:
+        'pix' | 'boleto' | 'transferencia' | 'cartao' | 'dinheiro' | 'debito_automatico' | 'outro'
       papel: 'admin' | 'financeiro' | 'vendedor' | 'recepcao'
+      status_lancamento: 'pendente' | 'agendado' | 'realizado' | 'cancelado'
+      tipo_categoria: 'receita' | 'despesa'
+      tipo_conta: 'corrente' | 'poupanca' | 'caixa' | 'outro'
+      tipo_lancamento: 'entrada' | 'saida'
       tipo_pessoa: 'PF' | 'PJ'
     }
     CompositeTypes: {
@@ -623,7 +1223,20 @@ export const Constants = {
   public: {
     Enums: {
       canal_atendimento: ['telefone', 'whatsapp', 'presencial', 'email', 'outro'],
+      forma_pagamento: [
+        'pix',
+        'boleto',
+        'transferencia',
+        'cartao',
+        'dinheiro',
+        'debito_automatico',
+        'outro',
+      ],
       papel: ['admin', 'financeiro', 'vendedor', 'recepcao'],
+      status_lancamento: ['pendente', 'agendado', 'realizado', 'cancelado'],
+      tipo_categoria: ['receita', 'despesa'],
+      tipo_conta: ['corrente', 'poupanca', 'caixa', 'outro'],
+      tipo_lancamento: ['entrada', 'saida'],
       tipo_pessoa: ['PF', 'PJ'],
     },
   },
