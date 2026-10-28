@@ -1,11 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Repeat, UserPlus } from 'lucide-react'
+import { Pencil, Repeat, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
 import { PageHeader } from '@/components/PageHeader'
 import { Aviso } from '@/components/ui/Aviso'
+import { BotaoIcone } from '@/components/ui/BotaoIcone'
 import { Button } from '@/components/ui/Button'
 import { Campo, Input, Select } from '@/components/ui/Campo'
 import { Carregando } from '@/components/ui/Carregando'
@@ -16,6 +17,7 @@ import { NOME_DO_PAPEL, PAPEIS, type Papel } from '@/lib/papeis'
 
 import { usePerfil } from '../auth/useAuth'
 import {
+  useAlterarNome,
   useAlterarPapel,
   useAlternarAtivo,
   useClientesPorVendedor,
@@ -37,6 +39,7 @@ export function UsuariosPage() {
   const usuarios = useUsuarios()
   const carteiras = useClientesPorVendedor()
   const alterarPapel = useAlterarPapel()
+  const alterarNome = useAlterarNome()
   const alternarAtivo = useAlternarAtivo()
   const [convidando, setConvidando] = useState(false)
   const [transferindoDe, setTransferindoDe] = useState<Usuario | null>(null)
@@ -83,6 +86,19 @@ export function UsuariosPage() {
               <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-center gap-2 font-semibold">
                   {u.nome}
+                  <BotaoIcone
+                    rotulo={`Editar o nome de ${u.nome}`}
+                    onClick={() => {
+                      const nome = window.prompt('Nome do usuário:', u.nome)?.trim()
+                      if (!nome || nome === u.nome) return
+                      void executar(
+                        () => alterarNome.mutateAsync({ usuarioId: u.id, nome }),
+                        `Nome alterado para ${nome}.`,
+                      )
+                    }}
+                  >
+                    <Pencil className="size-4" />
+                  </BotaoIcone>
                   {souEu && <Etiqueta cor="verde">Você</Etiqueta>}
                   {!u.ativo && <Etiqueta cor="perigo">Desativado</Etiqueta>}
                 </p>

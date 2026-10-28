@@ -67,6 +67,9 @@ hora, por isso usamos a conta da KingHost.
    - **Username:** `adm@ecoambientalsc.com.br`
    - **Password:** a senha da conta (digite você mesmo, direto no painel do Supabase).
 
+> ℹ️ **Enquanto este passo não for feito**, o Supabase só envia e-mails para os membros da equipe do
+> projeto Supabase. Convites para vendedores e recepção **não vão chegar**.
+
 > ⚠️ **Se a senha do `adm@` for trocada**, atualize também esse campo no Supabase. Senão os convites e
 > a recuperação de senha param de chegar sem aviso.
 

@@ -13,6 +13,7 @@ import { UsuariosPage } from '@/features/usuarios/UsuariosPage'
 import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
 
 import { AppLayout } from './AppLayout'
+import { ErroPage } from './ErroPage'
 import { NaoEncontradaPage } from './NaoEncontradaPage'
 
 export const router = createBrowserRouter([
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
         <AppLayout />
       </RotaProtegida>
     ),
+    errorElement: <ErroPage />,
     children: [
       { index: true, element: <InicioPage /> },
       { path: 'clientes', element: <ClientesPage /> },

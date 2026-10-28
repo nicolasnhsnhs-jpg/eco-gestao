@@ -1,7 +1,7 @@
 # Plano do Sistema de Gestão — Eco Ambiental SC
 
 > Documento de referência do projeto. Toda sessão de trabalho começa relendo este arquivo.
-> Status: **aprovado em 28/10/2026** · Fase 0 pronta (falta configurar as contas externas) · Próxima: Fase 1
+> Status: **aprovado em 28/10/2026** · Fases 0 e 1 prontas (no projeto dev) · Próxima: Fase 2 (Financeiro)
 
 ---
 
@@ -602,6 +602,13 @@ Boas práticas que vamos seguir:
 - [x] DNS do domínio na KingHost: o `CNAME` do sistema é criado lá.
 - [x] Comissão não depende do cliente pagar; conta pela competência e é paga no mês seguinte.
 
-## 10. Dúvidas em aberto (nenhuma bloqueia a Fase 1)
+## 10. Pendências e dúvidas em aberto
+
+- **Projeto `prod` no Supabase:** criar na região **São Paulo** (o `dev` ficou em us-west-2, o que é
+  aceitável só para testes) e aplicar as migrations com `npm run db:push`.
+- **SMTP do `adm@` (KingHost):** sem ele, o Supabase só envia e-mails (convites, "esqueci a senha")
+  para os membros da equipe do projeto Supabase. Configurar antes de convidar vendedores e recepção.
+- **Backup diário:** criar o repositório privado e os segredos (docs/BACKUP.md) antes de cadastrar
+  clientes reais.
 
 1. **Feriados de SC e de Palhoça:** você vai conferir a lista com a contabilidade antes da Fase 5.

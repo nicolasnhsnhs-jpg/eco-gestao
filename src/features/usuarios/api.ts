@@ -96,6 +96,22 @@ export function useAlterarPapel() {
   })
 }
 
+export function useAlterarNome() {
+  const queryClient = useQueryClient()
+  const atualizar = useAtualizarListas()
+  return useMutation({
+    mutationFn: async ({ usuarioId, nome }: { usuarioId: string; nome: string }) => {
+      const { error } = await supabase.from('perfis').update({ nome }).eq('id', usuarioId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      atualizar()
+      // Se for o próprio usuário, atualiza o nome no menu.
+      void queryClient.invalidateQueries({ queryKey: ['perfil'] })
+    },
+  })
+}
+
 export function useTransferirCarteira() {
   const atualizar = useAtualizarListas()
   return useMutation({

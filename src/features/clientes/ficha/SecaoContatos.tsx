@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Campo, Input, Textarea } from '@/components/ui/Campo'
 import { Etiqueta } from '@/components/ui/Etiqueta'
 import { Modal } from '@/components/ui/Modal'
-import { formatarTelefone, linkWhatsapp } from '@/lib/documentos'
+import { ehCelular, formatarTelefone, linkWhatsapp } from '@/lib/documentos'
 import { mensagemDeErro } from '@/lib/erros'
 
 import { useRemoverContato, useSalvarContato, type Contato } from '../api'
@@ -63,14 +63,16 @@ export function SecaoContatos({ clienteId, contatos, podeEditar }: Props) {
                       <Phone className="size-4" aria-hidden />
                       {formatarTelefone(c.telefone)}
                     </a>
-                    <a
-                      href={linkWhatsapp(c.telefone)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="font-semibold text-verde underline"
-                    >
-                      WhatsApp
-                    </a>
+                    {ehCelular(c.telefone) && (
+                      <a
+                        href={linkWhatsapp(c.telefone)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-semibold text-verde underline"
+                      >
+                        WhatsApp
+                      </a>
+                    )}
                   </>
                 )}
                 {c.email && (

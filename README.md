@@ -75,7 +75,7 @@ A configuração dos serviços externos (GitHub, Supabase, Netlify, domínio e e
 ## Fases
 
 - [x] **Fase 0:** preparação do projeto, layout e verificações automáticas
-- [ ] **Fase 1:** login, perfis de acesso e cadastro/busca de clientes
+- [x] **Fase 1:** login, perfis de acesso e cadastro/busca de clientes
 - [ ] **Fase 2:** financeiro (lançamentos, fluxo de caixa, cobranças atrasadas)
 - [ ] **Fase 3:** propostas (drive interno)
 - [ ] **Fase 4:** serviços realizados, certificados, fotos e vencimentos

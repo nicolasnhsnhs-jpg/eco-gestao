@@ -5,10 +5,16 @@ import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
 import { Carregando } from '@/components/ui/Carregando'
 import { formatarDataHora } from '@/lib/datas'
+import { formatarCep, formatarDocumento, formatarTelefone } from '@/lib/documentos'
 import { mensagemDeErro } from '@/lib/erros'
 
 import { useEquipe, useHistoricoCliente, type RegistroAuditoria } from '../api'
+import { CANAIS } from '../esquemas'
 import { Secao, Vazio } from './Secao'
+
+const NOME_CANAL: Record<string, string> = Object.fromEntries(
+  CANAIS.map((c) => [c.valor, c.rotulo]),
+)
 
 const NOME_TABELA: Record<string, string> = {
   clientes: 'Cadastro',
@@ -88,6 +94,13 @@ export function SecaoHistorico({ clienteId }: { clienteId: string }) {
     if (typeof v === 'boolean') return v ? 'Sim' : 'Não'
     if (campo === 'vendedor_responsavel_id') return nomeDe(v)
     if (campo === 'data_hora') return formatarDataHora(String(v))
+    if (campo === 'telefone' || campo === 'whatsapp') return formatarTelefone(String(v))
+    if (campo === 'cep') return formatarCep(String(v))
+    if (campo === 'cpf_cnpj') {
+      const doc = String(v)
+      return formatarDocumento(doc, doc.length === 11 ? 'PF' : 'PJ')
+    }
+    if (campo === 'canal') return NOME_CANAL[String(v)] ?? String(v)
     return String(v)
   }
 

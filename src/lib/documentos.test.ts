@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   cnpjValido,
   cpfValido,
+  ehCelular,
   formatarCep,
   formatarCnpj,
   formatarCpf,
@@ -73,6 +74,14 @@ describe('formatação', () => {
 
   it('limpa documentos', () => {
     expect(limparDocumento('12.abc.345/01de-35')).toBe('12ABC34501DE35')
+  })
+})
+
+describe('ehCelular', () => {
+  it('só considera celular quem tem o 9 depois do DDD (só celular tem WhatsApp)', () => {
+    expect(ehCelular('(48) 99999-8888')).toBe(true)
+    expect(ehCelular('(48) 3333-4444')).toBe(false)
+    expect(ehCelular(null)).toBe(false)
   })
 })
 

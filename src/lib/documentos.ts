@@ -88,6 +88,11 @@ export function formatarCep(valor: string | null | undefined): string {
   return n.length > 5 ? `${n.slice(0, 5)}-${n.slice(5)}` : n
 }
 
+/** Celular brasileiro: DDD + 9 + 8 dígitos. Só celular tem WhatsApp. */
+export function ehCelular(valor: string | null | undefined): boolean {
+  return /^\d{2}9\d{8}$/.test(soNumeros(valor ?? ''))
+}
+
 /** Link para abrir uma conversa no WhatsApp (o número precisa do código do Brasil). */
 export function linkWhatsapp(telefone: string): string {
   return `https://wa.me/55${soNumeros(telefone)}`
