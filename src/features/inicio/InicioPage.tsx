@@ -13,7 +13,7 @@ const FASES = [
   { numero: 2, nome: 'Financeiro', pronta: true },
   { numero: 3, nome: 'Propostas', pronta: true },
   { numero: 4, nome: 'Serviços e vencimentos', pronta: true },
-  { numero: 5, nome: 'Contratos e comissões', pronta: false },
+  { numero: 5, nome: 'Contratos e comissões', pronta: true },
   { numero: 6, nome: 'Vendedores e recepção', pronta: false },
   { numero: 7, nome: 'Avisos por WhatsApp e e-mail', pronta: false },
 ]

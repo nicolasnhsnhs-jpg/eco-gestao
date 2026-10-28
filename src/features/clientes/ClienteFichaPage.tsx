@@ -37,6 +37,7 @@ import { SecaoEnderecos } from './ficha/SecaoEnderecos'
 import { SecaoFinanceira } from './ficha/SecaoFinanceira'
 import { SecaoPropostas } from './ficha/SecaoPropostas'
 import { SecaoServicos } from './ficha/SecaoServicos'
+import { SecaoContratos } from './ficha/SecaoContratos'
 import { ListaArquivos } from '../arquivos/ListaArquivos'
 import { SecaoHistorico } from './ficha/SecaoHistorico'
 import { TransferirModal } from './ficha/TransferirModal'
@@ -197,6 +198,13 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
           )}
           {perfil.papel !== 'recepcao' && (
             <SecaoServicos
+              clienteId={cliente.id}
+              clienteNome={cliente.nome_fantasia || cliente.nome}
+              podeCriar={podeEditar}
+            />
+          )}
+          {perfil.papel !== 'recepcao' && (
+            <SecaoContratos
               clienteId={cliente.id}
               clienteNome={cliente.nome_fantasia || cliente.nome}
               podeCriar={podeEditar}

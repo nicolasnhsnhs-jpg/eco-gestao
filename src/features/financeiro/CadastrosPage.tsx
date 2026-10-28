@@ -27,15 +27,18 @@ import {
   type ContaBancaria,
   type Fornecedor,
 } from './api'
+import { SecaoConfiguracoes, SecaoFeriados } from './ConfiguracoesSecoes'
 import { NovoFornecedorModal } from './NovoFornecedorModal'
 import { NOME_TIPO_CONTA, type TipoConta } from './rotulos'
 
 export function CadastrosPage() {
   return (
     <div className="flex flex-col gap-5">
+      <SecaoConfiguracoes />
       <SecaoContas />
       <SecaoCategorias />
       <SecaoFornecedores />
+      <SecaoFeriados />
     </div>
   )
 }

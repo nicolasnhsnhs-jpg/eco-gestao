@@ -1,6 +1,5 @@
 import { createBrowserRouter, Outlet } from 'react-router'
 
-import { EmBreve } from '@/components/EmBreve'
 import { AvisosPage } from '@/features/avisos/AvisosPage'
 import { DefinirSenhaPage } from '@/features/auth/DefinirSenhaPage'
 import { EntrarPage } from '@/features/auth/EntrarPage'
@@ -25,6 +24,9 @@ import {
   TiposServicoPage,
   VencimentosPage,
 } from '@/features/servicos/ServicosPages'
+import { ContratoFormPage } from '@/features/contratos/ContratoFormPage'
+import { ContratoPage, ContratosPage } from '@/features/contratos/ContratosPages'
+import { ComissoesPage } from '@/features/financeiro/ComissoesPage'
 import { InicioPage } from '@/features/inicio/InicioPage'
 import { UsuariosPage } from '@/features/usuarios/UsuariosPage'
 import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
@@ -73,6 +75,7 @@ export const router = createBrowserRouter([
           { path: 'lancamentos', element: <LancamentosPage /> },
           { path: 'lancamentos/novo', element: <LancamentoFormPage /> },
           { path: 'lancamentos/:id', element: <LancamentoFormPage /> },
+          { path: 'comissoes', element: <ComissoesPage /> },
           { path: 'cadastros', element: <CadastrosPage /> },
         ],
       },
@@ -121,12 +124,16 @@ export const router = createBrowserRouter([
       {
         path: 'contratos',
         element: (
-          <EmBreve
-            titulo="Contratos"
-            fase={5}
-            descricao="Contratos com mensalidade, cobrança automática e comissões dos vendedores."
-          />
+          <ExigePapel papeis={['admin', 'financeiro', 'vendedor']}>
+            <Outlet />
+          </ExigePapel>
         ),
+        children: [
+          { index: true, element: <ContratosPage /> },
+          { path: 'novo', element: <ContratoFormPage /> },
+          { path: ':id', element: <ContratoPage /> },
+          { path: ':id/editar', element: <ContratoFormPage /> },
+        ],
       },
       { path: 'avisos', element: <AvisosPage /> },
       { path: '*', element: <NaoEncontradaPage /> },

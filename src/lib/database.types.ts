@@ -471,6 +471,126 @@ export type Database = {
           },
         ]
       }
+      comissoes: {
+        Row: {
+          atualizado_em: string
+          base: number
+          cliente_id: string | null
+          competencia: string
+          criado_em: string
+          fechamento_id: string | null
+          id: string
+          lancamento_origem_id: string
+          percentual: number
+          status: Database['public']['Enums']['status_comissao']
+          valor: number
+          vendedor_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          base: number
+          cliente_id?: string | null
+          competencia: string
+          criado_em?: string
+          fechamento_id?: string | null
+          id?: string
+          lancamento_origem_id: string
+          percentual: number
+          status?: Database['public']['Enums']['status_comissao']
+          valor: number
+          vendedor_id: string
+        }
+        Update: {
+          atualizado_em?: string
+          base?: number
+          cliente_id?: string | null
+          competencia?: string
+          criado_em?: string
+          fechamento_id?: string | null
+          id?: string
+          lancamento_origem_id?: string
+          percentual?: number
+          status?: Database['public']['Enums']['status_comissao']
+          valor?: number
+          vendedor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'comissoes_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'comissoes_fechamento_id_fkey'
+            columns: ['fechamento_id']
+            isOneToOne: false
+            referencedRelation: 'fechamentos_comissao'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'comissoes_lancamento_origem_id_fkey'
+            columns: ['lancamento_origem_id']
+            isOneToOne: true
+            referencedRelation: 'lancamentos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'comissoes_lancamento_origem_id_fkey'
+            columns: ['lancamento_origem_id']
+            isOneToOne: true
+            referencedRelation: 'v_lancamentos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'comissoes_lancamento_origem_id_fkey'
+            columns: ['lancamento_origem_id']
+            isOneToOne: true
+            referencedRelation: 'v_movimentos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'comissoes_vendedor_id_fkey'
+            columns: ['vendedor_id']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      configuracoes: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          chave: string
+          descricao: string | null
+          valor: string
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          chave: string
+          descricao?: string | null
+          valor: string
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          chave?: string
+          descricao?: string | null
+          valor?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'configuracoes_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       contas_bancarias: {
         Row: {
           ativo: boolean
@@ -595,6 +715,143 @@ export type Database = {
           },
         ]
       }
+      contratos: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          categoria_id: string
+          cliente_id: string
+          conta_bancaria_id: string | null
+          criado_em: string
+          criado_por: string | null
+          data_fim: string | null
+          data_inicio: string
+          descricao: string
+          dia_util_cobranca: number | null
+          endereco_id: string | null
+          forma_pagamento: Database['public']['Enums']['forma_pagamento'] | null
+          id: string
+          observacoes: string | null
+          proposta_id: string | null
+          status: Database['public']['Enums']['status_contrato']
+          valor_mensal: number
+          vendedor_id: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          categoria_id: string
+          cliente_id: string
+          conta_bancaria_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_fim?: string | null
+          data_inicio: string
+          descricao: string
+          dia_util_cobranca?: number | null
+          endereco_id?: string | null
+          forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
+          id?: string
+          observacoes?: string | null
+          proposta_id?: string | null
+          status?: Database['public']['Enums']['status_contrato']
+          valor_mensal: number
+          vendedor_id?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          categoria_id?: string
+          cliente_id?: string
+          conta_bancaria_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          descricao?: string
+          dia_util_cobranca?: number | null
+          endereco_id?: string | null
+          forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
+          id?: string
+          observacoes?: string | null
+          proposta_id?: string | null
+          status?: Database['public']['Enums']['status_contrato']
+          valor_mensal?: number
+          vendedor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'contratos_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'contratos_categoria_id_fkey'
+            columns: ['categoria_id']
+            isOneToOne: false
+            referencedRelation: 'categorias_financeiras'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'contratos_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'contratos_conta_bancaria_id_fkey'
+            columns: ['conta_bancaria_id']
+            isOneToOne: false
+            referencedRelation: 'contas_bancarias'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'contratos_conta_bancaria_id_fkey'
+            columns: ['conta_bancaria_id']
+            isOneToOne: false
+            referencedRelation: 'v_saldos_contas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'contratos_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'contratos_endereco_id_fkey'
+            columns: ['endereco_id']
+            isOneToOne: false
+            referencedRelation: 'enderecos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'contratos_proposta_id_fkey'
+            columns: ['proposta_id']
+            isOneToOne: false
+            referencedRelation: 'propostas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'contratos_proposta_id_fkey'
+            columns: ['proposta_id']
+            isOneToOne: false
+            referencedRelation: 'v_propostas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'contratos_vendedor_id_fkey'
+            columns: ['vendedor_id']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       enderecos: {
         Row: {
           apelido: string | null
@@ -674,6 +931,123 @@ export type Database = {
           },
         ]
       }
+      fechamentos_comissao: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          competencia: string
+          criado_em: string
+          criado_por: string | null
+          id: string
+          lancamento_pagamento_id: string | null
+          status: Database['public']['Enums']['status_fechamento']
+          valor_total: number
+          vendedor_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          competencia: string
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          lancamento_pagamento_id?: string | null
+          status?: Database['public']['Enums']['status_fechamento']
+          valor_total?: number
+          vendedor_id: string
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          competencia?: string
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          lancamento_pagamento_id?: string | null
+          status?: Database['public']['Enums']['status_fechamento']
+          valor_total?: number
+          vendedor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'fechamentos_comissao_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'fechamentos_comissao_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'fechamentos_comissao_lancamento_pagamento_id_fkey'
+            columns: ['lancamento_pagamento_id']
+            isOneToOne: false
+            referencedRelation: 'lancamentos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'fechamentos_comissao_lancamento_pagamento_id_fkey'
+            columns: ['lancamento_pagamento_id']
+            isOneToOne: false
+            referencedRelation: 'v_lancamentos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'fechamentos_comissao_lancamento_pagamento_id_fkey'
+            columns: ['lancamento_pagamento_id']
+            isOneToOne: false
+            referencedRelation: 'v_movimentos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'fechamentos_comissao_vendedor_id_fkey'
+            columns: ['vendedor_id']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      feriados: {
+        Row: {
+          abrangencia: Database['public']['Enums']['abrangencia_feriado']
+          criado_em: string
+          criado_por: string | null
+          data: string
+          descricao: string
+          id: string
+        }
+        Insert: {
+          abrangencia?: Database['public']['Enums']['abrangencia_feriado']
+          criado_em?: string
+          criado_por?: string | null
+          data: string
+          descricao: string
+          id?: string
+        }
+        Update: {
+          abrangencia?: Database['public']['Enums']['abrangencia_feriado']
+          criado_em?: string
+          criado_por?: string | null
+          data?: string
+          descricao?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'feriados_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       fornecedores: {
         Row: {
           ativo: boolean
@@ -741,6 +1115,7 @@ export type Database = {
           confirmado_em: string | null
           confirmado_por: string | null
           conta_bancaria_id: string | null
+          contrato_id: string | null
           criado_em: string
           criado_por: string | null
           data_pagamento: string | null
@@ -769,6 +1144,7 @@ export type Database = {
           confirmado_em?: string | null
           confirmado_por?: string | null
           conta_bancaria_id?: string | null
+          contrato_id?: string | null
           criado_em?: string
           criado_por?: string | null
           data_pagamento?: string | null
@@ -797,6 +1173,7 @@ export type Database = {
           confirmado_em?: string | null
           confirmado_por?: string | null
           conta_bancaria_id?: string | null
+          contrato_id?: string | null
           criado_em?: string
           criado_por?: string | null
           data_pagamento?: string | null
@@ -857,6 +1234,13 @@ export type Database = {
             columns: ['conta_bancaria_id']
             isOneToOne: false
             referencedRelation: 'v_saldos_contas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_contrato_id_fkey'
+            columns: ['contrato_id']
+            isOneToOne: false
+            referencedRelation: 'contratos'
             referencedColumns: ['id']
           },
           {
@@ -1420,6 +1804,7 @@ export type Database = {
           confirmado_em: string | null
           confirmado_por: string | null
           conta_bancaria_id: string | null
+          contrato_id: string | null
           criado_em: string | null
           criado_por: string | null
           data_pagamento: string | null
@@ -1450,6 +1835,7 @@ export type Database = {
           confirmado_em?: string | null
           confirmado_por?: string | null
           conta_bancaria_id?: string | null
+          contrato_id?: string | null
           criado_em?: string | null
           criado_por?: string | null
           data_pagamento?: string | null
@@ -1480,6 +1866,7 @@ export type Database = {
           confirmado_em?: string | null
           confirmado_por?: string | null
           conta_bancaria_id?: string | null
+          contrato_id?: string | null
           criado_em?: string | null
           criado_por?: string | null
           data_pagamento?: string | null
@@ -1541,6 +1928,13 @@ export type Database = {
             columns: ['conta_bancaria_id']
             isOneToOne: false
             referencedRelation: 'v_saldos_contas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_contrato_id_fkey'
+            columns: ['contrato_id']
+            isOneToOne: false
+            referencedRelation: 'contratos'
             referencedColumns: ['id']
           },
           {
@@ -1861,6 +2255,27 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      dia_util: {
+        Args: { ano: number; mes: number; n?: number }
+        Returns: string
+      }
+      fechar_comissoes: {
+        Args: {
+          conta?: string
+          mes: string
+          vencimento: string
+          vendedor: string
+        }
+        Returns: string
+      }
+      feriados_nacionais: {
+        Args: { ano: number }
+        Returns: {
+          data: string
+          descricao: string
+        }[]
+      }
+      gerar_cobrancas_contratos: { Args: never; Returns: number }
       painel_financeiro: { Args: never; Returns: Json }
       resumo_mensal: {
         Args: { meses_antes?: number; meses_depois?: number }
@@ -1889,6 +2304,7 @@ export type Database = {
       }
     }
     Enums: {
+      abrangencia_feriado: 'estadual' | 'municipal' | 'outro'
       canal_atendimento: 'telefone' | 'whatsapp' | 'presencial' | 'email' | 'outro'
       categoria_arquivo:
         | 'proposta'
@@ -1903,6 +2319,9 @@ export type Database = {
       forma_pagamento:
         'pix' | 'boleto' | 'transferencia' | 'cartao' | 'dinheiro' | 'debito_automatico' | 'outro'
       papel: 'admin' | 'financeiro' | 'vendedor' | 'recepcao'
+      status_comissao: 'prevista' | 'paga' | 'cancelada'
+      status_contrato: 'ativo' | 'suspenso' | 'encerrado'
+      status_fechamento: 'aberto' | 'pago'
       status_lancamento: 'pendente' | 'agendado' | 'realizado' | 'cancelado'
       status_proposta: 'enviada' | 'aprovada' | 'recusada'
       status_servico: 'agendado' | 'realizado' | 'cancelado'
@@ -2032,6 +2451,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      abrangencia_feriado: ['estadual', 'municipal', 'outro'],
       canal_atendimento: ['telefone', 'whatsapp', 'presencial', 'email', 'outro'],
       categoria_arquivo: [
         'proposta',
@@ -2054,6 +2474,9 @@ export const Constants = {
         'outro',
       ],
       papel: ['admin', 'financeiro', 'vendedor', 'recepcao'],
+      status_comissao: ['prevista', 'paga', 'cancelada'],
+      status_contrato: ['ativo', 'suspenso', 'encerrado'],
+      status_fechamento: ['aberto', 'pago'],
       status_lancamento: ['pendente', 'agendado', 'realizado', 'cancelado'],
       status_proposta: ['enviada', 'aprovada', 'recusada'],
       status_servico: ['agendado', 'realizado', 'cancelado'],

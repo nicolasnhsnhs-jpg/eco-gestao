@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 const ABAS = [
   { rotulo: 'Painel', caminho: '/financeiro', fim: true },
   { rotulo: 'Lançamentos', caminho: '/financeiro/lancamentos', fim: false },
+  { rotulo: 'Comissões', caminho: '/financeiro/comissoes', fim: false },
   { rotulo: 'Cadastros', caminho: '/financeiro/cadastros', fim: false },
 ]
 

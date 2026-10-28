@@ -254,6 +254,25 @@ function ServicosDaProposta({ p }: { p: PropostaCompleta }) {
           </li>
         ))}
       </ul>
+      <p className="mb-4 text-sm">
+        Serviço com mensalidade fixa?{' '}
+        <Link
+          to={
+            '/contratos/novo?' +
+            new URLSearchParams({
+              cliente: p.cliente_id!,
+              cliente_nome: nomeCliente,
+              proposta: p.id!,
+              descricao: p.itens[0]?.descricao ?? '',
+              valor: String(p.valor_total ?? ''),
+              ...(p.endereco_id ? { endereco: p.endereco_id } : {}),
+            })
+          }
+          className="font-semibold text-verde underline"
+        >
+          Criar contrato a partir desta proposta
+        </Link>
+      </p>
       {servicos.data && servicos.data.length > 0 ? (
         <ListaServicos servicos={servicos.data} />
       ) : (

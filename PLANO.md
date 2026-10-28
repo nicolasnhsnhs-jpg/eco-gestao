@@ -1,7 +1,7 @@
 # Plano do Sistema de Gestão — Eco Ambiental SC
 
 > Documento de referência do projeto. Toda sessão de trabalho começa relendo este arquivo.
-> Status: **aprovado em 28/10/2026** · Fases 0 a 4 prontas (no projeto dev) · Próxima: Fase 5 (Contratos e comissões)
+> Status: **aprovado em 28/10/2026** · Fases 0 a 5 prontas (no projeto dev) · Próxima: Fase 6 (Vendedores e recepção)
 
 ---
 
@@ -642,6 +642,19 @@ Boas práticas que vamos seguir:
 - **Fase 4:** serviço concluído com valor e sem conta a receber gera aviso ao financeiro; o atalho
   "Lançar conta a receber" já preenche valor, cliente, categoria e vencimento (data + prazo da proposta).
 - **Fase 4:** a recepção ainda não vê serviços (eles têm valor); na Fase 6 ganha uma consulta sem valores.
+- **Fase 5:** feriados nacionais (inclusive Carnaval, Sexta-feira Santa e Corpus Christi, dias sem
+  expediente bancário) são calculados pelo banco para qualquer ano, a partir da Páscoa. Feriados de SC
+  e de Palhoça são cadastrados na tela (Financeiro → Cadastros), depois de conferidos com a contabilidade.
+- **Fase 5:** o dia útil de cobrança dos contratos é uma configuração (hoje 1) e cada contrato pode ter
+  o seu. O banco cria a mensalidade do mês atual e do próximo todo dia às 5h50; suspender/encerrar
+  cancela as futuras em aberto; mudar o valor atualiza as que ainda não venceram.
+- **Fase 5:** comissão nasce de cada lançamento de entrada ligado a um serviço ou contrato, com o % do
+  vendedor (próprio ou o padrão de 8%). Perfis que não são vendedor (ex.: o dono) só recebem se tiverem
+  % próprio. Comissão já fechada não muda mais.
+- **Fase 5:** o fechamento junta as comissões em aberto até o mês escolhido e cria a saída a pagar
+  (Folha / Pró-labore); pagar a saída marca as comissões como pagas; cancelar a saída desfaz o fechamento.
+- **Fase 5:** contrato criado por vendedor usa a categoria "Contrato recorrente" (o vendedor não vê
+  categorias financeiras).
 - **Lição técnica:** views criadas com `tabela.*` congelam a lista de colunas; ao acrescentar coluna na
   tabela, a view precisa ser recriada (aconteceu com `v_lancamentos`).
 - **Lição técnica:** listas cujas opções vêm do banco usam o componente `SelectForm` (controlado), senão

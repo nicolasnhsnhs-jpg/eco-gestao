@@ -34,6 +34,8 @@ insert into public.clientes (id, tipo_pessoa, nome, vendedor_responsavel_id) val
 -- o que existir no banco. O rollback no final devolve tudo.
 alter table public.lancamentos disable trigger user;
 delete from public.avisos;
+delete from public.comissoes;
+delete from public.fechamentos_comissao;
 delete from public.lancamentos;
 alter table public.lancamentos enable trigger user;
 update public.contas_bancarias set ativo = false, saldo_inicial = 0;

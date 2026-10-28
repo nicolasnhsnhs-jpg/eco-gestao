@@ -17,6 +17,7 @@ import { NOME_DO_PAPEL, PAPEIS, type Papel } from '@/lib/papeis'
 
 import { usePerfil } from '../auth/useAuth'
 import {
+  useAlterarComissao,
   useAlterarNome,
   useAlterarPapel,
   useAlternarAtivo,
@@ -40,6 +41,7 @@ export function UsuariosPage() {
   const carteiras = useClientesPorVendedor()
   const alterarPapel = useAlterarPapel()
   const alterarNome = useAlterarNome()
+  const alterarComissao = useAlterarComissao()
   const alternarAtivo = useAlternarAtivo()
   const [convidando, setConvidando] = useState(false)
   const [transferindoDe, setTransferindoDe] = useState<Usuario | null>(null)
@@ -107,6 +109,39 @@ export function UsuariosPage() {
                   <p className="text-sm text-texto-suave">
                     {clientes} {clientes === 1 ? 'cliente' : 'clientes'} na carteira
                   </p>
+                )}
+                {u.papel !== 'recepcao' && (
+                  <button
+                    type="button"
+                    className="text-sm text-texto-suave underline"
+                    onClick={() => {
+                      const resposta = window.prompt(
+                        'Comissão própria deste usuário, em % (vazio = padrão da empresa para vendedores; outros perfis sem % não recebem comissão):',
+                        u.comissao_percentual?.toString() ?? '',
+                      )
+                      if (resposta === null) return
+                      const texto = resposta.trim().replace(',', '.')
+                      const percentual = texto === '' ? null : Number(texto)
+                      if (
+                        percentual !== null &&
+                        (Number.isNaN(percentual) || percentual < 0 || percentual > 100)
+                      ) {
+                        setErro('Informe um percentual entre 0 e 100.')
+                        return
+                      }
+                      void executar(
+                        () => alterarComissao.mutateAsync({ usuarioId: u.id, percentual }),
+                        `Comissão de ${u.nome} atualizada.`,
+                      )
+                    }}
+                  >
+                    Comissão:{' '}
+                    {u.comissao_percentual != null
+                      ? `${Number(u.comissao_percentual).toLocaleString('pt-BR')}% (própria)`
+                      : u.papel === 'vendedor'
+                        ? 'padrão da empresa'
+                        : 'não recebe'}
+                  </button>
                 )}
               </div>
 

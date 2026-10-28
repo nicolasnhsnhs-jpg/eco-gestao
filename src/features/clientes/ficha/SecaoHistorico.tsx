@@ -33,6 +33,7 @@ const NOME_TABELA: Record<string, string> = {
   arquivos: 'Arquivo',
   servicos: 'Serviço',
   vencimentos_servico: 'Vencimento',
+  contratos: 'Contrato',
 }
 
 const NOME_ACAO: Record<string, string> = {
@@ -92,6 +93,10 @@ const NOME_CAMPO: Record<string, string> = {
   periodicidade_meses: 'Repetir a cada (meses)',
   antecedencia_aviso_dias: 'Avisar dias antes',
   data_ultimo_servico: 'Último serviço',
+  valor_mensal: 'Valor mensal',
+  dia_util_cobranca: 'Dia útil de cobrança',
+  data_inicio: 'Início',
+  data_fim: 'Fim',
 }
 
 const CAMPOS_TECNICOS = new Set([
@@ -124,6 +129,7 @@ const CAMPOS_TECNICOS = new Set([
   'tipo_servico_id',
   'ultimo_servico_id',
   'proxima_data',
+  'contrato_id',
 ])
 
 type Mudanca = { campo: string; antes: unknown; depois: unknown }
@@ -160,7 +166,7 @@ export function SecaoHistorico({ clienteId }: { clienteId: string }) {
     }
     if (campo === 'canal') return NOME_CANAL[String(v)] ?? String(v)
     if (campo === 'valor' || campo === 'valor_pago') return formatarReais(Number(v))
-    if (campo === 'valor_total') return formatarReais(Number(v))
+    if (campo === 'valor_total' || campo === 'valor_mensal') return formatarReais(Number(v))
     if (
       [
         'vencimento',

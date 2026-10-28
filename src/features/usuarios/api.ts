@@ -112,6 +112,26 @@ export function useAlterarNome() {
   })
 }
 
+export function useAlterarComissao() {
+  const atualizar = useAtualizarListas()
+  return useMutation({
+    mutationFn: async ({
+      usuarioId,
+      percentual,
+    }: {
+      usuarioId: string
+      percentual: number | null
+    }) => {
+      const { error } = await supabase
+        .from('perfis')
+        .update({ comissao_percentual: percentual })
+        .eq('id', usuarioId)
+      if (error) throw error
+    },
+    onSuccess: atualizar,
+  })
+}
+
 export function useTransferirCarteira() {
   const atualizar = useAtualizarListas()
   return useMutation({
