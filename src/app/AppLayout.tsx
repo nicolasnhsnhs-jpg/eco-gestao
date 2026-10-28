@@ -1,14 +1,12 @@
-import { Menu, X } from 'lucide-react'
+import { LogOut, Menu, X } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router'
 
-import { NOME_DO_PAPEL, type Papel } from '@/lib/papeis'
+import { useAuth, usePerfil } from '@/features/auth/useAuth'
+import { NOME_DO_PAPEL } from '@/lib/papeis'
 import { cn } from '@/lib/utils'
 
 import { menuDoPapel, type ItemMenu } from './navegacao'
-
-// Fase 0: ainda não há login. Na Fase 1 o papel passa a vir do usuário logado.
-const PAPEL_ATUAL: Papel = 'admin'
 
 /**
  * Estrutura de todas as páginas:
@@ -17,7 +15,7 @@ const PAPEL_ATUAL: Papel = 'admin'
  */
 export function AppLayout() {
   const [menuAberto, setMenuAberto] = useState(false)
-  const itens = menuDoPapel(PAPEL_ATUAL)
+  const itens = menuDoPapel(usePerfil().papel)
 
   return (
     <div className="min-h-dvh lg:flex">
@@ -148,10 +146,22 @@ function Logo({ className }: { className?: string }) {
 }
 
 function Usuario() {
+  const { perfil, sair } = useAuth()
   return (
-    <div className="border-t border-borda p-4">
-      <p className="text-sm font-semibold text-texto">Usuário de teste</p>
-      <p className="text-xs text-texto-suave">{NOME_DO_PAPEL[PAPEL_ATUAL]}</p>
+    <div className="flex items-center gap-2 border-t border-borda p-4">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-texto">{perfil?.nome}</p>
+        <p className="text-xs text-texto-suave">{perfil && NOME_DO_PAPEL[perfil.papel]}</p>
+      </div>
+      <button
+        type="button"
+        onClick={() => void sair()}
+        className="grid size-10 place-items-center rounded-xl text-texto-suave hover:bg-lima-claro hover:text-verde-escuro"
+        aria-label="Sair do sistema"
+        title="Sair"
+      >
+        <LogOut className="size-5" aria-hidden />
+      </button>
     </div>
   )
 }

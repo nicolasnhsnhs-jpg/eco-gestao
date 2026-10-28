@@ -1,34 +1,57 @@
 import { createBrowserRouter } from 'react-router'
 
 import { EmBreve } from '@/components/EmBreve'
+import { DefinirSenhaPage } from '@/features/auth/DefinirSenhaPage'
+import { EntrarPage } from '@/features/auth/EntrarPage'
+import { EsqueciSenhaPage } from '@/features/auth/EsqueciSenhaPage'
+import { ExigePapel, RotaProtegida } from '@/features/auth/RotaProtegida'
+import { ClienteFichaPage } from '@/features/clientes/ClienteFichaPage'
+import { ClienteFormPage } from '@/features/clientes/ClienteFormPage'
+import { ClientesPage } from '@/features/clientes/ClientesPage'
 import { InicioPage } from '@/features/inicio/InicioPage'
+import { UsuariosPage } from '@/features/usuarios/UsuariosPage'
+import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
 
 import { AppLayout } from './AppLayout'
 import { NaoEncontradaPage } from './NaoEncontradaPage'
 
 export const router = createBrowserRouter([
+  // Telas sem login
+  { path: '/entrar', element: <EntrarPage /> },
+  { path: '/esqueci-senha', element: <EsqueciSenhaPage /> },
+  { path: '/definir-senha', element: <DefinirSenhaPage /> },
+
+  // Telas do sistema (exigem login)
   {
-    element: <AppLayout />,
+    element: (
+      <RotaProtegida>
+        <AppLayout />
+      </RotaProtegida>
+    ),
     children: [
       { index: true, element: <InicioPage /> },
+      { path: 'clientes', element: <ClientesPage /> },
+      { path: 'clientes/novo', element: <ClienteFormPage /> },
+      { path: 'clientes/:id', element: <ClienteFichaPage /> },
+      { path: 'clientes/:id/editar', element: <ClienteFormPage /> },
       {
-        path: 'clientes',
+        path: 'usuarios',
         element: (
-          <EmBreve
-            titulo="Clientes"
-            fase={1}
-            descricao="Cadastro de clientes pessoa física e jurídica, busca rápida e a ficha completa de cada cliente."
-          />
+          <ExigePapel papeis={['admin']}>
+            <UsuariosPage />
+          </ExigePapel>
         ),
       },
       {
         path: 'financeiro',
         element: (
-          <EmBreve
-            titulo="Financeiro"
-            fase={2}
-            descricao="Contas a pagar e a receber, confirmação de pagamentos, atrasados e fluxo de caixa."
-          />
+          <ExigePapel papeis={PAPEIS_ACESSO_TOTAL}>
+            <EmBreve
+              titulo="Financeiro"
+              fase={2}
+              descricao="Contas a pagar e a receber, confirmação de pagamentos, atrasados e fluxo de caixa."
+            />
+          </ExigePapel>
         ),
       },
       {
@@ -68,16 +91,6 @@ export const router = createBrowserRouter([
             titulo="Avisos"
             fase={2}
             descricao="Cobranças atrasadas, serviços vencendo e outros lembretes num lugar só."
-          />
-        ),
-      },
-      {
-        path: 'usuarios',
-        element: (
-          <EmBreve
-            titulo="Usuários"
-            fase={1}
-            descricao="Convidar pessoas da equipe, definir o perfil de cada uma e desativar acessos."
           />
         ),
       },
