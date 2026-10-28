@@ -1,7 +1,7 @@
 # Plano do Sistema de Gestão — Eco Ambiental SC
 
 > Documento de referência do projeto. Toda sessão de trabalho começa relendo este arquivo.
-> Status: **aprovado em 28/10/2026** · Fases 0 a 3 prontas (no projeto dev) · Próxima: Fase 4 (Serviços e vencimentos)
+> Status: **aprovado em 28/10/2026** · Fases 0 a 4 prontas (no projeto dev) · Próxima: Fase 5 (Contratos e comissões)
 
 ---
 
@@ -631,5 +631,20 @@ Boas práticas que vamos seguir:
   grandes são reduzidas no navegador antes do envio (máx. 1600 px, WebP).
 - **Fase 3:** a recepção vê os documentos gerais do cliente, mas não as propostas nem os arquivos delas.
 - **Fase 3:** aviso ao vendedor quando a proposta passa 7 dias sem resposta.
+- **Fase 4:** o vencimento é guardado por cliente + endereço + tipo de serviço e recalculado pelo
+  banco a cada serviço realizado, cancelado ou editado. A próxima data é uma coluna calculada
+  (último serviço + periodicidade). Cliente sem endereço também tem vencimento.
+- **Fase 4:** a periodicidade combinada no serviço (ou na proposta) passa a valer para aquele local;
+  depois ela pode ser ajustada na ficha, assim como a antecedência do aviso e o "não acompanhar mais".
+- **Fase 4:** aviso de vencimento vai para o vendedor responsável pelo cliente (sem vendedor: admin),
+  some quando o próximo serviço é agendado ou feito. O texto muda entre "certificado vencendo" e
+  "hora de refazer" (recomendação).
+- **Fase 4:** serviço concluído com valor e sem conta a receber gera aviso ao financeiro; o atalho
+  "Lançar conta a receber" já preenche valor, cliente, categoria e vencimento (data + prazo da proposta).
+- **Fase 4:** a recepção ainda não vê serviços (eles têm valor); na Fase 6 ganha uma consulta sem valores.
+- **Lição técnica:** views criadas com `tabela.*` congelam a lista de colunas; ao acrescentar coluna na
+  tabela, a view precisa ser recriada (aconteceu com `v_lancamentos`).
+- **Lição técnica:** listas cujas opções vêm do banco usam o componente `SelectForm` (controlado), senão
+  perdem o valor pré-preenchido quando as opções chegam depois do formulário.
 
 1. **Feriados de SC e de Palhoça:** você vai conferir a lista com a contabilidade antes da Fase 5.

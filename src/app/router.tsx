@@ -17,6 +17,14 @@ import { PainelPage } from '@/features/financeiro/PainelPage'
 import { PropostaFormPage } from '@/features/propostas/PropostaFormPage'
 import { PropostaPage } from '@/features/propostas/PropostaPage'
 import { PropostasPage } from '@/features/propostas/PropostasPage'
+import { ServicoFormPage } from '@/features/servicos/ServicoFormPage'
+import { ServicoPage } from '@/features/servicos/ServicoPage'
+import {
+  AgendaPage,
+  ServicosLayout,
+  TiposServicoPage,
+  VencimentosPage,
+} from '@/features/servicos/ServicosPages'
 import { InicioPage } from '@/features/inicio/InicioPage'
 import { UsuariosPage } from '@/features/usuarios/UsuariosPage'
 import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
@@ -85,12 +93,30 @@ export const router = createBrowserRouter([
       {
         path: 'servicos',
         element: (
-          <EmBreve
-            titulo="Serviços"
-            fase={4}
-            descricao="Serviços realizados, certificados, fotos de antes e depois, e os próximos vencimentos."
-          />
+          <ExigePapel papeis={['admin', 'financeiro', 'vendedor']}>
+            <Outlet />
+          </ExigePapel>
         ),
+        children: [
+          {
+            element: <ServicosLayout />,
+            children: [
+              { index: true, element: <AgendaPage /> },
+              { path: 'vencimentos', element: <VencimentosPage /> },
+              {
+                path: 'tipos',
+                element: (
+                  <ExigePapel papeis={PAPEIS_ACESSO_TOTAL}>
+                    <TiposServicoPage />
+                  </ExigePapel>
+                ),
+              },
+            ],
+          },
+          { path: 'novo', element: <ServicoFormPage /> },
+          { path: ':id', element: <ServicoPage /> },
+          { path: ':id/editar', element: <ServicoFormPage /> },
+        ],
       },
       {
         path: 'contratos',

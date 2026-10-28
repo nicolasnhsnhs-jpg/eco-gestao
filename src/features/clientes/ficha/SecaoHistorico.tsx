@@ -31,6 +31,8 @@ const NOME_TABELA: Record<string, string> = {
   lancamentos: 'Lançamento',
   propostas: 'Proposta',
   arquivos: 'Arquivo',
+  servicos: 'Serviço',
+  vencimentos_servico: 'Vencimento',
 }
 
 const NOME_ACAO: Record<string, string> = {
@@ -84,6 +86,12 @@ const NOME_CAMPO: Record<string, string> = {
   condicao_pagamento: 'Condição de pagamento',
   nome_original: 'Arquivo',
   categoria: 'Categoria',
+  data_execucao: 'Data do serviço',
+  numero_certificado: 'Nº do certificado',
+  tecnicos: 'Técnicos',
+  periodicidade_meses: 'Repetir a cada (meses)',
+  antecedencia_aviso_dias: 'Avisar dias antes',
+  data_ultimo_servico: 'Último serviço',
 }
 
 const CAMPOS_TECNICOS = new Set([
@@ -112,6 +120,10 @@ const CAMPOS_TECNICOS = new Set([
   'tamanho_bytes',
   'enviado_por',
   'descricao_arquivo',
+  'servico_id',
+  'tipo_servico_id',
+  'ultimo_servico_id',
+  'proxima_data',
 ])
 
 type Mudanca = { campo: string; antes: unknown; depois: unknown }

@@ -11,7 +11,6 @@ import { supabase } from '@/lib/supabase'
 export type StatusProposta = Database['public']['Enums']['status_proposta']
 /** Status + "expirada", calculada pelo banco (enviada e depois da validade). */
 export type SituacaoProposta = StatusProposta | 'expirada'
-export type TipoServico = Tables<'tipos_servico'>
 export type ItemProposta = Tables<'proposta_itens'>
 
 export const NOME_SITUACAO_PROPOSTA: Record<SituacaoProposta, string> = {
@@ -72,18 +71,6 @@ export function useProposta(id: string | undefined) {
 }
 
 export type PropostaCompleta = NonNullable<ReturnType<typeof useProposta>['data']>
-
-export function useTiposServico() {
-  return useQuery({
-    queryKey: ['tipos-servico'],
-    staleTime: 10 * 60_000,
-    queryFn: async () => {
-      const { data, error } = await supabase.from('tipos_servico').select('*').order('nome')
-      if (error) throw error
-      return data
-    },
-  })
-}
 
 function useAtualizarPropostas() {
   const queryClient = useQueryClient()

@@ -93,9 +93,16 @@ do $$ begin
 end $$;
 
 -- Avisos: o financeiro gera os avisos do dia.
+-- (Conta só os avisos dos lançamentos deste teste: o banco pode ter outros dados reais.)
 do $$ begin
-  assert public.atualizar_avisos() = 2, 'Deveria gerar 2 avisos (1 atrasado e 1 de hoje)';
-  assert public.atualizar_avisos() = 0, 'Rodar de novo não deveria duplicar avisos';
+  perform public.atualizar_avisos();
+  assert (select count(*) from public.avisos where lancamento_id in (
+            '00000000-0000-0000-0000-00000000aa01', '00000000-0000-0000-0000-00000000aa02',
+            '00000000-0000-0000-0000-00000000aa03')) = 2,
+    'Deveria gerar 2 avisos (1 atrasado e 1 de hoje)';
+  perform public.atualizar_avisos();
+  assert (select count(*) from public.avisos where lancamento_id is not null) = 2,
+    'Rodar de novo não deveria duplicar avisos';
   assert exists (select 1 from public.avisos where tipo = 'cobranca_atrasada'
                    and lancamento_id = '00000000-0000-0000-0000-00000000aa01'),
     'Deveria existir o aviso de cobrança atrasada';
@@ -179,7 +186,9 @@ do $$ begin
   assert (select count(*) from public.contas_bancarias) = 0, 'Vendedor não deveria ver contas';
   assert (select count(*) from public.v_saldos_contas) = 0, 'Vendedor não deveria ver saldos';
   assert (select count(*) from public.avisos) = 0, 'Vendedor não deveria ver avisos do financeiro';
-  assert public.atualizar_avisos() = 0, 'Vendedor não deveria gerar avisos';
+  perform public.atualizar_avisos();
+  assert (select count(*) from public.avisos where lancamento_id is not null) = 0,
+    'Vendedor não deveria ver avisos de lançamentos';
   assert (public.painel_financeiro() ->> 'a_receber')::numeric = 0,
     'O painel do vendedor deveria vir zerado';
 end $$;

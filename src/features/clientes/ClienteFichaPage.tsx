@@ -15,7 +15,6 @@ import { Link, useParams } from 'react-router'
 
 import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
 import { Etiqueta } from '@/components/ui/Etiqueta'
 import { formatarDataHora } from '@/lib/datas'
@@ -37,6 +36,7 @@ import { SecaoContatos } from './ficha/SecaoContatos'
 import { SecaoEnderecos } from './ficha/SecaoEnderecos'
 import { SecaoFinanceira } from './ficha/SecaoFinanceira'
 import { SecaoPropostas } from './ficha/SecaoPropostas'
+import { SecaoServicos } from './ficha/SecaoServicos'
 import { ListaArquivos } from '../arquivos/ListaArquivos'
 import { SecaoHistorico } from './ficha/SecaoHistorico'
 import { TransferirModal } from './ficha/TransferirModal'
@@ -195,6 +195,13 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
               podeCriar={podeEditar}
             />
           )}
+          {perfil.papel !== 'recepcao' && (
+            <SecaoServicos
+              clienteId={cliente.id}
+              clienteNome={cliente.nome_fantasia || cliente.nome}
+              podeCriar={podeEditar}
+            />
+          )}
           <SecaoAtendimentos clienteId={cliente.id} />
           <SecaoEnderecos
             clienteId={cliente.id}
@@ -250,8 +257,6 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
             )}
           </Secao>
 
-          <EmBreveNaFicha titulo="Serviços e vencimentos" fase={4} />
-
           {acessoTotal && (
             <Secao titulo="Administração">
               <div className="flex flex-col gap-2">
@@ -288,14 +293,5 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
         vendedorAtualId={cliente.vendedor_responsavel_id}
       />
     </div>
-  )
-}
-
-function EmBreveNaFicha({ titulo, fase }: { titulo: string; fase: number }) {
-  return (
-    <Card className="border-dashed bg-fundo-suave">
-      <h2 className="font-bold text-texto-suave">{titulo}</h2>
-      <p className="text-sm text-texto-suave">Chega na Fase {fase}.</p>
-    </Card>
   )
 }

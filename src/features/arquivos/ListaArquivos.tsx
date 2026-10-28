@@ -16,6 +16,7 @@ import {
   abrirArquivo,
   useArquivos,
   useEnviarArquivos,
+  useLinksDasImagens,
   useRemoverArquivo,
   type Arquivo,
   type CategoriaArquivo,
@@ -27,6 +28,10 @@ type Props = Vinculo & {
   categoria: CategoriaArquivo
   podeEnviar?: boolean
   textoVazio?: string
+  /** Mostra só os arquivos desta categoria (ex.: só as fotos de "antes"). */
+  filtrarPorCategoria?: boolean
+  /** Mostra as imagens como miniaturas (fotos de antes e depois). */
+  miniaturas?: boolean
 }
 
 function IconeArquivo({ tipo }: { tipo: string | null }) {
@@ -42,14 +47,19 @@ function IconeArquivo({ tipo }: { tipo: string | null }) {
 export function ListaArquivos({
   clienteId,
   propostaId,
+  servicoId,
   categoria,
   podeEnviar = true,
   textoVazio = 'Nenhum arquivo.',
+  filtrarPorCategoria,
+  miniaturas,
 }: Props) {
   const perfil = usePerfil()
   const equipe = useEquipe()
-  const arquivos = useArquivos({ clienteId, propostaId })
-  const enviar = useEnviarArquivos({ clienteId, propostaId })
+  const vinculo = { clienteId, propostaId, servicoId }
+  const arquivos = useArquivos(vinculo, filtrarPorCategoria ? categoria : undefined)
+  const enviar = useEnviarArquivos(vinculo)
+  const links = useLinksDasImagens(miniaturas ? arquivos.data : undefined)
   const remover = useRemoverArquivo(clienteId)
   const campo = useRef<HTMLInputElement>(null)
   const [erro, setErro] = useState<string | null>(null)
@@ -96,7 +106,46 @@ export function ListaArquivos({
       {arquivos.isPending && <Carregando />}
       {arquivos.data?.length === 0 && <p className="text-sm text-texto-suave">{textoVazio}</p>}
 
-      {!!arquivos.data?.length && (
+      {miniaturas && !!arquivos.data?.length && (
+        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {arquivos.data.map((a) => {
+            const link = links.data?.get(a.caminho_storage)
+            return (
+              <li key={a.id} className="relative overflow-hidden rounded-xl border border-borda">
+                <button
+                  type="button"
+                  onClick={() => void aoAbrir(a)}
+                  className="block aspect-square w-full bg-fundo-suave"
+                  title={`Abrir ${a.nome_original}`}
+                >
+                  {link ? (
+                    <img
+                      src={link}
+                      alt={a.nome_original}
+                      loading="lazy"
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    <IconeArquivo tipo={a.tipo_mime} />
+                  )}
+                </button>
+                {podeApagar(a) && (
+                  <span className="absolute top-1 right-1 rounded-lg bg-white/90">
+                    <BotaoIcone
+                      rotulo={`Apagar ${a.nome_original}`}
+                      onClick={() => void aoRemover(a)}
+                    >
+                      <Trash2 className="size-4" />
+                    </BotaoIcone>
+                  </span>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+
+      {!miniaturas && !!arquivos.data?.length && (
         <ul className="flex flex-col gap-2">
           {arquivos.data.map((a) => (
             <li key={a.id} className="flex items-center gap-3 rounded-xl border border-borda p-3">
@@ -139,7 +188,7 @@ export function ListaArquivos({
             multiple
             accept={ACCEPT}
             className="sr-only"
-            id={`enviar-${propostaId ?? clienteId}`}
+            id={`enviar-${servicoId ?? propostaId ?? clienteId}-${categoria}`}
             onChange={(e) => void aoEscolher(e.target.files)}
           />
           <Button

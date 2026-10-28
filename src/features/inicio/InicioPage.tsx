@@ -10,9 +10,9 @@ import { usePerfil } from '../auth/useAuth'
 const FASES = [
   { numero: 0, nome: 'Preparação do projeto', pronta: true },
   { numero: 1, nome: 'Login, perfis e clientes', pronta: true },
-  { numero: 2, nome: 'Financeiro', pronta: false },
-  { numero: 3, nome: 'Propostas', pronta: false },
-  { numero: 4, nome: 'Serviços e vencimentos', pronta: false },
+  { numero: 2, nome: 'Financeiro', pronta: true },
+  { numero: 3, nome: 'Propostas', pronta: true },
+  { numero: 4, nome: 'Serviços e vencimentos', pronta: true },
   { numero: 5, nome: 'Contratos e comissões', pronta: false },
   { numero: 6, nome: 'Vendedores e recepção', pronta: false },
   { numero: 7, nome: 'Avisos por WhatsApp e e-mail', pronta: false },

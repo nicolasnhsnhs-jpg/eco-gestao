@@ -8,6 +8,7 @@ import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
 import { Campo, Input, Select, Textarea } from '@/components/ui/Campo'
 import { Card } from '@/components/ui/Card'
+import { SelectForm } from '@/components/ui/SelectForm'
 import { Carregando } from '@/components/ui/Carregando'
 import { Etiqueta } from '@/components/ui/Etiqueta'
 import { formatarData, formatarDataHora, hojeISO, mesDe } from '@/lib/datas'
@@ -67,19 +68,21 @@ function valoresIniciais(
       numero_nota_fiscal: l.numero_nota_fiscal ?? '',
       parcelas: 1,
       observacoes: l.observacoes ?? '',
+      servico_id: l.servico_id ?? '',
     }
   }
   const hoje = hojeISO()
   return {
     tipo: parametros.get('tipo') === 'saida' ? 'saida' : 'entrada',
-    descricao: '',
+    // Vindo de um serviço concluído, a conta a receber já chega preenchida.
+    descricao: parametros.get('descricao') ?? '',
     cliente_id: parametros.get('cliente') ?? '',
     cliente_nome: parametros.get('cliente_nome') ?? '',
     fornecedor_id: '',
-    categoria_id: '',
-    valor: '',
-    vencimento: hoje,
-    competencia: mesDe(hoje),
+    categoria_id: parametros.get('categoria') ?? '',
+    valor: parametros.get('valor') ? valorParaCampo(Number(parametros.get('valor'))) : '',
+    vencimento: parametros.get('vencimento') ?? hoje,
+    competencia: mesDe(parametros.get('vencimento') ?? hoje),
     status: 'pendente',
     data_pagamento: hoje,
     conta_bancaria_id: '',
@@ -87,6 +90,7 @@ function valoresIniciais(
     numero_nota_fiscal: '',
     parcelas: 1,
     observacoes: '',
+    servico_id: parametros.get('servico') ?? '',
   }
 }
 
@@ -189,6 +193,7 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
           numero_nota_fiscal: '',
           parcelas: 1,
           observacoes: '',
+          servico_id: '',
         })
         // Espera a tela redesenhar o formulário limpo antes de pôr o cursor na descrição.
         setTimeout(() => form.setFocus('descricao'))
@@ -404,10 +409,11 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
               obrigatorio
               erro={errors.categoria_id?.message}
             >
-              <Select
+              <SelectForm
                 id="categoria"
                 aria-invalid={!!errors.categoria_id}
-                {...form.register('categoria_id')}
+                control={form.control}
+                name="categoria_id"
               >
                 <option value="">Escolha…</option>
                 {categoriasDoTipo.map((c) => (
@@ -415,7 +421,7 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
                     {c.nome}
                   </option>
                 ))}
-              </Select>
+              </SelectForm>
             </Campo>
 
             <Campo
@@ -559,14 +565,14 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
               erro={errors.conta_bancaria_id?.message}
               dica={status === 'realizado' ? undefined : 'Opcional enquanto estiver em aberto.'}
             >
-              <Select id="conta" {...form.register('conta_bancaria_id')}>
+              <SelectForm id="conta" control={form.control} name="conta_bancaria_id">
                 <option value="">{status === 'realizado' ? 'Escolha…' : 'Ainda não sei'}</option>
                 {contasAtivas.map((c) => (
                   <option key={c.id} value={c.id!}>
                     {c.nome}
                   </option>
                 ))}
-              </Select>
+              </SelectForm>
             </Campo>
 
             <Campo rotulo="Forma de pagamento" htmlFor="forma">

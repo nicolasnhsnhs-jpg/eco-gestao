@@ -6,8 +6,9 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { Aviso } from '@/components/ui/Aviso'
 import { BotaoIcone } from '@/components/ui/BotaoIcone'
 import { Button } from '@/components/ui/Button'
-import { Campo, Input, Select, Textarea } from '@/components/ui/Campo'
+import { Campo, Input, Textarea } from '@/components/ui/Campo'
 import { Card } from '@/components/ui/Card'
+import { SelectForm } from '@/components/ui/SelectForm'
 import { Carregando } from '@/components/ui/Carregando'
 import { hojeISO, somarDias } from '@/lib/datas'
 import { formatarReais, mascaraValor, valorParaCampo } from '@/lib/dinheiro'
@@ -16,7 +17,8 @@ import { mensagemDeErro } from '@/lib/erros'
 import { usePerfil } from '../auth/useAuth'
 import { equipeComercial, useCliente, useEquipe } from '../clientes/api'
 import { ClienteSeletor, type ClienteEscolhido } from '../clientes/ClienteSeletor'
-import { useProposta, useSalvarProposta, useTiposServico, type PropostaCompleta } from './api'
+import { useTiposServico } from '../servicos/api'
+import { useProposta, useSalvarProposta, type PropostaCompleta } from './api'
 import {
   esquemaProposta,
   ITEM_VAZIO,
@@ -161,7 +163,7 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
               className="sm:col-span-2"
               dica="Para clientes com mais de um endereço."
             >
-              <Select id="endereco" {...form.register('endereco_id')}>
+              <SelectForm id="endereco" control={form.control} name="endereco_id">
                 <option value="">Não especificar</option>
                 {enderecos.map((e) => (
                   <option key={e.id} value={e.id}>
@@ -170,7 +172,7 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
                       .join(' · ')}
                   </option>
                 ))}
-              </Select>
+              </SelectForm>
             </Campo>
           )}
 
@@ -183,14 +185,14 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
             {ehVendedor ? (
               <p className="flex min-h-11 items-center">{perfil.nome}</p>
             ) : (
-              <Select id="vendedor" {...form.register('vendedor_id')}>
+              <SelectForm id="vendedor" control={form.control} name="vendedor_id">
                 <option value="">Escolha…</option>
                 {comerciais.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.nome}
                   </option>
                 ))}
-              </Select>
+              </SelectForm>
             )}
           </Campo>
 
@@ -211,7 +213,6 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
           {itens.fields.map((campo, i) => {
             const erroItem = errors.itens?.[i]
             const valorCampo = form.register(`itens.${i}.valor_unitario`)
-            const tipoCampo = form.register(`itens.${i}.tipo_servico_id`)
             const tipoEscolhido = tipos.data?.find(
               (t) => t.id === valoresItens?.[i]?.tipo_servico_id,
             )
@@ -222,11 +223,11 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
               >
                 <legend className="sr-only">Serviço {i + 1}</legend>
                 <Campo rotulo="Tipo de serviço" htmlFor={`tipo-${i}`} className="sm:col-span-4">
-                  <Select
+                  <SelectForm
                     id={`tipo-${i}`}
-                    {...tipoCampo}
+                    control={form.control}
+                    name={`itens.${i}.tipo_servico_id`}
                     onChange={(e) => {
-                      void tipoCampo.onChange(e)
                       // Preenche a descrição com o nome do serviço, se ainda estiver vazia.
                       const tipo = tipos.data?.find((t) => t.id === e.target.value)
                       if (tipo && !form.getValues(`itens.${i}.descricao`)) {
@@ -242,7 +243,7 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
                           {t.nome}
                         </option>
                       ))}
-                  </Select>
+                  </SelectForm>
                 </Campo>
                 <Campo
                   rotulo="Descrição"

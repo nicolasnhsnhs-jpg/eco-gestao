@@ -11,22 +11,31 @@ const BUCKET = 'arquivos'
 
 export type Vinculo = {
   clienteId: string
-  /** Arquivos de uma proposta. Sem ele, só os documentos gerais do cliente. */
+  /** Arquivos de uma proposta. */
   propostaId?: string
+  /** Arquivos de um serviço (certificado, relatório, fotos). */
+  servicoId?: string
+  /** Sem proposta nem serviço: só os documentos gerais do cliente. */
 }
 
-export function useArquivos({ clienteId, propostaId }: Vinculo) {
+export function useArquivos(
+  { clienteId, propostaId, servicoId }: Vinculo,
+  categoria?: CategoriaArquivo,
+) {
   return useQuery({
-    queryKey: ['arquivos', clienteId, propostaId ?? 'gerais'],
+    queryKey: ['arquivos', clienteId, propostaId ?? servicoId ?? 'gerais', categoria ?? 'todas'],
     queryFn: async () => {
       let consulta = supabase
         .from('arquivos')
         .select('*')
         .eq('cliente_id', clienteId)
         .order('criado_em', { ascending: false })
-      consulta = propostaId
-        ? consulta.eq('proposta_id', propostaId)
-        : consulta.is('proposta_id', null).is('lancamento_id', null)
+      if (propostaId) consulta = consulta.eq('proposta_id', propostaId)
+      else if (servicoId) consulta = consulta.eq('servico_id', servicoId)
+      else {
+        consulta = consulta.is('proposta_id', null).is('lancamento_id', null).is('servico_id', null)
+      }
+      if (categoria) consulta = consulta.eq('categoria', categoria)
       const { data, error } = await consulta
       if (error) throw error
       return data
@@ -38,7 +47,7 @@ export function useArquivos({ clienteId, propostaId }: Vinculo) {
  * Envia arquivos: primeiro o arquivo vai para o Storage, depois o registro vai
  * para a tabela. Se o registro falhar, o arquivo enviado é apagado (nada fica "solto").
  */
-export function useEnviarArquivos({ clienteId, propostaId }: Vinculo) {
+export function useEnviarArquivos({ clienteId, propostaId, servicoId }: Vinculo) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({
@@ -76,6 +85,7 @@ export function useEnviarArquivos({ clienteId, propostaId }: Vinculo) {
           categoria,
           cliente_id: clienteId,
           proposta_id: propostaId ?? null,
+          servico_id: servicoId ?? null,
         })
         if (error) {
           await supabase.storage.from(BUCKET).remove([caminho])
@@ -105,6 +115,24 @@ export function useRemoverArquivo(clienteId: string) {
  * A aba é aberta antes de pedir o link porque o celular bloqueia janelas
  * abertas depois de uma espera.
  */
+/** Links temporários de várias imagens de uma vez (para as miniaturas das fotos). */
+export function useLinksDasImagens(arquivos: Arquivo[] | undefined) {
+  const imagens = (arquivos ?? []).filter((a) => a.tipo_mime?.startsWith('image/'))
+  return useQuery({
+    queryKey: ['arquivos', 'links', imagens.map((a) => a.id)],
+    enabled: imagens.length > 0,
+    staleTime: 4 * 60_000, // os links valem 5 minutos
+    queryFn: async () => {
+      const { data, error } = await supabase.storage.from(BUCKET).createSignedUrls(
+        imagens.map((a) => a.caminho_storage),
+        300,
+      )
+      if (error) throw error
+      return new Map(data.map((d) => [d.path, d.signedUrl]))
+    },
+  })
+}
+
 export async function abrirArquivo(arquivo: Arquivo) {
   const aba = window.open('', '_blank')
   const { data, error } = await supabase.storage

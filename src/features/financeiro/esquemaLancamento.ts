@@ -26,6 +26,8 @@ export const esquemaLancamento = z
     numero_nota_fiscal: z.string().trim(),
     parcelas: z.number().int('Use um número inteiro.').min(1).max(60, 'No máximo 60 parcelas.'),
     observacoes: z.string().trim(),
+    /** Serviço que originou a conta a receber (vazio = nenhum). */
+    servico_id: z.string(),
   })
   .superRefine((d, ctx) => {
     if (d.status !== 'realizado') return
@@ -67,5 +69,6 @@ export function lancamentoParaBanco(f: FormLancamento) {
     forma_pagamento: f.forma_pagamento || null,
     numero_nota_fiscal: ouNulo(f.numero_nota_fiscal),
     observacoes: ouNulo(f.observacoes),
+    servico_id: ouNulo(f.servico_id),
   }
 }

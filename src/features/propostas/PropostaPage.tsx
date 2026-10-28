@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, Pencil, RotateCcw, X } from 'lucide-react'
+import { ArrowLeft, CalendarPlus, Check, Pencil, RotateCcw, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 
@@ -12,6 +12,8 @@ import { formatarReais } from '@/lib/dinheiro'
 import { mensagemDeErro } from '@/lib/erros'
 
 import { ListaArquivos } from '../arquivos/ListaArquivos'
+import { useServicos } from '../servicos/api'
+import { ListaServicos } from '../servicos/ServicosPages'
 import {
   COR_SITUACAO_PROPOSTA,
   NOME_SITUACAO_PROPOSTA,
@@ -114,8 +116,7 @@ function Detalhe({ p }: { p: PropostaCompleta }) {
       )}
       {p.status === 'aprovada' && (
         <Aviso tipo="sucesso">
-          Aprovada em {formatarData(p.data_resposta)}. Na Fase 4, daqui sairá o registro do serviço
-          e, ao concluir, a conta a receber.
+          Aprovada em {formatarData(p.data_resposta)}. Registre ou agende os serviços logo abaixo.
         </Aviso>
       )}
       {p.status === 'recusada' && (
@@ -184,6 +185,8 @@ function Detalhe({ p }: { p: PropostaCompleta }) {
         </Card>
       </div>
 
+      {p.status === 'aprovada' && <ServicosDaProposta p={p} />}
+
       <Card>
         <h2 className="mb-3 text-lg font-bold">Arquivos da proposta</h2>
         <ListaArquivos
@@ -203,5 +206,61 @@ function Dado({ rotulo, valor }: { rotulo: string; valor: string | null | undefi
       <dt className="text-texto-suave">{rotulo}</dt>
       <dd className="font-semibold whitespace-pre-line">{valor || '—'}</dd>
     </div>
+  )
+}
+
+/** Serviços que saíram desta proposta, e atalhos para registrar/agendar cada item. */
+function ServicosDaProposta({ p }: { p: PropostaCompleta }) {
+  const servicos = useServicos({ propostaId: p.id! })
+  const nomeCliente = p.cliente?.nome_fantasia || p.cliente?.nome || ''
+
+  const linkNovo = (item: PropostaCompleta['itens'][number], status: 'agendado' | 'realizado') =>
+    '/servicos/novo?' +
+    new URLSearchParams({
+      status,
+      cliente: p.cliente_id!,
+      cliente_nome: nomeCliente,
+      proposta: p.id!,
+      valor: String(Math.round(Number(item.quantidade) * Number(item.valor_unitario) * 100) / 100),
+      ...(item.tipo_servico_id ? { tipo: item.tipo_servico_id } : {}),
+      ...(item.periodicidade_meses ? { periodicidade: String(item.periodicidade_meses) } : {}),
+      ...(p.endereco_id ? { endereco: p.endereco_id } : {}),
+    })
+
+  return (
+    <Card>
+      <h2 className="mb-3 text-lg font-bold">Serviços desta proposta</h2>
+      <ul className="mb-4 flex flex-col gap-2">
+        {p.itens.map((item) => (
+          <li
+            key={item.id}
+            className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-fundo-suave p-3"
+          >
+            <span className="font-semibold">{item.descricao}</span>
+            <span className="flex gap-2">
+              <Link
+                to={linkNovo(item, 'agendado')}
+                className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-sm font-semibold text-verde hover:bg-lima-claro"
+              >
+                <CalendarPlus className="size-4" aria-hidden /> Agendar
+              </Link>
+              <Link
+                to={linkNovo(item, 'realizado')}
+                className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-sm font-semibold text-verde hover:bg-lima-claro"
+              >
+                <Check className="size-4" aria-hidden /> Registrar feito
+              </Link>
+            </span>
+          </li>
+        ))}
+      </ul>
+      {servicos.data && servicos.data.length > 0 ? (
+        <ListaServicos servicos={servicos.data} />
+      ) : (
+        <p className="text-sm text-texto-suave">
+          Nenhum serviço registrado a partir desta proposta.
+        </p>
+      )}
+    </Card>
   )
 }
