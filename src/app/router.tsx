@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router'
+import { createBrowserRouter, Outlet } from 'react-router'
 
 import { EmBreve } from '@/components/EmBreve'
 import { AvisosPage } from '@/features/avisos/AvisosPage'
@@ -14,6 +14,9 @@ import { FinanceiroLayout } from '@/features/financeiro/FinanceiroLayout'
 import { LancamentoFormPage } from '@/features/financeiro/LancamentoFormPage'
 import { LancamentosPage } from '@/features/financeiro/LancamentosPage'
 import { PainelPage } from '@/features/financeiro/PainelPage'
+import { PropostaFormPage } from '@/features/propostas/PropostaFormPage'
+import { PropostaPage } from '@/features/propostas/PropostaPage'
+import { PropostasPage } from '@/features/propostas/PropostasPage'
 import { InicioPage } from '@/features/inicio/InicioPage'
 import { UsuariosPage } from '@/features/usuarios/UsuariosPage'
 import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
@@ -68,12 +71,16 @@ export const router = createBrowserRouter([
       {
         path: 'propostas',
         element: (
-          <EmBreve
-            titulo="Propostas"
-            fase={3}
-            descricao="Arquivos de propostas ligados a cada cliente, com valor, prazo e situação."
-          />
+          <ExigePapel papeis={['admin', 'financeiro', 'vendedor']}>
+            <Outlet />
+          </ExigePapel>
         ),
+        children: [
+          { index: true, element: <PropostasPage /> },
+          { path: 'nova', element: <PropostaFormPage /> },
+          { path: ':id', element: <PropostaPage /> },
+          { path: ':id/editar', element: <PropostaFormPage /> },
+        ],
       },
       {
         path: 'servicos',

@@ -12,7 +12,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc -b",
-    "test:db": "supabase db query --linked -f supabase/tests/permissoes.sql && supabase db query --linked -f supabase/tests/financeiro.sql",
+    "test:db": "supabase db query --linked -f supabase/tests/permissoes.sql && supabase db query --linked -f supabase/tests/financeiro.sql && supabase db query --linked -f supabase/tests/propostas.sql",
     "db:push": "supabase db push --linked",
     "db:types": "supabase gen types typescript --linked --schema public > src/lib/database.types.ts"
   },

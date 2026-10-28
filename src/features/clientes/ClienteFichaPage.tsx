@@ -36,6 +36,8 @@ import { SecaoAtendimentos } from './ficha/SecaoAtendimentos'
 import { SecaoContatos } from './ficha/SecaoContatos'
 import { SecaoEnderecos } from './ficha/SecaoEnderecos'
 import { SecaoFinanceira } from './ficha/SecaoFinanceira'
+import { SecaoPropostas } from './ficha/SecaoPropostas'
+import { ListaArquivos } from '../arquivos/ListaArquivos'
 import { SecaoHistorico } from './ficha/SecaoHistorico'
 import { TransferirModal } from './ficha/TransferirModal'
 
@@ -185,6 +187,14 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
               clienteNome={cliente.nome_fantasia || cliente.nome}
             />
           )}
+          {perfil.papel !== 'recepcao' && (
+            <SecaoPropostas
+              clienteId={cliente.id}
+              clienteNome={cliente.nome_fantasia || cliente.nome}
+              vendedorId={cliente.vendedor_responsavel_id}
+              podeCriar={podeEditar}
+            />
+          )}
           <SecaoAtendimentos clienteId={cliente.id} />
           <SecaoEnderecos
             clienteId={cliente.id}
@@ -196,6 +206,14 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
             contatos={cliente.contatos_cliente}
             podeEditar={podeEditar}
           />
+          <Secao titulo="Documentos">
+            <ListaArquivos
+              clienteId={cliente.id}
+              categoria="outro"
+              podeEnviar={podeEditar}
+              textoVazio="Contratos, licenças, fotos do local… tudo o que não é de uma proposta."
+            />
+          </Secao>
         </div>
 
         {/* Coluna lateral */}
@@ -232,7 +250,6 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
             )}
           </Secao>
 
-          <EmBreveNaFicha titulo="Propostas" fase={3} />
           <EmBreveNaFicha titulo="Serviços e vencimentos" fase={4} />
 
           {acessoTotal && (

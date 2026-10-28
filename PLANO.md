@@ -1,7 +1,7 @@
 # Plano do Sistema de Gestão — Eco Ambiental SC
 
 > Documento de referência do projeto. Toda sessão de trabalho começa relendo este arquivo.
-> Status: **aprovado em 28/10/2026** · Fases 0, 1 e 2 prontas (no projeto dev) · Próxima: Fase 3 (Propostas)
+> Status: **aprovado em 28/10/2026** · Fases 0 a 3 prontas (no projeto dev) · Próxima: Fase 4 (Serviços e vencimentos)
 
 ---
 
@@ -610,6 +610,8 @@ Boas práticas que vamos seguir:
   para os membros da equipe do projeto Supabase. Configurar antes de convidar vendedores e recepção.
 - **Backup diário:** criar o repositório privado e os segredos (docs/BACKUP.md) antes de cadastrar
   clientes reais.
+- **Backup dos arquivos (Storage):** desde a Fase 3 há arquivos no Storage; o backup diário atual
+  cobre só o banco. Acrescentar a cópia semanal dos arquivos antes de usar com dados reais.
 - **Proteção contra senhas vazadas** (Supabase Auth): só existe no plano pago; ativar se migrar para o Pro.
 
 ## 11. Decisões tomadas durante a construção
@@ -621,5 +623,13 @@ Boas práticas que vamos seguir:
 - **Fase 2:** lançamento confirmado (realizado) só o Administrador altera ou reabre.
 - **Fase 2:** os avisos do financeiro são gerados às 6h (pg_cron) e também ao abrir o painel ou a central
   de avisos; resolvem-se sozinhos quando o lançamento é confirmado, cancelado ou adiado.
+- **Fase 3:** "expirada" não é um status gravado: é calculada (enviada + validade vencida), como o
+  "atrasado" do financeiro. Uma proposta expirada ainda pode ser aprovada.
+- **Fase 3:** propostas são numeradas por ano (2026-0001…) pelo banco; o total é a soma dos itens,
+  recalculada pelo banco; itens são trocados de uma vez só (função `salvar_itens_proposta`).
+- **Fase 3:** arquivos ficam num bucket privado; só abrem por link temporário (5 min). Fotos JPEG/PNG
+  grandes são reduzidas no navegador antes do envio (máx. 1600 px, WebP).
+- **Fase 3:** a recepção vê os documentos gerais do cliente, mas não as propostas nem os arquivos delas.
+- **Fase 3:** aviso ao vendedor quando a proposta passa 7 dias sem resposta.
 
 1. **Feriados de SC e de Palhoça:** você vai conferir a lista com a contabilidade antes da Fase 5.

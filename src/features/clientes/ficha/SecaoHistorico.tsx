@@ -29,6 +29,8 @@ const NOME_TABELA: Record<string, string> = {
   contatos_cliente: 'Contato',
   atendimentos: 'Atendimento',
   lancamentos: 'Lançamento',
+  propostas: 'Proposta',
+  arquivos: 'Arquivo',
 }
 
 const NOME_ACAO: Record<string, string> = {
@@ -73,6 +75,15 @@ const NOME_CAMPO: Record<string, string> = {
   forma_pagamento: 'Forma',
   numero_nota_fiscal: 'Nota fiscal',
   tipo: 'Tipo',
+  valor_total: 'Valor total',
+  data_envio: 'Enviada em',
+  validade: 'Validade',
+  data_resposta: 'Respondida em',
+  motivo_recusa: 'Motivo da recusa',
+  prazo_pagamento_dias: 'Prazo (dias)',
+  condicao_pagamento: 'Condição de pagamento',
+  nome_original: 'Arquivo',
+  categoria: 'Categoria',
 }
 
 const CAMPOS_TECNICOS = new Set([
@@ -92,6 +103,15 @@ const CAMPOS_TECNICOS = new Set([
   'parcela_total',
   'confirmado_por',
   'confirmado_em',
+  'vendedor_id',
+  'endereco_id',
+  'proposta_id',
+  'lancamento_id',
+  'caminho_storage',
+  'tipo_mime',
+  'tamanho_bytes',
+  'enviado_por',
+  'descricao_arquivo',
 ])
 
 type Mudanca = { campo: string; antes: unknown; depois: unknown }
@@ -128,7 +148,17 @@ export function SecaoHistorico({ clienteId }: { clienteId: string }) {
     }
     if (campo === 'canal') return NOME_CANAL[String(v)] ?? String(v)
     if (campo === 'valor' || campo === 'valor_pago') return formatarReais(Number(v))
-    if (['vencimento', 'competencia', 'data_pagamento'].includes(campo))
+    if (campo === 'valor_total') return formatarReais(Number(v))
+    if (
+      [
+        'vencimento',
+        'competencia',
+        'data_pagamento',
+        'data_envio',
+        'validade',
+        'data_resposta',
+      ].includes(campo)
+    )
       return formatarData(String(v))
     if (campo === 'status') return NOME_SITUACAO[v as Situacao] ?? String(v)
     if (campo === 'forma_pagamento') return NOME_FORMA[v as FormaPagamento] ?? String(v)

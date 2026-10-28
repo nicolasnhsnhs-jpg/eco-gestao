@@ -39,8 +39,8 @@ criptografado, um backup com dados de clientes nunca deve ficar acessível a qua
 | Todo mês           | Baixe o backup mais recente e guarde fora da nuvem (HD externo ou Google Drive) |
 | A cada 3 meses     | Teste de restauração no projeto **dev**                                         |
 
-A partir da Fase 3 (arquivos de propostas, fotos e certificados), este backup também vai copiar os
-arquivos do Storage.
+> ⚠️ **Pendente:** desde a Fase 3 o sistema guarda arquivos (propostas, documentos) no Storage. Este
+> backup ainda copia só o banco; a cópia dos arquivos será acrescentada antes do uso com dados reais.
 
 ## Como abrir e restaurar um backup
 

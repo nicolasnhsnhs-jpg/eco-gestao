@@ -8,6 +8,101 @@ export type Database = {
   }
   public: {
     Tables: {
+      arquivos: {
+        Row: {
+          caminho_storage: string
+          categoria: Database['public']['Enums']['categoria_arquivo']
+          cliente_id: string
+          criado_em: string
+          descricao: string | null
+          enviado_por: string
+          id: string
+          lancamento_id: string | null
+          nome_original: string
+          proposta_id: string | null
+          tamanho_bytes: number | null
+          tipo_mime: string | null
+        }
+        Insert: {
+          caminho_storage: string
+          categoria?: Database['public']['Enums']['categoria_arquivo']
+          cliente_id: string
+          criado_em?: string
+          descricao?: string | null
+          enviado_por?: string
+          id?: string
+          lancamento_id?: string | null
+          nome_original: string
+          proposta_id?: string | null
+          tamanho_bytes?: number | null
+          tipo_mime?: string | null
+        }
+        Update: {
+          caminho_storage?: string
+          categoria?: Database['public']['Enums']['categoria_arquivo']
+          cliente_id?: string
+          criado_em?: string
+          descricao?: string | null
+          enviado_por?: string
+          id?: string
+          lancamento_id?: string | null
+          nome_original?: string
+          proposta_id?: string | null
+          tamanho_bytes?: number | null
+          tipo_mime?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'arquivos_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'arquivos_enviado_por_fkey'
+            columns: ['enviado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'arquivos_lancamento_id_fkey'
+            columns: ['lancamento_id']
+            isOneToOne: false
+            referencedRelation: 'lancamentos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'arquivos_lancamento_id_fkey'
+            columns: ['lancamento_id']
+            isOneToOne: false
+            referencedRelation: 'v_lancamentos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'arquivos_lancamento_id_fkey'
+            columns: ['lancamento_id']
+            isOneToOne: false
+            referencedRelation: 'v_movimentos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'arquivos_proposta_id_fkey'
+            columns: ['proposta_id']
+            isOneToOne: false
+            referencedRelation: 'propostas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'arquivos_proposta_id_fkey'
+            columns: ['proposta_id']
+            isOneToOne: false
+            referencedRelation: 'v_propostas'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       atendimentos: {
         Row: {
           atualizado_em: string
@@ -123,6 +218,7 @@ export type Database = {
           link: string | null
           mensagem: string | null
           papel_destino: Database['public']['Enums']['papel'] | null
+          proposta_id: string | null
           resolvido_em: string | null
           tipo: string
           titulo: string
@@ -137,6 +233,7 @@ export type Database = {
           link?: string | null
           mensagem?: string | null
           papel_destino?: Database['public']['Enums']['papel'] | null
+          proposta_id?: string | null
           resolvido_em?: string | null
           tipo: string
           titulo: string
@@ -151,6 +248,7 @@ export type Database = {
           link?: string | null
           mensagem?: string | null
           papel_destino?: Database['public']['Enums']['papel'] | null
+          proposta_id?: string | null
           resolvido_em?: string | null
           tipo?: string
           titulo?: string
@@ -182,6 +280,20 @@ export type Database = {
             columns: ['lancamento_id']
             isOneToOne: false
             referencedRelation: 'v_movimentos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'avisos_proposta_id_fkey'
+            columns: ['proposta_id']
+            isOneToOne: false
+            referencedRelation: 'propostas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'avisos_proposta_id_fkey'
+            columns: ['proposta_id']
+            isOneToOne: false
+            referencedRelation: 'v_propostas'
             referencedColumns: ['id']
           },
         ]
@@ -770,6 +882,214 @@ export type Database = {
           },
         ]
       }
+      proposta_itens: {
+        Row: {
+          descricao: string
+          id: string
+          ordem: number
+          periodicidade_meses: number | null
+          proposta_id: string
+          quantidade: number
+          tipo_servico_id: string | null
+          valor_unitario: number
+        }
+        Insert: {
+          descricao: string
+          id?: string
+          ordem?: number
+          periodicidade_meses?: number | null
+          proposta_id: string
+          quantidade?: number
+          tipo_servico_id?: string | null
+          valor_unitario: number
+        }
+        Update: {
+          descricao?: string
+          id?: string
+          ordem?: number
+          periodicidade_meses?: number | null
+          proposta_id?: string
+          quantidade?: number
+          tipo_servico_id?: string | null
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'proposta_itens_proposta_id_fkey'
+            columns: ['proposta_id']
+            isOneToOne: false
+            referencedRelation: 'propostas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'proposta_itens_proposta_id_fkey'
+            columns: ['proposta_id']
+            isOneToOne: false
+            referencedRelation: 'v_propostas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'proposta_itens_tipo_servico_id_fkey'
+            columns: ['tipo_servico_id']
+            isOneToOne: false
+            referencedRelation: 'tipos_servico'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      propostas: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          cliente_id: string
+          condicao_pagamento: string | null
+          criado_em: string
+          criado_por: string | null
+          data_envio: string
+          data_resposta: string | null
+          endereco_id: string | null
+          id: string
+          motivo_recusa: string | null
+          numero: string
+          observacoes: string | null
+          prazo_pagamento_dias: number | null
+          status: Database['public']['Enums']['status_proposta']
+          validade: string | null
+          valor_total: number
+          vendedor_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cliente_id: string
+          condicao_pagamento?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_envio?: string
+          data_resposta?: string | null
+          endereco_id?: string | null
+          id?: string
+          motivo_recusa?: string | null
+          numero?: string
+          observacoes?: string | null
+          prazo_pagamento_dias?: number | null
+          status?: Database['public']['Enums']['status_proposta']
+          validade?: string | null
+          valor_total?: number
+          vendedor_id?: string
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cliente_id?: string
+          condicao_pagamento?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_envio?: string
+          data_resposta?: string | null
+          endereco_id?: string | null
+          id?: string
+          motivo_recusa?: string | null
+          numero?: string
+          observacoes?: string | null
+          prazo_pagamento_dias?: number | null
+          status?: Database['public']['Enums']['status_proposta']
+          validade?: string | null
+          valor_total?: number
+          vendedor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'propostas_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'propostas_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'propostas_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'propostas_endereco_id_fkey'
+            columns: ['endereco_id']
+            isOneToOne: false
+            referencedRelation: 'enderecos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'propostas_vendedor_id_fkey'
+            columns: ['vendedor_id']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      tipos_servico: {
+        Row: {
+          antecedencia_aviso_dias_padrao: number
+          ativo: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          criado_em: string
+          criado_por: string | null
+          id: string
+          nome: string
+          periodicidade_meses_padrao: number | null
+          tipo_vencimento: Database['public']['Enums']['tipo_vencimento'] | null
+        }
+        Insert: {
+          antecedencia_aviso_dias_padrao?: number
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          nome: string
+          periodicidade_meses_padrao?: number | null
+          tipo_vencimento?: Database['public']['Enums']['tipo_vencimento'] | null
+        }
+        Update: {
+          antecedencia_aviso_dias_padrao?: number
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          nome?: string
+          periodicidade_meses_padrao?: number | null
+          tipo_vencimento?: Database['public']['Enums']['tipo_vencimento'] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'tipos_servico_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'tipos_servico_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       transferencias_cliente: {
         Row: {
           cliente_id: string
@@ -1002,6 +1322,111 @@ export type Database = {
           },
         ]
       }
+      v_propostas: {
+        Row: {
+          atualizado_em: string | null
+          atualizado_por: string | null
+          cliente_id: string | null
+          condicao_pagamento: string | null
+          criado_em: string | null
+          criado_por: string | null
+          data_envio: string | null
+          data_resposta: string | null
+          dias_sem_resposta: number | null
+          endereco_id: string | null
+          id: string | null
+          motivo_recusa: string | null
+          numero: string | null
+          observacoes: string | null
+          prazo_pagamento_dias: number | null
+          situacao: string | null
+          status: Database['public']['Enums']['status_proposta'] | null
+          validade: string | null
+          valor_total: number | null
+          vendedor_id: string | null
+        }
+        Insert: {
+          atualizado_em?: string | null
+          atualizado_por?: string | null
+          cliente_id?: string | null
+          condicao_pagamento?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          data_envio?: string | null
+          data_resposta?: string | null
+          dias_sem_resposta?: never
+          endereco_id?: string | null
+          id?: string | null
+          motivo_recusa?: string | null
+          numero?: string | null
+          observacoes?: string | null
+          prazo_pagamento_dias?: number | null
+          situacao?: never
+          status?: Database['public']['Enums']['status_proposta'] | null
+          validade?: string | null
+          valor_total?: number | null
+          vendedor_id?: string | null
+        }
+        Update: {
+          atualizado_em?: string | null
+          atualizado_por?: string | null
+          cliente_id?: string | null
+          condicao_pagamento?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          data_envio?: string | null
+          data_resposta?: string | null
+          dias_sem_resposta?: never
+          endereco_id?: string | null
+          id?: string | null
+          motivo_recusa?: string | null
+          numero?: string | null
+          observacoes?: string | null
+          prazo_pagamento_dias?: number | null
+          situacao?: never
+          status?: Database['public']['Enums']['status_proposta'] | null
+          validade?: string | null
+          valor_total?: number | null
+          vendedor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'propostas_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'propostas_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'propostas_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'propostas_endereco_id_fkey'
+            columns: ['endereco_id']
+            isOneToOne: false
+            referencedRelation: 'enderecos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'propostas_vendedor_id_fkey'
+            columns: ['vendedor_id']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       v_saldos_contas: {
         Row: {
           ativo: boolean | null
@@ -1082,6 +1507,10 @@ export type Database = {
           saldo_acumulado: number
         }[]
       }
+      salvar_itens_proposta: {
+        Args: { itens: Json; proposta: string }
+        Returns: undefined
+      }
       transferir_carteira: {
         Args: { motivo?: string; novo_vendedor: string; vendedor_atual: string }
         Returns: number
@@ -1093,14 +1522,26 @@ export type Database = {
     }
     Enums: {
       canal_atendimento: 'telefone' | 'whatsapp' | 'presencial' | 'email' | 'outro'
+      categoria_arquivo:
+        | 'proposta'
+        | 'certificado'
+        | 'relatorio'
+        | 'foto_antes'
+        | 'foto_depois'
+        | 'comprovante'
+        | 'nota_fiscal'
+        | 'contrato'
+        | 'outro'
       forma_pagamento:
         'pix' | 'boleto' | 'transferencia' | 'cartao' | 'dinheiro' | 'debito_automatico' | 'outro'
       papel: 'admin' | 'financeiro' | 'vendedor' | 'recepcao'
       status_lancamento: 'pendente' | 'agendado' | 'realizado' | 'cancelado'
+      status_proposta: 'enviada' | 'aprovada' | 'recusada'
       tipo_categoria: 'receita' | 'despesa'
       tipo_conta: 'corrente' | 'poupanca' | 'caixa' | 'outro'
       tipo_lancamento: 'entrada' | 'saida'
       tipo_pessoa: 'PF' | 'PJ'
+      tipo_vencimento: 'certificado' | 'recomendacao'
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1223,6 +1664,17 @@ export const Constants = {
   public: {
     Enums: {
       canal_atendimento: ['telefone', 'whatsapp', 'presencial', 'email', 'outro'],
+      categoria_arquivo: [
+        'proposta',
+        'certificado',
+        'relatorio',
+        'foto_antes',
+        'foto_depois',
+        'comprovante',
+        'nota_fiscal',
+        'contrato',
+        'outro',
+      ],
       forma_pagamento: [
         'pix',
         'boleto',
@@ -1234,10 +1686,12 @@ export const Constants = {
       ],
       papel: ['admin', 'financeiro', 'vendedor', 'recepcao'],
       status_lancamento: ['pendente', 'agendado', 'realizado', 'cancelado'],
+      status_proposta: ['enviada', 'aprovada', 'recusada'],
       tipo_categoria: ['receita', 'despesa'],
       tipo_conta: ['corrente', 'poupanca', 'caixa', 'outro'],
       tipo_lancamento: ['entrada', 'saida'],
       tipo_pessoa: ['PF', 'PJ'],
+      tipo_vencimento: ['certificado', 'recomendacao'],
     },
   },
 } as const

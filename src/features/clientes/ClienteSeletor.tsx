@@ -7,7 +7,12 @@ import { useValorAtrasado } from '@/lib/useValorAtrasado'
 
 import { useBuscaClientes } from './api'
 
-export type ClienteEscolhido = { id: string; nome: string }
+export type ClienteEscolhido = {
+  id: string
+  nome: string
+  /** Vendedor responsável pelo cliente (para sugerir em propostas). */
+  vendedorId?: string | null
+}
 
 type Props = {
   id?: string
@@ -79,7 +84,11 @@ export function ClienteSeletor({ id, valor, aoMudar }: Props) {
                 className="w-full px-3 py-2 text-left hover:bg-lima-claro"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
-                  aoMudar({ id: c.id, nome: c.nome_fantasia || c.nome })
+                  aoMudar({
+                    id: c.id,
+                    nome: c.nome_fantasia || c.nome,
+                    vendedorId: c.vendedor_responsavel_id,
+                  })
                   setTermo('')
                   setAberto(false)
                 }}
