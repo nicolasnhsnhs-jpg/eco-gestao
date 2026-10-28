@@ -1,0 +1,37 @@
+# Dependências e build
+node_modules
+dist
+dist-ssr
+*.local
+
+# Segredos: nunca vão para o GitHub
+.env
+.env.*
+!.env.example
+
+# Dados reais da empresa (planilhas, exportações, backups): nunca vão para o GitHub
+*.xlsx
+*.xls
+*.csv
+*.sql.gz
+*.dump
+backups/
+
+# Supabase CLI (arquivos temporários locais)
+supabase/.branches
+supabase/.temp
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Editor e sistema
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+Thumbs.db
+
+# Configuração local do Claude Code
+.claude/

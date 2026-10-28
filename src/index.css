@@ -1,0 +1,45 @@
+@import 'tailwindcss';
+
+/*
+ * Cores e fontes da Eco Ambiental SC (as mesmas do site).
+ * Cada cor aqui vira classes do Tailwind: bg-verde, text-verde-escuro, border-borda...
+ */
+@theme {
+  --color-lima: #a4d65e;
+  --color-lima-claro: #e9f5d6;
+  --color-verde: #3e7b1f;
+  --color-verde-escuro: #1f4d1a;
+  --color-verde-noite: #143411;
+
+  --color-texto: #1e2a1c;
+  --color-texto-suave: #55624f;
+  --color-borda: #e3e9dd;
+  --color-fundo: #ffffff;
+  --color-fundo-suave: #f5f8f1;
+
+  --color-alerta: #b45309;
+  --color-perigo: #b91c1c;
+
+  --font-titulo: 'Montserrat', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-texto: 'Open Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-fundo-suave font-texto text-texto antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-titulo text-verde-escuro;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-verde;
+  }
+}
