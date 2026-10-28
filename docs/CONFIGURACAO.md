@@ -25,9 +25,9 @@ Os itens marcados com ✋ precisam ser feitos por você, porque envolvem login n
 4. Repita para **`eco-gestao-prod`**.
 5. Em cada projeto, vá em **Authentication → Sign In / Providers** e **desligue "Allow new users to sign up"**.
    Só o administrador convida pessoas.
-6. No projeto `dev`, vá em **Project Settings → API** e copie a **Project URL** e a **anon public key**
+6. No projeto `dev`, vá em **Project Settings → API** e copie a **Project URL** e, em **API Keys**, a **publishable key** (`sb_publishable_...`)
    para um arquivo `.env.local` na raiz do projeto, no formato do `.env.example`.
-   A anon key pode ser compartilhada. A **service_role** é secreta e não deve ser copiada para lugar nenhum.
+   A publishable key pode ser compartilhada. A **secret key** (`sb_secret_...`) é secreta e não deve ser copiada para lugar nenhum.
 
 ## 3. Netlify: publicar o sistema ✋
 
@@ -36,7 +36,7 @@ Faça depois do passo 1.
 1. Na Netlify: **Add new project → Import an existing project → GitHub** e escolha `eco-gestao`.
 2. As configurações de build já vêm do arquivo `netlify.toml`.
 3. Em **Site configuration → Environment variables**, crie `VITE_SUPABASE_URL` e
-   `VITE_SUPABASE_ANON_KEY` com os valores do projeto **prod**.
+   `VITE_SUPABASE_PUBLISHABLE_KEY` com os valores do projeto **prod**.
 4. Em **Domain management → Add a domain**, informe `sistema.ecoambientalsc.com.br`. A Netlify vai
    mostrar um endereço de destino parecido com `nome-do-site.netlify.app`.
 
