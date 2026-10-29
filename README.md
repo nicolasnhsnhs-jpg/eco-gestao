@@ -34,7 +34,7 @@ vencimentos**, o **financeiro** e os **avisos** da equipe, e funciona no computa
 | Formulários | [React Hook Form](https://react-hook-form.com) + [Zod](https://zod.dev)                                  |
 | Backend     | [Supabase](https://supabase.com): PostgreSQL, autenticação, RLS e armazenamento de arquivos              |
 | Qualidade   | [Oxlint](https://oxc.rs), [Prettier](https://prettier.io), [Vitest](https://vitest.dev) e GitHub Actions |
-| Hospedagem  | [Netlify](https://netlify.com)                                                                           |
+| Hospedagem  | [Netlify](https://netlify.com) · e-mails por [Resend](https://resend.com) · backup com GitHub Actions    |
 
 ## Estrutura
 
@@ -83,6 +83,7 @@ A configuração dos serviços externos (GitHub, Supabase, Netlify, domínio e e
 - [x] **Fase 4:** serviços realizados, certificados, fotos e vencimentos
 - [x] **Fase 5:** contratos recorrentes e comissões
 - [x] **Fase 6:** perfis de vendedor e recepção
+- [x] **Em produção:** Supabase em São Paulo, Netlify com domínio próprio, e-mails pelo Resend e backup diário criptografado
 - [ ] **Fase 7:** avisos por WhatsApp e e-mail
 
 ## Privacidade

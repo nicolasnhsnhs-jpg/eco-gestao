@@ -1,7 +1,7 @@
 # Plano do Sistema de Gestão — Eco Ambiental SC
 
 > Documento de referência do projeto. Toda sessão de trabalho começa relendo este arquivo.
-> Status: **aprovado em 28/10/2026** · Fases 0 a 6 prontas (no projeto dev) · Próxima: colocar no ar (prod) e Fase 7 (avisos externos)
+> Status: **aprovado em 28/10/2026** · Fases 0 a 6 prontas · **No ar desde 29/10/2026** em https://sistema.ecoambientalsc.com.br · Próxima: Fase 7 (avisos externos)
 
 ---
 

@@ -26,7 +26,7 @@ prod (eles desfazem tudo no final; o banco continuou vazio).
 Daqui para frente, mudanças no banco: primeiro `npm run db:push` (dev), testar, e depois
 `npm run db:push:prod`.
 
-## 3. Configurações de login do `prod` ✋
+## 3. Configurações de login do `prod` ✋ ✅ feito em 29/10/2026
 
 No painel do projeto **prod**:
 
@@ -34,18 +34,26 @@ No painel do projeto **prod**:
 2. **Authentication → URL Configuration:**
    - **Site URL:** `https://sistema.ecoambientalsc.com.br`
    - **Redirect URLs:** `https://sistema.ecoambientalsc.com.br/**`
-3. **Authentication → Emails → SMTP Settings → Enable custom SMTP** (e-mails pelo `adm@`):
-   - **Sender email:** `adm@ecoambientalsc.com.br` · **Sender name:** `Eco Ambiental SC`
-   - **Host / Port:** os do painel da KingHost para envio (normalmente `smtp.ecoambientalsc.com.br`,
-     porta `587`; confira no painel da KingHost, em E-mails → configurações do cliente de e-mail)
-   - **Username:** `adm@ecoambientalsc.com.br` · **Password:** a senha da conta `adm@`
+3. **E-mails pelo Resend** (remetente `adm@`). O envio direto pela KingHost não funcionou com o
+   Supabase, então os e-mails do sistema saem pelo [Resend](https://resend.com) (grátis até 3.000
+   por mês), ainda com o remetente `adm@ecoambientalsc.com.br`. As respostas chegam na caixa da
+   KingHost normalmente.
+   - **Resend → Domains:** domínio `ecoambientalsc.com.br`, região São Paulo. Os 4 registros DNS
+     ficam na KingHost: `TXT resend._domainkey`, `CNAME rsend`, `CNAME send` e
+     `TXT _dmarc` (`v=DMARC1; p=none;`). Não mexem no `MX` dos e-mails.
+   - **Resend → API Keys:** chave `supabase`, permissão _Sending access_.
+   - **Supabase → Authentication → Emails → SMTP Settings:**
+     - **Sender email:** `adm@ecoambientalsc.com.br` · **Sender name:** `Eco Ambiental SC`
+     - **Host:** `smtp.resend.com` · **Port:** `587` ⚠️ (com `465` o envio trava e o convite
+       termina em “Gateway Timeout”)
+     - **Username:** `resend` · **Password:** a chave `re_...` do Resend
 4. **Authentication → Emails → Templates** (opcional): traduzir os textos de “Invite user” e
    “Reset password” para português.
 
-> ⚠️ Se a senha do `adm@` for trocada, atualize também o campo do passo 3. Senão os convites e o
-> “esqueci a senha” param de chegar, sem aviso.
+> ⚠️ Se a chave do Resend for apagada ou trocada, atualize também o campo **Password** do passo 3.
+> Senão os convites e o “esqueci a senha” param de chegar.
 
-## 4. Netlify ✋
+## 4. Netlify ✋ ✅ feito em 29/10/2026 (eco-gestao.netlify.app)
 
 1. <https://app.netlify.com> → **Add new project → Import an existing project → GitHub** →
    repositório `eco-gestao`. As configurações de build já vêm do `netlify.toml`.
@@ -58,7 +66,7 @@ No painel do projeto **prod**:
 4. **Domain management → Add a domain →** `sistema.ecoambientalsc.com.br`. A Netlify vai pedir um
    registro DNS (próximo passo).
 
-## 5. DNS na KingHost ✋
+## 5. DNS na KingHost ✋ ✅ feito em 29/10/2026 (HTTPS ativo, Let's Encrypt)
 
 1. Painel da KingHost → domínio `ecoambientalsc.com.br` → **Gerenciar DNS / Zona DNS**.
 2. Adicione **um** registro novo:
@@ -67,7 +75,7 @@ No painel do projeto **prod**:
 4. Em alguns minutos (até algumas horas), a Netlify detecta o registro e ativa o HTTPS sozinha
    (Domain management → HTTPS → “Certificate active”).
 
-## 6. Primeiro acesso (administrador) ✋
+## 6. Primeiro acesso (administrador) ✋ ✅ usuário criado em 29/10/2026
 
 1. Supabase **prod** → **Authentication → Users → Add user → Create new user**: seu e-mail, uma
    senha forte, marque **Auto Confirm User**. O primeiro usuário vira administrador automaticamente.
@@ -77,11 +85,11 @@ No painel do projeto **prod**:
 4. **Usuários → Convidar:** a equipe recebe o convite pelo `adm@`. Faça um teste convidando um
    e-mail seu primeiro.
 
-## 7. Backup (banco e arquivos) ✋
+## 7. Backup (banco e arquivos) ✋ ✅ feito em 29/10/2026 (primeira execução verde)
 
 Siga [BACKUP.md](BACKUP.md): repositório privado, dois arquivos copiados e quatro segredos.
 
-## 8. Conferência final 🤖
+## 8. Conferência final 🤖 ✅ feita em 29/10/2026 (HTTPS, cabeçalhos, backup verde, convite recebido)
 
 O Claude abre o site publicado e confere: login, HTTPS, cabeçalhos de segurança, que o sistema não
 aparece no Google (`noindex`) e que a primeira execução do backup terminou com ✔ verde.

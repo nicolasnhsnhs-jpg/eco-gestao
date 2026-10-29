@@ -21,11 +21,15 @@ criptografado, um backup com dados de clientes nunca deve ficar acessível a qua
      `.github/workflows/backup-diario.yml`
    - [`docs/backup/backup-arquivos.mjs`](backup/backup-arquivos.mjs) → caminho `backup-arquivos.mjs`
 3. **Endereço de conexão do banco** (Supabase, projeto **prod**):
-   - Clique em **Connect** (no topo do painel) e escolha **Session pooler**. O GitHub precisa desse
-     tipo de conexão.
+   - Clique em **Connect** (o ícone de tomada ao lado do nome do projeto) e use o endereço do
+     **Shared pooler / Session pooler** (porta `5432`). O GitHub precisa desse tipo de conexão.
    - Copie o endereço, no formato
-     `postgresql://postgres.xxxx:[YOUR-PASSWORD]@aws-0-sa-east-1.pooler.supabase.com:5432/postgres`,
-     e troque `[YOUR-PASSWORD]` pela senha do banco.
+     `postgresql://postgres.xxxx:[YOUR-PASSWORD]@aws-1-sa-east-1.pooler.supabase.com:5432/postgres`,
+     e troque `[YOUR-PASSWORD]` **inteiro, com os colchetes**, pela senha do banco.
+   - A senha do banco **não é** a senha de entrar no Supabase: é a criada junto com o projeto. Se não
+     tiver certeza dela, use **Reset database password** (na mesma janela do Connect) e crie uma só
+     com letras e números. O sistema no ar não usa essa senha, então trocá-la não afeta nada.
+   - Erro `password authentication failed` no backup = senha errada (ou colchetes sobrando).
 4. **Chave secreta** (Supabase, projeto **prod** → Project Settings → API Keys → _Secret keys_ →
    crie uma chamada `backup`). Ela começa com `sb_secret_`.
 5. No repositório **privado**: **Settings → Secrets and variables → Actions → New repository secret**.
