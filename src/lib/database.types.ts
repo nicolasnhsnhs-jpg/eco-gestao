@@ -478,6 +478,7 @@ export type Database = {
           cliente_id: string | null
           competencia: string
           criado_em: string
+          descricao: string | null
           fechamento_id: string | null
           id: string
           lancamento_origem_id: string
@@ -492,6 +493,7 @@ export type Database = {
           cliente_id?: string | null
           competencia: string
           criado_em?: string
+          descricao?: string | null
           fechamento_id?: string | null
           id?: string
           lancamento_origem_id: string
@@ -506,6 +508,7 @@ export type Database = {
           cliente_id?: string | null
           competencia?: string
           criado_em?: string
+          descricao?: string | null
           fechamento_id?: string | null
           id?: string
           lancamento_origem_id?: string
@@ -2293,6 +2296,18 @@ export type Database = {
       salvar_itens_proposta: {
         Args: { itens: Json; proposta: string }
         Returns: undefined
+      }
+      servicos_do_cliente_sem_valor: {
+        Args: { cliente: string }
+        Returns: {
+          data_execucao: string
+          endereco: string
+          id: string
+          numero_certificado: string
+          status: Database['public']['Enums']['status_servico']
+          tipo_servico: string
+          vendedor: string
+        }[]
       }
       transferir_carteira: {
         Args: { motivo?: string; novo_vendedor: string; vendedor_atual: string }

@@ -1,7 +1,7 @@
 # Plano do Sistema de Gestão — Eco Ambiental SC
 
 > Documento de referência do projeto. Toda sessão de trabalho começa relendo este arquivo.
-> Status: **aprovado em 28/10/2026** · Fases 0 a 5 prontas (no projeto dev) · Próxima: Fase 6 (Vendedores e recepção)
+> Status: **aprovado em 28/10/2026** · Fases 0 a 6 prontas (no projeto dev) · Próxima: colocar no ar (prod) e Fase 7 (avisos externos)
 
 ---
 
@@ -655,6 +655,12 @@ Boas práticas que vamos seguir:
   (Folha / Pró-labore); pagar a saída marca as comissões como pagas; cancelar a saída desfaz o fechamento.
 - **Fase 5:** contrato criado por vendedor usa a categoria "Contrato recorrente" (o vendedor não vê
   categorias financeiras).
+- **Fase 6:** a recepção vê o histórico de serviços e os vencimentos **sem valores**, por uma função do
+  banco que não devolve colunas de dinheiro. Vencimentos (só datas) ficaram visíveis para ela.
+- **Fase 6:** cada perfil tem a sua tela inicial e os seus atalhos no celular; o vendedor tem
+  "Minhas comissões" (a comissão guarda a descrição da venda, porque o vendedor não lê lançamentos).
+- **Fase 6:** `supabase/tests/matriz_perfis.sql` confere, num cenário com dois vendedores, o que cada
+  perfil enxerga em cada tabela. Guia de uso por perfil em `docs/GUIA-DE-USO.md`.
 - **Lição técnica:** views criadas com `tabela.*` congelam a lista de colunas; ao acrescentar coluna na
   tabela, a view precisa ser recriada (aconteceu com `v_lancamentos`).
 - **Lição técnica:** listas cujas opções vêm do banco usam o componente `SelectForm` (controlado), senão

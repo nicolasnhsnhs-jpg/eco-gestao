@@ -2,6 +2,7 @@ import {
   Bell,
   BriefcaseBusiness,
   FileText,
+  HandCoins,
   House,
   UserCog,
   Users,
@@ -10,7 +11,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-import { PAPEIS_ACESSO_TOTAL, type Papel } from '@/lib/papeis'
+import { PAPEIS, PAPEIS_ACESSO_TOTAL, type Papel } from '@/lib/papeis'
 
 export type ItemMenu = {
   rotulo: string
@@ -18,21 +19,21 @@ export type ItemMenu = {
   icone: LucideIcon
   /** Quem vê este item no menu. */
   papeis: readonly Papel[]
-  /** Aparece na barra inferior do celular (no máximo 4 itens). */
-  barraInferior?: boolean
+  /** Para quem este item aparece na barra de atalhos do celular (no máximo 4 por perfil). */
+  barraInferior?: readonly Papel[]
 }
 
-const TODOS: readonly Papel[] = ['admin', 'financeiro', 'vendedor', 'recepcao']
+const TODOS = PAPEIS
 
 export const MENU: readonly ItemMenu[] = [
-  { rotulo: 'Início', caminho: '/', icone: House, papeis: TODOS, barraInferior: true },
-  { rotulo: 'Clientes', caminho: '/clientes', icone: Users, papeis: TODOS, barraInferior: true },
+  { rotulo: 'Início', caminho: '/', icone: House, papeis: TODOS, barraInferior: TODOS },
+  { rotulo: 'Clientes', caminho: '/clientes', icone: Users, papeis: TODOS, barraInferior: TODOS },
   {
     rotulo: 'Financeiro',
     caminho: '/financeiro',
     icone: Wallet,
     papeis: PAPEIS_ACESSO_TOTAL,
-    barraInferior: true,
+    barraInferior: PAPEIS_ACESSO_TOTAL,
   },
   {
     rotulo: 'Propostas',
@@ -45,6 +46,7 @@ export const MENU: readonly ItemMenu[] = [
     caminho: '/servicos',
     icone: Wrench,
     papeis: ['admin', 'financeiro', 'vendedor'],
+    barraInferior: ['vendedor'],
   },
   {
     rotulo: 'Contratos',
@@ -52,11 +54,17 @@ export const MENU: readonly ItemMenu[] = [
     icone: BriefcaseBusiness,
     papeis: ['admin', 'financeiro', 'vendedor'],
   },
-  { rotulo: 'Avisos', caminho: '/avisos', icone: Bell, papeis: TODOS, barraInferior: true },
+  { rotulo: 'Minhas comissões', caminho: '/comissoes', icone: HandCoins, papeis: ['vendedor'] },
+  { rotulo: 'Avisos', caminho: '/avisos', icone: Bell, papeis: TODOS, barraInferior: TODOS },
   { rotulo: 'Usuários', caminho: '/usuarios', icone: UserCog, papeis: ['admin'] },
 ]
 
 /** Itens do menu que um perfil pode ver. */
 export function menuDoPapel(papel: Papel): ItemMenu[] {
   return MENU.filter((item) => item.papeis.includes(papel))
+}
+
+/** Atalhos da barra de baixo (celular) de um perfil. */
+export function barraDoPapel(papel: Papel): ItemMenu[] {
+  return menuDoPapel(papel).filter((item) => item.barraInferior?.includes(papel))
 }

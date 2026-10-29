@@ -145,7 +145,10 @@ select pg_temp.como('00000000-0000-0000-0000-0000000000c1');
 set local role authenticated;
 do $$ begin
   assert (select count(*) from public.servicos) = 0, 'Recepção ainda não deveria ver serviços (têm valor)';
-  assert (select count(*) from public.vencimentos_servico) = 0, 'Recepção não deveria ver vencimentos';
+  -- Desde a Fase 6 a recepção vê os vencimentos (só datas, sem valores).
+  assert (select count(*) from public.vencimentos_servico
+           where cliente_id = '00000000-0000-0000-0000-00000000c0a1') = 2,
+    'Recepção deveria ver os vencimentos (datas) do cliente';
 end $$;
 reset role;
 

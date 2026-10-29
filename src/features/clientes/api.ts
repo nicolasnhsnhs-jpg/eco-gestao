@@ -265,3 +265,21 @@ export function useAnonimizarCliente(clienteId: string) {
     onSuccess: () => invalidar(),
   })
 }
+
+/** Últimos atendimentos registrados (todos os clientes que a pessoa enxerga). */
+export function useAtendimentosRecentes(limite = 10) {
+  return useQuery({
+    queryKey: ['clientes', 'atendimentos-recentes', limite],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('atendimentos')
+        .select(
+          '*, usuario:perfis!atendimentos_usuario_id_fkey(nome), cliente:clientes(id, nome, nome_fantasia)',
+        )
+        .order('data_hora', { ascending: false })
+        .limit(limite)
+      if (error) throw error
+      return data
+    },
+  })
+}

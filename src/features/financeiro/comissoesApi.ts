@@ -81,3 +81,20 @@ export function useFecharComissoes() {
     },
   })
 }
+
+/** Comissões do usuário logado (o banco só devolve as dele, se for vendedor). */
+export function useMinhasComissoes() {
+  return useQuery({
+    queryKey: ['comissoes', 'minhas'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('comissoes')
+        .select('*, cliente:clientes(id, nome, nome_fantasia)')
+        .neq('status', 'cancelada')
+        .order('competencia', { ascending: false })
+        .limit(500)
+      if (error) throw error
+      return data
+    },
+  })
+}

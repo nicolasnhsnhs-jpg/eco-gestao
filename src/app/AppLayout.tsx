@@ -7,7 +7,7 @@ import { useAvisosNaoLidos } from '@/features/avisos/api'
 import { NOME_DO_PAPEL } from '@/lib/papeis'
 import { cn } from '@/lib/utils'
 
-import { menuDoPapel, type ItemMenu } from './navegacao'
+import { barraDoPapel, menuDoPapel, type ItemMenu } from './navegacao'
 
 /**
  * Estrutura de todas as páginas:
@@ -16,7 +16,9 @@ import { menuDoPapel, type ItemMenu } from './navegacao'
  */
 export function AppLayout() {
   const [menuAberto, setMenuAberto] = useState(false)
-  const itens = menuDoPapel(usePerfil().papel)
+  const papel = usePerfil().papel
+  const itens = menuDoPapel(papel)
+  const atalhos = barraDoPapel(papel)
 
   return (
     <div className="min-h-dvh lg:flex">
@@ -89,29 +91,28 @@ export function AppLayout() {
       {/* Atalhos (celular) */}
       <nav
         aria-label="Atalhos"
-        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t border-borda bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-20 grid border-t border-borda bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
+        style={{ gridTemplateColumns: `repeat(${atalhos.length}, minmax(0, 1fr))` }}
       >
-        {itens
-          .filter((item) => item.barraInferior)
-          .map((item) => (
-            <NavLink
-              key={item.caminho}
-              to={item.caminho}
-              end={item.caminho === '/'}
-              className={({ isActive }) =>
-                cn(
-                  'flex min-h-16 flex-col items-center justify-center gap-1 text-xs font-semibold',
-                  isActive ? 'text-verde' : 'text-texto-suave',
-                )
-              }
-            >
-              <span className="relative">
-                <item.icone className="size-5" aria-hidden />
-                {item.caminho === '/avisos' && <ContadorAvisos flutuante />}
-              </span>
-              {item.rotulo}
-            </NavLink>
-          ))}
+        {atalhos.map((item) => (
+          <NavLink
+            key={item.caminho}
+            to={item.caminho}
+            end={item.caminho === '/'}
+            className={({ isActive }) =>
+              cn(
+                'flex min-h-16 flex-col items-center justify-center gap-1 text-xs font-semibold',
+                isActive ? 'text-verde' : 'text-texto-suave',
+              )
+            }
+          >
+            <span className="relative">
+              <item.icone className="size-5" aria-hidden />
+              {item.caminho === '/avisos' && <ContadorAvisos flutuante />}
+            </span>
+            {item.rotulo}
+          </NavLink>
+        ))}
       </nav>
     </div>
   )

@@ -27,6 +27,7 @@ import {
 import { ContratoFormPage } from '@/features/contratos/ContratoFormPage'
 import { ContratoPage, ContratosPage } from '@/features/contratos/ContratosPages'
 import { ComissoesPage } from '@/features/financeiro/ComissoesPage'
+import { MinhasComissoesPage } from '@/features/financeiro/MinhasComissoesPage'
 import { InicioPage } from '@/features/inicio/InicioPage'
 import { UsuariosPage } from '@/features/usuarios/UsuariosPage'
 import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
@@ -134,6 +135,14 @@ export const router = createBrowserRouter([
           { path: ':id', element: <ContratoPage /> },
           { path: ':id/editar', element: <ContratoFormPage /> },
         ],
+      },
+      {
+        path: 'comissoes',
+        element: (
+          <ExigePapel papeis={['vendedor']}>
+            <MinhasComissoesPage />
+          </ExigePapel>
+        ),
       },
       { path: 'avisos', element: <AvisosPage /> },
       { path: '*', element: <NaoEncontradaPage /> },

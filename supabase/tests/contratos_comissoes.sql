@@ -100,6 +100,8 @@ do $$ declare n int; l record; begin
     'Cada mensalidade deveria gerar uma comissão';
   assert (select valor from public.comissoes where lancamento_origem_id = l.id) = 160,
     'Comissão deveria ser 8% de 2.000 = 160';
+  assert (select descricao from public.comissoes where lancamento_origem_id = l.id) like 'Controle de pragas mensal – %',
+    'A comissão deveria guardar a descrição da venda (o vendedor não lê lançamentos)';
 end $$;
 
 -- Reajuste do contrato: mensalidades futuras em aberto e comissões acompanham.

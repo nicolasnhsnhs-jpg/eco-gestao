@@ -122,7 +122,7 @@ export function ComissoesPage() {
                             to={`/financeiro/lancamentos/${c.lancamento_origem_id}`}
                             className="text-verde underline"
                           >
-                            {c.origem?.descricao}
+                            {c.descricao ?? c.origem?.descricao}
                           </Link>
                           {c.cliente && ` · ${c.cliente.nome_fantasia || c.cliente.nome}`}
                         </span>

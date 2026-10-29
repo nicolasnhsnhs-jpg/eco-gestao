@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { menuDoPapel } from './navegacao'
+import { PAPEIS, type Papel } from '@/lib/papeis'
 
-const caminhos = (papel: Parameters<typeof menuDoPapel>[0]) =>
-  menuDoPapel(papel).map((item) => item.caminho)
+import { barraDoPapel, menuDoPapel } from './navegacao'
+
+const caminhos = (papel: Papel) => menuDoPapel(papel).map((item) => item.caminho)
 
 describe('menuDoPapel', () => {
   it('admin vê tudo, inclusive usuários', () => {
@@ -21,13 +22,28 @@ describe('menuDoPapel', () => {
     expect(caminhos('recepcao')).not.toContain('/financeiro')
   })
 
-  it('recepção não vê propostas', () => {
-    expect(caminhos('recepcao')).not.toContain('/propostas')
+  it('vendedor vê as próprias comissões; os outros perfis não têm esse item', () => {
+    expect(caminhos('vendedor')).toContain('/comissoes')
+    expect(caminhos('admin')).not.toContain('/comissoes')
+    expect(caminhos('recepcao')).not.toContain('/comissoes')
   })
 
-  it('a barra inferior do celular nunca passa de 4 itens', () => {
-    for (const papel of ['admin', 'financeiro', 'vendedor', 'recepcao'] as const) {
-      expect(menuDoPapel(papel).filter((i) => i.barraInferior).length).toBeLessThanOrEqual(4)
+  it('recepção só tem início, clientes e avisos', () => {
+    expect(caminhos('recepcao')).toEqual(['/', '/clientes', '/avisos'])
+  })
+})
+
+describe('barraDoPapel', () => {
+  it('nunca passa de 4 atalhos e todo atalho também está no menu', () => {
+    for (const papel of PAPEIS) {
+      const barra = barraDoPapel(papel)
+      expect(barra.length).toBeLessThanOrEqual(4)
+      for (const item of barra) expect(caminhos(papel)).toContain(item.caminho)
     }
+  })
+
+  it('vendedor tem atalho para serviços; admin, para o financeiro', () => {
+    expect(barraDoPapel('vendedor').map((i) => i.caminho)).toContain('/servicos')
+    expect(barraDoPapel('admin').map((i) => i.caminho)).toContain('/financeiro')
   })
 })

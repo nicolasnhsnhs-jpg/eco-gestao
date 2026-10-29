@@ -15,7 +15,8 @@ vencimentos**, o **financeiro** e os **avisos** da equipe, e funciona no computa
 ## Destaques técnicos
 
 - **Permissões garantidas no banco de dados**, não só na tela: cada tabela tem regras de
-  _Row Level Security_ (RLS) do PostgreSQL para os perfis Administrador, Financeiro, Vendedor e Recepção.
+  _Row Level Security_ (RLS) do PostgreSQL para os perfis Administrador, Financeiro, Vendedor e Recepção,
+  conferidas por uma **matriz de testes** que verifica o que cada perfil enxerga em cada tabela.
 - **Auditoria:** quem criou ou alterou cada informação importante, com os valores de antes e depois.
 - **LGPD:** coleta mínima, acesso por perfil, anonimização a pedido do titular e backups criptografados.
 - **Tarefas automáticas no banco** (`pg_cron`): marca cobranças atrasadas, avisa sobre serviços perto
@@ -70,7 +71,8 @@ npm run dev                  # abre em http://localhost:5173
 | `npm run build`  | confere os tipos e gera a versão de produção |
 
 A configuração dos serviços externos (GitHub, Supabase, Netlify, domínio e e-mail) está em
-[docs/CONFIGURACAO.md](docs/CONFIGURACAO.md).
+[docs/CONFIGURACAO.md](docs/CONFIGURACAO.md). O guia de uso de cada perfil está em
+[docs/GUIA-DE-USO.md](docs/GUIA-DE-USO.md).
 
 ## Fases
 
@@ -80,7 +82,7 @@ A configuração dos serviços externos (GitHub, Supabase, Netlify, domínio e e
 - [x] **Fase 3:** propostas (drive interno)
 - [x] **Fase 4:** serviços realizados, certificados, fotos e vencimentos
 - [x] **Fase 5:** contratos recorrentes e comissões
-- [ ] **Fase 6:** perfis de vendedor e recepção
+- [x] **Fase 6:** perfis de vendedor e recepção
 - [ ] **Fase 7:** avisos por WhatsApp e e-mail
 
 ## Privacidade
