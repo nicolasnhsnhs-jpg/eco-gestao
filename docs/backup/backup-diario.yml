@@ -1,21 +1,23 @@
-# Backup diário do banco de dados do Eco Gestão.
+# Backup do Eco Gestão: banco de dados (todo dia) e arquivos do Storage (todo domingo).
 #
 # ATENÇÃO: este arquivo NÃO roda neste repositório (que é público).
-# Ele deve ser copiado para um repositório PRIVADO separado, em
-# .github/workflows/backup-diario.yml. Veja docs/BACKUP.md.
+# Copie-o para um repositório PRIVADO separado, em .github/workflows/backup-diario.yml,
+# junto com o script backup-arquivos.mjs (na raiz). Veja docs/BACKUP.md.
 
-name: Backup diário
+name: Backup
 
 on:
   schedule:
-    - cron: '0 6 * * *' # todo dia às 03:00 (horário de Brasília)
-  workflow_dispatch: # permite rodar na hora, pelo botão "Run workflow"
+    - cron: '0 6 * * *' # banco: todo dia às 03:00 (Brasília)
+    - cron: '0 7 * * 0' # arquivos: todo domingo às 04:00 (Brasília)
+  workflow_dispatch: # botão "Run workflow": faz os dois na hora
 
 permissions:
   contents: read
 
 jobs:
-  backup:
+  banco:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 6 * * *'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -30,7 +32,7 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          arquivo="eco-gestao-$(date -u +%Y-%m-%d).dump"
+          arquivo="eco-gestao-banco-$(date -u +%Y-%m-%d).dump"
           /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" \
             --format=custom --no-owner --no-privileges \
             --schema=public --schema=auth --schema=privado \
@@ -45,6 +47,43 @@ jobs:
           gpg --batch --yes --symmetric --cipher-algo AES256 \
             --passphrase "$BACKUP_SENHA" --output "$ARQUIVO.gpg" "$ARQUIVO"
           rm "$ARQUIVO"
+
+      - name: Guardar o backup (90 dias)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARQUIVO }}
+          path: ${{ env.ARQUIVO }}.gpg
+          retention-days: 90
+          if-no-files-found: error
+
+  arquivos:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 7 * * 0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Baixar os arquivos do Storage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: node backup-arquivos.mjs
+
+      - name: Compactar e criptografar
+        env:
+          BACKUP_SENHA: ${{ secrets.BACKUP_SENHA }}
+        run: |
+          arquivo="eco-gestao-arquivos-$(date -u +%Y-%m-%d).tar.gz"
+          mkdir -p arquivos
+          tar -czf "$arquivo" arquivos
+          gpg --batch --yes --symmetric --cipher-algo AES256 \
+            --passphrase "$BACKUP_SENHA" --output "$arquivo.gpg" "$arquivo"
+          rm "$arquivo"
+          echo "ARQUIVO=$arquivo" >> "$GITHUB_ENV"
+          ls -lh "$arquivo.gpg"
 
       - name: Guardar o backup (90 dias)
         uses: actions/upload-artifact@v4

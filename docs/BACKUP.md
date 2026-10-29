@@ -1,8 +1,12 @@
 # Backup
 
-O plano gratuito do Supabase **não tem backup que possamos baixar**. Por isso, o próprio projeto
-faz o backup: todo dia, às 3h, o GitHub Actions exporta o banco, **criptografa** e guarda o arquivo por
-90 dias.
+O plano gratuito do Supabase **não tem backup que possamos baixar**. Por isso o próprio projeto faz o
+backup, pelo GitHub Actions:
+
+- **Banco de dados:** todo dia às 3h.
+- **Arquivos** (propostas, certificados, relatórios, fotos): todo domingo às 4h.
+
+Os dois são **criptografados** e guardados por 90 dias.
 
 O backup roda num **repositório privado separado**, porque este repositório é público. Mesmo
 criptografado, um backup com dados de clientes nunca deve ficar acessível a qualquer pessoa.
@@ -10,44 +14,55 @@ criptografado, um backup com dados de clientes nunca deve ficar acessível a qua
 ## Configuração (uma vez) ✋
 
 1. **Crie um repositório privado** no GitHub: <https://github.com/new>, nome `eco-gestao-backup`,
-   **Private**.
-2. **Copie o arquivo** [`docs/backup/backup-diario.yml`](backup/backup-diario.yml) para esse
-   repositório, no caminho `.github/workflows/backup-diario.yml`. Pelo site do GitHub: _Add file →
-   Create new file_, digite o caminho e cole o conteúdo.
-3. **Pegue o endereço de conexão do banco** no Supabase, no projeto **prod** (por enquanto pode ser o
-   **dev**):
+   **Private**, marcando _Add a README file_.
+2. **Copie dois arquivos** para esse repositório (pelo site: _Add file → Create new file_, digite o
+   caminho e cole o conteúdo):
+   - [`docs/backup/backup-diario.yml`](backup/backup-diario.yml) → caminho
+     `.github/workflows/backup-diario.yml`
+   - [`docs/backup/backup-arquivos.mjs`](backup/backup-arquivos.mjs) → caminho `backup-arquivos.mjs`
+3. **Endereço de conexão do banco** (Supabase, projeto **prod**):
    - Clique em **Connect** (no topo do painel) e escolha **Session pooler**. O GitHub precisa desse
      tipo de conexão.
-   - Copie o endereço, que tem o formato
-     `postgresql://postgres.xxxx:[YOUR-PASSWORD]@aws-0-sa-east-1.pooler.supabase.com:5432/postgres`.
-   - Troque `[YOUR-PASSWORD]` pela senha do banco.
-4. No repositório **privado**, vá em **Settings → Secrets and variables → Actions → New repository
-   secret** e crie dois segredos:
-   - `SUPABASE_DB_URL`: o endereço do passo 3.
-   - `BACKUP_SENHA`: uma senha longa, só para os backups. **Guarde no gerenciador de senhas.** Sem
-     ela não é possível abrir os backups.
-5. Vá em **Actions → Backup diário → Run workflow** para testar. Em 1 ou 2 minutos deve aparecer um
-   ✔ verde e o arquivo `.dump.gpg` em **Artifacts**.
+   - Copie o endereço, no formato
+     `postgresql://postgres.xxxx:[YOUR-PASSWORD]@aws-0-sa-east-1.pooler.supabase.com:5432/postgres`,
+     e troque `[YOUR-PASSWORD]` pela senha do banco.
+4. **Chave secreta** (Supabase, projeto **prod** → Project Settings → API Keys → _Secret keys_ →
+   crie uma chamada `backup`). Ela começa com `sb_secret_`.
+5. No repositório **privado**: **Settings → Secrets and variables → Actions → New repository secret**.
+   Crie quatro segredos:
+
+   | Nome                  | Valor                                                                                                           |
+   | --------------------- | --------------------------------------------------------------------------------------------------------------- |
+   | `SUPABASE_DB_URL`     | o endereço do passo 3                                                                                           |
+   | `SUPABASE_URL`        | `https://<ID do prod>.supabase.co`                                                                              |
+   | `SUPABASE_SECRET_KEY` | a chave do passo 4                                                                                              |
+   | `BACKUP_SENHA`        | uma senha longa, só para os backups. **Guarde no gerenciador de senhas**: sem ela não dá para abrir os backups. |
+
+6. **Actions → Backup → Run workflow** para testar. Em poucos minutos devem aparecer dois ✔ verdes
+   (`banco` e `arquivos`) e os arquivos `.gpg` em **Artifacts**.
 
 > Os segredos ficam guardados criptografados no GitHub e não aparecem nos registros da execução.
+> A chave secreta e a senha do banco **nunca** vão para o repositório público nem para o chat.
 
 ## Rotina
 
-| Quando             | O quê                                                                           |
-| ------------------ | ------------------------------------------------------------------------------- |
-| Todo dia (sozinho) | Backup do banco, guardado por 90 dias                                           |
-| Todo mês           | Baixe o backup mais recente e guarde fora da nuvem (HD externo ou Google Drive) |
-| A cada 3 meses     | Teste de restauração no projeto **dev**                                         |
+| Quando                 | O quê                                                                              |
+| ---------------------- | ---------------------------------------------------------------------------------- |
+| Todo dia (sozinho)     | Backup do banco, guardado por 90 dias                                              |
+| Todo domingo (sozinho) | Backup dos arquivos, guardado por 90 dias                                          |
+| Todo mês               | Baixe os backups mais recentes e guarde fora da nuvem (HD externo ou Google Drive) |
+| A cada 3 meses         | Teste de restauração no projeto **dev**                                            |
 
-> ⚠️ **Pendente:** desde a Fase 3 o sistema guarda arquivos (propostas, documentos) no Storage. Este
-> backup ainda copia só o banco; a cópia dos arquivos será acrescentada antes do uso com dados reais.
+Se uma execução falhar, o GitHub manda um e-mail para você e aparece um ✗ vermelho em **Actions**.
 
 ## Como abrir e restaurar um backup
 
 ```bash
-# 1. Descriptografar (vai pedir a BACKUP_SENHA)
-gpg --output eco-gestao.dump --decrypt eco-gestao-AAAA-MM-DD.dump.gpg
-
-# 2. Restaurar num banco (de preferência no projeto dev, para conferir antes)
+# Banco: descriptografar (pede a BACKUP_SENHA) e restaurar (de preferência no dev, para conferir antes)
+gpg --output eco-gestao.dump --decrypt eco-gestao-banco-AAAA-MM-DD.dump.gpg
 pg_restore --dbname "ENDEREÇO_DO_BANCO" --no-owner --clean --if-exists eco-gestao.dump
+
+# Arquivos: descriptografar e descompactar (a pasta "arquivos" tem a mesma estrutura do Storage)
+gpg --output arquivos.tar.gz --decrypt eco-gestao-arquivos-AAAA-MM-DD.tar.gz.gpg
+tar -xzf arquivos.tar.gz
 ```

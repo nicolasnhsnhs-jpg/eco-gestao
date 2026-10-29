@@ -22,3 +22,7 @@
     Permissions-Policy = "camera=(self), geolocation=(), microphone=()"
     X-Robots-Tag = "noindex, nofollow"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    # De onde a página pode carregar coisas: o próprio site, o Supabase (dados, login,
+    # arquivos), o ViaCEP (busca de CEP) e as fontes do Google. Qualquer outra origem
+    # é bloqueada pelo navegador, o que limita o estrago de um código malicioso injetado.
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://viacep.com.br; frame-src 'self' https://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
