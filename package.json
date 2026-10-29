@@ -14,7 +14,9 @@
     "typecheck": "tsc -b",
     "test:db": "supabase db query --linked -f supabase/tests/permissoes.sql && supabase db query --linked -f supabase/tests/financeiro.sql && supabase db query --linked -f supabase/tests/propostas.sql && supabase db query --linked -f supabase/tests/servicos.sql && supabase db query --linked -f supabase/tests/contratos_comissoes.sql && supabase db query --linked -f supabase/tests/matriz_perfis.sql",
     "db:push": "supabase db push --linked",
-    "db:types": "supabase gen types typescript --linked --schema public > src/lib/database.types.ts"
+    "db:types": "supabase gen types typescript --linked --schema public > src/lib/database.types.ts",
+    "db:push:prod": "supabase db push --linked --project-ref qteahjezxiregnaomoqz",
+    "funcoes:prod": "supabase functions deploy usuarios --use-api --project-ref qteahjezxiregnaomoqz"
   },
   "dependencies": {
     "@hookform/resolvers": "^6.0.2",

@@ -17,10 +17,14 @@ Os marcados com 🤖 são feitos pelo Claude, pelo terminal.
 4. Quando terminar de criar, copie o **Project ID** (Project Settings → General, algo como
    `abcdefghijklmnopqrst`) e mande para o Claude.
 
-## 2. Banco e função no `prod` 🤖
+## 2. Banco e função no `prod` 🤖 ✅ feito em 29/10/2026
 
-O Claude aplica todas as migrations (`npm run db:push` apontando para o prod), publica a função de
-usuários e roda o verificador de segurança do Supabase.
+Projeto `qteahjezxiregnaomoqz` (São Paulo). As 21 migrations foram aplicadas, a função `usuarios` foi
+publicada, o verificador de segurança não encontrou problemas e os 6 conjuntos de testes passaram no
+prod (eles desfazem tudo no final; o banco continuou vazio).
+
+Daqui para frente, mudanças no banco: primeiro `npm run db:push` (dev), testar, e depois
+`npm run db:push:prod`.
 
 ## 3. Configurações de login do `prod` ✋
 
