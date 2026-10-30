@@ -214,6 +214,65 @@ select pg_temp.conferir('OS reaberta pelo admin com motivo',
     where id = (select id from ids where nome = 'os_a') and status = 'em_execucao'
       and motivo_reabertura = 'Faltou anotar o sifão trocado'), 1);
 
+-- -----------------------------------------------------------------------------
+-- Conferência e faturamento (OS-2)
+-- -----------------------------------------------------------------------------
+-- O operador não enxerga a conferência, nem da própria OS
+select pg_temp.como('00000000-0000-0000-0000-0000000005e1');
+set local role authenticated;
+select pg_temp.conferir('conferências visíveis ao operador',
+  (select count(*) from public.os_conferencia c join ids on ids.id = c.os_id), 0);
+reset role;
+
+-- Conclui de novo a OS reaberta (como admin, que também pode preencher)
+select pg_temp.como('00000000-0000-0000-0000-0000000005a1');
+set local role authenticated;
+select public.concluir_os((select id from ids where nome = 'os_a'));
+reset role;
+
+-- Recepção preenche a conferência e confere, mas não fatura
+select pg_temp.como('00000000-0000-0000-0000-0000000005c1');
+set local role authenticated;
+update public.os_conferencia set certificado = true, logistica = 'Ok [teste]'
+ where os_id = (select id from ids where nome = 'os_a');
+select public.conferir_os((select id from ids where nome = 'os_a'));
+do $$ begin
+  begin
+    perform public.faturar_os((select id from ids where nome = 'os_a'), 350, '2026-11-20');
+    raise exception 'FALHOU: recepção faturou a OS';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
+-- Admin fatura: nasce a conta a receber ligada à OS e ao serviço
+select pg_temp.como('00000000-0000-0000-0000-0000000005a1');
+set local role authenticated;
+select public.faturar_os((select id from ids where nome = 'os_a'), 350, '2026-11-20', '123');
+do $$ begin
+  begin
+    perform public.faturar_os((select id from ids where nome = 'os_a'), 350, '2026-11-20');
+    raise exception 'FALHOU: faturou a mesma OS duas vezes';
+  exception when unique_violation then null;
+  end;
+end $$;
+reset role;
+
+do $$ begin
+  perform pg_temp.conferir('OS conferida com conferência preenchida',
+    (select count(*) from public.ordens_servico s join public.os_conferencia c on c.os_id = s.id
+      where s.id = (select id from ids where nome = 'os_a') and s.status = 'conferida'
+        and c.certificado and c.logistica = 'Ok [teste]'), 1);
+  perform pg_temp.conferir('conta a receber criada e ligada',
+    (select count(*) from public.os_conferencia c
+       join public.lancamentos l on l.id = c.lancamento_id
+       join public.ordens_servico s on s.id = c.os_id
+      where c.os_id = (select id from ids where nome = 'os_a')
+        and l.tipo = 'entrada' and l.valor = 350 and l.vencimento = '2026-11-20'
+        and l.servico_id = s.servico_id and l.numero_nota_fiscal = '123'
+        and c.taxa_faturada and c.valor_faturado = 350), 1);
+end $$;
+
 select 'Ordens de serviço: permissões e fluxo conferidos.' as resultado;
 
 rollback;

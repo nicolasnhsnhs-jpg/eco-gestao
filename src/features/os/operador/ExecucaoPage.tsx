@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
 import { Etiqueta } from '@/components/ui/Etiqueta'
 import { formatarData, hojeISO } from '@/lib/datas'
+import { formatarTelefone } from '@/lib/documentos'
 import { mensagemDeErro } from '@/lib/erros'
 
 import { ListaArquivos } from '../../arquivos/ListaArquivos'
@@ -168,7 +169,7 @@ function Execucao({ os }: { os: OsCompleta }) {
                 className="flex min-h-11 items-center gap-1 text-verde underline"
                 href={`tel:${c.telefone}`}
               >
-                <Phone className="size-4" aria-hidden /> {c.telefone}
+                <Phone className="size-4" aria-hidden /> {formatarTelefone(c.telefone)}
               </a>
             )}
           </p>

@@ -396,3 +396,73 @@ export async function enviarAssinatura(
   }
   return id
 }
+
+// -----------------------------------------------------------------------------
+// Escritório: conferência interna e faturamento (o operador não enxerga)
+// -----------------------------------------------------------------------------
+
+export type Conferencia = Tables<'os_conferencia'>
+
+export function useConferencia(osId: string, habilitado: boolean) {
+  return useQuery({
+    queryKey: ['os', osId, 'conferencia'],
+    enabled: habilitado,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('os_conferencia')
+        .select('*')
+        .eq('os_id', osId)
+        .maybeSingle()
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export function useSalvarConferencia(osId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (
+      dados: Omit<
+        TablesUpdate<'os_conferencia'>,
+        'os_id' | 'lancamento_id' | 'criado_em' | 'criado_por' | 'atualizado_em' | 'atualizado_por'
+      >,
+    ) => {
+      const { error } = await supabase.from('os_conferencia').update(dados).eq('os_id', osId)
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os', osId] }),
+  })
+}
+
+export function useConferirOs(osId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc('conferir_os', { os: osId })
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
+  })
+}
+
+/** Cria a conta a receber no financeiro e liga à OS (só Admin e Financeiro). */
+export function useFaturarOs(osId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (d: { valor: number; vencimento: string; numeroNf: string }) => {
+      const { data, error } = await supabase.rpc('faturar_os', {
+        os: osId,
+        valor: d.valor,
+        vencimento: d.vencimento,
+        numero_nf: d.numeroNf || undefined,
+      })
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['os'] })
+      void queryClient.invalidateQueries({ queryKey: ['lancamentos'] })
+    },
+  })
+}

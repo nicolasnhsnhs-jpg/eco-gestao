@@ -1450,6 +1450,127 @@ export type Database = {
           },
         ]
       }
+      os_conferencia: {
+        Row: {
+          alteracoes: string | null
+          atualizado_em: string
+          atualizado_por: string | null
+          certificado: boolean | null
+          criado_em: string
+          criado_por: string | null
+          cronograma: boolean | null
+          destinacao: string | null
+          envio_arquivo: boolean
+          envio_email: boolean
+          envio_relatorios: boolean
+          envio_scanner: boolean
+          faturado_em: string | null
+          lancamento_id: string | null
+          logistica: string | null
+          numero_nf: string | null
+          observacoes: string | null
+          os_id: string
+          solicitacao: boolean | null
+          taxa_faturada: boolean | null
+          valor: number | null
+          valor_faturado: number | null
+          vencimento: string | null
+        }
+        Insert: {
+          alteracoes?: string | null
+          atualizado_em?: string
+          atualizado_por?: string | null
+          certificado?: boolean | null
+          criado_em?: string
+          criado_por?: string | null
+          cronograma?: boolean | null
+          destinacao?: string | null
+          envio_arquivo?: boolean
+          envio_email?: boolean
+          envio_relatorios?: boolean
+          envio_scanner?: boolean
+          faturado_em?: string | null
+          lancamento_id?: string | null
+          logistica?: string | null
+          numero_nf?: string | null
+          observacoes?: string | null
+          os_id: string
+          solicitacao?: boolean | null
+          taxa_faturada?: boolean | null
+          valor?: number | null
+          valor_faturado?: number | null
+          vencimento?: string | null
+        }
+        Update: {
+          alteracoes?: string | null
+          atualizado_em?: string
+          atualizado_por?: string | null
+          certificado?: boolean | null
+          criado_em?: string
+          criado_por?: string | null
+          cronograma?: boolean | null
+          destinacao?: string | null
+          envio_arquivo?: boolean
+          envio_email?: boolean
+          envio_relatorios?: boolean
+          envio_scanner?: boolean
+          faturado_em?: string | null
+          lancamento_id?: string | null
+          logistica?: string | null
+          numero_nf?: string | null
+          observacoes?: string | null
+          os_id?: string
+          solicitacao?: boolean | null
+          taxa_faturada?: boolean | null
+          valor?: number | null
+          valor_faturado?: number | null
+          vencimento?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'os_conferencia_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_conferencia_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_conferencia_lancamento_id_fkey'
+            columns: ['lancamento_id']
+            isOneToOne: false
+            referencedRelation: 'lancamentos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_conferencia_lancamento_id_fkey'
+            columns: ['lancamento_id']
+            isOneToOne: false
+            referencedRelation: 'v_lancamentos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_conferencia_lancamento_id_fkey'
+            columns: ['lancamento_id']
+            isOneToOne: false
+            referencedRelation: 'v_movimentos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_conferencia_os_id_fkey'
+            columns: ['os_id']
+            isOneToOne: true
+            referencedRelation: 'ordens_servico'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       os_execucao: {
         Row: {
           assinatura_cliente_id: string | null
@@ -2727,8 +2848,18 @@ export type Database = {
         }
       }
       concluir_os: { Args: { os: string }; Returns: undefined }
+      conferir_os: { Args: { os: string }; Returns: undefined }
       dia_util: {
         Args: { ano: number; mes: number; n?: number }
+        Returns: string
+      }
+      faturar_os: {
+        Args: {
+          numero_nf?: string
+          os: string
+          valor: number
+          vencimento: string
+        }
         Returns: string
       }
       fechar_comissoes: {

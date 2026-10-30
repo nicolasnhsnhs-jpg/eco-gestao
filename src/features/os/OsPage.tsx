@@ -1,3 +1,5 @@
+import { useQueryClient } from '@tanstack/react-query'
+import { FileDown } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 
@@ -24,6 +26,7 @@ import {
   useOrdemServico,
   useReabrirOs,
 } from './api'
+import { ConferenciaOs } from './ConferenciaOs'
 
 const hora = (valor: string | null) =>
   valor
@@ -42,6 +45,8 @@ export function OsPage() {
   const atualizar = useAtualizarOs(id)
   const reabrir = useReabrirOs(id)
   const [erro, setErro] = useState<string | null>(null)
+  const [gerandoPdf, setGerandoPdf] = useState(false)
+  const queryClient = useQueryClient()
 
   if (os.isPending) return <Carregando />
   if (os.isError) return <Aviso tipo="erro">{mensagemDeErro(os.error)}</Aviso>
@@ -51,6 +56,26 @@ export function OsPage() {
   const ficha = fichaDaOs(o.ficha_cliente)
   const e = o.execucao
   const escritorio = PAPEIS_ESCRITORIO_OS.includes(perfil.papel)
+
+  async function baixarPdf() {
+    setErro(null)
+    setGerandoPdf(true)
+    // O gerador de PDF só é baixado quando alguém pede um PDF (deixa o resto do sistema leve).
+    const aba = window.open('', '_blank')
+    try {
+      const { gerarESalvarPdfOs } = await import('./pdf/gerarPdfOs')
+      const { blob } = await gerarESalvarPdfOs(o)
+      void queryClient.invalidateQueries({ queryKey: ['arquivos', o.cliente_id] })
+      const link = URL.createObjectURL(blob)
+      if (aba) aba.location.href = link
+      else window.location.href = link
+    } catch (err) {
+      aba?.close()
+      setErro(mensagemDeErro(err))
+    } finally {
+      setGerandoPdf(false)
+    }
+  }
 
   async function executar(acao: () => Promise<unknown>) {
     setErro(null)
@@ -68,6 +93,12 @@ export function OsPage() {
         descricao={`${ficha.nome_fantasia || ficha.nome}${ficha.unidade?.apelido ? ` · ${ficha.unidade.apelido}` : ''}`}
         acoes={
           <div className="flex flex-wrap gap-2">
+            {escritorio && (o.status === 'concluida' || o.status === 'conferida') && (
+              <Button onClick={() => void baixarPdf()} disabled={gerandoPdf}>
+                <FileDown className="size-5" aria-hidden />
+                {gerandoPdf ? 'Gerando PDF…' : 'PDF da OS'}
+              </Button>
+            )}
             {escritorio && (
               <Link to={`/os/nova?cliente=${o.cliente_id}`}>
                 <Button variante="secundario">Agendar próxima visita</Button>
@@ -172,9 +203,15 @@ export function OsPage() {
         </Card>
       </div>
 
+      {escritorio && (
+        <div className="mt-4">
+          <ConferenciaOs osId={o.id} status={o.status} />
+        </div>
+      )}
+
       <Card className="mt-4">
         <h2 className="mb-3 font-titulo text-lg font-bold text-verde-escuro">
-          Fotos e assinaturas
+          Fotos, assinaturas e PDF
         </h2>
         <ListaArquivos
           clienteId={o.cliente_id}
