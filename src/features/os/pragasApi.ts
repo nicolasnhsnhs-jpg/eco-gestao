@@ -119,6 +119,8 @@ type CamposPonto = Pick<
   | 'higiene'
   | 'capturas'
   | 'observacao'
+  | 'sujidade'
+  | 'foto_antes'
 >
 
 /** Grava a mesma alteração em vários pontos de uma vez (ex.: "estes 5 são MC"). */

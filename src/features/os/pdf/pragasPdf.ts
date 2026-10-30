@@ -41,6 +41,7 @@ export type EscritorPdf = {
   y: number
   secao: (titulo: string) => void
   campo: (rotulo: string, valor: string | null | undefined) => void
+  item: (texto: string, destaque?: string) => void
   garantir: (altura: number) => void
 }
 

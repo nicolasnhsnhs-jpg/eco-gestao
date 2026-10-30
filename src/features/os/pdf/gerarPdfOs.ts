@@ -6,6 +6,7 @@ import { formatarCnpj, formatarCpf, formatarTelefone } from '@/lib/documentos'
 import { supabase } from '@/lib/supabase'
 
 import { enderecoDaFicha, fichaDaOs, type OsCompleta } from '../api'
+import { escreverCoifa } from './coifaPdf'
 import { buscarDadosPragas, escreverPragas, type DadosPragas } from './pragasPdf'
 
 /*
@@ -201,6 +202,28 @@ class Escritor {
     this.y -= 2
   }
 
+  /** Texto corrido na largura toda (perguntas com resposta, avisos, listas). */
+  item(texto: string, destaque?: string) {
+    const tamanho = 9.5
+    const linhas = quebrarLinhas(
+      destaque ? `${texto}  ${destaque}` : texto,
+      this.normal,
+      tamanho,
+      LARGURA_UTIL,
+    )
+    this.garantir(linhas.length * 13 + 2)
+    for (const linha of linhas) {
+      this.pagina.drawText(linha, {
+        x: MARGEM,
+        y: this.y - tamanho,
+        size: tamanho,
+        font: this.normal,
+      })
+      this.y -= 13
+    }
+    this.y -= 2
+  }
+
   imagem(imagem: PDFImage, x: number, largura: number, alturaMaxima: number) {
     const escala = Math.min(largura / imagem.width, alturaMaxima / imagem.height)
     const w = imagem.width * escala
@@ -313,9 +336,10 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
     'Horários',
     `Chegada ${hora(e?.hora_chegada ?? null)} · Início ${hora(e?.hora_inicio ?? null)} · Término ${hora(e?.hora_termino ?? null)} · Saída ${hora(e?.hora_saida ?? null)}`,
   )
-  if (os.tipo?.formulario_os !== 'pragas') w.campo('Resultado', e?.resultado)
+  if (os.tipo?.formulario_os === 'generico') w.campo('Resultado', e?.resultado)
   w.campo('Observações', e?.observacoes)
-  if (pragas) escreverPragas(w, normal, os, pragas)
+  if (pragas && os.tipo?.formulario_os === 'pragas') escreverPragas(w, normal, os, pragas)
+  if (pragas && os.tipo?.formulario_os === 'coifa') escreverCoifa(w, os, pragas.pontos)
 
   const fotosComImagem = fotos.filter((f) => imagens.has(f.id))
   if (fotosComImagem.length > 0) {
@@ -370,7 +394,11 @@ export async function gerarESalvarPdfOs(os: OsCompleta) {
     .order('criado_em')
   if (error) throw error
 
-  const pragas = os.tipo?.formulario_os === 'pragas' ? await buscarDadosPragas(os.id) : undefined
+  // Pragas e coifa têm itens próprios (pontos, produtos, insetos) além da execução.
+  const pragas =
+    os.tipo?.formulario_os === 'pragas' || os.tipo?.formulario_os === 'coifa'
+      ? await buscarDadosPragas(os.id)
+      : undefined
   const bytes = await gerarPdfOs(os, arquivos, pragas)
   const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' })
   const nome = `${os.numero}.pdf`

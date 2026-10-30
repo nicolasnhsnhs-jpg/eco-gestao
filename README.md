@@ -84,6 +84,7 @@ A configuração dos serviços externos (GitHub, Supabase, Netlify, domínio e e
 - [x] **Fase 5:** contratos recorrentes e comissões
 - [x] **Fase 6:** perfis de vendedor e recepção
 - [x] **Em produção:** Supabase em São Paulo, Netlify com domínio próprio, e-mails pelo Resend e backup diário criptografado
+- [x] **Ordens de serviço digitais:** perfil operador no celular (com rascunho sem sinal), OS genérica, controle de pragas (porta-iscas por exceção) e limpeza de coifa, conferência, faturamento e PDF com o logo
 - [ ] **Fase 7:** avisos por WhatsApp e e-mail
 
 ## Privacidade

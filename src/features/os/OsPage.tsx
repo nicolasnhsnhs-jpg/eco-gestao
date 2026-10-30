@@ -27,6 +27,7 @@ import {
   useReabrirOs,
 } from './api'
 import { ConferenciaOs } from './ConferenciaOs'
+import { EscopoCoifa } from './EscopoCoifa'
 import { EscopoPragas } from './EscopoPragas'
 
 const hora = (valor: string | null) =>
@@ -207,6 +208,11 @@ export function OsPage() {
       {escritorio && o.tipo?.formulario_os === 'pragas' && (
         <div className="mt-4">
           <EscopoPragas os={o} />
+        </div>
+      )}
+      {escritorio && o.tipo?.formulario_os === 'coifa' && (
+        <div className="mt-4">
+          <EscopoCoifa os={o} />
         </div>
       )}
 

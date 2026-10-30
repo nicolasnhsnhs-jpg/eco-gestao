@@ -1895,17 +1895,22 @@ export type Database = {
           criado_em: string
           criado_por: string | null
           forma_iscagem: string | null
+          foto_antes: boolean | null
           higiene: string | null
           id: string
           lampadas_trocadas: boolean | null
+          material: string | null
           modelo_armadilha: string | null
           numero: number
           observacao: string | null
           os_id: string
           ponto_id: string | null
+          quantidade: number | null
+          quantidade_telas: number | null
           refil: string | null
           situacao: string | null
           situacao_armadilha: string | null
+          sujidade: string | null
           tipo: Database['public']['Enums']['tipo_ponto']
           tipo_isca: string | null
           ultima_troca_lampada: string | null
@@ -1918,17 +1923,22 @@ export type Database = {
           criado_em?: string
           criado_por?: string | null
           forma_iscagem?: string | null
+          foto_antes?: boolean | null
           higiene?: string | null
           id?: string
           lampadas_trocadas?: boolean | null
+          material?: string | null
           modelo_armadilha?: string | null
           numero: number
           observacao?: string | null
           os_id: string
           ponto_id?: string | null
+          quantidade?: number | null
+          quantidade_telas?: number | null
           refil?: string | null
           situacao?: string | null
           situacao_armadilha?: string | null
+          sujidade?: string | null
           tipo: Database['public']['Enums']['tipo_ponto']
           tipo_isca?: string | null
           ultima_troca_lampada?: string | null
@@ -1941,17 +1951,22 @@ export type Database = {
           criado_em?: string
           criado_por?: string | null
           forma_iscagem?: string | null
+          foto_antes?: boolean | null
           higiene?: string | null
           id?: string
           lampadas_trocadas?: boolean | null
+          material?: string | null
           modelo_armadilha?: string | null
           numero?: number
           observacao?: string | null
           os_id?: string
           ponto_id?: string | null
+          quantidade?: number | null
+          quantidade_telas?: number | null
           refil?: string | null
           situacao?: string | null
           situacao_armadilha?: string | null
+          sujidade?: string | null
           tipo?: Database['public']['Enums']['tipo_ponto']
           tipo_isca?: string | null
           ultima_troca_lampada?: string | null
@@ -2105,9 +2120,12 @@ export type Database = {
           criado_por: string | null
           forma_iscagem: string | null
           id: string
+          material: string | null
           modelo_armadilha: string | null
           modelo_id: string
           numero: number
+          quantidade: number | null
+          quantidade_telas: number | null
           tipo: Database['public']['Enums']['tipo_ponto']
           tipo_isca: string | null
         }
@@ -2120,9 +2138,12 @@ export type Database = {
           criado_por?: string | null
           forma_iscagem?: string | null
           id?: string
+          material?: string | null
           modelo_armadilha?: string | null
           modelo_id: string
           numero: number
+          quantidade?: number | null
+          quantidade_telas?: number | null
           tipo: Database['public']['Enums']['tipo_ponto']
           tipo_isca?: string | null
         }
@@ -2135,9 +2156,12 @@ export type Database = {
           criado_por?: string | null
           forma_iscagem?: string | null
           id?: string
+          material?: string | null
           modelo_armadilha?: string | null
           modelo_id?: string
           numero?: number
+          quantidade?: number | null
+          quantidade_telas?: number | null
           tipo?: Database['public']['Enums']['tipo_ponto']
           tipo_isca?: string | null
         }
@@ -3274,7 +3298,7 @@ export type Database = {
       tipo_conta: 'corrente' | 'poupanca' | 'caixa' | 'outro'
       tipo_lancamento: 'entrada' | 'saida'
       tipo_pessoa: 'PF' | 'PJ'
-      tipo_ponto: 'porta_isca' | 'armadilha_luminosa'
+      tipo_ponto: 'porta_isca' | 'armadilha_luminosa' | 'coifa'
       tipo_vencimento: 'certificado' | 'recomendacao'
     }
     CompositeTypes: {
@@ -3434,7 +3458,7 @@ export const Constants = {
       tipo_conta: ['corrente', 'poupanca', 'caixa', 'outro'],
       tipo_lancamento: ['entrada', 'saida'],
       tipo_pessoa: ['PF', 'PJ'],
-      tipo_ponto: ['porta_isca', 'armadilha_luminosa'],
+      tipo_ponto: ['porta_isca', 'armadilha_luminosa', 'coifa'],
       tipo_vencimento: ['certificado', 'recomendacao'],
     },
   },

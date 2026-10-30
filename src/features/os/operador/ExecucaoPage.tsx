@@ -28,7 +28,9 @@ import {
   type OsCompleta,
 } from '../api'
 import { usePontosOs } from '../pragasApi'
+import { ETAPAS_COIFA } from '../tipos/coifa'
 import { quantasEtapasPragas } from '../tipos/pragas'
+import { ExecucaoCoifa } from './ExecucaoCoifa'
 import { ExecucaoPragas } from './ExecucaoPragas'
 import { useRascunhoExecucao, type EstadoEnvio } from './rascunho'
 
@@ -81,7 +83,8 @@ function Execucao({ os }: { os: OsCompleta }) {
   const pragas = os.tipo?.formulario_os === 'pragas'
   const pontos = usePontosOs(os.id)
   // Etapas: 1 chegada, depois as do tipo de serviço, depois fotos, cliente e operador.
-  const depois = 2 + (pragas ? quantasEtapasPragas(os, pontos.data) : 1)
+  const coifa = os.tipo?.formulario_os === 'coifa'
+  const depois = 2 + (pragas ? quantasEtapasPragas(os, pontos.data) : coifa ? ETAPAS_COIFA : 1)
 
   async function registrarAgora(campo: CampoHora) {
     setErro(null)
@@ -264,6 +267,8 @@ function Execucao({ os }: { os: OsCompleta }) {
 
       {pragas ? (
         <ExecucaoPragas os={os} campos={campos} alterar={alterar} aberta={aberta} primeira={2} />
+      ) : coifa ? (
+        <ExecucaoCoifa os={os} campos={campos} alterar={alterar} aberta={aberta} primeira={2} />
       ) : (
         <Etapa numero={2} titulo="Serviço realizado">
           <Campo rotulo="Resultado" htmlFor="ex-resultado" obrigatorio>

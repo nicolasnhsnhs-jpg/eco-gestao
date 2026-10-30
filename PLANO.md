@@ -531,6 +531,7 @@ As regras de permissão (RLS) são escritas junto com cada tabela, já com os 4 
 
 Plano completo em [docs/PLANO-OS.md](docs/PLANO-OS.md). Entregas: OS-1 (operador + OS genérica),
 OS-2 (conferência + PDF), OS-3 (controle de pragas), OS-4 (coifa) e OS-5 (offline completo, opcional).
+OS-1 a OS-4 prontas e no ar em 30/10/2026.
 
 ---
 
