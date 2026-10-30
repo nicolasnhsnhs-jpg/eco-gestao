@@ -76,6 +76,22 @@ export function useConvidarUsuario() {
   })
 }
 
+export function useCriarOperador() {
+  const atualizar = useAtualizarListas()
+  return useMutation({
+    mutationFn: (dados: { nome: string; login: string; senha: string }) =>
+      chamarFuncao({ acao: 'criarOperador', ...dados }),
+    onSuccess: atualizar,
+  })
+}
+
+export function useDefinirSenha() {
+  return useMutation({
+    mutationFn: (dados: { usuarioId: string; senha: string }) =>
+      chamarFuncao({ acao: 'definirSenha', ...dados }),
+  })
+}
+
 export function useAlternarAtivo() {
   const atualizar = useAtualizarListas()
   return useMutation({

@@ -19,6 +19,7 @@ export type Database = {
           id: string
           lancamento_id: string | null
           nome_original: string
+          os_id: string | null
           proposta_id: string | null
           servico_id: string | null
           tamanho_bytes: number | null
@@ -34,6 +35,7 @@ export type Database = {
           id?: string
           lancamento_id?: string | null
           nome_original: string
+          os_id?: string | null
           proposta_id?: string | null
           servico_id?: string | null
           tamanho_bytes?: number | null
@@ -49,6 +51,7 @@ export type Database = {
           id?: string
           lancamento_id?: string | null
           nome_original?: string
+          os_id?: string | null
           proposta_id?: string | null
           servico_id?: string | null
           tamanho_bytes?: number | null
@@ -88,6 +91,13 @@ export type Database = {
             columns: ['lancamento_id']
             isOneToOne: false
             referencedRelation: 'v_movimentos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'arquivos_os_id_fkey'
+            columns: ['os_id']
+            isOneToOne: false
+            referencedRelation: 'ordens_servico'
             referencedColumns: ['id']
           },
           {
@@ -660,6 +670,7 @@ export type Database = {
           criado_em: string
           criado_por: string | null
           email: string | null
+          endereco_id: string | null
           id: string
           nome: string
           observacoes: string | null
@@ -674,6 +685,7 @@ export type Database = {
           criado_em?: string
           criado_por?: string | null
           email?: string | null
+          endereco_id?: string | null
           id?: string
           nome: string
           observacoes?: string | null
@@ -688,6 +700,7 @@ export type Database = {
           criado_em?: string
           criado_por?: string | null
           email?: string | null
+          endereco_id?: string | null
           id?: string
           nome?: string
           observacoes?: string | null
@@ -714,6 +727,13 @@ export type Database = {
             columns: ['criado_por']
             isOneToOne: false
             referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'contatos_cliente_endereco_id_fkey'
+            columns: ['endereco_id']
+            isOneToOne: false
+            referencedRelation: 'enderecos'
             referencedColumns: ['id']
           },
         ]
@@ -865,13 +885,16 @@ export type Database = {
           cep: string | null
           cidade: string
           cliente_id: string
+          cnpj: string | null
           complemento: string | null
           criado_em: string
           criado_por: string | null
           id: string
+          inscricao_estadual: string | null
           logradouro: string
           numero: string | null
           principal: boolean
+          razao_social: string | null
           uf: string
         }
         Insert: {
@@ -883,13 +906,16 @@ export type Database = {
           cep?: string | null
           cidade: string
           cliente_id: string
+          cnpj?: string | null
           complemento?: string | null
           criado_em?: string
           criado_por?: string | null
           id?: string
+          inscricao_estadual?: string | null
           logradouro: string
           numero?: string | null
           principal?: boolean
+          razao_social?: string | null
           uf: string
         }
         Update: {
@@ -901,13 +927,16 @@ export type Database = {
           cep?: string | null
           cidade?: string
           cliente_id?: string
+          cnpj?: string | null
           complemento?: string | null
           criado_em?: string
           criado_por?: string | null
           id?: string
+          inscricao_estadual?: string | null
           logradouro?: string
           numero?: string | null
           principal?: boolean
+          razao_social?: string | null
           uf?: string
         }
         Relationships: [
@@ -1269,6 +1298,394 @@ export type Database = {
           },
         ]
       }
+      ordens_servico: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          cliente_id: string
+          concluida_em: string | null
+          concluida_por: string | null
+          criado_em: string
+          criado_por: string | null
+          data_agendada: string
+          descricao: string | null
+          endereco_id: string | null
+          escopo: Json
+          ficha_cliente: Json
+          hora_agendada: string | null
+          id: string
+          modelo_id: string | null
+          motivo_reabertura: string | null
+          numero: string
+          observacoes_adm: string | null
+          reaberta_em: string | null
+          reaberta_por: string | null
+          servico_id: string | null
+          status: Database['public']['Enums']['status_os']
+          tipo_servico_id: string
+          veiculo_id: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cliente_id: string
+          concluida_em?: string | null
+          concluida_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_agendada: string
+          descricao?: string | null
+          endereco_id?: string | null
+          escopo?: Json
+          ficha_cliente?: Json
+          hora_agendada?: string | null
+          id?: string
+          modelo_id?: string | null
+          motivo_reabertura?: string | null
+          numero: string
+          observacoes_adm?: string | null
+          reaberta_em?: string | null
+          reaberta_por?: string | null
+          servico_id?: string | null
+          status?: Database['public']['Enums']['status_os']
+          tipo_servico_id: string
+          veiculo_id?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cliente_id?: string
+          concluida_em?: string | null
+          concluida_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_agendada?: string
+          descricao?: string | null
+          endereco_id?: string | null
+          escopo?: Json
+          ficha_cliente?: Json
+          hora_agendada?: string | null
+          id?: string
+          modelo_id?: string | null
+          motivo_reabertura?: string | null
+          numero?: string
+          observacoes_adm?: string | null
+          reaberta_em?: string | null
+          reaberta_por?: string | null
+          servico_id?: string | null
+          status?: Database['public']['Enums']['status_os']
+          tipo_servico_id?: string
+          veiculo_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'ordens_servico_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ordens_servico_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ordens_servico_concluida_por_fkey'
+            columns: ['concluida_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ordens_servico_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ordens_servico_endereco_id_fkey'
+            columns: ['endereco_id']
+            isOneToOne: false
+            referencedRelation: 'enderecos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ordens_servico_modelo_id_fkey'
+            columns: ['modelo_id']
+            isOneToOne: false
+            referencedRelation: 'os_modelos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ordens_servico_reaberta_por_fkey'
+            columns: ['reaberta_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ordens_servico_servico_id_fkey'
+            columns: ['servico_id']
+            isOneToOne: false
+            referencedRelation: 'servicos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ordens_servico_tipo_servico_id_fkey'
+            columns: ['tipo_servico_id']
+            isOneToOne: false
+            referencedRelation: 'tipos_servico'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ordens_servico_veiculo_id_fkey'
+            columns: ['veiculo_id']
+            isOneToOne: false
+            referencedRelation: 'veiculos'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      os_execucao: {
+        Row: {
+          assinatura_cliente_id: string | null
+          assinatura_operador_id: string | null
+          atualizado_em: string
+          atualizado_por: string | null
+          checklist: Json
+          criado_em: string
+          criado_por: string | null
+          data: string | null
+          hora_chegada: string | null
+          hora_inicio: string | null
+          hora_saida: string | null
+          hora_termino: string | null
+          km_chegada: number | null
+          observacoes: string | null
+          operador_nome: string | null
+          os_id: string
+          responsavel_nome: string | null
+          responsavel_setor: string | null
+          resultado: string | null
+          veiculo_id: string | null
+        }
+        Insert: {
+          assinatura_cliente_id?: string | null
+          assinatura_operador_id?: string | null
+          atualizado_em?: string
+          atualizado_por?: string | null
+          checklist?: Json
+          criado_em?: string
+          criado_por?: string | null
+          data?: string | null
+          hora_chegada?: string | null
+          hora_inicio?: string | null
+          hora_saida?: string | null
+          hora_termino?: string | null
+          km_chegada?: number | null
+          observacoes?: string | null
+          operador_nome?: string | null
+          os_id: string
+          responsavel_nome?: string | null
+          responsavel_setor?: string | null
+          resultado?: string | null
+          veiculo_id?: string | null
+        }
+        Update: {
+          assinatura_cliente_id?: string | null
+          assinatura_operador_id?: string | null
+          atualizado_em?: string
+          atualizado_por?: string | null
+          checklist?: Json
+          criado_em?: string
+          criado_por?: string | null
+          data?: string | null
+          hora_chegada?: string | null
+          hora_inicio?: string | null
+          hora_saida?: string | null
+          hora_termino?: string | null
+          km_chegada?: number | null
+          observacoes?: string | null
+          operador_nome?: string | null
+          os_id?: string
+          responsavel_nome?: string | null
+          responsavel_setor?: string | null
+          resultado?: string | null
+          veiculo_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'assinatura_cliente_fk'
+            columns: ['assinatura_cliente_id']
+            isOneToOne: false
+            referencedRelation: 'arquivos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'assinatura_operador_fk'
+            columns: ['assinatura_operador_id']
+            isOneToOne: false
+            referencedRelation: 'arquivos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_execucao_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_execucao_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_execucao_os_id_fkey'
+            columns: ['os_id']
+            isOneToOne: true
+            referencedRelation: 'ordens_servico'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_execucao_veiculo_id_fkey'
+            columns: ['veiculo_id']
+            isOneToOne: false
+            referencedRelation: 'veiculos'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      os_modelos: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          cliente_id: string
+          criado_em: string
+          criado_por: string | null
+          descricao: string | null
+          endereco_id: string | null
+          escopo: Json
+          id: string
+          observacoes_adm_padrao: string | null
+          operadores_padrao: string[]
+          tipo_servico_id: string
+          veiculo_padrao_id: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cliente_id: string
+          criado_em?: string
+          criado_por?: string | null
+          descricao?: string | null
+          endereco_id?: string | null
+          escopo?: Json
+          id?: string
+          observacoes_adm_padrao?: string | null
+          operadores_padrao?: string[]
+          tipo_servico_id: string
+          veiculo_padrao_id?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cliente_id?: string
+          criado_em?: string
+          criado_por?: string | null
+          descricao?: string | null
+          endereco_id?: string | null
+          escopo?: Json
+          id?: string
+          observacoes_adm_padrao?: string | null
+          operadores_padrao?: string[]
+          tipo_servico_id?: string
+          veiculo_padrao_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'os_modelos_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_modelos_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_modelos_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_modelos_endereco_id_fkey'
+            columns: ['endereco_id']
+            isOneToOne: false
+            referencedRelation: 'enderecos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_modelos_tipo_servico_id_fkey'
+            columns: ['tipo_servico_id']
+            isOneToOne: false
+            referencedRelation: 'tipos_servico'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_modelos_veiculo_padrao_id_fkey'
+            columns: ['veiculo_padrao_id']
+            isOneToOne: false
+            referencedRelation: 'veiculos'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      os_operadores: {
+        Row: {
+          operador_id: string
+          os_id: string
+        }
+        Insert: {
+          operador_id: string
+          os_id: string
+        }
+        Update: {
+          operador_id?: string
+          os_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'os_operadores_operador_id_fkey'
+            columns: ['operador_id']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_operadores_os_id_fkey'
+            columns: ['os_id']
+            isOneToOne: false
+            referencedRelation: 'ordens_servico'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       perfis: {
         Row: {
           ativo: boolean
@@ -1595,6 +2012,7 @@ export type Database = {
           atualizado_por: string | null
           criado_em: string
           criado_por: string | null
+          formulario_os: Database['public']['Enums']['formulario_os']
           id: string
           nome: string
           periodicidade_meses_padrao: number | null
@@ -1607,6 +2025,7 @@ export type Database = {
           atualizado_por?: string | null
           criado_em?: string
           criado_por?: string | null
+          formulario_os?: Database['public']['Enums']['formulario_os']
           id?: string
           nome: string
           periodicidade_meses_padrao?: number | null
@@ -1619,6 +2038,7 @@ export type Database = {
           atualizado_por?: string | null
           criado_em?: string
           criado_por?: string | null
+          formulario_os?: Database['public']['Enums']['formulario_os']
           id?: string
           nome?: string
           periodicidade_meses_padrao?: number | null
@@ -1694,6 +2114,54 @@ export type Database = {
           {
             foreignKeyName: 'transferencias_cliente_vendedor_novo_id_fkey'
             columns: ['vendedor_novo_id']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      veiculos: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          criado_em: string
+          criado_por: string | null
+          descricao: string
+          id: string
+          placa: string
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          descricao: string
+          id?: string
+          placa: string
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          descricao?: string
+          id?: string
+          placa?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'veiculos_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'veiculos_criado_por_fkey'
+            columns: ['criado_por']
             isOneToOne: false
             referencedRelation: 'perfis'
             referencedColumns: ['id']
@@ -2258,6 +2726,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      concluir_os: { Args: { os: string }; Returns: undefined }
       dia_util: {
         Args: { ano: number; mes: number; n?: number }
         Returns: string
@@ -2279,7 +2748,21 @@ export type Database = {
         }[]
       }
       gerar_cobrancas_contratos: { Args: never; Returns: number }
+      gerar_os_do_modelo: {
+        Args: {
+          data: string
+          hora?: string
+          modelo: string
+          observacoes_adm?: string
+          operadores?: string[]
+          veiculo?: string
+        }
+        Returns: string
+      }
+      iniciar_os: { Args: { os: string }; Returns: undefined }
       painel_financeiro: { Args: never; Returns: Json }
+      pendencias_os: { Args: { os: string }; Returns: string[] }
+      reabrir_os: { Args: { motivo: string; os: string }; Returns: undefined }
       resumo_mensal: {
         Args: { meses_antes?: number; meses_depois?: number }
         Returns: {
@@ -2331,13 +2814,17 @@ export type Database = {
         | 'nota_fiscal'
         | 'contrato'
         | 'outro'
+        | 'foto_os'
+        | 'assinatura'
       forma_pagamento:
         'pix' | 'boleto' | 'transferencia' | 'cartao' | 'dinheiro' | 'debito_automatico' | 'outro'
-      papel: 'admin' | 'financeiro' | 'vendedor' | 'recepcao'
+      formulario_os: 'generico' | 'pragas' | 'coifa'
+      papel: 'admin' | 'financeiro' | 'vendedor' | 'recepcao' | 'operador'
       status_comissao: 'prevista' | 'paga' | 'cancelada'
       status_contrato: 'ativo' | 'suspenso' | 'encerrado'
       status_fechamento: 'aberto' | 'pago'
       status_lancamento: 'pendente' | 'agendado' | 'realizado' | 'cancelado'
+      status_os: 'rascunho' | 'agendada' | 'em_execucao' | 'concluida' | 'conferida' | 'cancelada'
       status_proposta: 'enviada' | 'aprovada' | 'recusada'
       status_servico: 'agendado' | 'realizado' | 'cancelado'
       tipo_categoria: 'receita' | 'despesa'
@@ -2478,6 +2965,8 @@ export const Constants = {
         'nota_fiscal',
         'contrato',
         'outro',
+        'foto_os',
+        'assinatura',
       ],
       forma_pagamento: [
         'pix',
@@ -2488,11 +2977,13 @@ export const Constants = {
         'debito_automatico',
         'outro',
       ],
-      papel: ['admin', 'financeiro', 'vendedor', 'recepcao'],
+      formulario_os: ['generico', 'pragas', 'coifa'],
+      papel: ['admin', 'financeiro', 'vendedor', 'recepcao', 'operador'],
       status_comissao: ['prevista', 'paga', 'cancelada'],
       status_contrato: ['ativo', 'suspenso', 'encerrado'],
       status_fechamento: ['aberto', 'pago'],
       status_lancamento: ['pendente', 'agendado', 'realizado', 'cancelado'],
+      status_os: ['rascunho', 'agendada', 'em_execucao', 'concluida', 'conferida', 'cancelada'],
       status_proposta: ['enviada', 'aprovada', 'recusada'],
       status_servico: ['agendado', 'realizado', 'cancelado'],
       tipo_categoria: ['receita', 'despesa'],

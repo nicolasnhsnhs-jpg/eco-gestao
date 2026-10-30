@@ -1,6 +1,7 @@
 import {
   Bell,
   BriefcaseBusiness,
+  ClipboardList,
   FileText,
   HandCoins,
   House,
@@ -11,7 +12,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-import { PAPEIS, PAPEIS_ACESSO_TOTAL, type Papel } from '@/lib/papeis'
+import { PAPEIS, PAPEIS_ACESSO_TOTAL, PAPEIS_ESCRITORIO_OS, type Papel } from '@/lib/papeis'
 
 export type ItemMenu = {
   rotulo: string
@@ -24,10 +25,25 @@ export type ItemMenu = {
 }
 
 const TODOS = PAPEIS
+/** O operador só trabalha com as OS dele: não vê clientes. */
+const SEM_OPERADOR = PAPEIS.filter((p) => p !== 'operador')
 
 export const MENU: readonly ItemMenu[] = [
   { rotulo: 'Início', caminho: '/', icone: House, papeis: TODOS, barraInferior: TODOS },
-  { rotulo: 'Clientes', caminho: '/clientes', icone: Users, papeis: TODOS, barraInferior: TODOS },
+  {
+    rotulo: 'Clientes',
+    caminho: '/clientes',
+    icone: Users,
+    papeis: SEM_OPERADOR,
+    barraInferior: SEM_OPERADOR,
+  },
+  {
+    rotulo: 'Ordens de serviço',
+    caminho: '/os',
+    icone: ClipboardList,
+    papeis: PAPEIS_ESCRITORIO_OS,
+    barraInferior: ['recepcao'],
+  },
   {
     rotulo: 'Financeiro',
     caminho: '/financeiro',

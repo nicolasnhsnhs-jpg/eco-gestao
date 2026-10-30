@@ -7,13 +7,20 @@ import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
 import { Campo, Input } from '@/components/ui/Campo'
 import { mensagemDeErro } from '@/lib/erros'
+import { DOMINIO_OPERADOR } from '@/lib/papeis'
 import { supabase } from '@/lib/supabase'
 
 import { useAuth } from './useAuth'
 import { TelaDeAcesso } from './TelaDeAcesso'
 
 const esquema = z.object({
-  email: z.email('Informe um e-mail válido.'),
+  // Operadores entram só com o login (ex.: "joao"); os demais, com o e-mail.
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .transform((valor) => (valor.includes('@') ? valor : `${valor}@${DOMINIO_OPERADOR}`))
+    .pipe(z.email('Informe o e-mail ou o login.')),
   senha: z.string().min(1, 'Informe a senha.'),
 })
 
@@ -43,11 +50,12 @@ export function EntrarPage() {
     <TelaDeAcesso titulo="Entrar">
       <form onSubmit={form.handleSubmit(entrar)} className="flex flex-col gap-4" noValidate>
         {errors.root && <Aviso tipo="erro">{errors.root.message}</Aviso>}
-        <Campo rotulo="E-mail" htmlFor="email" erro={errors.email?.message}>
+        <Campo rotulo="E-mail ou login" htmlFor="email" erro={errors.email?.message}>
           <Input
             id="email"
-            type="email"
-            autoComplete="email"
+            type="text"
+            autoComplete="username"
+            autoCapitalize="none"
             inputMode="email"
             aria-invalid={!!errors.email}
             {...form.register('email')}

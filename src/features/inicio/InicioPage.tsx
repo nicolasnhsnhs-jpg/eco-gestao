@@ -11,6 +11,7 @@ import { formatarReais } from '@/lib/dinheiro'
 import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
 import { cn } from '@/lib/utils'
 
+import { MinhasOsPage } from '../os/operador/MinhasOsPage'
 import { usePerfil } from '../auth/useAuth'
 import { useAvisosNaoLidos } from '../avisos/api'
 import { useAtendimentosRecentes } from '../clientes/api'
@@ -22,6 +23,7 @@ import { useServicos, useVencimentos } from '../servicos/api'
 /** Tela inicial: o que cada perfil precisa ver primeiro ao entrar. */
 export function InicioPage() {
   const perfil = usePerfil()
+  if (perfil.papel === 'operador') return <MinhasOsPage />
   const primeiroNome = perfil.nome.split(' ')[0]
   const acessoTotal = PAPEIS_ACESSO_TOTAL.includes(perfil.papel)
   const recepcao = perfil.papel === 'recepcao'

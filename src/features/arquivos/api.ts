@@ -15,15 +15,22 @@ export type Vinculo = {
   propostaId?: string
   /** Arquivos de um serviço (certificado, relatório, fotos). */
   servicoId?: string
+  /** Fotos e assinaturas de uma ordem de serviço. */
+  osId?: string
   /** Sem proposta nem serviço: só os documentos gerais do cliente. */
 }
 
 export function useArquivos(
-  { clienteId, propostaId, servicoId }: Vinculo,
+  { clienteId, propostaId, servicoId, osId }: Vinculo,
   categoria?: CategoriaArquivo,
 ) {
   return useQuery({
-    queryKey: ['arquivos', clienteId, propostaId ?? servicoId ?? 'gerais', categoria ?? 'todas'],
+    queryKey: [
+      'arquivos',
+      clienteId,
+      propostaId ?? servicoId ?? osId ?? 'gerais',
+      categoria ?? 'todas',
+    ],
     queryFn: async () => {
       let consulta = supabase
         .from('arquivos')
@@ -32,8 +39,13 @@ export function useArquivos(
         .order('criado_em', { ascending: false })
       if (propostaId) consulta = consulta.eq('proposta_id', propostaId)
       else if (servicoId) consulta = consulta.eq('servico_id', servicoId)
+      else if (osId) consulta = consulta.eq('os_id', osId)
       else {
-        consulta = consulta.is('proposta_id', null).is('lancamento_id', null).is('servico_id', null)
+        consulta = consulta
+          .is('proposta_id', null)
+          .is('lancamento_id', null)
+          .is('servico_id', null)
+          .is('os_id', null)
       }
       if (categoria) consulta = consulta.eq('categoria', categoria)
       const { data, error } = await consulta
@@ -47,7 +59,7 @@ export function useArquivos(
  * Envia arquivos: primeiro o arquivo vai para o Storage, depois o registro vai
  * para a tabela. Se o registro falhar, o arquivo enviado é apagado (nada fica "solto").
  */
-export function useEnviarArquivos({ clienteId, propostaId, servicoId }: Vinculo) {
+export function useEnviarArquivos({ clienteId, propostaId, servicoId, osId }: Vinculo) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({
@@ -63,7 +75,9 @@ export function useEnviarArquivos({ clienteId, propostaId, servicoId }: Vinculo)
           throw new Error(`“${original.name}” passa de 20 MB.`)
         }
         const id = crypto.randomUUID()
-        const caminho = `clientes/${clienteId}/${id}-${nomeSeguro(arquivo.name)}`
+        // Arquivos da OS ficam numa pasta própria: é por ela que o operador tem acesso.
+        const pasta = osId ? `clientes/${clienteId}/os/${osId}` : `clientes/${clienteId}`
+        const caminho = `${pasta}/${id}-${nomeSeguro(arquivo.name)}`
 
         const envio = await supabase.storage
           .from(BUCKET)
@@ -86,6 +100,7 @@ export function useEnviarArquivos({ clienteId, propostaId, servicoId }: Vinculo)
           cliente_id: clienteId,
           proposta_id: propostaId ?? null,
           servico_id: servicoId ?? null,
+          os_id: osId ?? null,
         })
         if (error) {
           await supabase.storage.from(BUCKET).remove([caminho])

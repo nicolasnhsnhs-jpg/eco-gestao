@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Pencil, Repeat, UserPlus } from 'lucide-react'
+import { HardHat, KeyRound, Pencil, Repeat, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
@@ -13,7 +13,7 @@ import { Carregando } from '@/components/ui/Carregando'
 import { Etiqueta } from '@/components/ui/Etiqueta'
 import { Modal } from '@/components/ui/Modal'
 import { mensagemDeErro } from '@/lib/erros'
-import { NOME_DO_PAPEL, PAPEIS, type Papel } from '@/lib/papeis'
+import { DOMINIO_OPERADOR, NOME_DO_PAPEL, PAPEIS, type Papel } from '@/lib/papeis'
 
 import { usePerfil } from '../auth/useAuth'
 import {
@@ -23,6 +23,8 @@ import {
   useAlternarAtivo,
   useClientesPorVendedor,
   useConvidarUsuario,
+  useCriarOperador,
+  useDefinirSenha,
   useTransferirCarteira,
   useUsuarios,
   type Usuario,
@@ -33,7 +35,10 @@ const DESCRICAO_PAPEL: Record<Papel, string> = {
   financeiro: 'Acesso total, menos usuários',
   vendedor: 'Só os próprios clientes, sem financeiro',
   recepcao: 'Pesquisa e cadastra clientes, sem financeiro',
+  operador: 'Só as ordens de serviço atribuídas a ele',
 }
+
+const SENHA_MINIMA = 8
 
 export function UsuariosPage() {
   const eu = usePerfil()
@@ -43,7 +48,9 @@ export function UsuariosPage() {
   const alterarNome = useAlterarNome()
   const alterarComissao = useAlterarComissao()
   const alternarAtivo = useAlternarAtivo()
+  const definirSenha = useDefinirSenha()
   const [convidando, setConvidando] = useState(false)
+  const [criandoOperador, setCriandoOperador] = useState(false)
   const [transferindoDe, setTransferindoDe] = useState<Usuario | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [sucesso, setSucesso] = useState<string | null>(null)
@@ -65,9 +72,14 @@ export function UsuariosPage() {
         titulo="Usuários"
         descricao="Quem acessa o sistema e o que cada pessoa pode ver."
         acoes={
-          <Button onClick={() => setConvidando(true)}>
-            <UserPlus className="size-5" aria-hidden /> Convidar
-          </Button>
+          <>
+            <Button variante="secundario" onClick={() => setCriandoOperador(true)}>
+              <HardHat className="size-5" aria-hidden /> Novo operador
+            </Button>
+            <Button onClick={() => setConvidando(true)}>
+              <UserPlus className="size-5" aria-hidden /> Convidar
+            </Button>
+          </>
         }
       />
 
@@ -110,7 +122,7 @@ export function UsuariosPage() {
                     {clientes} {clientes === 1 ? 'cliente' : 'clientes'} na carteira
                   </p>
                 )}
-                {u.papel !== 'recepcao' && (
+                {u.papel !== 'recepcao' && u.papel !== 'operador' && (
                   <button
                     type="button"
                     className="text-sm text-texto-suave underline"
@@ -166,6 +178,29 @@ export function UsuariosPage() {
                   ))}
                 </Select>
 
+                {u.papel === 'operador' && u.ativo && (
+                  <Button
+                    variante="secundario"
+                    disabled={definirSenha.isPending}
+                    onClick={() => {
+                      const senha = window.prompt(
+                        `Nova senha de ${u.nome} (mínimo ${SENHA_MINIMA} caracteres):`,
+                      )
+                      if (senha === null) return
+                      if (senha.length < SENHA_MINIMA) {
+                        setErro(`A senha precisa ter pelo menos ${SENHA_MINIMA} caracteres.`)
+                        return
+                      }
+                      void executar(
+                        () => definirSenha.mutateAsync({ usuarioId: u.id, senha }),
+                        `Senha de ${u.nome} alterada. Passe a nova senha para ele pessoalmente.`,
+                      )
+                    }}
+                  >
+                    <KeyRound className="size-4" aria-hidden /> Definir senha
+                  </Button>
+                )}
+
                 {clientes > 0 && (
                   <Button variante="secundario" onClick={() => setTransferindoDe(u)}>
                     <Repeat className="size-4" aria-hidden /> Transferir carteira
@@ -205,6 +240,19 @@ export function UsuariosPage() {
           aoTerminar={(nome, email) => {
             setConvidando(false)
             setSucesso(`Convite enviado para ${nome} (${email}).`)
+          }}
+        />
+      </Modal>
+
+      <Modal
+        aberto={criandoOperador}
+        aoFechar={() => setCriandoOperador(false)}
+        titulo="Novo operador"
+      >
+        <FormOperador
+          aoTerminar={(nome, login) => {
+            setCriandoOperador(false)
+            setSucesso(`${nome} já pode entrar com o login “${login}” e a senha que você definiu.`)
           }}
         />
       </Modal>
@@ -288,6 +336,100 @@ function FormConvite({ aoTerminar }: { aoTerminar: (nome: string, email: string)
   )
 }
 
+/** Sugestão de login a partir do nome: "João da Silva" → "joao.silva". */
+function sugerirLogin(nome: string) {
+  const partes = nome
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .split(/\s+/)
+    .filter((p) => p.length > 2)
+  if (partes.length === 0) return ''
+  return partes.length === 1 ? partes[0] : `${partes[0]}.${partes[partes.length - 1]}`
+}
+
+const esquemaOperador = z.object({
+  nome: z.string().trim().min(2, 'Informe o nome completo.'),
+  login: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z0-9][a-z0-9.]{1,30}$/, 'Use só letras minúsculas, números e ponto.'),
+  senha: z.string().min(SENHA_MINIMA, `Mínimo de ${SENHA_MINIMA} caracteres.`),
+})
+type DadosOperador = z.infer<typeof esquemaOperador>
+
+function FormOperador({ aoTerminar }: { aoTerminar: (nome: string, login: string) => void }) {
+  const criar = useCriarOperador()
+  const form = useForm<DadosOperador>({
+    resolver: zodResolver(esquemaOperador),
+    defaultValues: { nome: '', login: '', senha: '' },
+  })
+  const { errors, isSubmitting } = form.formState
+
+  async function enviar(dados: DadosOperador) {
+    try {
+      await criar.mutateAsync(dados)
+      aoTerminar(dados.nome, dados.login)
+    } catch (e) {
+      form.setError('root', { message: mensagemDeErro(e) })
+    }
+  }
+
+  return (
+    <form onSubmit={form.handleSubmit(enviar)} noValidate className="flex flex-col gap-4">
+      {errors.root && <Aviso tipo="erro">{errors.root.message}</Aviso>}
+      <Campo rotulo="Nome completo" htmlFor="operador-nome" obrigatorio erro={errors.nome?.message}>
+        <Input
+          id="operador-nome"
+          aria-invalid={!!errors.nome}
+          {...form.register('nome', {
+            onBlur: (e) => {
+              if (!form.getValues('login')) form.setValue('login', sugerirLogin(e.target.value))
+            },
+          })}
+        />
+      </Campo>
+      <Campo
+        rotulo="Login"
+        htmlFor="operador-login"
+        obrigatorio
+        erro={errors.login?.message}
+        dica="É o que ele digita para entrar. Não precisa de e-mail."
+      >
+        <Input
+          id="operador-login"
+          autoCapitalize="none"
+          aria-invalid={!!errors.login}
+          {...form.register('login')}
+        />
+      </Campo>
+      <Campo
+        rotulo="Senha inicial"
+        htmlFor="operador-senha"
+        obrigatorio
+        erro={errors.senha?.message}
+      >
+        <Input
+          id="operador-senha"
+          type="text"
+          autoComplete="off"
+          aria-invalid={!!errors.senha}
+          {...form.register('senha')}
+        />
+      </Campo>
+      <p className="text-sm text-texto-suave">
+        Passe o login e a senha para o operador pessoalmente. A conta fica registrada como login@
+        {DOMINIO_OPERADOR}, mas ele só precisa digitar o login.
+      </p>
+      <Button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? 'Criando…' : 'Criar operador'}
+      </Button>
+    </form>
+  )
+}
+
 function FormTransferencia({
   de,
   usuarios,
@@ -300,7 +442,9 @@ function FormTransferencia({
   const transferir = useTransferirCarteira()
   const [para, setPara] = useState('')
   const [motivo, setMotivo] = useState('')
-  const opcoes = usuarios.filter((u) => u.id !== de.id && u.ativo && u.papel !== 'recepcao')
+  const opcoes = usuarios.filter(
+    (u) => u.id !== de.id && u.ativo && u.papel !== 'recepcao' && u.papel !== 'operador',
+  )
 
   async function confirmar() {
     try {

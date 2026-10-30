@@ -1,16 +1,25 @@
 // Edge Function "usuarios": ações que só o servidor pode fazer, porque precisam
 // da chave secreta do Supabase (que nunca vai para o navegador):
 //   - convidar: cria o usuário e manda o e-mail de convite;
+//   - criarOperador: cria o login de um operador com senha definida pelo admin
+//     (operadores de campo nem sempre têm e-mail);
+//   - definirSenha: troca a senha de um operador que esqueceu a dele;
 //   - desativar / reativar: bloqueia ou libera o login.
 // Só o administrador consegue chamar estas ações.
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
-const PAPEIS = ['admin', 'financeiro', 'vendedor', 'recepcao'] as const
+const PAPEIS = ['admin', 'financeiro', 'vendedor', 'recepcao', 'operador'] as const
+
+// Endereço só para identificar o login; ninguém recebe e-mail nele.
+const DOMINIO_OPERADOR = 'op.ecoambientalsc.com.br'
+const SENHA_MINIMA = 8
 type Papel = (typeof PAPEIS)[number]
 
 type Pedido =
   | { acao: 'convidar'; email: string; nome: string; papel: Papel; redirecionarPara: string }
+  | { acao: 'criarOperador'; nome: string; login: string; senha: string }
+  | { acao: 'definirSenha'; usuarioId: string; senha: string }
   | { acao: 'desativar' | 'reativar'; usuarioId: string }
 
 const CORS = {
@@ -99,6 +108,59 @@ Deno.serve(async (req) => {
     if (erroPerfil) return resposta(500, { erro: erroPerfil.message })
 
     return resposta(200, { ok: true, usuarioId: data.user.id })
+  }
+
+  if (pedido.acao === 'criarOperador') {
+    const nome = pedido.nome?.trim()
+    const login = pedido.login?.trim().toLowerCase()
+    if (!nome || nome.length < 2) return resposta(400, { erro: 'Informe o nome.' })
+    if (!login || !/^[a-z0-9][a-z0-9.]{1,30}$/.test(login)) {
+      return resposta(400, { erro: 'O login usa só letras minúsculas, números e ponto.' })
+    }
+    if (!pedido.senha || pedido.senha.length < SENHA_MINIMA) {
+      return resposta(400, { erro: `A senha precisa ter pelo menos ${SENHA_MINIMA} caracteres.` })
+    }
+
+    const { data, error } = await admin.auth.admin.createUser({
+      email: `${login}@${DOMINIO_OPERADOR}`,
+      password: pedido.senha,
+      email_confirm: true,
+      user_metadata: { nome },
+      app_metadata: { papel: 'operador' },
+    })
+    if (error) {
+      const jaExiste = /already|registered|exists/i.test(error.message)
+      return resposta(400, { erro: jaExiste ? 'Este login já está em uso.' : error.message })
+    }
+
+    const { error: erroPerfil } = await admin
+      .from('perfis')
+      .update({ papel: 'operador', nome })
+      .eq('id', data.user.id)
+    if (erroPerfil) return resposta(500, { erro: erroPerfil.message })
+
+    return resposta(200, { ok: true, usuarioId: data.user.id })
+  }
+
+  if (pedido.acao === 'definirSenha') {
+    if (!pedido.senha || pedido.senha.length < SENHA_MINIMA) {
+      return resposta(400, { erro: `A senha precisa ter pelo menos ${SENHA_MINIMA} caracteres.` })
+    }
+    // Os outros perfis trocam a senha pelo "esqueci minha senha", por e-mail.
+    const { data: alvo } = await admin
+      .from('perfis')
+      .select('papel')
+      .eq('id', pedido.usuarioId)
+      .single()
+    if (alvo?.papel !== 'operador') {
+      return resposta(400, { erro: 'Só a senha de operadores é definida pelo administrador.' })
+    }
+
+    const { error } = await admin.auth.admin.updateUserById(pedido.usuarioId, {
+      password: pedido.senha,
+    })
+    if (error) return resposta(400, { erro: error.message })
+    return resposta(200, { ok: true })
   }
 
   if (pedido.acao === 'desativar' || pedido.acao === 'reativar') {

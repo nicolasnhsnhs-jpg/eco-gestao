@@ -527,6 +527,11 @@ As regras de permissão (RLS) são escritas junto com cada tabela, já com os 4 
 - Avisos por e-mail e WhatsApp: WhatsApp Cloud API, que tem custo por mensagem e será avaliado na época.
 - Relatórios extras: faturamento por serviço, por vendedor, taxa de aprovação de propostas.
 
+### Ordens de Serviço digitais e perfil Operador (aprovado em 30/10/2026)
+
+Plano completo em [docs/PLANO-OS.md](docs/PLANO-OS.md). Entregas: OS-1 (operador + OS genérica),
+OS-2 (conferência + PDF), OS-3 (controle de pragas), OS-4 (coifa) e OS-5 (offline completo, opcional).
+
 ---
 
 ## 7. Backup

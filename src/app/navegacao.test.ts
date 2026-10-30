@@ -28,8 +28,12 @@ describe('menuDoPapel', () => {
     expect(caminhos('recepcao')).not.toContain('/comissoes')
   })
 
-  it('recepção só tem início, clientes e avisos', () => {
-    expect(caminhos('recepcao')).toEqual(['/', '/clientes', '/avisos'])
+  it('recepção tem início, clientes, ordens de serviço e avisos', () => {
+    expect(caminhos('recepcao')).toEqual(['/', '/clientes', '/os', '/avisos'])
+  })
+
+  it('operador só tem as OS dele (no início) e os avisos', () => {
+    expect(caminhos('operador')).toEqual(['/', '/avisos'])
   })
 })
 

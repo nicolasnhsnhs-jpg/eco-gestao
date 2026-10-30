@@ -29,8 +29,12 @@ import { ContratoPage, ContratosPage } from '@/features/contratos/ContratosPages
 import { ComissoesPage } from '@/features/financeiro/ComissoesPage'
 import { MinhasComissoesPage } from '@/features/financeiro/MinhasComissoesPage'
 import { InicioPage } from '@/features/inicio/InicioPage'
+import { ExecucaoPage } from '@/features/os/operador/ExecucaoPage'
+import { OsFormPage } from '@/features/os/OsFormPage'
+import { OsListaPage } from '@/features/os/OsListaPage'
+import { OsPage } from '@/features/os/OsPage'
 import { UsuariosPage } from '@/features/usuarios/UsuariosPage'
-import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
+import { PAPEIS, PAPEIS_ACESSO_TOTAL, PAPEIS_ESCRITORIO_OS } from '@/lib/papeis'
 
 import { AppLayout } from './AppLayout'
 import { ErroPage } from './ErroPage'
@@ -52,10 +56,57 @@ export const router = createBrowserRouter([
     errorElement: <ErroPage />,
     children: [
       { index: true, element: <InicioPage /> },
-      { path: 'clientes', element: <ClientesPage /> },
-      { path: 'clientes/novo', element: <ClienteFormPage /> },
-      { path: 'clientes/:id', element: <ClienteFichaPage /> },
-      { path: 'clientes/:id/editar', element: <ClienteFormPage /> },
+      {
+        path: 'clientes',
+        element: (
+          <ExigePapel papeis={PAPEIS.filter((p) => p !== 'operador')}>
+            <Outlet />
+          </ExigePapel>
+        ),
+        children: [
+          { index: true, element: <ClientesPage /> },
+          { path: 'novo', element: <ClienteFormPage /> },
+          { path: ':id', element: <ClienteFichaPage /> },
+          { path: ':id/editar', element: <ClienteFormPage /> },
+        ],
+      },
+      {
+        path: 'os',
+        children: [
+          {
+            index: true,
+            element: (
+              <ExigePapel papeis={PAPEIS_ESCRITORIO_OS}>
+                <OsListaPage />
+              </ExigePapel>
+            ),
+          },
+          {
+            path: 'nova',
+            element: (
+              <ExigePapel papeis={PAPEIS_ESCRITORIO_OS}>
+                <OsFormPage />
+              </ExigePapel>
+            ),
+          },
+          {
+            path: ':id',
+            element: (
+              <ExigePapel papeis={PAPEIS.filter((p) => p !== 'operador')}>
+                <OsPage />
+              </ExigePapel>
+            ),
+          },
+          {
+            path: ':id/executar',
+            element: (
+              <ExigePapel papeis={['operador', 'admin']}>
+                <ExecucaoPage />
+              </ExigePapel>
+            ),
+          },
+        ],
+      },
       {
         path: 'usuarios',
         element: (

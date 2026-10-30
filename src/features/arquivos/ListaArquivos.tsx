@@ -48,6 +48,7 @@ export function ListaArquivos({
   clienteId,
   propostaId,
   servicoId,
+  osId,
   categoria,
   podeEnviar = true,
   textoVazio = 'Nenhum arquivo.',
@@ -56,7 +57,7 @@ export function ListaArquivos({
 }: Props) {
   const perfil = usePerfil()
   const equipe = useEquipe()
-  const vinculo = { clienteId, propostaId, servicoId }
+  const vinculo = { clienteId, propostaId, servicoId, osId }
   const arquivos = useArquivos(vinculo, filtrarPorCategoria ? categoria : undefined)
   const enviar = useEnviarArquivos(vinculo)
   const links = useLinksDasImagens(miniaturas ? arquivos.data : undefined)
@@ -95,8 +96,9 @@ export function ListaArquivos({
     }
   }
 
+  // Lista só de leitura (ex.: OS concluída) também não deixa apagar.
   const podeApagar = (a: Arquivo) =>
-    a.enviado_por === perfil.id || PAPEIS_ACESSO_TOTAL.includes(perfil.papel)
+    podeEnviar && (a.enviado_por === perfil.id || PAPEIS_ACESSO_TOTAL.includes(perfil.papel))
   const nomeDe = (id: string) => equipe.data?.find((p) => p.id === id)?.nome ?? ''
 
   return (
@@ -188,7 +190,7 @@ export function ListaArquivos({
             multiple
             accept={ACCEPT}
             className="sr-only"
-            id={`enviar-${servicoId ?? propostaId ?? clienteId}-${categoria}`}
+            id={`enviar-${osId ?? servicoId ?? propostaId ?? clienteId}-${categoria}`}
             onChange={(e) => void aoEscolher(e.target.files)}
           />
           <Button

@@ -104,9 +104,9 @@ export function useEquipe() {
   })
 }
 
-/** Quem pode ser vendedor responsável: usuários ativos que não são da recepção. */
+/** Quem pode ser vendedor responsável: usuários ativos que não são da recepção nem operadores. */
 export function equipeComercial(equipe: MembroEquipe[] | undefined): MembroEquipe[] {
-  return (equipe ?? []).filter((p) => p.ativo && p.papel !== 'recepcao')
+  return (equipe ?? []).filter((p) => p.ativo && p.papel !== 'recepcao' && p.papel !== 'operador')
 }
 
 // -----------------------------------------------------------------------------
