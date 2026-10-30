@@ -1,7 +1,8 @@
 # Plano: perfil Operador e Ordens de Serviço (OS) digitais
 
-> **Status (30/10/2026):** OS-1, OS-2, OS-3 e OS-4 prontas e no ar. OS-5 (offline completo) fica
-> como opcional. Diferenças em relação ao plano: o PDF é gerado pelo escritório (botão "PDF da OS"),
+> **Status (30/10/2026):** OS-1 a OS-5 prontas. A OS-5 (trabalho sem internet: app instalável,
+> OS do dia guardadas no celular, fila de envio e conclusão offline) foi pedida e aprovada em
+> 30/10/2026. Diferenças em relação ao plano: o PDF é gerado pelo escritório (botão "PDF da OS"),
 > com pdf-lib; e as anotações de porta-iscas, armadilhas e coifas precisam de sinal na hora (os
 > textos da execução ficam salvos no celular).
 

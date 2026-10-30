@@ -1,7 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import type { Database, Json, Tables, TablesUpdate } from '@/lib/database.types'
 import { supabase } from '@/lib/supabase'
+
+import { enfileirar } from './offline/fila'
 
 /*
  * Ordens de serviço.
@@ -105,20 +107,23 @@ export function useOrdensServico(filtro: FiltroOs) {
 
 export type OsResumo = NonNullable<ReturnType<typeof useOrdensServico>['data']>[number]
 
-export function useOrdemServico(id: string | undefined) {
-  return useQuery({
+/** Consulta de uma OS completa (usada na tela e para guardar no celular). */
+export const consultaOs = (id: string) =>
+  queryOptions({
     queryKey: ['os', id],
-    enabled: !!id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('ordens_servico')
         .select(`*, ${RELACOES}, execucao:os_execucao(*)`)
-        .eq('id', id!)
+        .eq('id', id)
         .maybeSingle()
       if (error) throw error
       return data
     },
   })
+
+export function useOrdemServico(id: string | undefined) {
+  return useQuery({ ...consultaOs(id ?? ''), enabled: !!id })
 }
 
 export type OsCompleta = NonNullable<ReturnType<typeof useOrdemServico>['data']>
@@ -153,8 +158,8 @@ export function useOperadores() {
   })
 }
 
-export function useVeiculos(incluirInativos = false) {
-  return useQuery({
+export const consultaVeiculos = (incluirInativos = false) =>
+  queryOptions({
     queryKey: ['veiculos', incluirInativos],
     staleTime: 5 * 60_000,
     queryFn: async () => {
@@ -165,6 +170,9 @@ export function useVeiculos(incluirInativos = false) {
       return data
     },
   })
+
+export function useVeiculos(incluirInativos = false) {
+  return useQuery(consultaVeiculos(incluirInativos))
 }
 
 export function useSalvarVeiculo() {
@@ -342,31 +350,48 @@ export async function gravarExecucao(osId: string, campos: CamposExecucao) {
   if (error) throw error
 }
 
-export function useIniciarOs(id: string) {
+/** Muda o status da OS na tela (e no celular) antes de o banco confirmar. */
+function useMudarStatusLocal() {
   const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.rpc('iniciar_os', { os: id })
-      if (error) throw error
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
-  })
+  return (id: string, status: StatusOs) => {
+    queryClient.setQueryData<OsCompleta | null>(['os', id], (os) => (os ? { ...os, status } : os))
+    queryClient.setQueriesData<OsResumo[]>({ queryKey: ['os', 'lista'] }, (lista) =>
+      lista?.map((os) => (os.id === id ? { ...os, status } : os)),
+    )
+  }
 }
 
-export function useConcluirOs(id: string) {
-  const queryClient = useQueryClient()
+/** Iniciar a execução. Funciona sem internet (vai pela fila). */
+export function useIniciarOs(id: string) {
+  const mudarStatus = useMudarStatusLocal()
   return useMutation({
+    networkMode: 'always',
     mutationFn: async () => {
-      const { error } = await supabase.rpc('concluir_os', { os: id })
-      if (error) throw error
+      mudarStatus(id, 'em_execucao')
+      await enfileirar({ tipo: 'iniciar', osId: id })
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
   })
 }
 
 /**
- * Envia uma assinatura (PNG) para a pasta da OS e devolve o id do arquivo, que
- * depois é gravado na execução (assinatura do cliente ou visto do operador).
+ * Concluir. Funciona sem internet: a OS trava no celular na hora e a conclusão
+ * vai pela fila, sempre depois de tudo o que foi anotado nela. A tela confere as
+ * pendências antes (pendenciasLocais); o banco confere de novo ao receber.
+ */
+export function useConcluirOs(id: string) {
+  const mudarStatus = useMudarStatusLocal()
+  return useMutation({
+    networkMode: 'always',
+    mutationFn: async () => {
+      mudarStatus(id, 'concluida')
+      await enfileirar({ tipo: 'concluir', osId: id })
+    },
+  })
+}
+
+/**
+ * Guarda uma assinatura (PNG) no celular e põe o envio na fila. Devolve o id do
+ * arquivo na hora (com ou sem internet), que é gravado na execução.
  */
 export async function enviarAssinatura(
   clienteId: string,
@@ -374,26 +399,39 @@ export async function enviarAssinatura(
   imagem: Blob,
   quem: 'cliente' | 'operador',
 ) {
-  const id = crypto.randomUUID()
-  const caminho = `clientes/${clienteId}/os/${osId}/${id}-assinatura-${quem}.png`
-  const envio = await supabase.storage
-    .from('arquivos')
-    .upload(caminho, imagem, { contentType: 'image/png' })
-  if (envio.error) throw envio.error
-  const { error } = await supabase.from('arquivos').insert({
-    id,
-    caminho_storage: caminho,
-    nome_original: `assinatura-${quem}.png`,
-    tipo_mime: 'image/png',
-    tamanho_bytes: imagem.size,
+  return guardarArquivoDaOs(clienteId, osId, imagem, {
+    nome: `assinatura-${quem}.png`,
+    tipo: 'image/png',
     categoria: 'assinatura',
-    cliente_id: clienteId,
-    os_id: osId,
   })
-  if (error) {
-    await supabase.storage.from('arquivos').remove([caminho])
-    throw error
-  }
+}
+
+/** Foto ou assinatura da OS: fica no celular e sobe pela fila. Devolve o id. */
+export async function guardarArquivoDaOs(
+  clienteId: string,
+  osId: string,
+  arquivo: Blob,
+  info: { nome: string; tipo: string; categoria: 'assinatura' | 'foto_os' },
+) {
+  const id = crypto.randomUUID()
+  const nomeLimpo = info.nome.replace(/[^\w.-]+/g, '-').slice(-80)
+  await enfileirar(
+    {
+      tipo: 'arquivo',
+      osId,
+      registro: {
+        id,
+        caminho_storage: `clientes/${clienteId}/os/${osId}/${id}-${nomeLimpo}`,
+        nome_original: info.nome,
+        tipo_mime: info.tipo,
+        tamanho_bytes: arquivo.size,
+        categoria: info.categoria,
+        cliente_id: clienteId,
+        os_id: osId,
+      },
+    },
+    arquivo,
+  )
   return id
 }
 

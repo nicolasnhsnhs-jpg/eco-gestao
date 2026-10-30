@@ -43,6 +43,17 @@ export function mesclarComRascunho(
   return rascunho?.pendente ? { ...doBanco, ...rascunho.campos } : doBanco
 }
 
+/**
+ * Envia o que ficou só no celular (usado pela fila antes de concluir a OS).
+ * Lança o erro se não conseguir, para a fila tentar de novo depois.
+ */
+export async function enviarRascunhoGuardado(osId: string) {
+  const guardado = lerRascunho(osId)
+  if (!guardado?.pendente || Object.keys(guardado.campos).length === 0) return
+  await gravarExecucao(osId, guardado.campos)
+  guardar(osId, null)
+}
+
 const ESPERA_ENVIO_MS = 1500
 
 export function useRascunhoExecucao(osId: string, doBanco: CamposExecucao, podeEditar: boolean) {

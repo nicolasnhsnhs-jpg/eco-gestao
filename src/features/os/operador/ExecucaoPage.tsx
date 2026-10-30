@@ -13,7 +13,9 @@ import { formatarData, hojeISO } from '@/lib/datas'
 import { formatarTelefone } from '@/lib/documentos'
 import { mensagemDeErro } from '@/lib/erros'
 
-import { ListaArquivos } from '../../arquivos/ListaArquivos'
+import { pendenteDaOs, useFila } from '../offline/fila'
+import { FotosOs } from '../offline/FotosOs'
+import { pendenciasLocais } from '../offline/pendencias'
 import {
   enderecoDaFicha,
   enviarAssinatura,
@@ -84,6 +86,8 @@ function Execucao({ os }: { os: OsCompleta }) {
   const pontos = usePontosOs(os.id)
   // Etapas: 1 chegada, depois as do tipo de serviço, depois fotos, cliente e operador.
   const coifa = os.tipo?.formulario_os === 'coifa'
+  const fila = useFila()
+  const aguardandoEnvio = pendenteDaOs(fila, os.id).length > 0
   const depois = 2 + (pragas ? quantasEtapasPragas(os, pontos.data) : coifa ? ETAPAS_COIFA : 1)
 
   async function registrarAgora(campo: CampoHora) {
@@ -110,11 +114,7 @@ function Execucao({ os }: { os: OsCompleta }) {
           : { assinatura_operador_id: arquivoId },
       )
     } catch (e) {
-      setErro(
-        navigator.onLine
-          ? mensagemDeErro(e)
-          : 'Sem sinal: a assinatura precisa de internet. Tente de novo quando o sinal voltar.',
-      )
+      setErro(mensagemDeErro(e))
     } finally {
       setAssinando(null)
     }
@@ -122,11 +122,14 @@ function Execucao({ os }: { os: OsCompleta }) {
 
   async function finalizar() {
     setErro(null)
-    const enviado = await enviarAgora()
-    if (!enviado) {
-      setErro('Sem sinal: os dados estão salvos no celular. Conclua quando a internet voltar.')
+    // Confere no próprio celular (funciona sem sinal); o banco confere de novo ao receber.
+    const falta = pendenciasLocais(os.tipo?.formulario_os, campos, pontos.data ?? [])
+    if (falta.length > 0) {
+      setErro(`Falta preencher: ${falta.join(', ')}.`)
       return
     }
+    // Tenta mandar agora o que foi digitado; sem sinal, vai junto com a conclusão.
+    void enviarAgora()
     try {
       await concluir.mutateAsync()
       navigate('/', { replace: true })
@@ -150,9 +153,14 @@ function Execucao({ os }: { os: OsCompleta }) {
       </p>
 
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
-      {!aberta && (
-        <Aviso tipo="sucesso">OS concluída. Para mudar algo, fale com o escritório.</Aviso>
-      )}
+      {!aberta &&
+        (aguardandoEnvio ? (
+          <Aviso tipo="info">
+            Concluída no celular, aguardando envio. Ela sobe sozinha quando houver sinal.
+          </Aviso>
+        ) : (
+          <Aviso tipo="sucesso">OS concluída. Para mudar algo, fale com o escritório.</Aviso>
+        ))}
 
       {/* Escopo: o que o escritório combinou (só leitura) */}
       <Card className="flex flex-col gap-2">
@@ -293,15 +301,7 @@ function Execucao({ os }: { os: OsCompleta }) {
       )}
 
       <Etapa numero={depois} titulo="Fotos">
-        <ListaArquivos
-          clienteId={os.cliente_id}
-          osId={os.id}
-          categoria="foto_os"
-          filtrarPorCategoria
-          miniaturas
-          podeEnviar={aberta}
-          textoVazio="Nenhuma foto ainda."
-        />
+        <FotosOs clienteId={os.cliente_id} osId={os.id} aberta={aberta} />
       </Etapa>
 
       <Etapa numero={depois + 1} titulo="Quem acompanhou (cliente)">

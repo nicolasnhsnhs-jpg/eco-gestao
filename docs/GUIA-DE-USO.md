@@ -77,6 +77,46 @@ aguardando resposta.
 
 ---
 
+## Operador (em campo, no celular)
+
+### Instalar o app (uma vez)
+
+O sistema vira um app na tela inicial e funciona **sem internet**.
+
+- **Android (Chrome):** entre em `sistema.ecoambientalsc.com.br`, faça o login, toque nos **três
+  pontinhos** e depois em **Instalar app** (ou "Adicionar à tela inicial").
+- **iPhone (Safari):** entre em `sistema.ecoambientalsc.com.br`, faça o login, toque em
+  **Compartilhar** (o quadrado com a seta) e depois em **Adicionar à Tela de Início**.
+
+Depois disso, abra sempre pelo ícone **Eco Gestão** da tela inicial.
+
+### Todo dia, antes de sair
+
+1. **Abra o app com internet** (o Wi-Fi de casa ou da empresa serve).
+2. Confira no topo: **"OS do dia guardadas no celular · atualizado às …"**. Pronto: as OS de hoje
+   estão no celular.
+
+Se aparecer o aviso vermelho "as OS de hoje ainda não foram baixadas", procure um sinal ou Wi-Fi antes
+de ir para o cliente.
+
+### No cliente, com ou sem sinal
+
+- Abra a OS e preencha normalmente: horários ("Registrar agora"), porta-iscas, armadilhas, coifas,
+  produtos, **fotos** e **assinaturas**.
+- Tudo fica guardado no celular na hora. Sem sinal, o topo mostra **"Sem internet · N itens esperando
+  envio"**. É só continuar trabalhando.
+- **Concluir funciona sem sinal.** O celular confere se falta alguma coisa e trava a OS. Ela aparece
+  em "Concluídas" e é enviada quando voltar o sinal.
+
+### Quando voltar o sinal
+
+- O envio é **automático**: o topo mostra "Enviando…" e some quando termina.
+- **Não saia do sistema (não faça logout) com itens esperando envio**: eles estão só no celular.
+- Se aparecer **"item recusado pelo sistema"**, toque para ver o motivo. Dá para **tentar de novo**;
+  se não resolver, avise o escritório (por exemplo, a OS pode ter sido cancelada).
+- No **iPhone**, o envio acontece com o app aberto: ao chegar num lugar com sinal, abra o app por
+  alguns segundos.
+
 ## Financeiro (e Administrador)
 
 O que você vê: tudo. O Administrador, além disso, gerencia os usuários.

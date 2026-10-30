@@ -152,6 +152,8 @@ update public.os_execucao e
 select pg_temp.como('00000000-0000-0000-0000-0000000005e1');
 set local role authenticated;
 select public.concluir_os((select id from ids where nome = 'os_a'));
+-- Repetida (a resposta se perdeu no sinal fraco e a fila mandou de novo): não é erro
+select public.concluir_os((select id from ids where nome = 'os_a'));
 
 -- Depois de concluída, nada muda (0 linhas: a regra só libera OS abertas)
 update public.os_execucao set resultado = 'mudou depois' where os_id = (select id from ids where nome = 'os_a');

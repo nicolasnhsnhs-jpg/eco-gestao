@@ -1,7 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import type { Json, Tables, TablesInsert, TablesUpdate } from '@/lib/database.types'
 import { supabase } from '@/lib/supabase'
+
+import { enfileirar } from './offline/fila'
 
 import type { EscopoPragas } from './tipos/pragas'
 
@@ -99,8 +101,8 @@ export function useSalvarEscopoPragas(osId: string, modeloId: string | null) {
 // OS: pontos, produtos e insetos
 // -----------------------------------------------------------------------------
 
-export function usePontosOs(osId: string) {
-  return useQuery({
+export const consultaPontosOs = (osId: string) =>
+  queryOptions({
     queryKey: ['os', osId, 'pontos'],
     queryFn: async () => {
       const { data, error } = await supabase.from('os_pontos').select('*').eq('os_id', osId)
@@ -108,6 +110,9 @@ export function usePontosOs(osId: string) {
       return ordenarPontos(data)
     },
   })
+
+export function usePontosOs(osId: string) {
+  return useQuery(consultaPontosOs(osId))
 }
 
 type CamposPonto = Pick<
@@ -123,21 +128,27 @@ type CamposPonto = Pick<
   | 'foto_antes'
 >
 
-/** Grava a mesma alteração em vários pontos de uma vez (ex.: "estes 5 são MC"). */
+/**
+ * Grava a mesma alteração em vários pontos de uma vez (ex.: "estes 5 são MC").
+ * Funciona sem internet: a tela muda na hora e o envio vai pela fila.
+ */
 export function useAnotarPontos(osId: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    networkMode: 'always',
     mutationFn: async ({ ids, campos }: { ids: string[]; campos: CamposPonto }) => {
       if (ids.length === 0) return
-      const { error } = await supabase.from('os_pontos').update(campos).in('id', ids)
-      if (error) throw error
+      const alvo = new Set(ids)
+      queryClient.setQueryData<PontoOs[]>(['os', osId, 'pontos'], (atual) =>
+        atual?.map((p) => (alvo.has(p.id) ? { ...p, ...campos } : p)),
+      )
+      await enfileirar({ tipo: 'pontos', osId, ids, campos })
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os', osId, 'pontos'] }),
   })
 }
 
-export function useProdutos(osId: string) {
-  return useQuery({
+export const consultaProdutos = (osId: string) =>
+  queryOptions({
     queryKey: ['os', osId, 'os_produtos'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -149,24 +160,43 @@ export function useProdutos(osId: string) {
       return data
     },
   })
+
+export function useProdutos(osId: string) {
+  return useQuery(consultaProdutos(osId))
 }
 
 export function useGravarProduto(osId: string) {
   const queryClient = useQueryClient()
+  const chave = ['os', osId, 'os_produtos']
   return useMutation({
+    networkMode: 'always',
     mutationFn: async (acao: { adicionar: TablesInsert<'os_produtos'> } | { remover: string }) => {
-      const { error } =
-        'adicionar' in acao
-          ? await supabase.from('os_produtos').insert(acao.adicionar)
-          : await supabase.from('os_produtos').delete().eq('id', acao.remover)
-      if (error) throw error
+      if ('adicionar' in acao) {
+        // O id nasce no celular: dá para remover um item que ainda não foi enviado.
+        const linha = { ...acao.adicionar, id: acao.adicionar.id ?? crypto.randomUUID() }
+        queryClient.setQueryData<ProdutoOs[]>(chave, (atual) => [
+          ...(atual ?? []),
+          {
+            criado_em: new Date().toISOString(),
+            criado_por: null,
+            atualizado_em: new Date().toISOString(),
+            atualizado_por: null,
+            ...linha,
+          } as ProdutoOs,
+        ])
+        await enfileirar({ tipo: 'produto+', osId, linha })
+      } else {
+        queryClient.setQueryData<ProdutoOs[]>(chave, (atual) =>
+          atual?.filter((i) => i.id !== acao.remover),
+        )
+        await enfileirar({ tipo: 'produto-', osId, id: acao.remover })
+      }
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os', osId, 'os_produtos'] }),
   })
 }
 
-export function useInsetos(osId: string) {
-  return useQuery({
+export const consultaInsetos = (osId: string) =>
+  queryOptions({
     queryKey: ['os', osId, 'os_insetos'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -178,18 +208,37 @@ export function useInsetos(osId: string) {
       return data
     },
   })
+
+export function useInsetos(osId: string) {
+  return useQuery(consultaInsetos(osId))
 }
 
 export function useGravarInseto(osId: string) {
   const queryClient = useQueryClient()
+  const chave = ['os', osId, 'os_insetos']
   return useMutation({
+    networkMode: 'always',
     mutationFn: async (acao: { adicionar: TablesInsert<'os_insetos'> } | { remover: string }) => {
-      const { error } =
-        'adicionar' in acao
-          ? await supabase.from('os_insetos').insert(acao.adicionar)
-          : await supabase.from('os_insetos').delete().eq('id', acao.remover)
-      if (error) throw error
+      if ('adicionar' in acao) {
+        // O id nasce no celular: dá para remover um item que ainda não foi enviado.
+        const linha = { ...acao.adicionar, id: acao.adicionar.id ?? crypto.randomUUID() }
+        queryClient.setQueryData<InsetoOs[]>(chave, (atual) => [
+          ...(atual ?? []),
+          {
+            criado_em: new Date().toISOString(),
+            criado_por: null,
+            atualizado_em: new Date().toISOString(),
+            atualizado_por: null,
+            ...linha,
+          } as InsetoOs,
+        ])
+        await enfileirar({ tipo: 'inseto+', osId, linha })
+      } else {
+        queryClient.setQueryData<InsetoOs[]>(chave, (atual) =>
+          atual?.filter((i) => i.id !== acao.remover),
+        )
+        await enfileirar({ tipo: 'inseto-', osId, id: acao.remover })
+      }
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os', osId, 'os_insetos'] }),
   })
 }

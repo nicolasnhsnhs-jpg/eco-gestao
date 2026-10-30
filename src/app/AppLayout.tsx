@@ -4,6 +4,7 @@ import { NavLink, Outlet } from 'react-router'
 
 import { useAuth, usePerfil } from '@/features/auth/useAuth'
 import { useAvisosNaoLidos } from '@/features/avisos/api'
+import { TarjaEnvio } from '@/features/os/offline/TarjaEnvio'
 import { NOME_DO_PAPEL } from '@/lib/papeis'
 import { cn } from '@/lib/utils'
 
@@ -84,6 +85,7 @@ export function AppLayout() {
 
       <main className="min-w-0 flex-1 px-4 pt-6 pb-28 sm:px-6 lg:px-10 lg:pb-10">
         <div className="mx-auto max-w-6xl">
+          {papel === 'operador' && <TarjaEnvio />}
           <Outlet />
         </div>
       </main>
