@@ -22,6 +22,12 @@ const VERDE_ESCURO = rgb(0.122, 0.302, 0.102) // #1F4D1A
 const CINZA = rgb(0.4, 0.4, 0.4)
 const BORDA = rgb(0.82, 0.86, 0.8)
 
+/** Dados da empresa no rodapé de todas as páginas. */
+export const EMPRESA_RODAPE = [
+  'Eco Ambiental Serviços Ambientais LTDA · CNPJ 69.636.469/0001-18',
+  'Rua Albino Dias, 51 - Caminho Novo, Palhoça/SC - CEP 88132-592 · adm@ecoambientalsc.com.br',
+]
+
 /** As fontes padrão do PDF só têm os caracteres do português "comum". */
 export function textoSeguro(texto: string | null | undefined) {
   return (texto ?? '')
@@ -119,17 +125,29 @@ class Escritor {
   novaPagina() {
     this.pagina = this.pdf.addPage([A4.largura, A4.altura])
     this.y = A4.altura - MARGEM
-    this.pagina.drawText(textoSeguro(this.rodape), {
-      x: MARGEM,
-      y: 22,
-      size: 7.5,
-      font: this.normal,
-      color: CINZA,
+    this.pagina.drawLine({
+      start: { x: MARGEM, y: 46 },
+      end: { x: A4.largura - MARGEM, y: 46 },
+      thickness: 0.6,
+      color: BORDA,
     })
+    const linhas = [...EMPRESA_RODAPE, this.rodape]
+    for (const [i, linha] of linhas.entries()) {
+      const t = textoSeguro(linha)
+      const tamanho = i === linhas.length - 1 ? 6.5 : 7.5
+      const fonte = i === 0 ? this.negrito : this.normal
+      this.pagina.drawText(t, {
+        x: (A4.largura - fonte.widthOfTextAtSize(t, tamanho)) / 2,
+        y: 36 - i * 9,
+        size: tamanho,
+        font: fonte,
+        color: i === 0 ? VERDE_ESCURO : CINZA,
+      })
+    }
   }
 
   garantir(altura: number) {
-    if (this.y - altura < MARGEM + 10) this.novaPagina()
+    if (this.y - altura < MARGEM + 20) this.novaPagina()
   }
 
   secao(titulo: string) {
@@ -225,7 +243,7 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[]) {
     pdf,
     normal,
     negrito,
-    `Eco Ambiental SC · ${os.numero} · gerado em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`,
+    `${os.numero} · gerado em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`,
   )
 
   // Cabeçalho: logo à esquerda, número e serviço à direita

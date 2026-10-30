@@ -336,3 +336,68 @@ pouco risco, e pragas é o serviço de maior volume.
    7. confirmar que ficou travado;
    8. reabrir como admin.
 4. Só depois `npm run db:push:prod` e a publicação.
+
+---
+
+## 8. O que as fichas de papel mostram (análise de 30/10/2026)
+
+Três fichas reais foram analisadas: Naturovos Depósito 97 e Naturovos Uêvo FL74 (controle de pragas),
+e Viemar Viamão (limpeza de coifa).
+
+**Confirmado:**
+
+- **Uma unidade por CNPJ:** os dois locais da Naturovos têm CNPJs diferentes (0064-31 e 0111-92) e os
+  mesmos contatos. Isso confirma o modelo "unidade = endereço com CNPJ próprio".
+- **Conferência interna:** os campos são os mesmos da OS-2 (certificado, cronograma, alterações,
+  solicitação, destinação, logística, financeiro, scanner, e-mail, relatórios). A coifa tem ainda
+  "Resumo" e "Arquivo".
+- **Carimbo de faturamento:** data, R$, NF e vencimento, que é o que o faturamento da OS-2 grava.
+
+**Detalhes para a OS-3 (pragas):**
+
+- **Situação do porta-isca depende do tipo de isca.**
+  - Iscas (IP, IG, Pó, S) usam MS/MC/CT/IN/DT/SA/NE, e o padrão é **MS**.
+  - Placa de cola (Co) usa M/SC/I/T, além de SA, e o padrão é **M**.
+  - As exceções digitadas por número continuam valendo, cada uma com o padrão do seu tipo.
+- **Cabeçalho da ficha:** pragas alvo (Ratazana, Rato de telhado, Camundongo) e nível de infestação
+  de roedores. O nível é medido em **% das iscas visitadas**: até 10% baixo, até 30% médio, acima de
+  30% alto.
+- **Gráfico "consumo de isca parafinada":** pizza com MS/MC/CT. Entra no PDF.
+- **Produtos:** várias linhas. Cada uma tem princípio ativo, forma (bloco parafinado, semente,
+  granulada, pó, placa adesiva), unidades e gramas. Ex.: Brodifacoum, bloco, 3 un, 60 g; Colly,
+  placa, 3 un.
+- **Observações de roedores:** porta-iscas sem acesso (quais e por quê), quebrados (quais e por quê)
+  e comentários.
+- **Armadilhas luminosas:** cada uma tem localização, modelo (P branca / G inox), **data da última
+  troca de lâmpada**, refil (M/T/I), situação (F/D/DL/LT), lâmpadas trocadas, higiene (S/R/I) e
+  capturas por espécie (M, MQ, MA, B).
+  - O cabeçalho mostra "totalizando N unidades no contrato".
+  - O aviso "troca de lâmpada com custo à parte" sai no PDF.
+- **Nível de infestação de insetos e armadilhas:** é por **contagem**, diferente dos roedores: 1 a 50
+  baixo, 51 a 99 médio, 100 ou mais alto.
+- **Controle de insetos:** áreas do cliente, pragas combatidas e procedimentos. Há um checkbox
+  "realizado monitoramento programado" e uma tabela localizada com área, praga, nível, condições
+  (LE/LR/LI), princípio ativo, quantidade, pronto uso, diluente, calda e procedimento.
+
+**Detalhes para a OS-4 (coifa):**
+
+- **Liberação para trabalho:** respostas sim/não com motivo. As condições do ambiente são LE/LR/LI e
+  o GLP traz "quantos".
+- **Aviso fixo:** "Deslocamento sem êxito será cobrado taxa adicional".
+- **Por coifa:** quantidade, localização, material, sujidade (B/M/A), quantidade de telas e foto
+  antes. Também se registra quantas telas foram retiradas para higienizar na empresa.
+- **Fotos depois:** frontal, lateral, interna e tubulação.
+- **Produto padrão com registro MS:** Hidróxido de sódio, Maxxy Grill MS 3.1966.0029, solução de 20 a
+  50 ml/L. A quantidade usada vem em faixas: 1000, 2000, 3000, 4000, 5000 ml ou outro.
+- **Bloco fixo "Informações técnicas":** POP, EPIs, FISPQ e CIT 0800 721 3000.
+- **Conferência com o cliente:** limpeza eficiente, equipamentos religados e ambiente liberado, cada
+  um com motivo.
+
+**Em aberto:**
+
+- ~~Rodapé legal do PDF~~ **definido em 30/10/2026:** Eco Ambiental Serviços Ambientais LTDA, CNPJ
+  69.636.469/0001-18, Rua Albino Dias, 51 - Caminho Novo, Palhoça/SC, CEP 88132-592,
+  adm@ecoambientalsc.com.br. Por enquanto, sem responsável técnica nem CRQ.
+- **Numeração:** as fichas usam `00000/AAAA` (ex.: 08986/2026). Falta decidir se o sistema continua
+  essa sequência.
+- **Observações ADM:** saem impressas na ficha de papel. Falta decidir se vão também no PDF do cliente.
