@@ -1683,6 +1683,85 @@ export type Database = {
           },
         ]
       }
+      os_insetos: {
+        Row: {
+          area: string
+          atualizado_em: string
+          atualizado_por: string | null
+          calda: string | null
+          condicoes: string | null
+          criado_em: string
+          criado_por: string | null
+          diluente: string | null
+          id: string
+          nivel: string | null
+          os_id: string
+          praga: string
+          principio_ativo: string | null
+          procedimento: string | null
+          pronto_uso: boolean | null
+          quantidade: string | null
+        }
+        Insert: {
+          area: string
+          atualizado_em?: string
+          atualizado_por?: string | null
+          calda?: string | null
+          condicoes?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          diluente?: string | null
+          id?: string
+          nivel?: string | null
+          os_id: string
+          praga: string
+          principio_ativo?: string | null
+          procedimento?: string | null
+          pronto_uso?: boolean | null
+          quantidade?: string | null
+        }
+        Update: {
+          area?: string
+          atualizado_em?: string
+          atualizado_por?: string | null
+          calda?: string | null
+          condicoes?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          diluente?: string | null
+          id?: string
+          nivel?: string | null
+          os_id?: string
+          praga?: string
+          principio_ativo?: string | null
+          procedimento?: string | null
+          pronto_uso?: boolean | null
+          quantidade?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'os_insetos_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_insetos_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_insetos_os_id_fkey'
+            columns: ['os_id']
+            isOneToOne: false
+            referencedRelation: 'ordens_servico'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       os_modelos: {
         Row: {
           ativo: boolean
@@ -1807,6 +1886,168 @@ export type Database = {
           },
         ]
       }
+      os_pontos: {
+        Row: {
+          area: string
+          atualizado_em: string
+          atualizado_por: string | null
+          capturas: Json
+          criado_em: string
+          criado_por: string | null
+          forma_iscagem: string | null
+          higiene: string | null
+          id: string
+          lampadas_trocadas: boolean | null
+          modelo_armadilha: string | null
+          numero: number
+          observacao: string | null
+          os_id: string
+          ponto_id: string | null
+          refil: string | null
+          situacao: string | null
+          situacao_armadilha: string | null
+          tipo: Database['public']['Enums']['tipo_ponto']
+          tipo_isca: string | null
+          ultima_troca_lampada: string | null
+        }
+        Insert: {
+          area: string
+          atualizado_em?: string
+          atualizado_por?: string | null
+          capturas?: Json
+          criado_em?: string
+          criado_por?: string | null
+          forma_iscagem?: string | null
+          higiene?: string | null
+          id?: string
+          lampadas_trocadas?: boolean | null
+          modelo_armadilha?: string | null
+          numero: number
+          observacao?: string | null
+          os_id: string
+          ponto_id?: string | null
+          refil?: string | null
+          situacao?: string | null
+          situacao_armadilha?: string | null
+          tipo: Database['public']['Enums']['tipo_ponto']
+          tipo_isca?: string | null
+          ultima_troca_lampada?: string | null
+        }
+        Update: {
+          area?: string
+          atualizado_em?: string
+          atualizado_por?: string | null
+          capturas?: Json
+          criado_em?: string
+          criado_por?: string | null
+          forma_iscagem?: string | null
+          higiene?: string | null
+          id?: string
+          lampadas_trocadas?: boolean | null
+          modelo_armadilha?: string | null
+          numero?: number
+          observacao?: string | null
+          os_id?: string
+          ponto_id?: string | null
+          refil?: string | null
+          situacao?: string | null
+          situacao_armadilha?: string | null
+          tipo?: Database['public']['Enums']['tipo_ponto']
+          tipo_isca?: string | null
+          ultima_troca_lampada?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'os_pontos_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_pontos_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_pontos_os_id_fkey'
+            columns: ['os_id']
+            isOneToOne: false
+            referencedRelation: 'ordens_servico'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_pontos_ponto_id_fkey'
+            columns: ['ponto_id']
+            isOneToOne: false
+            referencedRelation: 'pontos_controle'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      os_produtos: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          criado_em: string
+          criado_por: string | null
+          forma: string
+          gramas: number | null
+          id: string
+          os_id: string
+          principio_ativo: string
+          unidades: number | null
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          forma: string
+          gramas?: number | null
+          id?: string
+          os_id: string
+          principio_ativo: string
+          unidades?: number | null
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          forma?: string
+          gramas?: number | null
+          id?: string
+          os_id?: string
+          principio_ativo?: string
+          unidades?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'os_produtos_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_produtos_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_produtos_os_id_fkey'
+            columns: ['os_id']
+            isOneToOne: false
+            referencedRelation: 'ordens_servico'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       perfis: {
         Row: {
           ativo: boolean
@@ -1850,6 +2091,76 @@ export type Database = {
             columns: ['atualizado_por']
             isOneToOne: false
             referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      pontos_controle: {
+        Row: {
+          area: string
+          ativo: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          criado_em: string
+          criado_por: string | null
+          forma_iscagem: string | null
+          id: string
+          modelo_armadilha: string | null
+          modelo_id: string
+          numero: number
+          tipo: Database['public']['Enums']['tipo_ponto']
+          tipo_isca: string | null
+        }
+        Insert: {
+          area: string
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          forma_iscagem?: string | null
+          id?: string
+          modelo_armadilha?: string | null
+          modelo_id: string
+          numero: number
+          tipo: Database['public']['Enums']['tipo_ponto']
+          tipo_isca?: string | null
+        }
+        Update: {
+          area?: string
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          forma_iscagem?: string | null
+          id?: string
+          modelo_armadilha?: string | null
+          modelo_id?: string
+          numero?: number
+          tipo?: Database['public']['Enums']['tipo_ponto']
+          tipo_isca?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'pontos_controle_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'pontos_controle_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'pontos_controle_modelo_id_fkey'
+            columns: ['modelo_id']
+            isOneToOne: false
+            referencedRelation: 'os_modelos'
             referencedColumns: ['id']
           },
         ]
@@ -2817,6 +3128,7 @@ export type Database = {
     Functions: {
       anonimizar_cliente: { Args: { cliente: string }; Returns: undefined }
       atualizar_avisos: { Args: never; Returns: number }
+      atualizar_pontos_os: { Args: { os: string }; Returns: undefined }
       buscar_clientes: {
         Args: { incluir_inativos?: boolean; termo?: string }
         Returns: {
@@ -2962,6 +3274,7 @@ export type Database = {
       tipo_conta: 'corrente' | 'poupanca' | 'caixa' | 'outro'
       tipo_lancamento: 'entrada' | 'saida'
       tipo_pessoa: 'PF' | 'PJ'
+      tipo_ponto: 'porta_isca' | 'armadilha_luminosa'
       tipo_vencimento: 'certificado' | 'recomendacao'
     }
     CompositeTypes: {
@@ -3121,6 +3434,7 @@ export const Constants = {
       tipo_conta: ['corrente', 'poupanca', 'caixa', 'outro'],
       tipo_lancamento: ['entrada', 'saida'],
       tipo_pessoa: ['PF', 'PJ'],
+      tipo_ponto: ['porta_isca', 'armadilha_luminosa'],
       tipo_vencimento: ['certificado', 'recomendacao'],
     },
   },

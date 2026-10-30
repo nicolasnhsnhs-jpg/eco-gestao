@@ -6,6 +6,7 @@ import { formatarCnpj, formatarCpf, formatarTelefone } from '@/lib/documentos'
 import { supabase } from '@/lib/supabase'
 
 import { enderecoDaFicha, fichaDaOs, type OsCompleta } from '../api'
+import { buscarDadosPragas, escreverPragas, type DadosPragas } from './pragasPdf'
 
 /*
  * PDF da OS para enviar ao cliente e arquivar. Feito no navegador com pdf-lib
@@ -151,7 +152,8 @@ class Escritor {
   }
 
   secao(titulo: string) {
-    this.garantir(40)
+    // O título nunca fica sozinho no pé da página: leva junto pelo menos uma linha.
+    this.garantir(64)
     this.y -= 12
     this.pagina.drawRectangle({
       x: MARGEM,
@@ -175,7 +177,10 @@ class Escritor {
     const tamanho = 9.5
     const larguraRotulo = 110
     const linhas = quebrarLinhas(valor || '—', this.normal, tamanho, LARGURA_UTIL - larguraRotulo)
-    this.garantir(linhas.length * 13 + 2)
+    // Rótulo longo (ex.: nome de área) fica numa linha só dele, em cima do valor.
+    const rotuloLongo =
+      this.negrito.widthOfTextAtSize(textoSeguro(rotulo), tamanho) > larguraRotulo - 6
+    this.garantir(linhas.length * 13 + 2 + (rotuloLongo ? 13 : 0))
     this.pagina.drawText(textoSeguro(rotulo), {
       x: MARGEM,
       y: this.y - tamanho,
@@ -183,6 +188,7 @@ class Escritor {
       font: this.negrito,
       color: VERDE_ESCURO,
     })
+    if (rotuloLongo) this.y -= 13
     for (const linha of linhas) {
       this.pagina.drawText(linha, {
         x: MARGEM + larguraRotulo,
@@ -220,7 +226,7 @@ class Escritor {
   }
 }
 
-export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[]) {
+export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: DadosPragas) {
   const ficha = fichaDaOs(os.ficha_cliente)
   const e = os.execucao
   const pdf = await PDFDocument.create()
@@ -307,8 +313,9 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[]) {
     'Horários',
     `Chegada ${hora(e?.hora_chegada ?? null)} · Início ${hora(e?.hora_inicio ?? null)} · Término ${hora(e?.hora_termino ?? null)} · Saída ${hora(e?.hora_saida ?? null)}`,
   )
-  w.campo('Resultado', e?.resultado)
+  if (os.tipo?.formulario_os !== 'pragas') w.campo('Resultado', e?.resultado)
   w.campo('Observações', e?.observacoes)
+  if (pragas) escreverPragas(w, normal, os, pragas)
 
   const fotosComImagem = fotos.filter((f) => imagens.has(f.id))
   if (fotosComImagem.length > 0) {
@@ -363,7 +370,8 @@ export async function gerarESalvarPdfOs(os: OsCompleta) {
     .order('criado_em')
   if (error) throw error
 
-  const bytes = await gerarPdfOs(os, arquivos)
+  const pragas = os.tipo?.formulario_os === 'pragas' ? await buscarDadosPragas(os.id) : undefined
+  const bytes = await gerarPdfOs(os, arquivos, pragas)
   const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' })
   const nome = `${os.numero}.pdf`
   const id = crypto.randomUUID()

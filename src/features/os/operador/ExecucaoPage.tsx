@@ -27,6 +27,9 @@ import {
   type CamposExecucao,
   type OsCompleta,
 } from '../api'
+import { usePontosOs } from '../pragasApi'
+import { quantasEtapasPragas } from '../tipos/pragas'
+import { ExecucaoPragas } from './ExecucaoPragas'
 import { useRascunhoExecucao, type EstadoEnvio } from './rascunho'
 
 type CampoHora = 'hora_chegada' | 'hora_inicio' | 'hora_termino' | 'hora_saida'
@@ -75,6 +78,10 @@ function Execucao({ os }: { os: OsCompleta }) {
   const [erro, setErro] = useState<string | null>(null)
   const [assinando, setAssinando] = useState<'cliente' | 'operador' | null>(null)
   const dataServico = campos.data ?? hojeISO()
+  const pragas = os.tipo?.formulario_os === 'pragas'
+  const pontos = usePontosOs(os.id)
+  // Etapas: 1 chegada, depois as do tipo de serviço, depois fotos, cliente e operador.
+  const depois = 2 + (pragas ? quantasEtapasPragas(os, pontos.data) : 1)
 
   async function registrarAgora(campo: CampoHora) {
     setErro(null)
@@ -255,28 +262,32 @@ function Execucao({ os }: { os: OsCompleta }) {
         </div>
       </Etapa>
 
-      <Etapa numero={2} titulo="Serviço realizado">
-        <Campo rotulo="Resultado" htmlFor="ex-resultado" obrigatorio>
-          <Textarea
-            id="ex-resultado"
-            rows={4}
-            disabled={!aberta}
-            value={campo('resultado')}
-            onChange={(e) => alterar({ resultado: e.target.value })}
-          />
-        </Campo>
-        <Campo rotulo="Observações" htmlFor="ex-observacoes">
-          <Textarea
-            id="ex-observacoes"
-            rows={3}
-            disabled={!aberta}
-            value={campo('observacoes')}
-            onChange={(e) => alterar({ observacoes: e.target.value })}
-          />
-        </Campo>
-      </Etapa>
+      {pragas ? (
+        <ExecucaoPragas os={os} campos={campos} alterar={alterar} aberta={aberta} primeira={2} />
+      ) : (
+        <Etapa numero={2} titulo="Serviço realizado">
+          <Campo rotulo="Resultado" htmlFor="ex-resultado" obrigatorio>
+            <Textarea
+              id="ex-resultado"
+              rows={4}
+              disabled={!aberta}
+              value={campo('resultado')}
+              onChange={(e) => alterar({ resultado: e.target.value })}
+            />
+          </Campo>
+          <Campo rotulo="Observações" htmlFor="ex-observacoes">
+            <Textarea
+              id="ex-observacoes"
+              rows={3}
+              disabled={!aberta}
+              value={campo('observacoes')}
+              onChange={(e) => alterar({ observacoes: e.target.value })}
+            />
+          </Campo>
+        </Etapa>
+      )}
 
-      <Etapa numero={3} titulo="Fotos">
+      <Etapa numero={depois} titulo="Fotos">
         <ListaArquivos
           clienteId={os.cliente_id}
           osId={os.id}
@@ -288,7 +299,7 @@ function Execucao({ os }: { os: OsCompleta }) {
         />
       </Etapa>
 
-      <Etapa numero={4} titulo="Quem acompanhou (cliente)">
+      <Etapa numero={depois + 1} titulo="Quem acompanhou (cliente)">
         <div className="grid grid-cols-2 gap-3">
           <Campo rotulo="Nome" htmlFor="ex-resp-nome" obrigatorio>
             <Input
@@ -317,7 +328,7 @@ function Execucao({ os }: { os: OsCompleta }) {
         />
       </Etapa>
 
-      <Etapa numero={5} titulo="Operador">
+      <Etapa numero={depois + 2} titulo="Operador">
         <Campo rotulo="Seu nome completo" htmlFor="ex-operador" obrigatorio>
           <Input
             id="ex-operador"
