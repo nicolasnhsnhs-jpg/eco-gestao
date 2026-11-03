@@ -28,6 +28,8 @@ export const esquemaLancamento = z
     data_compra: z.string(),
     numero_nota_fiscal: z.string().trim(),
     parcelas: z.number().int('Use um número inteiro.').min(1).max(60, 'No máximo 60 parcelas.'),
+    /** Conta fixa (aluguel, internet…): o sistema lança sozinho a de cada mês, pendente. */
+    recorrente: z.boolean(),
     observacoes: z.string().trim(),
     /** Serviço que originou a conta a receber (vazio = nenhum). */
     servico_id: z.string(),
@@ -35,6 +37,13 @@ export const esquemaLancamento = z
   .superRefine((d, ctx) => {
     if (compraNoCartao(d) && !d.data_compra) {
       ctx.addIssue({ code: 'custom', path: ['data_compra'], message: 'Informe a data da compra.' })
+    }
+    if (d.recorrente && d.parcelas > 1) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['parcelas'],
+        message: 'Conta fixa não é parcelada: ela se repete todo mês.',
+      })
     }
     if (d.status !== 'realizado') return
     if (!d.data_pagamento) {
@@ -62,6 +71,28 @@ export function compraNoCartao(
 }
 
 const ouNulo = (v: string) => (v.trim() === '' ? null : v.trim())
+
+/** Dia do mês em que a conta fixa vence (o do 1º vencimento). */
+export function diaDoVencimento(vencimento: string) {
+  return Number(vencimento.slice(8, 10))
+}
+
+/** Converte o formulário de uma conta fixa para o formato do banco. */
+export function contaFixaParaBanco(f: FormLancamento) {
+  return {
+    tipo: f.tipo,
+    descricao: f.descricao.trim(),
+    cliente_id: f.tipo === 'entrada' ? ouNulo(f.cliente_id) : null,
+    fornecedor_id: f.tipo === 'saida' ? ouNulo(f.fornecedor_id) : null,
+    categoria_id: f.categoria_id,
+    valor: lerValor(f.valor)!,
+    dia_vencimento: diaDoVencimento(f.vencimento),
+    data_inicio: f.vencimento,
+    conta_bancaria_id: ouNulo(f.conta_bancaria_id),
+    forma_pagamento: f.forma_pagamento || null,
+    observacoes: ouNulo(f.observacoes),
+  }
+}
 
 /** Converte o formulário para o formato do banco (sem as parcelas). */
 export function lancamentoParaBanco(f: FormLancamento) {

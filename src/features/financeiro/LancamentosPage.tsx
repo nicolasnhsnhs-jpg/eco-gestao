@@ -1,4 +1,4 @@
-import { ArrowDownCircle, ArrowUpCircle, CheckCircle2, Plus, Search } from 'lucide-react'
+import { ArrowDownCircle, ArrowUpCircle, CheckCircle2, Plus, Repeat, Search } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 
@@ -174,6 +174,12 @@ export function LinhaLancamento({
               {' '}
               ({l.parcela_numero}/{l.parcela_total})
             </span>
+          )}
+          {l.recorrente_id && (
+            <Repeat
+              className="ml-1 inline size-4 align-[-2px] text-texto-suave"
+              aria-label="Conta fixa"
+            />
           )}
         </p>
         <p className="truncate text-sm text-texto-suave">

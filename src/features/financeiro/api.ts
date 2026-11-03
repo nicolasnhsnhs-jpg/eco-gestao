@@ -13,6 +13,7 @@ export type ContaBancaria = Tables<'v_saldos_contas'>
 export type Categoria = Tables<'categorias_financeiras'>
 export type Fornecedor = Tables<'fornecedores'>
 export type CartaoCredito = Tables<'cartoes_credito'>
+export type ContaFixa = Tables<'lancamentos_recorrentes'>
 export type Investimento = Tables<'v_saldos_investimentos'>
 export type MovimentoInvestimento = Tables<'movimentos_investimento'>
 
@@ -299,6 +300,68 @@ export function useSalvarFornecedor() {
         .single()
       if (error) throw error
       return data.id
+    },
+    onSuccess: atualizar,
+  })
+}
+
+// -----------------------------------------------------------------------------
+// Contas fixas (lançamentos recorrentes)
+// -----------------------------------------------------------------------------
+
+/** Contas fixas: o banco lança sozinho a de cada mês (do atual e do próximo), pendente. */
+export function useContasFixas() {
+  return useQuery({
+    queryKey: ['financeiro', 'contas-fixas'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('lancamentos_recorrentes')
+        .select(
+          '*, cliente:clientes(id, nome, nome_fantasia), fornecedor:fornecedores(id, nome), categoria:categorias_financeiras(id, nome)',
+        )
+        .order('ativo', { ascending: false })
+        .order('tipo', { ascending: false })
+        .order('dia_vencimento')
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export type ContaFixaCompleta = NonNullable<ReturnType<typeof useContasFixas>['data']>[number]
+
+export function useContaFixa(id: string | null | undefined) {
+  return useQuery({
+    queryKey: ['financeiro', 'conta-fixa', id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('lancamentos_recorrentes')
+        .select('*')
+        .eq('id', id!)
+        .maybeSingle()
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export function useSalvarContaFixa() {
+  const atualizar = useAtualizarFinanceiro()
+  return useMutation({
+    mutationFn: async ({
+      id,
+      dados,
+    }: {
+      id?: string
+      dados: TablesUpdate<'lancamentos_recorrentes'>
+    }) => {
+      const { error } = id
+        ? await supabase.from('lancamentos_recorrentes').update(dados).eq('id', id)
+        : await supabase
+            .from('lancamentos_recorrentes')
+            .insert(dados as TablesInsert<'lancamentos_recorrentes'>)
+      if (error) throw error
     },
     onSuccess: atualizar,
   })

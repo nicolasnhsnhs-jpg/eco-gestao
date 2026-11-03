@@ -104,6 +104,11 @@ do $$ declare n int; l record; begin
     'A comissão deveria guardar a descrição da venda (o vendedor não lê lançamentos)';
 end $$;
 
+-- A mensalidade deste mês já venceu (fixo em ontem: no dia em que o 1º dia útil é hoje,
+-- ela ainda estaria a vencer e o reajuste a alcançaria).
+update public.lancamentos set vencimento = privado.hoje() - 1
+ where contrato_id = '00000000-0000-0000-0000-0000000c7001' and competencia = pg_temp.mes(0);
+
 -- Reajuste do contrato: mensalidades futuras em aberto e comissões acompanham.
 update public.contratos set valor_mensal = 2500 where id = '00000000-0000-0000-0000-0000000c7001';
 do $$ declare l record; begin
