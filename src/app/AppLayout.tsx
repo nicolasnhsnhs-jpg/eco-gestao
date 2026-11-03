@@ -1,7 +1,8 @@
-import { LogOut, Menu, X } from 'lucide-react'
+import { LogOut, Menu, RefreshCw, X } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router'
 
+import { Button } from '@/components/ui/Button'
 import { useAuth, usePerfil } from '@/features/auth/useAuth'
 import { useAvisosNaoLidos } from '@/features/avisos/api'
 import { TarjaEnvio } from '@/features/os/offline/TarjaEnvio'
@@ -9,6 +10,7 @@ import { NOME_DO_PAPEL } from '@/lib/papeis'
 import { cn } from '@/lib/utils'
 
 import { barraDoPapel, menuDoPapel, type ItemMenu } from './navegacao'
+import { useNovaVersao } from './novaVersao'
 
 /**
  * Estrutura de todas as páginas:
@@ -85,6 +87,7 @@ export function AppLayout() {
 
       <main className="min-w-0 flex-1 px-4 pt-6 pb-28 sm:px-6 lg:px-10 lg:pb-10">
         <div className="mx-auto max-w-6xl">
+          <TarjaNovaVersao />
           {papel === 'operador' && <TarjaEnvio />}
           <Outlet />
         </div>
@@ -116,6 +119,23 @@ export function AppLayout() {
           </NavLink>
         ))}
       </nav>
+    </div>
+  )
+}
+
+/** Saiu versão nova: um toque recarrega a página já com ela. */
+function TarjaNovaVersao() {
+  if (!useNovaVersao()) return null
+  return (
+    <div
+      role="status"
+      className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-verde/30 bg-lima-claro px-4 py-3"
+    >
+      <RefreshCw className="size-5 shrink-0 text-verde-escuro" aria-hidden />
+      <p className="flex-1 basis-48 text-sm font-semibold text-verde-escuro">
+        Saiu uma versão nova do sistema.
+      </p>
+      <Button onClick={() => window.location.reload()}>Atualizar agora</Button>
     </div>
   )
 }
