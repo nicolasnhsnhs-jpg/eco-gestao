@@ -1,5 +1,7 @@
-import { createBrowserRouter, Outlet } from 'react-router'
+import { createBrowserRouter, Navigate, Outlet } from 'react-router'
 
+import { AdministrativoLayout } from '@/features/administrativo/AdministrativoLayout'
+import { AssinaturaPage } from '@/features/administrativo/assinatura/AssinaturaPage'
 import { AvisosPage } from '@/features/avisos/AvisosPage'
 import { DefinirSenhaPage } from '@/features/auth/DefinirSenhaPage'
 import { EntrarPage } from '@/features/auth/EntrarPage'
@@ -198,6 +200,18 @@ export const router = createBrowserRouter([
             <MinhasComissoesPage />
           </ExigePapel>
         ),
+      },
+      {
+        path: 'administrativo',
+        element: (
+          <ExigePapel papeis={PAPEIS_ACESSO_TOTAL}>
+            <AdministrativoLayout />
+          </ExigePapel>
+        ),
+        children: [
+          { index: true, element: <Navigate to="assinatura" replace /> },
+          { path: 'assinatura', element: <AssinaturaPage /> },
+        ],
       },
       { path: 'avisos', element: <AvisosPage /> },
       { path: '*', element: <NaoEncontradaPage /> },

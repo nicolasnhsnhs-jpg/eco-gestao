@@ -22,6 +22,13 @@ describe('menuDoPapel', () => {
     expect(caminhos('recepcao')).not.toContain('/financeiro')
   })
 
+  it('só admin e financeiro veem o administrativo', () => {
+    expect(caminhos('admin')).toContain('/administrativo')
+    expect(caminhos('financeiro')).toContain('/administrativo')
+    for (const papel of ['vendedor', 'recepcao', 'operador'] as const)
+      expect(caminhos(papel)).not.toContain('/administrativo')
+  })
+
   it('vendedor vê as próprias comissões; os outros perfis não têm esse item', () => {
     expect(caminhos('vendedor')).toContain('/comissoes')
     expect(caminhos('admin')).not.toContain('/comissoes')

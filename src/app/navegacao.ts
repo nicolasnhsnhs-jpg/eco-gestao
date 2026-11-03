@@ -1,6 +1,7 @@
 import {
   Bell,
   BriefcaseBusiness,
+  Building2,
   ClipboardList,
   FileText,
   HandCoins,
@@ -69,6 +70,12 @@ export const MENU: readonly ItemMenu[] = [
     caminho: '/contratos',
     icone: BriefcaseBusiness,
     papeis: ['admin', 'financeiro', 'vendedor'],
+  },
+  {
+    rotulo: 'Administrativo',
+    caminho: '/administrativo',
+    icone: Building2,
+    papeis: PAPEIS_ACESSO_TOTAL,
   },
   { rotulo: 'Minhas comissões', caminho: '/comissoes', icone: HandCoins, papeis: ['vendedor'] },
   { rotulo: 'Avisos', caminho: '/avisos', icone: Bell, papeis: TODOS, barraInferior: TODOS },
