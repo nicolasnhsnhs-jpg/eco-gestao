@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, Ban, CheckCircle2, RotateCcw } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 
@@ -21,6 +21,7 @@ import { useEquipe } from '../clientes/api'
 import { ClienteSeletor } from '../clientes/ClienteSeletor'
 import {
   useAtualizarLancamento,
+  useCartoes,
   useCategorias,
   useContas,
   useCriarLancamentos,
@@ -29,7 +30,13 @@ import {
   type LancamentoCompleto,
 } from './api'
 import { ConfirmarModal } from './ConfirmarModal'
-import { esquemaLancamento, lancamentoParaBanco, type FormLancamento } from './esquemaLancamento'
+import {
+  compraNoCartao,
+  esquemaLancamento,
+  lancamentoParaBanco,
+  type FormLancamento,
+} from './esquemaLancamento'
+import { vencimentoDaFatura } from './fatura'
 import { NovoFornecedorModal } from './NovoFornecedorModal'
 import { gerarParcelas } from './parcelas'
 import { COR_SITUACAO, EXPLICACAO_STATUS, FORMAS, NOME_SITUACAO, type Situacao } from './rotulos'
@@ -65,6 +72,8 @@ function valoresIniciais(
       data_pagamento: l.data_pagamento ?? hojeISO(),
       conta_bancaria_id: l.conta_bancaria_id ?? '',
       forma_pagamento: l.forma_pagamento ?? '',
+      cartao_credito_id: l.cartao_credito_id ?? '',
+      data_compra: l.data_compra ?? l.vencimento ?? hojeISO(),
       numero_nota_fiscal: l.numero_nota_fiscal ?? '',
       parcelas: 1,
       observacoes: l.observacoes ?? '',
@@ -72,8 +81,10 @@ function valoresIniciais(
     }
   }
   const hoje = hojeISO()
+  // Vindo da aba Cartões ("+ Compra"): já chega como compra naquele cartão.
+  const cartao = parametros.get('cartao') ?? ''
   return {
-    tipo: parametros.get('tipo') === 'saida' ? 'saida' : 'entrada',
+    tipo: parametros.get('tipo') === 'saida' || cartao ? 'saida' : 'entrada',
     // Vindo de um serviço concluído, a conta a receber já chega preenchida.
     descricao: parametros.get('descricao') ?? '',
     cliente_id: parametros.get('cliente') ?? '',
@@ -83,10 +94,12 @@ function valoresIniciais(
     valor: parametros.get('valor') ? valorParaCampo(Number(parametros.get('valor'))) : '',
     vencimento: parametros.get('vencimento') ?? hoje,
     competencia: mesDe(parametros.get('vencimento') ?? hoje),
-    status: 'pendente',
+    status: cartao ? 'agendado' : 'pendente',
     data_pagamento: hoje,
     conta_bancaria_id: '',
-    forma_pagamento: 'pix',
+    forma_pagamento: cartao ? 'cartao' : 'pix',
+    cartao_credito_id: cartao,
+    data_compra: hoje,
     numero_nota_fiscal: '',
     parcelas: 1,
     observacoes: '',
@@ -101,6 +114,7 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
   const [parametros] = useSearchParams()
   const categorias = useCategorias()
   const contas = useContas()
+  const cartoes = useCartoes()
   const fornecedores = useFornecedores()
   const equipe = useEquipe()
   const criar = useCriarLancamentos()
@@ -118,20 +132,34 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
     defaultValues: valoresIniciais(lancamento, parametros),
   })
   const { errors, isSubmitting } = form.formState
-  const [tipo, status, valorTexto, vencimento, parcelas, clienteId, clienteNome, fornecedorId] =
-    useWatch({
-      control: form.control,
-      name: [
-        'tipo',
-        'status',
-        'valor',
-        'vencimento',
-        'parcelas',
-        'cliente_id',
-        'cliente_nome',
-        'fornecedor_id',
-      ],
-    })
+  const [
+    tipo,
+    status,
+    valorTexto,
+    vencimento,
+    parcelas,
+    clienteId,
+    clienteNome,
+    fornecedorId,
+    formaPagamento,
+    cartaoId,
+    dataCompra,
+  ] = useWatch({
+    control: form.control,
+    name: [
+      'tipo',
+      'status',
+      'valor',
+      'vencimento',
+      'parcelas',
+      'cliente_id',
+      'cliente_nome',
+      'fornecedor_id',
+      'forma_pagamento',
+      'cartao_credito_id',
+      'data_compra',
+    ],
+  })
 
   const categoriasDoTipo = (categorias.data ?? []).filter(
     (c) =>
@@ -142,9 +170,42 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
     (c) => c.ativo || c.id === lancamento?.conta_bancaria_id,
   )
   const valorNumero = lerValor(valorTexto ?? '') ?? 0
+  const emAberto = lancamento?.status === 'pendente' || lancamento?.status === 'agendado'
+
+  // Compra no cartão: o vencimento é o da fatura em que a compra entra.
+  const cartoesAtivos = (cartoes.data ?? []).filter(
+    (c) => c.ativo || c.id === lancamento?.cartao_credito_id,
+  )
+  const pagaComCartao = tipo === 'saida' && formaPagamento === 'cartao'
+  const cartao = compraNoCartao({
+    tipo,
+    forma_pagamento: formaPagamento,
+    cartao_credito_id: cartaoId,
+  })
+    ? cartoesAtivos.find((c) => c.id === cartaoId)
+    : undefined
+  // Uma parcela já gravada (2/3, 3/3…) fica na fatura do mês dela.
+  const faturasDepois = (lancamento?.parcela_numero ?? 1) - 1
+  const podeMudarVencimento = !editando || emAberto
+
+  useEffect(() => {
+    if (!cartao || !dataCompra || !podeMudarVencimento) return
+    form.setValue('vencimento', vencimentoDaFatura(dataCompra, cartao, faturasDepois))
+    if (!competenciaManual) form.setValue('competencia', mesDe(dataCompra))
+  }, [cartao, dataCompra, podeMudarVencimento, faturasDepois, competenciaManual, form])
+
+  /** Parcelas: no cartão, cada uma vai para a fatura seguinte; senão, uma por mês. */
+  function parcelasDe(valor: number, quantidade: number, primeiroVencimento: string) {
+    return gerarParcelas(valor, quantidade, primeiroVencimento).map((p, i) => {
+      if (!cartao || !dataCompra) return p
+      const venc = vencimentoDaFatura(dataCompra, cartao, i)
+      return { ...p, vencimento: venc, competencia: `${venc.slice(0, 7)}-01` }
+    })
+  }
+
   const previa =
     !editando && parcelas > 1 && valorNumero > 0 && vencimento
-      ? gerarParcelas(valorNumero, parcelas, vencimento)
+      ? parcelasDe(valorNumero, parcelas, vencimento)
       : []
 
   async function salvar(dados: FormLancamento, continuar: boolean) {
@@ -166,7 +227,7 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
       if (dados.parcelas > 1) {
         const grupo = crypto.randomUUID()
         await criar.mutateAsync(
-          gerarParcelas(base.valor, dados.parcelas, dados.vencimento).map((p) => ({
+          parcelasDe(base.valor, dados.parcelas, dados.vencimento).map((p) => ({
             ...base,
             valor: p.valor,
             vencimento: p.vencimento,
@@ -219,7 +280,6 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
   const vencimentoCampo = form.register('vencimento')
   const nomeDe = (id: string | null) => equipe.data?.find((p) => p.id === id)?.nome ?? '—'
   const situacao = (lancamento?.situacao ?? lancamento?.status) as Situacao | undefined
-  const emAberto = lancamento?.status === 'pendente' || lancamento?.status === 'agendado'
 
   return (
     <div className="flex flex-col gap-5">
@@ -448,10 +508,13 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
               htmlFor="vencimento"
               obrigatorio
               erro={errors.vencimento?.message}
+              dica={cartao ? `Vence com a fatura do ${cartao.nome}.` : undefined}
             >
               <Input
                 id="vencimento"
                 type="date"
+                readOnly={!!cartao}
+                className={cn(cartao && 'bg-fundo-suave')}
                 {...vencimentoCampo}
                 onChange={(e) => {
                   void vencimentoCampo.onChange(e)
@@ -517,32 +580,37 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
             <fieldset className="sm:col-span-2">
               <legend className="sr-only">Situação</legend>
               <div className="grid grid-cols-3 gap-2">
-                {(['pendente', 'agendado', 'realizado'] as const).map((s) => (
-                  <label
-                    key={s}
-                    className={cn(
-                      'flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-borda text-sm font-semibold',
-                      'has-checked:border-verde has-checked:bg-lima-claro has-checked:text-verde-escuro',
-                      // Na edição: em aberto alterna entre pendente/agendado (confirmar é pelo botão);
-                      // já realizado mostra só "realizado".
-                      editando &&
-                        (s === 'realizado' ? lancamento.status !== 'realizado' : !emAberto) &&
-                        'hidden',
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      value={s}
-                      className="sr-only"
-                      {...form.register('status')}
-                    />
-                    {s === 'realizado'
-                      ? tipo === 'entrada'
-                        ? 'Já recebido'
-                        : 'Já pago'
-                      : NOME_SITUACAO[s]}
-                  </label>
-                ))}
+                {(['pendente', 'agendado', 'realizado'] as const)
+                  // No cartão, "já pago" é ao pagar a fatura (aba Cartões).
+                  .filter(
+                    (s) => !(cartao && s === 'realizado' && lancamento?.status !== 'realizado'),
+                  )
+                  .map((s) => (
+                    <label
+                      key={s}
+                      className={cn(
+                        'flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-borda text-sm font-semibold',
+                        'has-checked:border-verde has-checked:bg-lima-claro has-checked:text-verde-escuro',
+                        // Na edição: em aberto alterna entre pendente/agendado (confirmar é pelo botão);
+                        // já realizado mostra só "realizado".
+                        editando &&
+                          (s === 'realizado' ? lancamento.status !== 'realizado' : !emAberto) &&
+                          'hidden',
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        value={s}
+                        className="sr-only"
+                        {...form.register('status')}
+                      />
+                      {s === 'realizado'
+                        ? tipo === 'entrada'
+                          ? 'Já recebido'
+                          : 'Já pago'
+                        : NOME_SITUACAO[s]}
+                    </label>
+                  ))}
               </div>
               {status !== 'cancelado' && (
                 <p className="mt-2 text-sm text-texto-suave">{EXPLICACAO_STATUS[status]}</p>
@@ -559,21 +627,23 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
               </Campo>
             )}
 
-            <Campo
-              rotulo="Conta"
-              htmlFor="conta"
-              erro={errors.conta_bancaria_id?.message}
-              dica={status === 'realizado' ? undefined : 'Opcional enquanto estiver em aberto.'}
-            >
-              <SelectForm id="conta" control={form.control} name="conta_bancaria_id">
-                <option value="">{status === 'realizado' ? 'Escolha…' : 'Ainda não sei'}</option>
-                {contasAtivas.map((c) => (
-                  <option key={c.id} value={c.id!}>
-                    {c.nome}
-                  </option>
-                ))}
-              </SelectForm>
-            </Campo>
+            {!cartao && (
+              <Campo
+                rotulo="Conta"
+                htmlFor="conta"
+                erro={errors.conta_bancaria_id?.message}
+                dica={status === 'realizado' ? undefined : 'Opcional enquanto estiver em aberto.'}
+              >
+                <SelectForm id="conta" control={form.control} name="conta_bancaria_id">
+                  <option value="">{status === 'realizado' ? 'Escolha…' : 'Ainda não sei'}</option>
+                  {contasAtivas.map((c) => (
+                    <option key={c.id} value={c.id!}>
+                      {c.nome}
+                    </option>
+                  ))}
+                </SelectForm>
+              </Campo>
+            )}
 
             <Campo rotulo="Forma de pagamento" htmlFor="forma">
               <Select id="forma" {...form.register('forma_pagamento')}>
@@ -585,6 +655,59 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
                 ))}
               </Select>
             </Campo>
+
+            {pagaComCartao && cartoesAtivos.length > 0 && (
+              <Campo
+                rotulo="Cartão de crédito"
+                htmlFor="cartao"
+                dica={cartao ? undefined : 'Escolha o cartão para a compra ir para a fatura.'}
+              >
+                <Select
+                  id="cartao"
+                  {...form.register('cartao_credito_id', {
+                    onChange: (e: React.ChangeEvent<HTMLSelectElement>) => {
+                      // Compra no cartão fica programada até a fatura ser paga.
+                      if (e.target.value && status !== 'realizado') {
+                        form.setValue('status', 'agendado')
+                      }
+                    },
+                  })}
+                >
+                  <option value="">Sem cartão cadastrado</option>
+                  {cartoesAtivos.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nome} (vence dia {c.dia_vencimento})
+                    </option>
+                  ))}
+                </Select>
+              </Campo>
+            )}
+            {cartao && (
+              <Campo
+                rotulo="Data da compra"
+                htmlFor="data_compra"
+                erro={errors.data_compra?.message}
+                dica={`Fecha dia ${cartao.dia_fechamento}: compras a partir dele vão para a fatura seguinte.`}
+              >
+                <Input id="data_compra" type="date" {...form.register('data_compra')} />
+              </Campo>
+            )}
+            {cartao && vencimento && (
+              <p className="rounded-xl bg-lima-claro p-3 text-sm text-verde-escuro sm:col-span-2">
+                {parcelas > 1 && !editando
+                  ? `A 1ª parcela entra na fatura que vence em ${formatarData(vencimento)}; as outras, nas faturas seguintes.`
+                  : `Entra na fatura que vence em ${formatarData(vencimento)}. A fatura é paga de uma vez na aba Cartões.`}
+              </p>
+            )}
+            {pagaComCartao && cartoes.isSuccess && cartoesAtivos.length === 0 && (
+              <p className="text-sm text-texto-suave sm:col-span-2">
+                Para a compra ir direto para a fatura,{' '}
+                <Link to="/financeiro/cartoes" className="font-semibold text-verde underline">
+                  cadastre o cartão
+                </Link>{' '}
+                com o dia do vencimento.
+              </p>
+            )}
 
             <Campo rotulo="Observações" htmlFor="obs" className="sm:col-span-2">
               <Textarea id="obs" {...form.register('observacoes')} />

@@ -52,3 +52,11 @@ export const NOME_TIPO_CONTA: Record<TipoConta, string> = {
   caixa: 'Caixa (dinheiro)',
   outro: 'Outro',
 }
+
+export type TipoMovimentoInvestimento = Enums['tipo_movimento_investimento']
+
+export const NOME_MOVIMENTO_INVESTIMENTO: Record<TipoMovimentoInvestimento, string> = {
+  aporte: 'Aplicação',
+  resgate: 'Resgate',
+  rendimento: 'Rendimento',
+}

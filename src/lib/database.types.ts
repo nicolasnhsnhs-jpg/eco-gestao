@@ -87,13 +87,6 @@ export type Database = {
             referencedColumns: ['id']
           },
           {
-            foreignKeyName: 'arquivos_lancamento_id_fkey'
-            columns: ['lancamento_id']
-            isOneToOne: false
-            referencedRelation: 'v_movimentos'
-            referencedColumns: ['id']
-          },
-          {
             foreignKeyName: 'arquivos_os_id_fkey'
             columns: ['os_id']
             isOneToOne: false
@@ -302,13 +295,6 @@ export type Database = {
             referencedColumns: ['id']
           },
           {
-            foreignKeyName: 'avisos_lancamento_id_fkey'
-            columns: ['lancamento_id']
-            isOneToOne: false
-            referencedRelation: 'v_movimentos'
-            referencedColumns: ['id']
-          },
-          {
             foreignKeyName: 'avisos_proposta_id_fkey'
             columns: ['proposta_id']
             isOneToOne: false
@@ -341,6 +327,77 @@ export type Database = {
             columns: ['vencimento_id']
             isOneToOne: false
             referencedRelation: 'vencimentos_servico'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      cartoes_credito: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          conta_bancaria_id: string | null
+          criado_em: string
+          criado_por: string | null
+          dia_fechamento: number
+          dia_vencimento: number
+          id: string
+          limite: number | null
+          nome: string
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          conta_bancaria_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          dia_fechamento: number
+          dia_vencimento: number
+          id?: string
+          limite?: number | null
+          nome: string
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          conta_bancaria_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          dia_fechamento?: number
+          dia_vencimento?: number
+          id?: string
+          limite?: number | null
+          nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'cartoes_credito_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cartoes_credito_conta_bancaria_id_fkey'
+            columns: ['conta_bancaria_id']
+            isOneToOne: false
+            referencedRelation: 'contas_bancarias'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cartoes_credito_conta_bancaria_id_fkey'
+            columns: ['conta_bancaria_id']
+            isOneToOne: false
+            referencedRelation: 'v_saldos_contas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cartoes_credito_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
             referencedColumns: ['id']
           },
         ]
@@ -554,13 +611,6 @@ export type Database = {
             columns: ['lancamento_origem_id']
             isOneToOne: true
             referencedRelation: 'v_lancamentos'
-            referencedColumns: ['id']
-          },
-          {
-            foreignKeyName: 'comissoes_lancamento_origem_id_fkey'
-            columns: ['lancamento_origem_id']
-            isOneToOne: true
-            referencedRelation: 'v_movimentos'
             referencedColumns: ['id']
           },
           {
@@ -1030,13 +1080,6 @@ export type Database = {
             referencedColumns: ['id']
           },
           {
-            foreignKeyName: 'fechamentos_comissao_lancamento_pagamento_id_fkey'
-            columns: ['lancamento_pagamento_id']
-            isOneToOne: false
-            referencedRelation: 'v_movimentos'
-            referencedColumns: ['id']
-          },
-          {
             foreignKeyName: 'fechamentos_comissao_vendedor_id_fkey'
             columns: ['vendedor_id']
             isOneToOne: false
@@ -1137,10 +1180,65 @@ export type Database = {
           },
         ]
       }
+      investimentos: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          criado_em: string
+          criado_por: string | null
+          data_saldo_inicial: string
+          id: string
+          instituicao: string | null
+          nome: string
+          saldo_inicial: number
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_saldo_inicial?: string
+          id?: string
+          instituicao?: string | null
+          nome: string
+          saldo_inicial?: number
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_saldo_inicial?: string
+          id?: string
+          instituicao?: string | null
+          nome?: string
+          saldo_inicial?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'investimentos_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'investimentos_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       lancamentos: {
         Row: {
           atualizado_em: string
           atualizado_por: string | null
+          cartao_credito_id: string | null
           categoria_id: string
           cliente_id: string | null
           competencia: string
@@ -1150,6 +1248,7 @@ export type Database = {
           contrato_id: string | null
           criado_em: string
           criado_por: string | null
+          data_compra: string | null
           data_pagamento: string | null
           descricao: string
           forma_pagamento: Database['public']['Enums']['forma_pagamento'] | null
@@ -1170,6 +1269,7 @@ export type Database = {
         Insert: {
           atualizado_em?: string
           atualizado_por?: string | null
+          cartao_credito_id?: string | null
           categoria_id: string
           cliente_id?: string | null
           competencia: string
@@ -1179,6 +1279,7 @@ export type Database = {
           contrato_id?: string | null
           criado_em?: string
           criado_por?: string | null
+          data_compra?: string | null
           data_pagamento?: string | null
           descricao: string
           forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
@@ -1199,6 +1300,7 @@ export type Database = {
         Update: {
           atualizado_em?: string
           atualizado_por?: string | null
+          cartao_credito_id?: string | null
           categoria_id?: string
           cliente_id?: string | null
           competencia?: string
@@ -1208,6 +1310,7 @@ export type Database = {
           contrato_id?: string | null
           criado_em?: string
           criado_por?: string | null
+          data_compra?: string | null
           data_pagamento?: string | null
           descricao?: string
           forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
@@ -1231,6 +1334,13 @@ export type Database = {
             columns: ['atualizado_por']
             isOneToOne: false
             referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_cartao_credito_id_fkey'
+            columns: ['cartao_credito_id']
+            isOneToOne: false
+            referencedRelation: 'cartoes_credito'
             referencedColumns: ['id']
           },
           {
@@ -1294,6 +1404,94 @@ export type Database = {
             columns: ['servico_id']
             isOneToOne: false
             referencedRelation: 'servicos'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      movimentos_investimento: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          cancelado: boolean
+          conta_bancaria_id: string | null
+          criado_em: string
+          criado_por: string | null
+          data: string
+          id: string
+          investimento_id: string
+          observacoes: string | null
+          tipo: Database['public']['Enums']['tipo_movimento_investimento']
+          valor: number
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cancelado?: boolean
+          conta_bancaria_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data: string
+          id?: string
+          investimento_id: string
+          observacoes?: string | null
+          tipo: Database['public']['Enums']['tipo_movimento_investimento']
+          valor: number
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cancelado?: boolean
+          conta_bancaria_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data?: string
+          id?: string
+          investimento_id?: string
+          observacoes?: string | null
+          tipo?: Database['public']['Enums']['tipo_movimento_investimento']
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'movimentos_investimento_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'movimentos_investimento_conta_bancaria_id_fkey'
+            columns: ['conta_bancaria_id']
+            isOneToOne: false
+            referencedRelation: 'contas_bancarias'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'movimentos_investimento_conta_bancaria_id_fkey'
+            columns: ['conta_bancaria_id']
+            isOneToOne: false
+            referencedRelation: 'v_saldos_contas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'movimentos_investimento_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'movimentos_investimento_investimento_id_fkey'
+            columns: ['investimento_id']
+            isOneToOne: false
+            referencedRelation: 'investimentos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'movimentos_investimento_investimento_id_fkey'
+            columns: ['investimento_id']
+            isOneToOne: false
+            referencedRelation: 'v_saldos_investimentos'
             referencedColumns: ['id']
           },
         ]
@@ -1553,13 +1751,6 @@ export type Database = {
             columns: ['lancamento_id']
             isOneToOne: false
             referencedRelation: 'v_lancamentos'
-            referencedColumns: ['id']
-          },
-          {
-            foreignKeyName: 'os_conferencia_lancamento_id_fkey'
-            columns: ['lancamento_id']
-            isOneToOne: false
-            referencedRelation: 'v_movimentos'
             referencedColumns: ['id']
           },
           {
@@ -2725,6 +2916,7 @@ export type Database = {
           atrasado: boolean | null
           atualizado_em: string | null
           atualizado_por: string | null
+          cartao_credito_id: string | null
           categoria_id: string | null
           cliente_id: string | null
           competencia: string | null
@@ -2734,6 +2926,7 @@ export type Database = {
           contrato_id: string | null
           criado_em: string | null
           criado_por: string | null
+          data_compra: string | null
           data_pagamento: string | null
           descricao: string | null
           forma_pagamento: Database['public']['Enums']['forma_pagamento'] | null
@@ -2756,6 +2949,7 @@ export type Database = {
           atrasado?: never
           atualizado_em?: string | null
           atualizado_por?: string | null
+          cartao_credito_id?: string | null
           categoria_id?: string | null
           cliente_id?: string | null
           competencia?: string | null
@@ -2765,6 +2959,7 @@ export type Database = {
           contrato_id?: string | null
           criado_em?: string | null
           criado_por?: string | null
+          data_compra?: string | null
           data_pagamento?: string | null
           descricao?: string | null
           forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
@@ -2787,6 +2982,7 @@ export type Database = {
           atrasado?: never
           atualizado_em?: string | null
           atualizado_por?: string | null
+          cartao_credito_id?: string | null
           categoria_id?: string | null
           cliente_id?: string | null
           competencia?: string | null
@@ -2796,6 +2992,7 @@ export type Database = {
           contrato_id?: string | null
           criado_em?: string | null
           criado_por?: string | null
+          data_compra?: string | null
           data_pagamento?: string | null
           descricao?: string | null
           forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
@@ -2820,6 +3017,13 @@ export type Database = {
             columns: ['atualizado_por']
             isOneToOne: false
             referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_cartao_credito_id_fkey'
+            columns: ['cartao_credito_id']
+            isOneToOne: false
+            referencedRelation: 'cartoes_credito'
             referencedColumns: ['id']
           },
           {
@@ -2892,24 +3096,10 @@ export type Database = {
           conta_bancaria_id: string | null
           data_pagamento: string | null
           id: string | null
+          origem: string | null
           valor_com_sinal: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: 'lancamentos_conta_bancaria_id_fkey'
-            columns: ['conta_bancaria_id']
-            isOneToOne: false
-            referencedRelation: 'contas_bancarias'
-            referencedColumns: ['id']
-          },
-          {
-            foreignKeyName: 'lancamentos_conta_bancaria_id_fkey'
-            columns: ['conta_bancaria_id']
-            isOneToOne: false
-            referencedRelation: 'v_saldos_contas'
-            referencedColumns: ['id']
-          },
-        ]
+        Relationships: []
       }
       v_propostas: {
         Row: {
@@ -3041,6 +3231,39 @@ export type Database = {
           },
           {
             foreignKeyName: 'contas_bancarias_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      v_saldos_investimentos: {
+        Row: {
+          ativo: boolean | null
+          atualizado_em: string | null
+          atualizado_por: string | null
+          criado_em: string | null
+          criado_por: string | null
+          data_saldo_inicial: string | null
+          id: string | null
+          instituicao: string | null
+          nome: string | null
+          saldo_atual: number | null
+          saldo_inicial: number | null
+          total_aportado: number | null
+          total_rendimento: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'investimentos_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'investimentos_criado_por_fkey'
             columns: ['criado_por']
             isOneToOne: false
             referencedRelation: 'perfis'
@@ -3236,6 +3459,7 @@ export type Database = {
           despesas: number
           faturamento: number
           fluxo: number
+          investido: number
           mes: string
           pago: number
           recebido: number
@@ -3297,6 +3521,7 @@ export type Database = {
       tipo_categoria: 'receita' | 'despesa'
       tipo_conta: 'corrente' | 'poupanca' | 'caixa' | 'outro'
       tipo_lancamento: 'entrada' | 'saida'
+      tipo_movimento_investimento: 'aporte' | 'resgate' | 'rendimento'
       tipo_pessoa: 'PF' | 'PJ'
       tipo_ponto: 'porta_isca' | 'armadilha_luminosa' | 'coifa'
       tipo_vencimento: 'certificado' | 'recomendacao'
@@ -3457,6 +3682,7 @@ export const Constants = {
       tipo_categoria: ['receita', 'despesa'],
       tipo_conta: ['corrente', 'poupanca', 'caixa', 'outro'],
       tipo_lancamento: ['entrada', 'saida'],
+      tipo_movimento_investimento: ['aporte', 'resgate', 'rendimento'],
       tipo_pessoa: ['PF', 'PJ'],
       tipo_ponto: ['porta_isca', 'armadilha_luminosa', 'coifa'],
       tipo_vencimento: ['certificado', 'recomendacao'],

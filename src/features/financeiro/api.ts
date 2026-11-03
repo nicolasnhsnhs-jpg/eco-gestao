@@ -12,9 +12,14 @@ export type Lancamento = Tables<'v_lancamentos'>
 export type ContaBancaria = Tables<'v_saldos_contas'>
 export type Categoria = Tables<'categorias_financeiras'>
 export type Fornecedor = Tables<'fornecedores'>
+export type CartaoCredito = Tables<'cartoes_credito'>
+export type Investimento = Tables<'v_saldos_investimentos'>
+export type MovimentoInvestimento = Tables<'movimentos_investimento'>
 
 export type Painel = {
   saldo_atual: number
+  /** Total nos investimentos: fica fora do saldo atual e do projetado. */
+  investido: number
   a_receber: number
   a_pagar: number
   receber_atrasado: number
@@ -29,7 +34,8 @@ const RELACOES = `
   cliente:clientes(id, nome, nome_fantasia),
   fornecedor:fornecedores(id, nome),
   categoria:categorias_financeiras(id, nome),
-  conta:contas_bancarias(id, nome)
+  conta:contas_bancarias(id, nome),
+  cartao:cartoes_credito(id, nome)
 `
 
 export type FiltroLancamentos = {
@@ -293,6 +299,157 @@ export function useSalvarFornecedor() {
         .single()
       if (error) throw error
       return data.id
+    },
+    onSuccess: atualizar,
+  })
+}
+
+// -----------------------------------------------------------------------------
+// Cartões de crédito
+// -----------------------------------------------------------------------------
+
+export function useCartoes() {
+  return useQuery({
+    queryKey: ['financeiro', 'cartoes'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cartoes_credito')
+        .select('*')
+        .order('ativo', { ascending: false })
+        .order('nome')
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export function useSalvarCartao() {
+  const atualizar = useAtualizarFinanceiro()
+  return useMutation({
+    mutationFn: async ({ id, dados }: { id?: string; dados: TablesInsert<'cartoes_credito'> }) => {
+      const { error } = id
+        ? await supabase.from('cartoes_credito').update(dados).eq('id', id)
+        : await supabase.from('cartoes_credito').insert(dados)
+      if (error) throw error
+    },
+    onSuccess: atualizar,
+  })
+}
+
+/** Compras no cartão: as em aberto (todas) e as pagas dos últimos meses. */
+export function useComprasNoCartao(desde: string) {
+  return useQuery({
+    queryKey: ['financeiro', 'compras-cartao', desde],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('v_lancamentos')
+        .select(`*, ${RELACOES}`)
+        .not('cartao_credito_id', 'is', null)
+        .neq('status', 'cancelado')
+        .or(`status.in.(pendente,agendado),vencimento.gte.${desde}`)
+        .order('vencimento')
+        .order('data_compra')
+        .limit(1000)
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export type PagamentoFatura = {
+  cartaoId: string
+  vencimento: string
+  data_pagamento: string
+  conta_bancaria_id: string
+}
+
+/** Paga a fatura: confirma de uma vez todas as compras em aberto dela. */
+export function usePagarFatura() {
+  const atualizar = useAtualizarFinanceiro()
+  return useMutation({
+    mutationFn: async ({ cartaoId, vencimento, ...dados }: PagamentoFatura) => {
+      // Um único UPDATE: ou todas as compras da fatura são confirmadas, ou nenhuma.
+      const { error } = await supabase
+        .from('lancamentos')
+        .update({ ...dados, status: 'realizado' })
+        .eq('cartao_credito_id', cartaoId)
+        .eq('vencimento', vencimento)
+        .in('status', ['pendente', 'agendado'])
+      if (error) throw error
+    },
+    onSuccess: atualizar,
+  })
+}
+
+// -----------------------------------------------------------------------------
+// Investimentos
+// -----------------------------------------------------------------------------
+
+export function useInvestimentos() {
+  return useQuery({
+    queryKey: ['financeiro', 'investimentos'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('v_saldos_investimentos')
+        .select('*')
+        .order('ativo', { ascending: false })
+        .order('nome')
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export function useMovimentosInvestimento() {
+  return useQuery({
+    queryKey: ['financeiro', 'movimentos-investimento'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('movimentos_investimento')
+        .select('*, investimento:investimentos(id, nome), conta:contas_bancarias(id, nome)')
+        .order('data', { ascending: false })
+        .order('criado_em', { ascending: false })
+        .limit(300)
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export function useSalvarInvestimento() {
+  const atualizar = useAtualizarFinanceiro()
+  return useMutation({
+    mutationFn: async ({ id, dados }: { id?: string; dados: TablesInsert<'investimentos'> }) => {
+      const { error } = id
+        ? await supabase.from('investimentos').update(dados).eq('id', id)
+        : await supabase.from('investimentos').insert(dados)
+      if (error) throw error
+    },
+    onSuccess: atualizar,
+  })
+}
+
+export function useRegistrarMovimentoInvestimento() {
+  const atualizar = useAtualizarFinanceiro()
+  return useMutation({
+    mutationFn: async (dados: TablesInsert<'movimentos_investimento'>) => {
+      const { error } = await supabase.from('movimentos_investimento').insert(dados)
+      if (error) throw error
+    },
+    onSuccess: atualizar,
+  })
+}
+
+/** Movimento lançado errado: fica no histórico, mas sai das contas. */
+export function useCancelarMovimentoInvestimento() {
+  const atualizar = useAtualizarFinanceiro()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('movimentos_investimento')
+        .update({ cancelado: true })
+        .eq('id', id)
+      if (error) throw error
     },
     onSuccess: atualizar,
   })

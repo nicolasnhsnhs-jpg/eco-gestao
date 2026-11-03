@@ -39,6 +39,7 @@ delete from public.fechamentos_comissao;
 delete from public.lancamentos;
 alter table public.lancamentos enable trigger user;
 update public.contas_bancarias set ativo = false, saldo_inicial = 0;
+update public.movimentos_investimento set cancelado = true;
 
 -- =============================================================================
 -- Financeiro: cadastra conta e lançamentos

@@ -1,4 +1,4 @@
-import { AlertTriangle, Landmark } from 'lucide-react'
+import { AlertTriangle, Landmark, PiggyBank } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 
@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { useGerarAvisosAoAbrir } from '../avisos/api'
 import {
   useContas,
+  useInvestimentos,
   useLancamentos,
   usePainel,
   useResumoMensal,
@@ -26,6 +27,7 @@ export function PainelPage() {
   const painel = usePainel()
   const contas = useContas()
   const resumo = useResumoMensal()
+  const investimentos = useInvestimentos()
   // Vencidos e de hoje, para confirmar direto daqui.
   const doDia = useLancamentos({ tipo: 'todos', situacao: 'em_aberto', mes: '', busca: '' })
   const [confirmando, setConfirmando] = useState<LancamentoCompleto | null>(null)
@@ -40,6 +42,8 @@ export function PainelPage() {
   const hoje = hojeISO()
   const urgentes = (doDia.data ?? []).filter((l) => (l.vencimento ?? '') <= hoje)
   const contasAtivas = (contas.data ?? []).filter((c) => c.ativo)
+  const investimentosAtivos = (investimentos.data ?? []).filter((i) => i.ativo)
+  const temInvestimento = (resumo.data ?? []).some((m) => Number(m.investido) !== 0)
 
   return (
     <div className="flex flex-col gap-5">
@@ -52,7 +56,7 @@ export function PainelPage() {
         </Aviso>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <Indicador titulo="Saldo atual" valor={p.saldo_atual} destaque />
         <Indicador
           titulo="A receber (em aberto)"
@@ -71,6 +75,12 @@ export function PainelPage() {
           titulo="Saldo projetado"
           valor={projetado}
           detalhe="Saldo + a receber − a pagar"
+        />
+        <Indicador
+          titulo="Investido"
+          valor={p.investido}
+          detalhe="Guardado à parte: fora do saldo e do projetado"
+          link="/financeiro/investimentos"
         />
       </div>
 
@@ -115,6 +125,22 @@ export function PainelPage() {
               </li>
             ))}
           </ul>
+          {investimentosAtivos.length > 0 && (
+            <>
+              <h3 className="mt-5 mb-2 text-sm font-bold text-texto-suave uppercase">
+                Investimentos
+              </h3>
+              <ul className="flex flex-col gap-2">
+                {investimentosAtivos.map((i) => (
+                  <li key={i.id} className="flex items-center gap-3">
+                    <PiggyBank className="size-5 shrink-0 text-verde" aria-hidden />
+                    <span className="flex-1 truncate">{i.nome}</span>
+                    <strong>{formatarReais(i.saldo_atual)}</strong>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </Card>
 
         <Card className="overflow-x-auto lg:col-span-2">
@@ -133,6 +159,7 @@ export function PainelPage() {
                   <th className="font-semibold">Despesas</th>
                   <th className="font-semibold">Recebido</th>
                   <th className="font-semibold">Pago</th>
+                  {temInvestimento && <th className="font-semibold">Investido</th>}
                   <th className="font-semibold">Saldo</th>
                 </tr>
               </thead>
@@ -152,6 +179,7 @@ export function PainelPage() {
                       <td>{formatarReais(m.despesas)}</td>
                       <td className="text-verde">{formatarReais(m.recebido)}</td>
                       <td className="text-perigo">{formatarReais(m.pago)}</td>
+                      {temInvestimento && <td>{formatarReais(m.investido)}</td>}
                       <td className={cn(Number(m.saldo_acumulado) < 0 && 'text-perigo')}>
                         {formatarReais(m.saldo_acumulado)}
                       </td>
