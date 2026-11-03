@@ -131,6 +131,10 @@ O que você vê: tudo. O Administrador, além disso, gerencia os usuários.
 
 - **A receber / A pagar:** **Financeiro → Lançamentos**. Parcelado? Informe a quantidade de parcelas
   e veja a prévia antes de salvar. Vários seguidos? Use **Salvar e lançar outro**.
+- **Conta fixa (aluguel, internet…):** ao lançar, marque **Repete todo mês**. O sistema cria
+  sozinho o lançamento de cada mês (o atual e o próximo), pendente, vencendo no mesmo dia; no dia,
+  é só confirmar o pagamento. Para mudar o valor ou o dia, ou encerrar: **Financeiro → Contas
+  fixas**.
 - **Pendente** = alguém precisa pagar/cobrar no dia. **Agendado** = já programado no banco (Pix
   agendado, débito automático). **Atrasado** o sistema calcula sozinho.
 - Lançamento confirmado só o Administrador altera ou reabre.

@@ -12,6 +12,7 @@ import { ClienteFormPage } from '@/features/clientes/ClienteFormPage'
 import { ClientesPage } from '@/features/clientes/ClientesPage'
 import { CadastrosPage } from '@/features/financeiro/CadastrosPage'
 import { CartoesPage } from '@/features/financeiro/CartoesPage'
+import { ContasFixasPage } from '@/features/financeiro/ContasFixasPage'
 import { FinanceiroLayout } from '@/features/financeiro/FinanceiroLayout'
 import { InvestimentosPage } from '@/features/financeiro/InvestimentosPage'
 import { LancamentoFormPage } from '@/features/financeiro/LancamentoFormPage'
@@ -131,6 +132,7 @@ export const router = createBrowserRouter([
           { path: 'lancamentos', element: <LancamentosPage /> },
           { path: 'lancamentos/novo', element: <LancamentoFormPage /> },
           { path: 'lancamentos/:id', element: <LancamentoFormPage /> },
+          { path: 'contas-fixas', element: <ContasFixasPage /> },
           { path: 'investimentos', element: <InvestimentosPage /> },
           { path: 'cartoes', element: <CartoesPage /> },
           { path: 'comissoes', element: <ComissoesPage /> },

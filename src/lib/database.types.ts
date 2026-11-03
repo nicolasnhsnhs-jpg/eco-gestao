@@ -1259,6 +1259,7 @@ export type Database = {
           observacoes: string | null
           parcela_numero: number | null
           parcela_total: number | null
+          recorrente_id: string | null
           servico_id: string | null
           status: Database['public']['Enums']['status_lancamento']
           tipo: Database['public']['Enums']['tipo_lancamento']
@@ -1290,6 +1291,7 @@ export type Database = {
           observacoes?: string | null
           parcela_numero?: number | null
           parcela_total?: number | null
+          recorrente_id?: string | null
           servico_id?: string | null
           status?: Database['public']['Enums']['status_lancamento']
           tipo: Database['public']['Enums']['tipo_lancamento']
@@ -1321,6 +1323,7 @@ export type Database = {
           observacoes?: string | null
           parcela_numero?: number | null
           parcela_total?: number | null
+          recorrente_id?: string | null
           servico_id?: string | null
           status?: Database['public']['Enums']['status_lancamento']
           tipo?: Database['public']['Enums']['tipo_lancamento']
@@ -1404,6 +1407,95 @@ export type Database = {
             columns: ['servico_id']
             isOneToOne: false
             referencedRelation: 'servicos'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      lancamentos_recorrentes: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          categoria_id: string
+          cliente_id: string | null
+          conta_bancaria_id: string | null
+          criado_em: string
+          criado_por: string | null
+          data_inicio: string
+          descricao: string
+          dia_vencimento: number
+          forma_pagamento: Database['public']['Enums']['forma_pagamento'] | null
+          fornecedor_id: string | null
+          id: string
+          observacoes: string | null
+          tipo: Database['public']['Enums']['tipo_lancamento']
+          valor: number
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          categoria_id: string
+          cliente_id?: string | null
+          conta_bancaria_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_inicio: string
+          descricao: string
+          dia_vencimento: number
+          forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
+          fornecedor_id?: string | null
+          id?: string
+          observacoes?: string | null
+          tipo: Database['public']['Enums']['tipo_lancamento']
+          valor: number
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          categoria_id?: string
+          cliente_id?: string | null
+          conta_bancaria_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_inicio?: string
+          descricao?: string
+          dia_vencimento?: number
+          forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
+          fornecedor_id?: string | null
+          id?: string
+          observacoes?: string | null
+          tipo?: Database['public']['Enums']['tipo_lancamento']
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'lancamentos_recorrentes_categoria_id_fkey'
+            columns: ['categoria_id']
+            isOneToOne: false
+            referencedRelation: 'categorias_financeiras'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_recorrentes_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_recorrentes_conta_bancaria_id_fkey'
+            columns: ['conta_bancaria_id']
+            isOneToOne: false
+            referencedRelation: 'contas_bancarias'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_recorrentes_fornecedor_id_fkey'
+            columns: ['fornecedor_id']
+            isOneToOne: false
+            referencedRelation: 'fornecedores'
             referencedColumns: ['id']
           },
         ]
@@ -2937,6 +3029,7 @@ export type Database = {
           observacoes: string | null
           parcela_numero: number | null
           parcela_total: number | null
+          recorrente_id: string | null
           servico_id: string | null
           situacao: string | null
           status: Database['public']['Enums']['status_lancamento'] | null

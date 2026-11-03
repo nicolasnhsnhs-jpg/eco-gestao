@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, Ban, CheckCircle2, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Ban, CheckCircle2, Repeat, RotateCcw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
@@ -27,11 +27,14 @@ import {
   useCriarLancamentos,
   useFornecedores,
   useLancamento,
+  useSalvarContaFixa,
   type LancamentoCompleto,
 } from './api'
 import { ConfirmarModal } from './ConfirmarModal'
 import {
   compraNoCartao,
+  contaFixaParaBanco,
+  diaDoVencimento,
   esquemaLancamento,
   lancamentoParaBanco,
   type FormLancamento,
@@ -76,6 +79,7 @@ function valoresIniciais(
       data_compra: l.data_compra ?? l.vencimento ?? hojeISO(),
       numero_nota_fiscal: l.numero_nota_fiscal ?? '',
       parcelas: 1,
+      recorrente: false,
       observacoes: l.observacoes ?? '',
       servico_id: l.servico_id ?? '',
     }
@@ -102,6 +106,8 @@ function valoresIniciais(
     data_compra: hoje,
     numero_nota_fiscal: '',
     parcelas: 1,
+    // Vindo da aba Contas fixas ("+ Conta fixa"): já chega marcado.
+    recorrente: !cartao && parametros.get('fixa') === '1',
     observacoes: '',
     servico_id: parametros.get('servico') ?? '',
   }
@@ -118,6 +124,7 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
   const fornecedores = useFornecedores()
   const equipe = useEquipe()
   const criar = useCriarLancamentos()
+  const criarFixa = useSalvarContaFixa()
   const atualizar = useAtualizarLancamento()
   const [salvoAgora, setSalvoAgora] = useState<string | null>(null)
   const [confirmando, setConfirmando] = useState(false)
@@ -144,6 +151,7 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
     formaPagamento,
     cartaoId,
     dataCompra,
+    recorrente,
   ] = useWatch({
     control: form.control,
     name: [
@@ -158,6 +166,7 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
       'forma_pagamento',
       'cartao_credito_id',
       'data_compra',
+      'recorrente',
     ],
   })
 
@@ -176,14 +185,17 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
   const cartoesAtivos = (cartoes.data ?? []).filter(
     (c) => c.ativo || c.id === lancamento?.cartao_credito_id,
   )
-  const pagaComCartao = tipo === 'saida' && formaPagamento === 'cartao'
-  const cartao = compraNoCartao({
-    tipo,
-    forma_pagamento: formaPagamento,
-    cartao_credito_id: cartaoId,
-  })
-    ? cartoesAtivos.find((c) => c.id === cartaoId)
-    : undefined
+  // Conta fixa não vai para a fatura de um cartão: cada mês é confirmado à parte.
+  const pagaComCartao = tipo === 'saida' && formaPagamento === 'cartao' && !recorrente
+  const cartao =
+    !recorrente &&
+    compraNoCartao({
+      tipo,
+      forma_pagamento: formaPagamento,
+      cartao_credito_id: cartaoId,
+    })
+      ? cartoesAtivos.find((c) => c.id === cartaoId)
+      : undefined
   // Uma parcela já gravada (2/3, 3/3…) fica na fatura do mês dela.
   const faturasDepois = (lancamento?.parcela_numero ?? 1) - 1
   const podeMudarVencimento = !editando || emAberto
@@ -224,7 +236,10 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
         return
       }
 
-      if (dados.parcelas > 1) {
+      if (dados.recorrente) {
+        // O banco cria o lançamento pendente deste mês e do próximo (e dos seguintes, sozinho).
+        await criarFixa.mutateAsync({ dados: contaFixaParaBanco(dados) })
+      } else if (dados.parcelas > 1) {
         const grupo = crypto.randomUUID()
         await criar.mutateAsync(
           parcelasDe(base.valor, dados.parcelas, dados.vencimento).map((p) => ({
@@ -243,7 +258,11 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
 
       if (continuar) {
         // "Salvar e lançar outro": mantém tipo, categoria, conta e datas; limpa o resto.
-        setSalvoAgora(`“${dados.descricao}” salvo.`)
+        setSalvoAgora(
+          dados.recorrente
+            ? `“${dados.descricao}” salvo como conta fixa: vence todo dia ${diaDoVencimento(dados.vencimento)}.`
+            : `“${dados.descricao}” salvo.`,
+        )
         form.reset({
           ...dados,
           descricao: '',
@@ -253,6 +272,7 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
           fornecedor_id: '',
           numero_nota_fiscal: '',
           parcelas: 1,
+          recorrente: false,
           observacoes: '',
           servico_id: '',
         })
@@ -297,8 +317,12 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
             {editando
               ? lancamento.descricao
               : tipo === 'entrada'
-                ? 'Nova conta a receber'
-                : 'Nova conta a pagar'}
+                ? recorrente
+                  ? 'Nova receita fixa'
+                  : 'Nova conta a receber'
+                : recorrente
+                  ? 'Nova conta fixa a pagar'
+                  : 'Nova conta a pagar'}
           </h1>
           {editando && situacao && (
             <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -308,6 +332,14 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
                 <span className="text-sm text-texto-suave">
                   Parcela {lancamento.parcela_numero} de {lancamento.parcela_total}
                 </span>
+              )}
+              {lancamento.recorrente_id && (
+                <Link
+                  to="/financeiro/contas-fixas"
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-verde underline"
+                >
+                  <Repeat className="size-4" aria-hidden /> Conta fixa (repete todo mês)
+                </Link>
               )}
             </div>
           )}
@@ -504,11 +536,17 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
             </Campo>
 
             <Campo
-              rotulo={parcelas > 1 ? '1º vencimento' : 'Vencimento'}
+              rotulo={parcelas > 1 || recorrente ? '1º vencimento' : 'Vencimento'}
               htmlFor="vencimento"
               obrigatorio
               erro={errors.vencimento?.message}
-              dica={cartao ? `Vence com a fatura do ${cartao.nome}.` : undefined}
+              dica={
+                cartao
+                  ? `Vence com a fatura do ${cartao.nome}.`
+                  : recorrente && vencimento
+                    ? `Depois, vence todo dia ${diaDoVencimento(vencimento)}.`
+                    : undefined
+              }
             >
               <Input
                 id="vencimento"
@@ -528,6 +566,7 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
             <Campo
               rotulo="Competência (mês do faturamento)"
               htmlFor="competencia"
+              className={cn(recorrente && 'hidden')}
               erro={errors.competencia?.message}
               dica="Mês a que o valor pertence. Para o fluxo de caixa vale a data do pagamento."
             >
@@ -539,6 +578,33 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
             </Campo>
 
             {!editando && (
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-borda p-3 has-checked:border-verde has-checked:bg-lima-claro sm:col-span-2">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 size-5 shrink-0 accent-verde"
+                  {...form.register('recorrente', {
+                    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+                      if (!e.target.checked) return
+                      // Conta fixa: um valor por mês, sempre lançado em aberto.
+                      form.setValue('parcelas', 1)
+                      form.setValue('status', 'pendente')
+                      form.setValue('cartao_credito_id', '')
+                    },
+                  })}
+                />
+                <span>
+                  <span className="flex items-center gap-1 font-semibold">
+                    <Repeat className="size-4" aria-hidden /> Repete todo mês (conta fixa)
+                  </span>
+                  <span className="block text-sm text-texto-suave">
+                    Para aluguel, internet, mensalidades… O sistema lança sozinho a de cada mês,
+                    pendente e com o vencimento no mesmo dia. No dia, é só confirmar.
+                  </span>
+                </span>
+              </label>
+            )}
+
+            {!editando && !recorrente && (
               <Campo
                 rotulo="Parcelas"
                 htmlFor="parcelas"
@@ -556,9 +622,11 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
               </Campo>
             )}
 
-            <Campo rotulo="Nº da nota fiscal" htmlFor="nf">
-              <Input id="nf" {...form.register('numero_nota_fiscal')} />
-            </Campo>
+            {!recorrente && (
+              <Campo rotulo="Nº da nota fiscal" htmlFor="nf">
+                <Input id="nf" {...form.register('numero_nota_fiscal')} />
+              </Campo>
+            )}
 
             {previa.length > 0 && (
               <div className="rounded-xl bg-fundo-suave p-3 text-sm sm:col-span-2">
@@ -577,7 +645,13 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
 
           <Card className="grid gap-4 sm:grid-cols-2">
             <h2 className="font-bold sm:col-span-2">Situação</h2>
-            <fieldset className="sm:col-span-2">
+            {recorrente && (
+              <p className="text-sm text-texto-suave sm:col-span-2">
+                Conta fixa entra sempre como <strong>pendente</strong>. Quando pagar (ou receber),
+                confirme o lançamento do mês na lista.
+              </p>
+            )}
+            <fieldset className={cn('sm:col-span-2', recorrente && 'hidden')}>
               <legend className="sr-only">Situação</legend>
               <div className="grid grid-cols-3 gap-2">
                 {(['pendente', 'agendado', 'realizado'] as const)
@@ -632,7 +706,13 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
                 rotulo="Conta"
                 htmlFor="conta"
                 erro={errors.conta_bancaria_id?.message}
-                dica={status === 'realizado' ? undefined : 'Opcional enquanto estiver em aberto.'}
+                dica={
+                  recorrente
+                    ? 'Já vem escolhida em cada mês; dá para trocar ao confirmar.'
+                    : status === 'realizado'
+                      ? undefined
+                      : 'Opcional enquanto estiver em aberto.'
+                }
               >
                 <SelectForm id="conta" control={form.control} name="conta_bancaria_id">
                   <option value="">{status === 'realizado' ? 'Escolha…' : 'Ainda não sei'}</option>
