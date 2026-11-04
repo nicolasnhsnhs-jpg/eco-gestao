@@ -109,7 +109,7 @@ na KingHost para confirmar o domínio.
    padrão e os feriados do RS e de Esteio.
 4. **Usuários → Convidar** a equipe do RS. Os logins de SC **não** funcionam no RS (e vice-versa).
 
-## 7. Backup ✋
+## 7. Backup ✋ ✅ feito em 04/11/2026 (execução #12: os 4 jobs verdes)
 
 No mesmo repositório privado `eco-gestao-backup`:
 
