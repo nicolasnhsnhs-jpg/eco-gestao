@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, Copy } from 'lucide-react'
+import { ArrowLeft, Copy, Trash2 } from 'lucide-react'
 import { useForm, useWatch, type UseFormReturn } from 'react-hook-form'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { z } from 'zod'
@@ -17,8 +17,10 @@ import { mensagemDeErro } from '@/lib/erros'
 
 import { ClienteSeletor, type ClienteEscolhido } from '../clientes/ClienteSeletor'
 import { useContratos } from '../contratos/api'
+import { EnvioNota } from './EnvioNota'
 import { proximaNota, totalRetido } from './notas'
 import {
+  useDescartarRascunho,
   useMensalidadesDoContrato,
   useNotaFiscal,
   useSalvarNotaFiscal,
@@ -36,7 +38,7 @@ const valorOpcional = z
 const esquema = z
   .object({
     tipo: z.enum(['contrato', 'avulsa']),
-    status: z.enum(['emitida', 'cancelada']),
+    status: z.enum(['rascunho', 'emitida', 'cancelada']),
     cliente_id: z.string().min(1, 'Escolha o cliente.'),
     cliente_nome: z.string(),
     contrato_id: z.string(),
@@ -65,6 +67,10 @@ const esquema = z
   .refine((d) => d.tipo === 'avulsa' || d.status === 'cancelada' || d.contrato_id, {
     path: ['contrato_id'],
     message: 'Escolha o contrato desta nota.',
+  })
+  .refine((d) => d.status !== 'emitida' || d.numero, {
+    path: ['numero'],
+    message: 'Informe o número da nota emitida.',
   })
 type Dados = z.infer<typeof esquema>
 
@@ -151,6 +157,7 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
   const navegar = useNavigate()
   const [p] = useSearchParams()
   const salvar = useSalvarNotaFiscal()
+  const descartar = useDescartarRascunho()
 
   const form = useForm<Dados>({
     resolver: zodResolver(esquema),
@@ -231,6 +238,13 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
       </button>
       <h1 className="text-2xl font-bold">{titulo}</h1>
       {errors.root && <Aviso tipo="erro">{errors.root.message}</Aviso>}
+      {nota?.status === 'rascunho' && (
+        <Aviso>
+          Rascunho montado pelo sistema a partir da última nota do contrato. Confira, emita no
+          Safenota, preencha o número e mude a situação para <strong>Emitida</strong>. Depois é só
+          anexar o PDF: o sistema manda ao cliente.
+        </Aviso>
+      )}
       {nota?.importada_de && (
         <Aviso>
           Importada do {nota.importada_de}
@@ -248,6 +262,7 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
           </Campo>
           <Campo rotulo="Situação" htmlFor="status">
             <SelectForm id="status" control={form.control} name="status">
+              <option value="rascunho">Rascunho (a emitir)</option>
               <option value="emitida">Emitida</option>
               <option value="cancelada">Cancelada</option>
             </SelectForm>
@@ -308,7 +323,7 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
         </Card>
 
         <Card className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Campo rotulo="Número da nota" htmlFor="numero">
+          <Campo rotulo="Número da nota" htmlFor="numero" erro={errors.numero?.message}>
             <Input id="numero" inputMode="numeric" {...form.register('numero')} />
           </Campo>
           <Campo
@@ -380,6 +395,22 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
         </Card>
 
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          {nota?.status === 'rascunho' && (
+            <Button
+              variante="secundario"
+              className="sm:mr-auto"
+              disabled={descartar.isPending}
+              onClick={() => {
+                if (!window.confirm('Descartar este rascunho? Ele não vai ser emitido.')) return
+                descartar
+                  .mutateAsync(nota.id)
+                  .then(() => navegar('/financeiro/notas?status=rascunho', { replace: true }))
+                  .catch((e: unknown) => form.setError('root', { message: mensagemDeErro(e) }))
+              }}
+            >
+              <Trash2 className="size-4" aria-hidden /> Descartar rascunho
+            </Button>
+          )}
           <Link
             to="/financeiro/notas"
             className="inline-flex min-h-11 items-center justify-center rounded-xl px-4 font-semibold text-verde-escuro hover:bg-lima-claro"
@@ -391,6 +422,8 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
           </Button>
         </div>
       </form>
+
+      {nota?.status === 'emitida' && <EnvioNota nota={nota} />}
     </div>
   )
 }

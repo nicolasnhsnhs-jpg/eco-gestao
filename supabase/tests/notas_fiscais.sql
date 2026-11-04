@@ -140,6 +140,82 @@ insert into public.notas_fiscais (tipo, status, cliente_id, data_emissao, compet
   ('avulsa', 'emitida', '00000000-0000-0000-0000-00000000c0a2', pg_temp.mes(0), pg_temp.mes(0), 'Serviço avulso [teste]', 300),
   ('contrato', 'cancelada', '00000000-0000-0000-0000-00000000c0a2', pg_temp.mes(0), pg_temp.mes(0), 'Cancelada [teste]', 300);
 
+-- =============================================================================
+-- Rascunhos do mês e envio pendente
+-- =============================================================================
+
+do $$ begin
+  assert privado.descricao_proximo_mes(
+           'MÊS REFERÊNCIA NOVEMBRO/2026 - VENCIMENTO EM 10/12/2026 - IMPLANTADO EM 01/03/2025',
+           '2026-11-01', '2026-12-01', '2026-12-10', '2027-01-10')
+         = 'MÊS REFERÊNCIA DEZEMBRO/2026 - VENCIMENTO EM 10/01/2027 - IMPLANTADO EM 01/03/2025',
+    'A descrição deveria avançar mês e vencimento, sem mexer na implantação';
+end $$;
+
+-- A nota do mês 0 tem impostos; o rascunho do mês 1 copia com o valor novo (600).
+update public.notas_fiscais
+   set vencimento = pg_temp.mes(1) + 14, valor_pis = 3.25, pis_cofins_retidos = true,
+       descricao = 'Controle de pragas - vencimento em ' || to_char(pg_temp.mes(1) + 14, 'DD/MM/YYYY')
+ where id = '00000000-0000-0000-0000-00000000f001';
+
+-- (Conta só o contrato do teste: o banco de desenvolvimento pode ter outros.)
+select privado.gerar_rascunhos_notas(pg_temp.mes(1));
+select privado.gerar_rascunhos_notas(pg_temp.mes(1));
+do $$ begin
+  assert (select count(*) from public.notas_fiscais
+           where contrato_id = '00000000-0000-0000-0000-0000000c0a01' and status = 'rascunho') = 1,
+    'Deveria montar um rascunho, e rodar de novo não duplica';
+end $$;
+
+do $$
+declare
+  r public.notas_fiscais;
+  v_lanc public.lancamentos;
+begin
+  select * into r from public.notas_fiscais
+   where contrato_id = '00000000-0000-0000-0000-0000000c0a01' and status = 'rascunho';
+  select * into v_lanc from public.lancamentos
+   where contrato_id = '00000000-0000-0000-0000-0000000c0a01' and competencia = pg_temp.mes(1);
+  assert r.competencia = pg_temp.mes(1), 'Rascunho no mês seguinte';
+  assert r.lancamento_id = v_lanc.id, 'Ligado à mensalidade do mês';
+  assert r.valor_servico = 600 and r.valor_pis = 3.90, 'Valor novo e PIS na mesma proporção';
+  assert r.vencimento = v_lanc.vencimento, 'Vencimento da mensalidade';
+  assert r.descricao like '%' || to_char(v_lanc.vencimento, 'DD/MM/YYYY'), 'Data nova na descrição';
+  assert exists (select 1 from public.avisos where chave_unica = 'rascunhos:' || to_char(pg_temp.mes(1), 'YYYY-MM')),
+    'Aviso de notas para conferir';
+  assert (select numero_nota_fiscal from public.lancamentos where id = v_lanc.id) is null,
+    'Rascunho não marca número na conta a receber';
+end $$;
+
+-- Aditivo com rascunho aberto: o rascunho acompanha.
+update public.contratos set valor_mensal = 700 where id = '00000000-0000-0000-0000-0000000c0a01';
+do $$ begin
+  assert (select valor_servico from public.notas_fiscais
+           where contrato_id = '00000000-0000-0000-0000-0000000c0a01' and status = 'rascunho') = 700,
+    'O rascunho deveria ir para o valor do aditivo';
+end $$;
+
+-- Nota emitida com PDF, cliente sem e-mail: aviso de envio pendente; enviada: resolvido.
+insert into public.arquivos (id, caminho_storage, nome_original, categoria, cliente_id)
+values ('00000000-0000-0000-0000-00000000a0f1',
+        'clientes/00000000-0000-0000-0000-00000000c0a1/nf.pdf', 'nf.pdf', 'nota_fiscal',
+        '00000000-0000-0000-0000-00000000c0a1');
+update public.notas_fiscais set arquivo_pdf_id = '00000000-0000-0000-0000-00000000a0f1'
+ where id = '00000000-0000-0000-0000-00000000f001';
+do $$ begin
+  assert exists (select 1 from public.avisos where chave_unica = 'envio_nota:00000000-0000-0000-0000-00000000f001'
+                  and resolvido_em is null), 'Sem e-mail: aviso de envio pendente';
+end $$;
+update public.notas_fiscais set enviada_em = now() where id = '00000000-0000-0000-0000-00000000f001';
+do $$ begin
+  assert (select resolvido_em from public.avisos
+           where chave_unica = 'envio_nota:00000000-0000-0000-0000-00000000f001') is not null,
+    'Enviada à mão: aviso resolvido';
+end $$;
+
+-- Rascunho pode ser descartado; nota emitida não.
+delete from public.notas_fiscais where status = 'rascunho' and contrato_id = '00000000-0000-0000-0000-0000000c0a01';
+
 -- Vendedor não enxerga notas (são do financeiro).
 select pg_temp.como('00000000-0000-0000-0000-0000000000b1');
 set local role authenticated;

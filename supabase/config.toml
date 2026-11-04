@@ -423,3 +423,6 @@ enabled = true
 # A função confere o login dentro do próprio código (compatível com as chaves novas do Supabase).
 [functions.usuarios]
 verify_jwt = false
+
+[functions.notas]
+verify_jwt = false

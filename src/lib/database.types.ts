@@ -1627,6 +1627,7 @@ export type Database = {
           aliquota_cofins: number | null
           aliquota_iss: number | null
           aliquota_pis: number | null
+          arquivo_pdf_id: string | null
           atualizado_em: string
           atualizado_por: string | null
           chave_acesso: string | null
@@ -1639,6 +1640,9 @@ export type Database = {
           criado_por: string | null
           data_emissao: string
           descricao: string
+          enviada_em: string | null
+          enviada_para: string | null
+          erro_envio: string | null
           forma_pagamento: Database['public']['Enums']['forma_pagamento'] | null
           id: string
           importada_de: string | null
@@ -1662,6 +1666,7 @@ export type Database = {
           aliquota_cofins?: number | null
           aliquota_iss?: number | null
           aliquota_pis?: number | null
+          arquivo_pdf_id?: string | null
           atualizado_em?: string
           atualizado_por?: string | null
           chave_acesso?: string | null
@@ -1674,6 +1679,9 @@ export type Database = {
           criado_por?: string | null
           data_emissao: string
           descricao: string
+          enviada_em?: string | null
+          enviada_para?: string | null
+          erro_envio?: string | null
           forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
           id?: string
           importada_de?: string | null
@@ -1697,6 +1705,7 @@ export type Database = {
           aliquota_cofins?: number | null
           aliquota_iss?: number | null
           aliquota_pis?: number | null
+          arquivo_pdf_id?: string | null
           atualizado_em?: string
           atualizado_por?: string | null
           chave_acesso?: string | null
@@ -1709,6 +1718,9 @@ export type Database = {
           criado_por?: string | null
           data_emissao?: string
           descricao?: string
+          enviada_em?: string | null
+          enviada_para?: string | null
+          erro_envio?: string | null
           forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
           id?: string
           importada_de?: string | null
@@ -1729,6 +1741,13 @@ export type Database = {
           vencimento?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: 'notas_fiscais_arquivo_pdf_id_fkey'
+            columns: ['arquivo_pdf_id']
+            isOneToOne: false
+            referencedRelation: 'arquivos'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'notas_fiscais_atualizado_por_fkey'
             columns: ['atualizado_por']
@@ -3802,7 +3821,7 @@ export type Database = {
       status_contrato: 'ativo' | 'suspenso' | 'encerrado'
       status_fechamento: 'aberto' | 'pago'
       status_lancamento: 'pendente' | 'agendado' | 'realizado' | 'cancelado'
-      status_nota_fiscal: 'emitida' | 'cancelada'
+      status_nota_fiscal: 'rascunho' | 'emitida' | 'cancelada'
       status_os: 'rascunho' | 'agendada' | 'em_execucao' | 'concluida' | 'conferida' | 'cancelada'
       status_proposta: 'enviada' | 'aprovada' | 'recusada'
       status_servico: 'agendado' | 'realizado' | 'cancelado'
@@ -3965,7 +3984,7 @@ export const Constants = {
       status_contrato: ['ativo', 'suspenso', 'encerrado'],
       status_fechamento: ['aberto', 'pago'],
       status_lancamento: ['pendente', 'agendado', 'realizado', 'cancelado'],
-      status_nota_fiscal: ['emitida', 'cancelada'],
+      status_nota_fiscal: ['rascunho', 'emitida', 'cancelada'],
       status_os: ['rascunho', 'agendada', 'em_execucao', 'concluida', 'conferida', 'cancelada'],
       status_proposta: ['enviada', 'aprovada', 'recusada'],
       status_servico: ['agendado', 'realizado', 'cancelado'],

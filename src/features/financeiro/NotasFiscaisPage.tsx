@@ -94,6 +94,7 @@ export function NotasFiscaisPage() {
           onChange={(e) => mudar('status', e.target.value === 'emitida' ? '' : e.target.value)}
         >
           <option value="emitida">Emitidas</option>
+          <option value="rascunho">Rascunhos (a emitir)</option>
           <option value="cancelada">Canceladas</option>
           <option value="todos">Todas</option>
         </Select>
@@ -105,6 +106,8 @@ export function NotasFiscaisPage() {
           onChange={(e) => mudar('mes', e.target.value)}
         />
       </Card>
+
+      <RascunhosDoMes />
 
       {notas.isError && <Aviso tipo="erro">{mensagemDeErro(notas.error)}</Aviso>}
       {notas.isPending && <Carregando />}
@@ -143,6 +146,8 @@ export function NotasFiscaisPage() {
 
 export function LinhaNota({ n }: { n: NotaFiscalCompleta }) {
   const cancelada = n.status === 'cancelada'
+  const rascunho = n.status === 'rascunho'
+  const envioPendente = n.status === 'emitida' && !!n.pdf && !n.enviada_em
   return (
     <li>
       <Link
@@ -150,17 +155,20 @@ export function LinhaNota({ n }: { n: NotaFiscalCompleta }) {
         className="flex items-center gap-3 px-4 py-3 hover:bg-fundo-suave"
       >
         <FileText
-          className={cn('size-6 shrink-0', cancelada ? 'text-texto-suave' : 'text-verde')}
+          className={cn(
+            'size-6 shrink-0',
+            cancelada ? 'text-texto-suave' : rascunho ? 'text-alerta' : 'text-verde',
+          )}
           aria-hidden
         />
         <div className="min-w-0 flex-1">
           <p className={cn('truncate font-semibold', cancelada && 'line-through')}>
-            {n.numero ? `NF ${n.numero}` : 'NF sem número'} ·{' '}
+            {rascunho ? 'Rascunho' : n.numero ? `NF ${n.numero}` : 'NF sem número'} ·{' '}
             {n.cliente?.nome_fantasia || n.cliente?.nome}
           </p>
           <p className="truncate text-sm text-texto-suave">
             {[
-              `Emitida ${formatarData(n.data_emissao)}`,
+              !rascunho && `Emitida ${formatarData(n.data_emissao)}`,
               formatarMes(n.competencia),
               n.vencimento && `vence ${formatarData(n.vencimento)}`,
               n.contrato?.descricao,
@@ -173,6 +181,9 @@ export function LinhaNota({ n }: { n: NotaFiscalCompleta }) {
           <strong className="text-sm">{formatarReais(n.valor_servico)}</strong>
           <span className="flex gap-1">
             {cancelada && <Etiqueta cor="perigo">Cancelada</Etiqueta>}
+            {rascunho && <Etiqueta cor="alerta">A emitir</Etiqueta>}
+            {envioPendente && <Etiqueta cor="perigo">Envio pendente</Etiqueta>}
+            {n.enviada_em && <Etiqueta cor="cinza">Enviada</Etiqueta>}
             <Etiqueta cor={n.tipo === 'contrato' ? 'verde' : 'alerta'}>
               {NOME_TIPO_NOTA[n.tipo]}
             </Etiqueta>
@@ -180,5 +191,27 @@ export function LinhaNota({ n }: { n: NotaFiscalCompleta }) {
         </div>
       </Link>
     </li>
+  )
+}
+
+/** Aviso no topo: notas do mês montadas pelo sistema que ainda não foram emitidas. */
+function RascunhosDoMes() {
+  const [parametros, setParametros] = useSearchParams()
+  const rascunhos = useNotasFiscais({ mes: '', tipo: 'todos', status: 'rascunho', busca: '' })
+  const total = rascunhos.data?.length ?? 0
+  if (total === 0 || parametros.get('status') === 'rascunho') return null
+  return (
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-alerta/30 bg-amber-50 px-4 py-3 text-sm">
+      <span>
+        <strong>{total}</strong> nota(s) de contrato em rascunho, prontas para conferir e emitir.
+      </span>
+      <button
+        type="button"
+        className="font-semibold text-verde-escuro underline"
+        onClick={() => setParametros({ status: 'rascunho' }, { replace: true })}
+      >
+        Ver rascunhos
+      </button>
+    </div>
   )
 }

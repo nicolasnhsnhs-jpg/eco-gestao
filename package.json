@@ -16,9 +16,9 @@
     "db:push": "supabase db push --linked",
     "db:types": "supabase gen types typescript --linked --schema public > src/lib/database.types.ts",
     "db:push:prod": "supabase db push --linked --project-ref qteahjezxiregnaomoqz",
-    "funcoes:prod": "supabase functions deploy usuarios --use-api --project-ref qteahjezxiregnaomoqz",
+    "funcoes:prod": "supabase functions deploy usuarios notas --use-api --project-ref qteahjezxiregnaomoqz",
     "db:push:rs": "supabase db push --linked --project-ref pauwepzrvlpdhjqeafkr",
-    "funcoes:rs": "supabase functions deploy usuarios --use-api --project-ref pauwepzrvlpdhjqeafkr"
+    "funcoes:rs": "supabase functions deploy usuarios notas --use-api --project-ref pauwepzrvlpdhjqeafkr"
   },
   "dependencies": {
     "@hookform/resolvers": "^6.0.2",
