@@ -6,9 +6,13 @@
 //   RESEND_API_KEY     chave do Resend com permissão de envio no domínio da unidade
 //   EMAIL_NOTAS_DE     remetente, ex.: Eco Ambiental RS <financeiro@ecoambientalrs.com.br>
 //   EMAIL_NOTAS_RESPOSTA (opcional) para onde vão as respostas do cliente
+//   SITE_URL (opcional) endereço do sistema, para o logo do e-mail; sem ele, vale o
+//            endereço de onde o financeiro clicou em "Enviar"
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { encodeBase64 } from 'jsr:@std/encoding@1/base64'
+
+import { assuntoNota, htmlNota, textoNota, type DadosEmailNota } from './email.ts'
 
 type Pedido = { acao: 'enviar'; notaId: string; para?: string }
 
@@ -37,27 +41,35 @@ function chaveSecreta(): string {
   return antiga
 }
 
-const MESES = [
-  'janeiro',
-  'fevereiro',
-  'março',
-  'abril',
-  'maio',
-  'junho',
-  'julho',
-  'agosto',
-  'setembro',
-  'outubro',
-  'novembro',
-  'dezembro',
-]
+const FORMAS: Record<string, string> = {
+  pix: 'PIX',
+  boleto: 'Boleto',
+  transferencia: 'Transferência',
+  cartao: 'Cartão',
+  dinheiro: 'Dinheiro',
+  debito_automatico: 'Débito automático',
+  outro: 'Outro',
+}
 
-const data = (iso: string) => iso.slice(0, 10).split('-').reverse().join('/')
-const mes = (iso: string) => `${MESES[Number(iso.slice(5, 7)) - 1]}/${iso.slice(0, 4)}`
-const reais = (v: number) =>
-  Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-const escapar = (s: string) =>
-  s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
+/** Igual a totalRetido em src/features/financeiro/notas.ts. */
+function totalRetido(n: {
+  iss_retido: boolean
+  aliquota_iss: number | null
+  valor_servico: number
+  pis_cofins_retidos: boolean
+  valor_pis: number | null
+  valor_cofins: number | null
+  valor_csll: number | null
+  valor_irrf: number | null
+  valor_inss: number | null
+}): number {
+  const iss = n.iss_retido ? (Number(n.valor_servico) * Number(n.aliquota_iss ?? 0)) / 100 : 0
+  const pisCofins = n.pis_cofins_retidos
+    ? Number(n.valor_pis ?? 0) + Number(n.valor_cofins ?? 0) + Number(n.valor_csll ?? 0)
+    : 0
+  const total = iss + pisCofins + Number(n.valor_irrf ?? 0) + Number(n.valor_inss ?? 0)
+  return Math.round(total * 100) / 100
+}
 
 /** "a@x.com; b@y.com" → ["a@x.com", "b@y.com"] (só os que parecem e-mail). */
 function enderecos(texto: string | null | undefined): string[] {
@@ -103,7 +115,7 @@ Deno.serve(async (req) => {
   const { data: nota } = await admin
     .from('notas_fiscais')
     .select(
-      '*, cliente:clientes(nome, nome_fantasia), pdf:arquivos!arquivo_pdf_id(caminho_storage, nome_original)',
+      '*, cliente:clientes(nome, nome_fantasia), contrato:contratos(descricao), pdf:arquivos!arquivo_pdf_id(caminho_storage, nome_original)',
     )
     .eq('id', pedido.notaId)
     .single()
@@ -150,14 +162,21 @@ Deno.serve(async (req) => {
   if (erroArquivo || !arquivo) return falhar('Não foi possível abrir o PDF da nota.')
 
   // 3. O e-mail.
-  const cliente = nota.cliente?.nome_fantasia || nota.cliente?.nome || ''
-  const assunto = `Nota fiscal ${nota.numero ?? ''} – ${mes(nota.competencia)}`.replace(/\s+/g, ' ')
-  const linhas = [
-    `Olá${cliente ? `, ${escapar(cliente)}` : ''}.`,
-    `Segue em anexo a nota fiscal${nota.numero ? ` nº ${escapar(nota.numero)}` : ''}, referente a ${mes(nota.competencia)}, no valor de ${reais(nota.valor_servico)}${nota.vencimento ? `, com vencimento em ${data(nota.vencimento)}` : ''}.`,
-    'Qualquer dúvida, é só responder este e-mail.',
-    'Obrigado!',
-  ]
+  const dados: DadosEmailNota = {
+    site: (Deno.env.get('SITE_URL') || req.headers.get('origin') || '').replace(/\/+$/, ''),
+    empresa: de.split('<')[0].replace(/"/g, '').trim() || 'Eco Ambiental',
+    cliente: nota.cliente?.nome_fantasia || nota.cliente?.nome || '',
+    numero: nota.numero,
+    competencia: nota.competencia,
+    // A descrição curta do contrato; na avulsa, o começo da descrição da nota.
+    servico:
+      nota.contrato?.descricao ||
+      (nota.descricao.length > 120 ? `${nota.descricao.slice(0, 117)}…` : nota.descricao),
+    valor: Number(nota.valor_servico),
+    retido: totalRetido(nota),
+    vencimento: nota.vencimento,
+    formaPagamento: nota.forma_pagamento ? (FORMAS[nota.forma_pagamento] ?? null) : null,
+  }
   const envio = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${chave}`, 'Content-Type': 'application/json' },
@@ -165,8 +184,9 @@ Deno.serve(async (req) => {
       from: de,
       to: para,
       reply_to: Deno.env.get('EMAIL_NOTAS_RESPOSTA') || undefined,
-      subject: assunto,
-      html: linhas.map((l) => `<p>${l}</p>`).join(''),
+      subject: assuntoNota(dados),
+      html: htmlNota(dados),
+      text: textoNota(dados),
       attachments: [
         {
           filename: `NF ${nota.numero ?? nota.id.slice(0, 8)}.pdf`,
