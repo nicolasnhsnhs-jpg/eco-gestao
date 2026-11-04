@@ -305,25 +305,45 @@ async function concluir(
 }
 
 /**
- * Leiaute da DPS: o novo (NT 009) no ambiente de testes e, a partir de 01/12/2026, na
- * produção. Se a Sefin recusar pelo esquema (E1235) — a data da virada mudou, por
- * exemplo —, tenta uma vez no outro leiaute (a recusa não gasta o número da DPS).
+ * Manda a DPS e se ajusta às recusas que dependem do cadastro do governo, não da nota:
+ *  - E1235 (esquema): leiaute errado — o novo (NT 009) vale nos testes e, a partir de
+ *    01/12/2026, na produção; se a data da virada mudar, tenta o outro.
+ *  - E0120: o município não tem a inscrição municipal no cadastro nacional (CNC), então
+ *    ela não pode ir na nota; reenvia sem.
+ * Recusa não gasta o número da DPS, então o reenvio usa o mesmo.
  */
 async function enviarDps(
   sefin: Sefin,
   dados: Omit<DadosDps, 'leiaute' | 'dhEmi'>,
   cert: Certificado,
 ) {
-  const primeiro: Leiaute =
+  let leiaute: Leiaute =
     sefin.ambiente === 'homologacao' || agoraBrasilia() >= '2026-12-01' ? 'nt009' : 'anterior'
-  const enviar = (leiaute: Leiaute) =>
-    sefin.emitir(montarDpsAssinada({ ...dados, leiaute, dhEmi: agoraBrasilia() }, cert).xml)
-  const deEsquema = (r: Awaited<ReturnType<Sefin['emitir']>>) =>
-    !r.ok && r.erros.some((e) => e.codigo === 'E1235')
-  const r = await enviar(primeiro)
-  if (!deEsquema(r)) return r
-  const outra = await enviar(primeiro === 'nt009' ? 'anterior' : 'nt009')
-  return deEsquema(outra) ? r : outra
+  let atual = dados
+  let trocouLeiaute = false
+  const enviar = () =>
+    sefin.emitir(montarDpsAssinada({ ...atual, leiaute, dhEmi: agoraBrasilia() }, cert).xml)
+  const tem = (r: Awaited<ReturnType<Sefin['emitir']>>, codigo: string) =>
+    !r.ok && r.erros.some((e) => e.codigo === codigo)
+
+  let r = await enviar()
+  for (let tentativa = 0; tentativa < 3 && !r.ok; tentativa++) {
+    if (tem(r, 'E1235') && !trocouLeiaute) {
+      trocouLeiaute = true
+      leiaute = leiaute === 'nt009' ? 'anterior' : 'nt009'
+      const outra = await enviar()
+      // O outro leiaute também não passou no esquema: a recusa que vale é a primeira.
+      if (tem(outra, 'E1235')) {
+        leiaute = leiaute === 'nt009' ? 'anterior' : 'nt009'
+        return r
+      }
+      r = outra
+    } else if (tem(r, 'E0120') && atual.prestador.inscricaoMunicipal) {
+      atual = { ...atual, prestador: { ...atual.prestador, inscricaoMunicipal: null } }
+      r = await enviar()
+    } else break
+  }
+  return r
 }
 
 async function emitir(
