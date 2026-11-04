@@ -45,7 +45,11 @@ conjuntos de testes de permissão passaram (eles desfazem tudo no final; o banco
 Daqui para frente, toda mudança no banco vai para os dois: `npm run db:push:prod` e
 `npm run db:push:rs` (e o mesmo para `funcoes:prod` / `funcoes:rs`).
 
-## 3. Domínio na KingHost e e-mails pelo Resend ✋
+## 3. Domínio na KingHost e e-mails pelo Resend ✋ 🟡 DNS feito em 04/11/2026; falta a chave
+
+Feito: domínio no Resend (São Paulo) e, na KingHost, `TXT resend._domainkey`, `CNAME rsend`,
+`CNAME send` e `TXT _dmarc`. O `MX` de recebimento do Resend **não** foi adicionado (os e-mails
+continuam chegando na KingHost). Falta: aguardar o Resend marcar **Verified** e criar a chave (3.4).
 
 > ⚠️ O plano gratuito do Resend aceita **um domínio só**, e o `ecoambientalsc.com.br` já está
 > nele. Para enviar como `@ecoambientalrs.com.br`, é preciso um plano pago do Resend (ou uma conta
@@ -60,7 +64,7 @@ Daqui para frente, toda mudança no banco vai para os dois: `npm run db:push:pro
 4. **Resend → API Keys:** crie a chave `supabase-rs`, permissão _Sending access_, domínio
    `ecoambientalrs.com.br`.
 
-## 4. Configurações de login do `rs` ✋
+## 4. Configurações de login do `rs` ✋ 🟡 itens 1 e 2 feitos em 04/11/2026; falta o SMTP (3)
 
 No painel do projeto **eco-gestao-rs**:
 
@@ -74,7 +78,11 @@ No painel do projeto **eco-gestao-rs**:
    - **Username:** `resend` · **Password:** a chave `re_...` do passo 3.4
 4. **Authentication → Emails → Templates** (opcional): os mesmos textos em português de SC.
 
-## 5. Netlify ✋
+## 5. Netlify ✋ ✅ feito em 04/11/2026 (HTTPS ativo, Let's Encrypt)
+
+Site `eco-gestao-rs`, **público** (a Netlify cria projetos novos como _Private_; foi preciso clicar
+em **Make public**). Além do `CNAME sistema`, a Netlify pediu o `TXT subdomain-owner-verification`
+na KingHost para confirmar o domínio.
 
 1. <https://app.netlify.com> → **Add new project → Import an existing project → GitHub** →
    o **mesmo** repositório `eco-gestao`. As configurações de build já vêm do `netlify.toml`.
