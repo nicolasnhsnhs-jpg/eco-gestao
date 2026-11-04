@@ -36,3 +36,7 @@ Thumbs.db
 # Configuração local do Claude Code
 .claude/
 importacao/
+
+# Certificados digitais (A1): nunca no repositório
+*.pfx
+*.p12

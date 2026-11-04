@@ -1,5 +1,11 @@
 // Conversa com a Sefin Nacional (API do Sistema Nacional NFS-e), autenticada pelo
 // certificado A1 da empresa (mTLS). O XML vai e volta compactado (gzip) em base64.
+//
+// A Sefin pede o certificado no meio da conexão (renegociação TLS), que o motor das Edge
+// Functions não suporta. Por isso o pedido passa pela ponte netlify/functions/sefin.mts
+// (Node.js), no próprio site: ela recebe o certificado a cada pedido e não guarda nada.
+// Endereço da ponte: segredo NFSE_PONTE_URL; sem ele, SITE_URL ou o endereço de onde o
+// financeiro clicou, + /.netlify/functions/sefin.
 //   POST /nfse                → emite (síncrono): {chaveAcesso, nfseXmlGZipB64} ou {erros}
 //   GET  /dps/{id}            → chave da nota gerada por aquela DPS (se já foi gerada)
 //   GET  /nfse/{chave}        → o XML da nota
@@ -8,12 +14,7 @@ import { decodeBase64, encodeBase64 } from 'jsr:@std/encoding@1/base64'
 
 import type { Certificado } from './certificado.ts'
 
-const ENDERECOS = {
-  producao: 'https://sefin.nfse.gov.br/SefinNacional',
-  homologacao: 'https://sefin.producaorestrita.nfse.gov.br/SefinNacional',
-}
-
-export type Ambiente = keyof typeof ENDERECOS
+export type Ambiente = 'producao' | 'homologacao'
 
 export type ErroSefin = { codigo: string | null; descricao: string }
 
@@ -60,28 +61,41 @@ export function textoDosErros(erros: ErroSefin[]): string {
 }
 
 export class Sefin {
-  private base: string
-  private cliente: Deno.HttpClient
+  private ponte: string
 
   constructor(
     readonly ambiente: Ambiente,
-    cert: Certificado,
+    private cert: Certificado,
+    origem?: string | null,
   ) {
-    this.base = ENDERECOS[ambiente]
-    this.cliente = Deno.createHttpClient({ cert: cert.certPem, key: cert.chavePem })
+    const site = (Deno.env.get('SITE_URL') || origem || '').replace(/\/+$/, '')
+    this.ponte = Deno.env.get('NFSE_PONTE_URL') || `${site}/.netlify/functions/sefin`
+    if (!/^https?:\/\//.test(this.ponte)) {
+      throw new Error('Endereço da ponte da Sefin desconhecido (configure NFSE_PONTE_URL).')
+    }
   }
 
-  private pedir(metodo: string, caminho: string, corpo?: unknown) {
-    return fetch(`${this.base}/${caminho}`, {
-      method: metodo,
-      client: this.cliente,
-      headers: {
-        Accept: 'application/json',
-        ...(corpo ? { 'Content-Type': 'application/json' } : {}),
-      },
-      body: corpo ? JSON.stringify(corpo) : undefined,
-      signal: AbortSignal.timeout(60_000),
+  /** O pedido à Sefin, pela ponte. Devolve a resposta da Sefin como se fosse direta. */
+  private async pedir(metodo: string, caminho: string, corpo?: unknown): Promise<Response> {
+    const r = await fetch(this.ponte, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ambiente: this.ambiente,
+        metodo,
+        caminho,
+        corpo,
+        cert: this.cert.certPem,
+        chave: this.cert.chavePem,
+      }),
+      signal: AbortSignal.timeout(30_000),
     })
+    const dados = (await r.json().catch(() => null)) as
+      { status: number; corpo: string } | { erro: string } | null
+    if (!dados || 'erro' in dados) {
+      throw new Error(dados?.erro ?? `A ponte da Sefin não respondeu (HTTP ${r.status}).`)
+    }
+    return new Response(dados.corpo, { status: dados.status })
   }
 
   async emitir(xmlAssinado: string): Promise<RespostaEmissao> {

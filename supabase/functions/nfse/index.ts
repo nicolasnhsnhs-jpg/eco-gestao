@@ -321,7 +321,7 @@ async function emitir(
       throw new Error(`Não reservei o número da DPS: ${erroReserva?.message}`)
     const { serie, numero } = reserva[0] as { serie: string; numero: string }
 
-    const sefin = new Sefin('producao', cert)
+    const sefin = new Sefin('producao', cert, origem)
     const id = idDps({ prestador: montada.dados.prestador, serie, numero })
 
     // Nova tentativa: a DPS pode já ter virado nota num envio que ficou sem resposta.
@@ -356,7 +356,7 @@ async function emitir(
 }
 
 /** Manda o rascunho ao ambiente de testes do governo. Nada na nota muda. */
-async function ensaiar(admin: SupabaseClient, notaId: string) {
+async function ensaiar(admin: SupabaseClient, notaId: string, origem: string | null) {
   const cfg = await configuracao(admin)
   const cert = certificadoDaEmpresa()
   const montada = await montarDados(admin, notaId, cfg, cert)
@@ -371,7 +371,7 @@ async function ensaiar(admin: SupabaseClient, notaId: string) {
     { ...montada.dados, ambiente: 'homologacao', serie, numero, dhEmi: agoraBrasilia() },
     cert,
   )
-  const r = await new Sefin('homologacao', cert).emitir(dps)
+  const r = await new Sefin('homologacao', cert, origem).emitir(dps)
   if (!r.ok) return { ok: false, erro: textoDosErros(r.erros), dps }
   const pdf = await gerarDanfse(r.xml)
   return {
@@ -384,14 +384,14 @@ async function ensaiar(admin: SupabaseClient, notaId: string) {
   }
 }
 
-async function testar(admin: SupabaseClient) {
+async function testar(admin: SupabaseClient, origem: string | null) {
   const cfg = await configuracao(admin)
   const cert = certificadoDaEmpresa()
   const ambiente: Ambiente = cfg.nfse_ambiente === 'producao' ? 'producao' : 'homologacao'
   // Consulta uma DPS que não existe: "não encontrada" prova que o certificado foi aceito.
   let conexao: string
   try {
-    await new Sefin(ambiente, cert).chaveDaDps(
+    await new Sefin(ambiente, cert, origem).chaveDaDps(
       idDps({
         prestador: {
           cnpj: cert.cnpj ?? '0',
@@ -415,14 +415,16 @@ async function testar(admin: SupabaseClient) {
 }
 
 /** XML de uma nota já emitida (pela chave de acesso), sem mudar nada. */
-async function modelo(admin: SupabaseClient, notaId: string) {
+async function modelo(admin: SupabaseClient, notaId: string, origem: string | null) {
   const { data: nota } = await admin
     .from('notas_fiscais')
     .select('chave_acesso')
     .eq('id', notaId)
     .single()
   if (!nota?.chave_acesso) throw new Falha('Esta nota não tem chave de acesso.')
-  const xml = await new Sefin('producao', certificadoDaEmpresa()).xmlDaNota(nota.chave_acesso)
+  const xml = await new Sefin('producao', certificadoDaEmpresa(), origem).xmlDaNota(
+    nota.chave_acesso,
+  )
   if (!xml) throw new Falha('A Sefin não achou a nota com esta chave.')
   return { xml }
 }
@@ -445,11 +447,11 @@ Deno.serve(async (req) => {
   try {
     switch (pedido.acao) {
       case 'testar':
-        return resposta(200, await testar(admin))
+        return resposta(200, await testar(admin, req.headers.get('origin')))
       case 'modelo':
-        return resposta(200, await modelo(admin, pedido.notaId))
+        return resposta(200, await modelo(admin, pedido.notaId, req.headers.get('origin')))
       case 'ensaiar':
-        return resposta(200, await ensaiar(admin, pedido.notaId))
+        return resposta(200, await ensaiar(admin, pedido.notaId, req.headers.get('origin')))
       case 'emitir':
         return resposta(
           200,

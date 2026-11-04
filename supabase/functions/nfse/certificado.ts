@@ -24,13 +24,62 @@ function bolsas(p12: forge.pkcs12.Pkcs12Pfx, tipo: string) {
   return p12.getBags({ bagType: tipo })[tipo] ?? []
 }
 
+/** Tamanho total que o próprio .pfx diz ter (cabeçalho DER da SEQUENCE de fora). */
+function tamanhoDeclarado(der: string): number {
+  if (der.charCodeAt(0) !== 0x30 || der.length < 2) return -1
+  const b = der.charCodeAt(1)
+  if (b < 0x80) return 2 + b
+  const n = b & 0x7f
+  if (n === 0) return der.length // comprimento indefinido (BER): não dá para conferir
+  let tamanho = 0
+  for (let i = 0; i < n; i++) tamanho = tamanho * 256 + der.charCodeAt(2 + i)
+  return 2 + n + tamanho
+}
+
+/** Tira o que costuma vir junto ao colar: espaços, quebras de linha e aspas em volta. */
+const semAspas = (v: string) => v.trim().replace(/^(["'])([\s\S]*)\1$/, '$2')
+
 export function lerCertificado(pfxBase64: string, senha: string): Certificado {
-  const der = forge.util.decode64(pfxBase64.replace(/\s+/g, ''))
-  let p12: forge.pkcs12.Pkcs12Pfx
+  const b64 = semAspas(pfxBase64).replace(/\s+/g, '')
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(b64) || b64.length < 1000) {
+    throw new Error(
+      `O segredo NFSE_CERTIFICADO não parece o .pfx em base64 (${b64.length} caracteres). Copie de novo com o comando do PowerShell e cole sem nada a mais.`,
+    )
+  }
+  const der = forge.util.decode64(b64)
+  if (tamanhoDeclarado(der) !== der.length) {
+    throw new Error(
+      'O segredo NFSE_CERTIFICADO está incompleto (o texto foi colado pela metade). Copie de novo com o comando do PowerShell.',
+    )
+  }
+  let asn1: forge.asn1.Asn1
   try {
-    p12 = forge.pkcs12.pkcs12FromAsn1(forge.asn1.fromDer(der, false), false, senha)
+    asn1 = forge.asn1.fromDer(der, false)
   } catch {
-    throw new Error('Não foi possível abrir o certificado: confira o arquivo e a senha.')
+    throw new Error(
+      'O segredo NFSE_CERTIFICADO está incompleto ou não é um .pfx. Copie de novo com o comando do PowerShell.',
+    )
+  }
+
+  // A senha como foi salva e, se não abrir, sem espaços/aspas sobrando nas pontas.
+  const senhas = [...new Set([senha, semAspas(senha)])]
+  let p12: forge.pkcs12.Pkcs12Pfx | null = null
+  let erro = ''
+  for (const s of senhas) {
+    try {
+      p12 = forge.pkcs12.pkcs12FromAsn1(asn1, false, s)
+      break
+    } catch (e) {
+      erro = (e as Error).message ?? String(e)
+    }
+  }
+  if (!p12) {
+    if (/MAC could not be verified|Invalid password/i.test(erro)) {
+      throw new Error(
+        'A senha do certificado (segredo NFSE_SENHA) não confere com o arquivo. Confira maiúsculas, minúsculas e espaços.',
+      )
+    }
+    throw new Error(`Não foi possível abrir o certificado: ${erro}`)
   }
 
   const chaves = [
