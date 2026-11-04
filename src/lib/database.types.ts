@@ -801,6 +801,7 @@ export type Database = {
           data_inicio: string
           descricao: string
           dia_util_cobranca: number | null
+          dia_vencimento: number | null
           endereco_id: string | null
           forma_pagamento: Database['public']['Enums']['forma_pagamento'] | null
           id: string
@@ -808,6 +809,7 @@ export type Database = {
           proposta_id: string | null
           status: Database['public']['Enums']['status_contrato']
           valor_mensal: number
+          vence_mes_seguinte: boolean
           vendedor_id: string | null
         }
         Insert: {
@@ -822,6 +824,7 @@ export type Database = {
           data_inicio: string
           descricao: string
           dia_util_cobranca?: number | null
+          dia_vencimento?: number | null
           endereco_id?: string | null
           forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
           id?: string
@@ -829,6 +832,7 @@ export type Database = {
           proposta_id?: string | null
           status?: Database['public']['Enums']['status_contrato']
           valor_mensal: number
+          vence_mes_seguinte?: boolean
           vendedor_id?: string | null
         }
         Update: {
@@ -843,6 +847,7 @@ export type Database = {
           data_inicio?: string
           descricao?: string
           dia_util_cobranca?: number | null
+          dia_vencimento?: number | null
           endereco_id?: string | null
           forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
           id?: string
@@ -850,6 +855,7 @@ export type Database = {
           proposta_id?: string | null
           status?: Database['public']['Enums']['status_contrato']
           valor_mensal?: number
+          vence_mes_seguinte?: boolean
           vendedor_id?: string | null
         }
         Relationships: [
@@ -1403,6 +1409,13 @@ export type Database = {
             referencedColumns: ['id']
           },
           {
+            foreignKeyName: 'lancamentos_recorrente_id_fkey'
+            columns: ['recorrente_id']
+            isOneToOne: false
+            referencedRelation: 'lancamentos_recorrentes'
+            referencedColumns: ['id']
+          },
+          {
             foreignKeyName: 'lancamentos_servico_id_fkey'
             columns: ['servico_id']
             isOneToOne: false
@@ -1471,6 +1484,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: 'lancamentos_recorrentes_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
             foreignKeyName: 'lancamentos_recorrentes_categoria_id_fkey'
             columns: ['categoria_id']
             isOneToOne: false
@@ -1489,6 +1509,20 @@ export type Database = {
             columns: ['conta_bancaria_id']
             isOneToOne: false
             referencedRelation: 'contas_bancarias'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_recorrentes_conta_bancaria_id_fkey'
+            columns: ['conta_bancaria_id']
+            isOneToOne: false
+            referencedRelation: 'v_saldos_contas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_recorrentes_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
             referencedColumns: ['id']
           },
           {
@@ -1584,6 +1618,157 @@ export type Database = {
             columns: ['investimento_id']
             isOneToOne: false
             referencedRelation: 'v_saldos_investimentos'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      notas_fiscais: {
+        Row: {
+          aliquota_cofins: number | null
+          aliquota_iss: number | null
+          aliquota_pis: number | null
+          atualizado_em: string
+          atualizado_por: string | null
+          chave_acesso: string | null
+          cliente_id: string
+          codigo_nbs: string | null
+          codigo_tributacao: string | null
+          competencia: string
+          contrato_id: string | null
+          criado_em: string
+          criado_por: string | null
+          data_emissao: string
+          descricao: string
+          forma_pagamento: Database['public']['Enums']['forma_pagamento'] | null
+          id: string
+          importada_de: string | null
+          iss_retido: boolean
+          lancamento_id: string | null
+          numero: string | null
+          numero_dps: string | null
+          observacoes: string | null
+          pis_cofins_retidos: boolean
+          status: Database['public']['Enums']['status_nota_fiscal']
+          tipo: Database['public']['Enums']['tipo_nota_fiscal']
+          valor_cofins: number | null
+          valor_csll: number | null
+          valor_inss: number | null
+          valor_irrf: number | null
+          valor_pis: number | null
+          valor_servico: number
+          vencimento: string | null
+        }
+        Insert: {
+          aliquota_cofins?: number | null
+          aliquota_iss?: number | null
+          aliquota_pis?: number | null
+          atualizado_em?: string
+          atualizado_por?: string | null
+          chave_acesso?: string | null
+          cliente_id: string
+          codigo_nbs?: string | null
+          codigo_tributacao?: string | null
+          competencia: string
+          contrato_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_emissao: string
+          descricao: string
+          forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
+          id?: string
+          importada_de?: string | null
+          iss_retido?: boolean
+          lancamento_id?: string | null
+          numero?: string | null
+          numero_dps?: string | null
+          observacoes?: string | null
+          pis_cofins_retidos?: boolean
+          status?: Database['public']['Enums']['status_nota_fiscal']
+          tipo: Database['public']['Enums']['tipo_nota_fiscal']
+          valor_cofins?: number | null
+          valor_csll?: number | null
+          valor_inss?: number | null
+          valor_irrf?: number | null
+          valor_pis?: number | null
+          valor_servico: number
+          vencimento?: string | null
+        }
+        Update: {
+          aliquota_cofins?: number | null
+          aliquota_iss?: number | null
+          aliquota_pis?: number | null
+          atualizado_em?: string
+          atualizado_por?: string | null
+          chave_acesso?: string | null
+          cliente_id?: string
+          codigo_nbs?: string | null
+          codigo_tributacao?: string | null
+          competencia?: string
+          contrato_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_emissao?: string
+          descricao?: string
+          forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
+          id?: string
+          importada_de?: string | null
+          iss_retido?: boolean
+          lancamento_id?: string | null
+          numero?: string | null
+          numero_dps?: string | null
+          observacoes?: string | null
+          pis_cofins_retidos?: boolean
+          status?: Database['public']['Enums']['status_nota_fiscal']
+          tipo?: Database['public']['Enums']['tipo_nota_fiscal']
+          valor_cofins?: number | null
+          valor_csll?: number | null
+          valor_inss?: number | null
+          valor_irrf?: number | null
+          valor_pis?: number | null
+          valor_servico?: number
+          vencimento?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'notas_fiscais_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notas_fiscais_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notas_fiscais_contrato_id_fkey'
+            columns: ['contrato_id']
+            isOneToOne: false
+            referencedRelation: 'contratos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notas_fiscais_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notas_fiscais_lancamento_id_fkey'
+            columns: ['lancamento_id']
+            isOneToOne: false
+            referencedRelation: 'lancamentos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notas_fiscais_lancamento_id_fkey'
+            columns: ['lancamento_id']
+            isOneToOne: false
+            referencedRelation: 'v_lancamentos'
             referencedColumns: ['id']
           },
         ]
@@ -3063,6 +3248,7 @@ export type Database = {
           observacoes?: string | null
           parcela_numero?: number | null
           parcela_total?: number | null
+          recorrente_id?: string | null
           servico_id?: string | null
           situacao?: never
           status?: Database['public']['Enums']['status_lancamento'] | null
@@ -3096,6 +3282,7 @@ export type Database = {
           observacoes?: string | null
           parcela_numero?: number | null
           parcela_total?: number | null
+          recorrente_id?: string | null
           servico_id?: string | null
           situacao?: never
           status?: Database['public']['Enums']['status_lancamento'] | null
@@ -3173,6 +3360,13 @@ export type Database = {
             columns: ['fornecedor_id']
             isOneToOne: false
             referencedRelation: 'fornecedores'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lancamentos_recorrente_id_fkey'
+            columns: ['recorrente_id']
+            isOneToOne: false
+            referencedRelation: 'lancamentos_recorrentes'
             referencedColumns: ['id']
           },
           {
@@ -3608,6 +3802,7 @@ export type Database = {
       status_contrato: 'ativo' | 'suspenso' | 'encerrado'
       status_fechamento: 'aberto' | 'pago'
       status_lancamento: 'pendente' | 'agendado' | 'realizado' | 'cancelado'
+      status_nota_fiscal: 'emitida' | 'cancelada'
       status_os: 'rascunho' | 'agendada' | 'em_execucao' | 'concluida' | 'conferida' | 'cancelada'
       status_proposta: 'enviada' | 'aprovada' | 'recusada'
       status_servico: 'agendado' | 'realizado' | 'cancelado'
@@ -3615,6 +3810,7 @@ export type Database = {
       tipo_conta: 'corrente' | 'poupanca' | 'caixa' | 'outro'
       tipo_lancamento: 'entrada' | 'saida'
       tipo_movimento_investimento: 'aporte' | 'resgate' | 'rendimento'
+      tipo_nota_fiscal: 'contrato' | 'avulsa'
       tipo_pessoa: 'PF' | 'PJ'
       tipo_ponto: 'porta_isca' | 'armadilha_luminosa' | 'coifa'
       tipo_vencimento: 'certificado' | 'recomendacao'
@@ -3769,6 +3965,7 @@ export const Constants = {
       status_contrato: ['ativo', 'suspenso', 'encerrado'],
       status_fechamento: ['aberto', 'pago'],
       status_lancamento: ['pendente', 'agendado', 'realizado', 'cancelado'],
+      status_nota_fiscal: ['emitida', 'cancelada'],
       status_os: ['rascunho', 'agendada', 'em_execucao', 'concluida', 'conferida', 'cancelada'],
       status_proposta: ['enviada', 'aprovada', 'recusada'],
       status_servico: ['agendado', 'realizado', 'cancelado'],
@@ -3776,6 +3973,7 @@ export const Constants = {
       tipo_conta: ['corrente', 'poupanca', 'caixa', 'outro'],
       tipo_lancamento: ['entrada', 'saida'],
       tipo_movimento_investimento: ['aporte', 'resgate', 'rendimento'],
+      tipo_nota_fiscal: ['contrato', 'avulsa'],
       tipo_pessoa: ['PF', 'PJ'],
       tipo_ponto: ['porta_isca', 'armadilha_luminosa', 'coifa'],
       tipo_vencimento: ['certificado', 'recomendacao'],

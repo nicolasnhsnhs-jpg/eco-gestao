@@ -35,6 +35,11 @@ const esquema = z
       .string()
       .trim()
       .refine((v) => v === '' || (/^\d+$/.test(v) && +v >= 1 && +v <= 20), 'Entre 1 e 20.'),
+    dia_vencimento: z
+      .string()
+      .trim()
+      .refine((v) => v === '' || (/^\d+$/.test(v) && +v >= 1 && +v <= 31), 'Entre 1 e 31.'),
+    vence_mes_seguinte: z.boolean(),
     vendedor_id: z.string(),
     categoria_id: z.string(),
     conta_bancaria_id: z.string(),
@@ -84,6 +89,8 @@ function Formulario({ contrato }: { contrato?: ContratoResumo }) {
           data_inicio: contrato.data_inicio,
           data_fim: contrato.data_fim ?? '',
           dia_util_cobranca: contrato.dia_util_cobranca?.toString() ?? '',
+          dia_vencimento: contrato.dia_vencimento?.toString() ?? '',
+          vence_mes_seguinte: contrato.vence_mes_seguinte,
           vendedor_id: contrato.vendedor_id ?? '',
           categoria_id: contrato.categoria_id,
           conta_bancaria_id: contrato.conta_bancaria_id ?? '',
@@ -100,6 +107,8 @@ function Formulario({ contrato }: { contrato?: ContratoResumo }) {
           data_inicio: `${hojeISO().slice(0, 7)}-01`,
           data_fim: '',
           dia_util_cobranca: '',
+          dia_vencimento: '',
+          vence_mes_seguinte: false,
           vendedor_id: '',
           categoria_id: '',
           conta_bancaria_id: '',
@@ -109,9 +118,9 @@ function Formulario({ contrato }: { contrato?: ContratoResumo }) {
         },
   })
   const { errors, isSubmitting } = form.formState
-  const [clienteId, clienteNome] = useWatch({
+  const [clienteId, clienteNome, diaVencimento] = useWatch({
     control: form.control,
-    name: ['cliente_id', 'cliente_nome'],
+    name: ['cliente_id', 'cliente_nome', 'dia_vencimento'],
   })
   const cliente = useCliente(clienteId)
   const enderecos = cliente.data?.enderecos ?? []
@@ -135,6 +144,8 @@ function Formulario({ contrato }: { contrato?: ContratoResumo }) {
           data_inicio: d.data_inicio,
           data_fim: ouNulo(d.data_fim),
           dia_util_cobranca: d.dia_util_cobranca ? Number(d.dia_util_cobranca) : null,
+          dia_vencimento: d.dia_vencimento ? Number(d.dia_vencimento) : null,
+          vence_mes_seguinte: !!d.dia_vencimento && d.vence_mes_seguinte,
           proposta_id: ouNulo(d.proposta_id),
           observacoes: ouNulo(d.observacoes),
           // Vazio = o banco usa o vendedor responsável e a categoria "Contrato recorrente".
@@ -233,13 +244,34 @@ function Formulario({ contrato }: { contrato?: ContratoResumo }) {
             />
           </Campo>
           <Campo
-            rotulo="Vence no dia útil nº"
-            htmlFor="dia_util"
-            erro={errors.dia_util_cobranca?.message}
-            dica="Vazio = o padrão da empresa (em Financeiro → Cadastros)."
+            rotulo="Vence todo dia"
+            htmlFor="dia_vencimento"
+            erro={errors.dia_vencimento?.message}
+            dica="Dia fixo do boleto/depósito (ex.: 10). Vazio = vence em dia útil."
           >
-            <Input id="dia_util" inputMode="numeric" {...form.register('dia_util_cobranca')} />
+            <Input id="dia_vencimento" inputMode="numeric" {...form.register('dia_vencimento')} />
           </Campo>
+          {diaVencimento ? (
+            <label className="flex min-h-11 cursor-pointer items-center gap-3 self-end rounded-xl border border-borda px-3 has-checked:border-verde has-checked:bg-lima-claro">
+              <input
+                type="checkbox"
+                className="size-5 shrink-0 accent-verde"
+                {...form.register('vence_mes_seguinte')}
+              />
+              <span className="text-sm font-semibold">
+                No mês seguinte (nota de novembro vence em dezembro)
+              </span>
+            </label>
+          ) : (
+            <Campo
+              rotulo="Vence no dia útil nº"
+              htmlFor="dia_util"
+              erro={errors.dia_util_cobranca?.message}
+              dica="Vazio = o padrão da empresa (em Financeiro → Cadastros)."
+            >
+              <Input id="dia_util" inputMode="numeric" {...form.register('dia_util_cobranca')} />
+            </Campo>
+          )}
           <Campo rotulo="Início" htmlFor="inicio" obrigatorio erro={errors.data_inicio?.message}>
             <Input id="inicio" type="date" {...form.register('data_inicio')} />
           </Campo>

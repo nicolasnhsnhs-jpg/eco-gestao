@@ -17,6 +17,8 @@ import { FinanceiroLayout } from '@/features/financeiro/FinanceiroLayout'
 import { InvestimentosPage } from '@/features/financeiro/InvestimentosPage'
 import { LancamentoFormPage } from '@/features/financeiro/LancamentoFormPage'
 import { LancamentosPage } from '@/features/financeiro/LancamentosPage'
+import { NotaFiscalFormPage } from '@/features/financeiro/NotaFiscalFormPage'
+import { NotasFiscaisPage } from '@/features/financeiro/NotasFiscaisPage'
 import { PainelPage } from '@/features/financeiro/PainelPage'
 import { PropostaFormPage } from '@/features/propostas/PropostaFormPage'
 import { PropostaPage } from '@/features/propostas/PropostaPage'
@@ -132,6 +134,9 @@ export const router = createBrowserRouter([
           { path: 'lancamentos', element: <LancamentosPage /> },
           { path: 'lancamentos/novo', element: <LancamentoFormPage /> },
           { path: 'lancamentos/:id', element: <LancamentoFormPage /> },
+          { path: 'notas', element: <NotasFiscaisPage /> },
+          { path: 'notas/nova', element: <NotaFiscalFormPage /> },
+          { path: 'notas/:id', element: <NotaFiscalFormPage /> },
           { path: 'contas-fixas', element: <ContasFixasPage /> },
           { path: 'investimentos', element: <InvestimentosPage /> },
           { path: 'cartoes', element: <CartoesPage /> },

@@ -24,7 +24,9 @@ import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
 import { cn } from '@/lib/utils'
 
 import { usePerfil } from '../auth/useAuth'
-import { COR_SITUACAO, NOME_SITUACAO, type Situacao } from '../financeiro/rotulos'
+import { useNotasFiscais } from '../financeiro/notasApi'
+import { LinhaNota } from '../financeiro/NotasFiscaisPage'
+import { COR_SITUACAO, NOME_FORMA, NOME_SITUACAO, type Situacao } from '../financeiro/rotulos'
 import {
   COR_STATUS_CONTRATO,
   NOME_STATUS_CONTRATO,
@@ -262,14 +264,8 @@ function Detalhe({ c }: { c: ContratoResumo }) {
           <dl className="flex flex-col gap-2 text-sm">
             <Dado rotulo="Início" valor={formatarData(c.data_inicio)} />
             <Dado rotulo="Fim" valor={c.data_fim ? formatarData(c.data_fim) : 'Sem data'} />
-            <Dado
-              rotulo="Vencimento"
-              valor={
-                c.dia_util_cobranca
-                  ? `${c.dia_util_cobranca}º dia útil do mês`
-                  : 'Dia útil padrão da empresa'
-              }
-            />
+            <Dado rotulo="Vencimento" valor={textoVencimento(c)} />
+            {c.forma_pagamento && <Dado rotulo="Pagamento" valor={NOME_FORMA[c.forma_pagamento]} />}
             <Dado rotulo="Vendedor" valor={c.vendedor?.nome ?? '—'} />
             {c.endereco && (
               <Dado
@@ -335,8 +331,62 @@ function Detalhe({ c }: { c: ContratoResumo }) {
             </ul>
           </Card>
         )}
+
+        {acessoTotal && <NotasDoContrato c={c} />}
       </div>
     </div>
+  )
+}
+
+function textoVencimento(c: {
+  dia_vencimento: number | null
+  vence_mes_seguinte: boolean
+  dia_util_cobranca: number | null
+}): string {
+  if (c.dia_vencimento)
+    return `Todo dia ${c.dia_vencimento}${c.vence_mes_seguinte ? ' do mês seguinte' : ''}`
+  return c.dia_util_cobranca
+    ? `${c.dia_util_cobranca}º dia útil do mês`
+    : 'Dia útil padrão da empresa'
+}
+
+function NotasDoContrato({ c }: { c: ContratoResumo }) {
+  const notas = useNotasFiscais({
+    mes: '',
+    tipo: 'todos',
+    status: 'todos',
+    busca: '',
+    contratoId: c.id,
+  })
+  const novaNota = `/financeiro/notas/nova?${new URLSearchParams({
+    tipo: 'contrato',
+    cliente: c.cliente_id,
+    cliente_nome: c.cliente?.nome_fantasia || c.cliente?.nome || '',
+    contrato: c.id,
+  })}`
+  return (
+    <Card className="lg:col-span-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-bold">Notas fiscais</h2>
+        <Link
+          to={novaNota}
+          className="inline-flex items-center gap-1 text-sm font-semibold text-verde"
+        >
+          <Plus className="size-4" aria-hidden /> Registrar nota deste contrato
+        </Link>
+      </div>
+      {notas.isPending && <Carregando />}
+      {notas.data?.length === 0 && (
+        <p className="text-sm text-texto-suave">Nenhuma nota registrada para este contrato.</p>
+      )}
+      {!!notas.data?.length && (
+        <ul className="-mx-4 divide-y divide-borda">
+          {notas.data.map((n) => (
+            <LinhaNota key={n.id} n={n} />
+          ))}
+        </ul>
+      )}
+    </Card>
   )
 }
 
