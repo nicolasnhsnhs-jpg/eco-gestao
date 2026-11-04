@@ -156,7 +156,7 @@ begin
   perform pg_temp.conferir(perfil, 'registros de auditoria (algum?)',
     (select (count(*) > 0)::int from public.auditoria where pg_temp.do_teste(cliente_id)), ve_auditoria::int);
   perform pg_temp.conferir(perfil, 'configurações',
-    (select count(*) from public.configuracoes), e_config);
+    (select count(*) from public.configuracoes where chave not like 'nfse_%'), e_config);
   perform pg_temp.conferir(perfil, 'contas bancárias de teste',
     (select count(*) from public.contas_bancarias where nome = 'Conta [matriz]'), e_contas);
 end

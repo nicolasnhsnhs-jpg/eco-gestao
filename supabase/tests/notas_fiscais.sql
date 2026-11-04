@@ -213,6 +213,60 @@ do $$ begin
     'Enviada à mão: aviso resolvido';
 end $$;
 
+-- Emissão pelo sistema: trava (ninguém manda a mesma nota duas vezes) e número da DPS.
+do $$
+declare
+  v_id  uuid := (select id from public.notas_fiscais
+                  where status = 'rascunho' and contrato_id = '00000000-0000-0000-0000-0000000c0a01');
+  v_num text;
+begin
+  assert public.travar_emissao_nota(v_id), 'Primeira chamada pega a nota';
+  assert not public.travar_emissao_nota(v_id), 'Segunda chamada, com a primeira emitindo, não pega';
+  update public.notas_fiscais set emitindo_em = now() - interval '3 minutes' where id = v_id;
+  assert public.travar_emissao_nota(v_id), 'Trava esquecida há mais de 2 min é liberada';
+  assert not public.travar_emissao_nota('00000000-0000-0000-0000-00000000f001'),
+    'Nota já emitida não é travada para emitir';
+
+  select numero into v_num from public.reservar_numero_dps(v_id, 'homologacao', '2');
+  assert v_num is not null, 'Ensaio recebe um número';
+  assert (select numero_dps from public.notas_fiscais where id = v_id) is null,
+    'Ensaio (homologação) não muda a nota';
+
+  select numero into v_num from public.reservar_numero_dps(v_id, 'producao', '2');
+  assert (select numero_dps from public.notas_fiscais where id = v_id) = v_num
+     and (select serie_dps from public.notas_fiscais where id = v_id) = '2',
+    'Produção grava série e número na nota';
+  assert (select numero from public.reservar_numero_dps(v_id, 'producao', '2')) = v_num,
+    'Nova tentativa usa o mesmo número (a Sefin não duplica a nota)';
+end $$;
+
+-- Só a função (chave secreta) mexe na numeração.
+select pg_temp.como('00000000-0000-0000-0000-0000000000f1');
+set local role authenticated;
+do $$ begin
+  begin
+    perform public.reservar_numero_dps('00000000-0000-0000-0000-00000000f001', 'producao', '2');
+    assert false, 'Financeiro não deveria reservar número direto';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform 1 from public.nfse_numeracao;
+    assert false, 'Financeiro não deveria ler a numeração';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
+-- Mudou o CEP sem mandar o código IBGE novo: o antigo é apagado.
+insert into public.enderecos (id, cliente_id, cep, logradouro, cidade, uf, codigo_ibge) values
+  ('00000000-0000-0000-0000-00000000e0a1', '00000000-0000-0000-0000-00000000c0a1', '93260000',
+   'Rua Teste', 'Esteio', 'RS', '4307708');
+update public.enderecos set cep = '90010000' where id = '00000000-0000-0000-0000-00000000e0a1';
+do $$ begin
+  assert (select codigo_ibge from public.enderecos where id = '00000000-0000-0000-0000-00000000e0a1') is null,
+    'CEP novo sem código: o código antigo deveria sumir';
+end $$;
+
 -- Rascunho pode ser descartado; nota emitida não.
 delete from public.notas_fiscais where status = 'rascunho' and contrato_id = '00000000-0000-0000-0000-0000000c0a01';
 

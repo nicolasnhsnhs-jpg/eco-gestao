@@ -61,6 +61,8 @@ export const esquemaEndereco = z.object({
   cidade: z.string().trim().min(2, 'Informe a cidade.'),
   uf: z.enum(UFS as [string, ...string[]], 'Escolha o estado.'),
   principal: z.boolean(),
+  // Preenchido pelo CEP (ViaCEP); não aparece na tela.
+  codigo_ibge: z.string(),
 })
 
 export type FormEndereco = z.infer<typeof esquemaEndereco>
@@ -75,6 +77,7 @@ export const ENDERECO_VAZIO: FormEndereco = {
   cidade: UNIDADE.cidade,
   uf: UNIDADE.uf,
   principal: false,
+  codigo_ibge: '',
 }
 
 export function enderecoParaBanco(f: FormEndereco) {
@@ -88,6 +91,7 @@ export function enderecoParaBanco(f: FormEndereco) {
     cidade: f.cidade.trim(),
     uf: f.uf,
     principal: f.principal,
+    codigo_ibge: /^\d{7}$/.test(f.codigo_ibge) ? f.codigo_ibge : null,
   }
 }
 

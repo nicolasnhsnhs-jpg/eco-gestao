@@ -58,3 +58,13 @@ export function totalRetido(n: {
   const total = iss + pisCofins + Number(n.valor_irrf ?? 0) + Number(n.valor_inss ?? 0)
   return Math.round(total * 100) / 100
 }
+
+/** O texto do resultado da emissão, também usado na emissão em lote. */
+export function textoEmissao(r: {
+  numero: string
+  envio: { enviada: true; para: string[] } | { enviada: false; motivo: string }
+}): string {
+  return r.envio.enviada
+    ? `NF ${r.numero} emitida e enviada para ${r.envio.para.join(', ')}.`
+    : `NF ${r.numero} emitida. ${r.envio.motivo} Ficou o aviso de envio pendente.`
+}

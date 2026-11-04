@@ -17,6 +17,7 @@ import { mensagemDeErro } from '@/lib/erros'
 
 import { ClienteSeletor, type ClienteEscolhido } from '../clientes/ClienteSeletor'
 import { useContratos } from '../contratos/api'
+import { EmissaoNota } from './EmissaoNota'
 import { EnvioNota } from './EnvioNota'
 import { proximaNota, totalRetido } from './notas'
 import {
@@ -62,6 +63,12 @@ const esquema = z
     valor_csll: valorOpcional,
     valor_irrf: valorOpcional,
     valor_inss: valorOpcional,
+    municipio_prestacao: z
+      .string()
+      .trim()
+      .refine((v) => v === '' || /^\d{7}$/.test(v), 'O código IBGE tem 7 números.'),
+    cst_piscofins: z.string(),
+    tp_ret_piscofins: z.string(),
     observacoes: z.string().trim(),
   })
   .refine((d) => d.tipo === 'avulsa' || d.status === 'cancelada' || d.contrato_id, {
@@ -119,6 +126,9 @@ function valoresIniciais(nota: NotaFiscalCompleta | undefined, p: URLSearchParam
       valor_csll: valorParaCampo(nota.valor_csll),
       valor_irrf: valorParaCampo(nota.valor_irrf),
       valor_inss: valorParaCampo(nota.valor_inss),
+      municipio_prestacao: nota.municipio_prestacao ?? '',
+      cst_piscofins: nota.cst_piscofins ?? '',
+      tp_ret_piscofins: nota.tp_ret_piscofins == null ? '' : String(nota.tp_ret_piscofins),
       observacoes: nota.observacoes ?? '',
     }
   const hoje = hojeISO()
@@ -148,6 +158,9 @@ function valoresIniciais(nota: NotaFiscalCompleta | undefined, p: URLSearchParam
     valor_csll: '',
     valor_irrf: '',
     valor_inss: '',
+    municipio_prestacao: '',
+    cst_piscofins: '',
+    tp_ret_piscofins: '',
     observacoes: '',
   }
 }
@@ -182,43 +195,76 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
     form.setValue('lancamento_id', '')
   }
 
+  function gravar(d: Dados) {
+    return salvar.mutateAsync({
+      id: nota?.id,
+      dados: {
+        tipo: d.tipo,
+        status: d.status as StatusNota,
+        cliente_id: d.cliente_id,
+        contrato_id: d.tipo === 'contrato' ? ouNulo(d.contrato_id) : null,
+        lancamento_id: ouNulo(d.lancamento_id),
+        numero: ouNulo(d.numero),
+        data_emissao: d.data_emissao,
+        competencia: `${d.competencia}-01`,
+        vencimento: ouNulo(d.vencimento),
+        forma_pagamento: (ouNulo(d.forma_pagamento) as FormaPagamento | null) ?? null,
+        valor_servico: lerValor(d.valor_servico)!,
+        descricao: d.descricao.trim(),
+        codigo_tributacao: ouNulo(d.codigo_tributacao),
+        codigo_nbs: ouNulo(d.codigo_nbs),
+        iss_retido: d.iss_retido,
+        aliquota_iss: numeroOuNulo(d.aliquota_iss),
+        pis_cofins_retidos: d.pis_cofins_retidos,
+        aliquota_pis: numeroOuNulo(d.aliquota_pis),
+        aliquota_cofins: numeroOuNulo(d.aliquota_cofins),
+        valor_pis: numeroOuNulo(d.valor_pis),
+        valor_cofins: numeroOuNulo(d.valor_cofins),
+        valor_csll: numeroOuNulo(d.valor_csll),
+        valor_irrf: numeroOuNulo(d.valor_irrf),
+        valor_inss: numeroOuNulo(d.valor_inss),
+        municipio_prestacao: ouNulo(d.municipio_prestacao),
+        cst_piscofins: ouNulo(d.cst_piscofins),
+        tp_ret_piscofins: d.tp_ret_piscofins === '' ? null : Number(d.tp_ret_piscofins),
+        observacoes: ouNulo(d.observacoes),
+      },
+    })
+  }
+
+  function mostrarErro(erro: unknown) {
+    form.setError('root', { message: mensagemDeErro(erro) })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   async function enviar(d: Dados) {
     try {
-      const id = await salvar.mutateAsync({
-        id: nota?.id,
-        dados: {
-          tipo: d.tipo,
-          status: d.status as StatusNota,
-          cliente_id: d.cliente_id,
-          contrato_id: d.tipo === 'contrato' ? ouNulo(d.contrato_id) : null,
-          lancamento_id: ouNulo(d.lancamento_id),
-          numero: ouNulo(d.numero),
-          data_emissao: d.data_emissao,
-          competencia: `${d.competencia}-01`,
-          vencimento: ouNulo(d.vencimento),
-          forma_pagamento: (ouNulo(d.forma_pagamento) as FormaPagamento | null) ?? null,
-          valor_servico: lerValor(d.valor_servico)!,
-          descricao: d.descricao.trim(),
-          codigo_tributacao: ouNulo(d.codigo_tributacao),
-          codigo_nbs: ouNulo(d.codigo_nbs),
-          iss_retido: d.iss_retido,
-          aliquota_iss: numeroOuNulo(d.aliquota_iss),
-          pis_cofins_retidos: d.pis_cofins_retidos,
-          aliquota_pis: numeroOuNulo(d.aliquota_pis),
-          aliquota_cofins: numeroOuNulo(d.aliquota_cofins),
-          valor_pis: numeroOuNulo(d.valor_pis),
-          valor_cofins: numeroOuNulo(d.valor_cofins),
-          valor_csll: numeroOuNulo(d.valor_csll),
-          valor_irrf: numeroOuNulo(d.valor_irrf),
-          valor_inss: numeroOuNulo(d.valor_inss),
-          observacoes: ouNulo(d.observacoes),
-        },
-      })
+      const id = await gravar(d)
       navegar(`/financeiro/notas/${id}`, { replace: true })
     } catch (erro) {
-      form.setError('root', { message: mensagemDeErro(erro) })
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      mostrarErro(erro)
     }
+  }
+
+  /** Antes de emitir: grava o que foi conferido, ainda como rascunho. */
+  function salvarRascunho() {
+    return new Promise<boolean>((resolve) => {
+      void form.handleSubmit(
+        async (d) => {
+          try {
+            await gravar({ ...d, status: 'rascunho' })
+            form.reset({ ...d, status: 'rascunho' })
+            resolve(true)
+          } catch (erro) {
+            mostrarErro(erro)
+            resolve(false)
+          }
+        },
+        () => {
+          window.scrollTo({ top: 0, behavior: 'smooth' })
+          resolve(false)
+        },
+      )()
+    })
   }
 
   const titulo = editando
@@ -240,9 +286,9 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
       {errors.root && <Aviso tipo="erro">{errors.root.message}</Aviso>}
       {nota?.status === 'rascunho' && (
         <Aviso>
-          Rascunho montado pelo sistema a partir da última nota do contrato. Confira, emita no
-          Safenota, preencha o número e mude a situação para <strong>Emitida</strong>. Depois é só
-          anexar o PDF: o sistema manda ao cliente.
+          Rascunho montado pelo sistema a partir da última nota do contrato. Confira e emita pelo
+          sistema (mais abaixo) ou, se emitir no Safenota, preencha o número, mude a situação para{' '}
+          <strong>Emitida</strong> e anexe o PDF: o sistema manda ao cliente.
         </Aviso>
       )}
       {nota?.importada_de && (
@@ -423,6 +469,7 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
         </div>
       </form>
 
+      {nota?.status === 'rascunho' && <EmissaoNota nota={nota} salvarAntes={salvarRascunho} />}
       {nota?.status === 'emitida' && <EnvioNota nota={nota} />}
     </div>
   )
@@ -471,6 +518,12 @@ function CopiarUltima({
     form.setValue('valor_csll', ajustar(ultima.valor_csll))
     form.setValue('valor_irrf', ajustar(ultima.valor_irrf))
     form.setValue('valor_inss', ajustar(ultima.valor_inss))
+    form.setValue('municipio_prestacao', ultima.municipio_prestacao ?? '')
+    form.setValue('cst_piscofins', ultima.cst_piscofins ?? '')
+    form.setValue(
+      'tp_ret_piscofins',
+      ultima.tp_ret_piscofins == null ? '' : String(ultima.tp_ret_piscofins),
+    )
   }
 
   return (
@@ -538,6 +591,39 @@ function Impostos({ form }: { form: UseFormReturn<Dados> }) {
       <CampoValor form={form} nome="valor_csll" rotulo="CSLL (R$)" />
       <CampoValor form={form} nome="valor_irrf" rotulo="IRRF (R$)" />
       <CampoValor form={form} nome="valor_inss" rotulo="INSS (R$)" />
+      <Campo
+        rotulo="Município da prestação (IBGE)"
+        htmlFor="mun"
+        dica="Vazio = cidade do endereço do cliente."
+        erro={form.formState.errors.municipio_prestacao?.message}
+      >
+        <Input
+          id="mun"
+          inputMode="numeric"
+          placeholder="4314902"
+          {...form.register('municipio_prestacao')}
+        />
+      </Campo>
+      <Campo rotulo="CST do PIS/COFINS" htmlFor="cst">
+        <SelectForm id="cst" control={form.control} name="cst_piscofins">
+          <option value="">Padrão da empresa</option>
+          {Object.entries(CST_PISCOFINS).map(([v, r]) => (
+            <option key={v} value={v}>
+              {v} · {r}
+            </option>
+          ))}
+        </SelectForm>
+      </Campo>
+      <Campo rotulo="Retenção federal (na nota)" htmlFor="tpret" className="sm:col-span-2">
+        <SelectForm id="tpret" control={form.control} name="tp_ret_piscofins">
+          <option value="">Pela caixa de PIS, COFINS e CSLL retidos</option>
+          {Object.entries(RETENCAO_PISCOFINS).map(([v, r]) => (
+            <option key={v} value={v}>
+              {r}
+            </option>
+          ))}
+        </SelectForm>
+      </Campo>
       <div className="flex flex-col justify-end gap-1 text-sm sm:col-span-2 lg:col-span-3 lg:items-end">
         <span>
           Retido pelo tomador: <strong>{formatarReais(retido)}</strong>
@@ -549,6 +635,24 @@ function Impostos({ form }: { form: UseFormReturn<Dados> }) {
       </div>
     </Card>
   )
+}
+
+const CST_PISCOFINS: Record<string, string> = {
+  '00': 'Nenhum',
+  '01': 'Tributável (alíquota básica)',
+  '02': 'Tributável (alíquota diferenciada)',
+  '06': 'Alíquota zero',
+  '07': 'Isenta',
+  '08': 'Sem incidência',
+  '09': 'Com suspensão',
+}
+
+/** tpRetPisCofins do leiaute nacional. */
+const RETENCAO_PISCOFINS: Record<string, string> = {
+  '0': 'PIS, COFINS e CSLL não retidos',
+  '1': 'PIS e COFINS retidos',
+  '2': 'PIS e COFINS não retidos',
+  '3': 'PIS, COFINS e CSLL retidos',
 }
 
 type CampoTexto = Exclude<keyof Dados, 'tipo' | 'status' | 'iss_retido' | 'pis_cofins_retidos'>

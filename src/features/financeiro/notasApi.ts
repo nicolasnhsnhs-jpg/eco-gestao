@@ -6,8 +6,9 @@ import type { Database, TablesInsert } from '@/lib/database.types'
 import { supabase } from '@/lib/supabase'
 
 /*
- * Notas fiscais de serviço. São emitidas fora do sistema (hoje no Safenota) e
- * registradas aqui como nota de contrato (a mensalidade) ou avulsa (serviço pontual).
+ * Notas fiscais de serviço, de contrato (a mensalidade) ou avulsas (serviço pontual).
+ * Emitidas pelo sistema (função "nfse", direto no Sistema Nacional NFS-e) ou fora
+ * dele (Safenota) e registradas aqui.
  */
 
 export type TipoNota = Database['public']['Enums']['tipo_nota_fiscal']
@@ -258,5 +259,80 @@ export function useMarcarNotaEnviada() {
       if (error) throw error
     },
     onSuccess: atualizar,
+  })
+}
+
+// -----------------------------------------------------------------------------
+// Emissão pelo sistema (Edge Function "nfse", direto no Sistema Nacional NFS-e)
+// -----------------------------------------------------------------------------
+
+/** desligado | homologacao (testes do governo, nada vale) | producao */
+export type AmbienteNfse = 'desligado' | 'homologacao' | 'producao'
+
+export function useAmbienteNfse() {
+  return useQuery({
+    queryKey: ['configuracoes', 'nfse_ambiente'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('configuracoes')
+        .select('valor')
+        .eq('chave', 'nfse_ambiente')
+        .maybeSingle()
+      if (error) throw error
+      return (data?.valor ?? 'desligado') as AmbienteNfse
+    },
+  })
+}
+
+async function chamarNfse<T>(corpo: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke('nfse', { body: corpo })
+  if (error) {
+    if (error instanceof FunctionsHttpError) {
+      const detalhe = (await error.context.json().catch(() => null)) as { erro?: string } | null
+      throw new Error(detalhe?.erro ?? 'A emissão da nota falhou.')
+    }
+    throw error
+  }
+  return data as T
+}
+
+export type ResultadoEmissao = {
+  numero: string
+  chave: string
+  envio: { enviada: true; para: string[] } | { enviada: false; motivo: string }
+}
+
+/** Emite o rascunho na Sefin Nacional: a nota vira emitida, com PDF, e vai ao cliente. */
+export function useEmitirNota() {
+  const atualizar = useAtualizarNotas()
+  return useMutation({
+    mutationFn: (notaId: string) => chamarNfse<ResultadoEmissao>({ acao: 'emitir', notaId }),
+    onSettled: atualizar,
+  })
+}
+
+export type ResultadoEnsaio =
+  | { ok: true; numero: string | null; chave: string; alertas: string[]; pdfBase64: string }
+  | { ok: false; erro: string }
+
+/** Manda o rascunho ao ambiente de testes do governo. A nota não muda. */
+export function useEnsaiarNota() {
+  return useMutation({
+    mutationFn: (notaId: string) => chamarNfse<ResultadoEnsaio>({ acao: 'ensaiar', notaId }),
+  })
+}
+
+export type ResultadoTesteNfse = {
+  titular: string
+  cnpj: string | null
+  validoAte: string
+  ambiente: AmbienteNfse
+  conexao: string
+}
+
+/** Confere o certificado A1 e a conexão com a Sefin Nacional. */
+export function useTestarNfse() {
+  return useMutation({
+    mutationFn: () => chamarNfse<ResultadoTesteNfse>({ acao: 'testar' }),
   })
 }

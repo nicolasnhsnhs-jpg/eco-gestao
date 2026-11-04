@@ -426,3 +426,6 @@ verify_jwt = false
 
 [functions.notas]
 verify_jwt = false
+
+[functions.nfse]
+verify_jwt = false

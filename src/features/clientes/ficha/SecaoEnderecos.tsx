@@ -126,6 +126,7 @@ function FormEnderecoModal({
           cidade: endereco.cidade,
           uf: endereco.uf,
           principal: endereco.principal,
+          codigo_ibge: endereco.codigo_ibge ?? '',
         }
       : { ...ENDERECO_VAZIO, principal: primeiro },
   })

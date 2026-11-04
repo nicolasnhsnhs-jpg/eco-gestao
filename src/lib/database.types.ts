@@ -942,6 +942,7 @@ export type Database = {
           cidade: string
           cliente_id: string
           cnpj: string | null
+          codigo_ibge: string | null
           complemento: string | null
           criado_em: string
           criado_por: string | null
@@ -963,6 +964,7 @@ export type Database = {
           cidade: string
           cliente_id: string
           cnpj?: string | null
+          codigo_ibge?: string | null
           complemento?: string | null
           criado_em?: string
           criado_por?: string | null
@@ -984,6 +986,7 @@ export type Database = {
           cidade?: string
           cliente_id?: string
           cnpj?: string | null
+          codigo_ibge?: string | null
           complemento?: string | null
           criado_em?: string
           criado_por?: string | null
@@ -1622,12 +1625,32 @@ export type Database = {
           },
         ]
       }
+      nfse_numeracao: {
+        Row: {
+          ambiente: string
+          serie: string
+          ultimo: number
+        }
+        Insert: {
+          ambiente: string
+          serie: string
+          ultimo?: number
+        }
+        Update: {
+          ambiente?: string
+          serie?: string
+          ultimo?: number
+        }
+        Relationships: []
+      }
       notas_fiscais: {
         Row: {
           aliquota_cofins: number | null
           aliquota_iss: number | null
           aliquota_pis: number | null
+          ambiente_nfse: string | null
           arquivo_pdf_id: string | null
+          arquivo_xml_id: string | null
           atualizado_em: string
           atualizado_por: string | null
           chave_acesso: string | null
@@ -1638,22 +1661,29 @@ export type Database = {
           contrato_id: string | null
           criado_em: string
           criado_por: string | null
+          cst_piscofins: string | null
           data_emissao: string
           descricao: string
+          emitida_sistema: boolean
+          emitindo_em: string | null
           enviada_em: string | null
           enviada_para: string | null
+          erro_emissao: string | null
           erro_envio: string | null
           forma_pagamento: Database['public']['Enums']['forma_pagamento'] | null
           id: string
           importada_de: string | null
           iss_retido: boolean
           lancamento_id: string | null
+          municipio_prestacao: string | null
           numero: string | null
           numero_dps: string | null
           observacoes: string | null
           pis_cofins_retidos: boolean
+          serie_dps: string | null
           status: Database['public']['Enums']['status_nota_fiscal']
           tipo: Database['public']['Enums']['tipo_nota_fiscal']
+          tp_ret_piscofins: number | null
           valor_cofins: number | null
           valor_csll: number | null
           valor_inss: number | null
@@ -1666,7 +1696,9 @@ export type Database = {
           aliquota_cofins?: number | null
           aliquota_iss?: number | null
           aliquota_pis?: number | null
+          ambiente_nfse?: string | null
           arquivo_pdf_id?: string | null
+          arquivo_xml_id?: string | null
           atualizado_em?: string
           atualizado_por?: string | null
           chave_acesso?: string | null
@@ -1677,22 +1709,29 @@ export type Database = {
           contrato_id?: string | null
           criado_em?: string
           criado_por?: string | null
+          cst_piscofins?: string | null
           data_emissao: string
           descricao: string
+          emitida_sistema?: boolean
+          emitindo_em?: string | null
           enviada_em?: string | null
           enviada_para?: string | null
+          erro_emissao?: string | null
           erro_envio?: string | null
           forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
           id?: string
           importada_de?: string | null
           iss_retido?: boolean
           lancamento_id?: string | null
+          municipio_prestacao?: string | null
           numero?: string | null
           numero_dps?: string | null
           observacoes?: string | null
           pis_cofins_retidos?: boolean
+          serie_dps?: string | null
           status?: Database['public']['Enums']['status_nota_fiscal']
           tipo: Database['public']['Enums']['tipo_nota_fiscal']
+          tp_ret_piscofins?: number | null
           valor_cofins?: number | null
           valor_csll?: number | null
           valor_inss?: number | null
@@ -1705,7 +1744,9 @@ export type Database = {
           aliquota_cofins?: number | null
           aliquota_iss?: number | null
           aliquota_pis?: number | null
+          ambiente_nfse?: string | null
           arquivo_pdf_id?: string | null
+          arquivo_xml_id?: string | null
           atualizado_em?: string
           atualizado_por?: string | null
           chave_acesso?: string | null
@@ -1716,22 +1757,29 @@ export type Database = {
           contrato_id?: string | null
           criado_em?: string
           criado_por?: string | null
+          cst_piscofins?: string | null
           data_emissao?: string
           descricao?: string
+          emitida_sistema?: boolean
+          emitindo_em?: string | null
           enviada_em?: string | null
           enviada_para?: string | null
+          erro_emissao?: string | null
           erro_envio?: string | null
           forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
           id?: string
           importada_de?: string | null
           iss_retido?: boolean
           lancamento_id?: string | null
+          municipio_prestacao?: string | null
           numero?: string | null
           numero_dps?: string | null
           observacoes?: string | null
           pis_cofins_retidos?: boolean
+          serie_dps?: string | null
           status?: Database['public']['Enums']['status_nota_fiscal']
           tipo?: Database['public']['Enums']['tipo_nota_fiscal']
+          tp_ret_piscofins?: number | null
           valor_cofins?: number | null
           valor_csll?: number | null
           valor_inss?: number | null
@@ -1744,6 +1792,13 @@ export type Database = {
           {
             foreignKeyName: 'notas_fiscais_arquivo_pdf_id_fkey'
             columns: ['arquivo_pdf_id']
+            isOneToOne: false
+            referencedRelation: 'arquivos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notas_fiscais_arquivo_xml_id_fkey'
+            columns: ['arquivo_xml_id']
             isOneToOne: false
             referencedRelation: 'arquivos'
             referencedColumns: ['id']
@@ -3759,6 +3814,13 @@ export type Database = {
       painel_financeiro: { Args: never; Returns: Json }
       pendencias_os: { Args: { os: string }; Returns: string[] }
       reabrir_os: { Args: { motivo: string; os: string }; Returns: undefined }
+      reservar_numero_dps: {
+        Args: { p_ambiente: string; p_nota_id: string; p_serie: string }
+        Returns: {
+          numero: string
+          serie: string
+        }[]
+      }
       resumo_mensal: {
         Args: { meses_antes?: number; meses_depois?: number }
         Returns: {
@@ -3797,6 +3859,7 @@ export type Database = {
         Args: { cliente: string; motivo?: string; novo_vendedor: string }
         Returns: undefined
       }
+      travar_emissao_nota: { Args: { p_nota_id: string }; Returns: boolean }
     }
     Enums: {
       abrangencia_feriado: 'estadual' | 'municipal' | 'outro'

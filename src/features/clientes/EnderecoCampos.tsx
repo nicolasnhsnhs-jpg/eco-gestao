@@ -16,6 +16,7 @@ export function EnderecoCampos({ form }: { form: UseFormReturn<FormEndereco> }) 
   async function aoMudarCep(valor: string) {
     const formatado = formatarCep(valor)
     form.setValue('cep', formatado)
+    form.setValue('codigo_ibge', '')
     setCepNaoEncontrado(false)
     if (formatado.length !== 9) return
 
@@ -31,6 +32,7 @@ export function EnderecoCampos({ form }: { form: UseFormReturn<FormEndereco> }) 
     if (endereco.bairro) form.setValue('bairro', endereco.bairro, opcoes)
     form.setValue('cidade', endereco.cidade, opcoes)
     form.setValue('uf', endereco.uf, opcoes)
+    form.setValue('codigo_ibge', endereco.ibge)
     form.setFocus('numero')
   }
 

@@ -12,6 +12,8 @@ import { mensagemDeErro } from '@/lib/erros'
 import { supabase } from '@/lib/supabase'
 import { UNIDADE } from '@/lib/unidade'
 
+import { useTestarNfse } from './notasApi'
+
 // -----------------------------------------------------------------------------
 // Configurações gerais
 // -----------------------------------------------------------------------------
@@ -92,6 +94,107 @@ export function SecaoConfiguracoes() {
       >
         {salvar.isPending ? 'Salvando…' : 'Salvar configurações'}
       </Button>
+    </Card>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// Emissão da NFS-e pelo sistema
+// -----------------------------------------------------------------------------
+
+export function SecaoNfse() {
+  const configuracoes = useConfiguracoes()
+  const queryClient = useQueryClient()
+  const testar = useTestarNfse()
+  const [valores, setValores] = useState<Record<string, string>>({})
+  const salvar = useMutation({
+    mutationFn: async (dados: Record<string, string>) => {
+      for (const [chave, valor] of Object.entries(dados)) {
+        const { error } = await supabase.from('configuracoes').update({ valor }).eq('chave', chave)
+        if (error) throw error
+      }
+    },
+    onSuccess: () => {
+      setValores({})
+      void queryClient.invalidateQueries({ queryKey: ['configuracoes'] })
+    },
+  })
+  const valor = (chave: string) => valores[chave] ?? configuracoes.data?.[chave] ?? ''
+  const mudar = (chave: string, v: string) => setValores({ ...valores, [chave]: v })
+
+  return (
+    <Card>
+      <h2 className="mb-1 text-lg font-bold">Emissão da nota fiscal (NFS-e)</h2>
+      <p className="mb-4 text-sm text-texto-suave">
+        O sistema emite direto no Sistema Nacional NFS-e com o certificado A1 da empresa, guardado
+        nos segredos do Supabase (nunca aqui). Comece em <strong>Testes</strong>: as notas vão ao
+        ambiente de testes do governo, sem valor. Quando estiver tudo certo, mude para{' '}
+        <strong>Valendo</strong>.
+      </p>
+      {salvar.isError && <Aviso tipo="erro">{mensagemDeErro(salvar.error)}</Aviso>}
+      {salvar.isSuccess && <Aviso tipo="sucesso">Configurações salvas.</Aviso>}
+      <div className="mt-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Campo rotulo="Emissão pelo sistema" htmlFor="nfse-amb">
+          <Select
+            id="nfse-amb"
+            value={valor('nfse_ambiente')}
+            onChange={(e) => mudar('nfse_ambiente', e.target.value)}
+          >
+            <option value="desligado">Desligada (Safenota)</option>
+            <option value="homologacao">Testes (sem valor fiscal)</option>
+            <option value="producao">Valendo</option>
+          </Select>
+        </Campo>
+        <Campo rotulo="Inscrição municipal" htmlFor="nfse-im">
+          <Input
+            id="nfse-im"
+            inputMode="numeric"
+            value={valor('nfse_inscricao_municipal')}
+            onChange={(e) => mudar('nfse_inscricao_municipal', e.target.value.replace(/\D/g, ''))}
+          />
+        </Campo>
+        <Campo
+          rotulo="Município da empresa (IBGE)"
+          htmlFor="nfse-mun"
+          dica={`Código de 7 números de ${UNIDADE.cidade}.`}
+        >
+          <Input
+            id="nfse-mun"
+            inputMode="numeric"
+            value={valor('nfse_municipio_ibge')}
+            onChange={(e) => mudar('nfse_municipio_ibge', e.target.value.replace(/\D/g, ''))}
+          />
+        </Campo>
+        <Campo rotulo="Série da DPS" htmlFor="nfse-serie" dica="O Safenota usa a 1.">
+          <Input
+            id="nfse-serie"
+            inputMode="numeric"
+            value={valor('nfse_serie')}
+            onChange={(e) => mudar('nfse_serie', e.target.value.replace(/\D/g, ''))}
+          />
+        </Campo>
+      </div>
+      {testar.isError && <Aviso tipo="erro">{mensagemDeErro(testar.error)}</Aviso>}
+      {testar.data && (
+        <Aviso tipo={testar.data.conexao === 'ok' ? 'sucesso' : 'erro'}>
+          Certificado de {testar.data.titular} (CNPJ {testar.data.cnpj ?? '—'}), válido até{' '}
+          {formatarData(testar.data.validoAte.slice(0, 10))}.{' '}
+          {testar.data.conexao === 'ok'
+            ? 'A conexão com a Sefin Nacional funcionou.'
+            : `A conexão falhou: ${testar.data.conexao}`}
+        </Aviso>
+      )}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button
+          disabled={Object.keys(valores).length === 0 || salvar.isPending}
+          onClick={() => salvar.mutate(valores)}
+        >
+          {salvar.isPending ? 'Salvando…' : 'Salvar'}
+        </Button>
+        <Button variante="secundario" disabled={testar.isPending} onClick={() => testar.mutate()}>
+          {testar.isPending ? 'Testando…' : 'Testar certificado e conexão'}
+        </Button>
+      </div>
     </Card>
   )
 }

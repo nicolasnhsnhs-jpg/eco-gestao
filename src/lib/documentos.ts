@@ -103,6 +103,8 @@ export type EnderecoViaCep = {
   bairro: string
   cidade: string
   uf: string
+  /** Código IBGE do município (7 dígitos), que a nota fiscal exige. */
+  ibge: string
 }
 
 /** Busca o endereço pelo CEP no ViaCEP (serviço gratuito). Retorna null se não achar. */
@@ -119,6 +121,7 @@ export async function buscarCep(cep: string): Promise<EnderecoViaCep | null> {
       bairro: dados.bairro ?? '',
       cidade: dados.localidade ?? '',
       uf: dados.uf ?? '',
+      ibge: dados.ibge ?? '',
     }
   } catch {
     return null
