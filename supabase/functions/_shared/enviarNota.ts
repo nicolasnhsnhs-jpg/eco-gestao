@@ -70,6 +70,17 @@ export async function emailDoCliente(admin: SupabaseClient, clienteId: string): 
   return enderecosEmail(contatos?.[0]?.email)
 }
 
+/** O segredo sem aspas nem espaços em volta (como às vezes é colado no painel). */
+function segredo(nome: string): string | undefined {
+  return (
+    Deno.env
+      .get(nome)
+      ?.trim()
+      .replace(/^(['"])(.*)\1$/, '$2')
+      .trim() || undefined
+  )
+}
+
 export type ResultadoEnvio = { enviada: true; para: string[] } | { enviada: false; motivo: string }
 
 export async function enviarNotaPorEmail(
@@ -97,8 +108,8 @@ export async function enviarNotaPorEmail(
   if (para.length === 0) para = await emailDoCliente(admin, nota.cliente_id)
   if (para.length === 0) return falhar('Cliente sem e-mail cadastrado: envie à mão.')
 
-  const chave = Deno.env.get('RESEND_API_KEY')
-  const de = Deno.env.get('EMAIL_NOTAS_DE')
+  const chave = segredo('RESEND_API_KEY')
+  const de = segredo('EMAIL_NOTAS_DE')
   if (!chave || !de) return falhar('O e-mail de envio das notas ainda não foi configurado.')
 
   const { data: arquivo, error: erroArquivo } = await admin.storage
@@ -127,7 +138,7 @@ export async function enviarNotaPorEmail(
     body: JSON.stringify({
       from: de,
       to: para,
-      reply_to: Deno.env.get('EMAIL_NOTAS_RESPOSTA') || undefined,
+      reply_to: segredo('EMAIL_NOTAS_RESPOSTA') || undefined,
       subject: assuntoNota(dados),
       html: htmlNota(dados),
       text: textoNota(dados),
@@ -142,7 +153,17 @@ export async function enviarNotaPorEmail(
   if (!envio.ok) {
     const detalhe = await envio.text().catch(() => '')
     console.error('Resend', envio.status, detalhe)
-    return falhar(`O envio do e-mail falhou (${envio.status}). Tente de novo ou envie à mão.`)
+    // O Resend explica a recusa (remetente inválido, domínio não verificado…): mostra.
+    let explicacao = ''
+    try {
+      explicacao = String(JSON.parse(detalhe).message ?? '')
+    } catch {
+      explicacao = detalhe.slice(0, 200)
+    }
+    return falhar(
+      `O envio do e-mail falhou (${envio.status}${explicacao ? `: ${explicacao}` : ''}). ` +
+        'Tente de novo ou envie à mão.',
+    )
   }
 
   await admin
