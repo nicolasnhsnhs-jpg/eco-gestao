@@ -406,3 +406,100 @@ export function useTestarNfse() {
     mutationFn: () => chamarNfse<ResultadoTesteNfse>({ acao: 'testar' }),
   })
 }
+
+// -----------------------------------------------------------------------------
+// Boleto pelo sistema (Edge Function "boleto", API de Cobrança do Sicredi)
+// -----------------------------------------------------------------------------
+
+/** desligado | sandbox (testes do Sicredi, nada vale) | producao */
+export type AmbienteBoleto = 'desligado' | 'sandbox' | 'producao'
+
+export function useAmbienteBoleto() {
+  return useQuery({
+    queryKey: ['configuracoes', 'boleto_ambiente'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('configuracoes')
+        .select('valor')
+        .eq('chave', 'boleto_ambiente')
+        .maybeSingle()
+      if (error) throw error
+      return (data?.valor ?? 'desligado') as AmbienteBoleto
+    },
+  })
+}
+
+async function chamarBoleto<T>(corpo: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke('boleto', { body: corpo })
+  if (error) {
+    if (error instanceof FunctionsHttpError) {
+      const detalhe = (await error.context.json().catch(() => null)) as { erro?: string } | null
+      throw new Error(detalhe?.erro ?? 'O pedido ao Sicredi falhou.')
+    }
+    throw error
+  }
+  return data as T
+}
+
+export type BoletoGerado = {
+  nossoNumero: string
+  linhaDigitavel: string
+  valor: number
+  vencimento: string
+}
+
+/** Registra o boleto da nota no Sicredi; o PDF fica ligado à nota e vai no e-mail. */
+export function useGerarBoleto() {
+  const atualizar = useAtualizarNotas()
+  return useMutation({
+    mutationFn: (notaId: string) => chamarBoleto<BoletoGerado>({ acao: 'gerar', notaId }),
+    onSettled: atualizar,
+  })
+}
+
+export type EnsaioBoleto = BoletoGerado & {
+  pix: string | null
+  pdfBase64: string | null
+  erroPdf: string | null
+}
+
+/** Registra um boleto de teste no sandbox do Sicredi. A nota não muda. */
+export function useEnsaiarBoleto() {
+  return useMutation({
+    mutationFn: (notaId: string) => chamarBoleto<EnsaioBoleto>({ acao: 'ensaiar', notaId }),
+  })
+}
+
+export type SituacaoBoleto = {
+  situacao: string | null
+  pago: boolean
+  pagoEm: string | null
+  valorPago: number | null
+}
+
+/** Atualiza a situação do boleto no Sicredi (em carteira, pago, baixado…). */
+export function useConsultarBoleto() {
+  const atualizar = useAtualizarNotas()
+  return useMutation({
+    mutationFn: (notaId: string) => chamarBoleto<SituacaoBoleto>({ acao: 'consultar', notaId }),
+    onSettled: atualizar,
+  })
+}
+
+/** Pede a baixa do boleto no Sicredi (deixa de valer) e o tira da nota. */
+export function useBaixarBoleto() {
+  const atualizar = useAtualizarNotas()
+  return useMutation({
+    mutationFn: (notaId: string) => chamarBoleto<{ baixado: string }>({ acao: 'baixar', notaId }),
+    onSettled: atualizar,
+  })
+}
+
+export type ResultadoTesteBoleto = { ambiente: AmbienteBoleto; testado: string; conexao: string }
+
+/** Confere as credenciais do Sicredi no ambiente ligado (ou no sandbox, se desligado). */
+export function useTestarBoleto() {
+  return useMutation({
+    mutationFn: () => chamarBoleto<ResultadoTesteBoleto>({ acao: 'testar' }),
+  })
+}

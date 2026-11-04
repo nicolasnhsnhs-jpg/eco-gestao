@@ -12,6 +12,7 @@
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 
+import { configuracaoBoleto, deveGerarAoEmitir, gerarBoletoDaNota } from '../_shared/boletoNota.ts'
 import { enviarNotaPorEmail, emailDoCliente } from '../_shared/enviarNota.ts'
 import { clienteAdmin, conferirFinanceiro, CORS, resposta } from '../_shared/servidor.ts'
 import { certificadoDaEmpresa, type Certificado } from './certificado.ts'
@@ -308,6 +309,20 @@ async function concluir(
     throw new Error(
       `A NFS-e ${numero} foi emitida (chave ${chave}), mas não consegui gravar no sistema: ${error.message}`,
     )
+  }
+
+  // Nota paga por boleto: o boleto do Sicredi sai agora e vai no mesmo e-mail. Se falhar,
+  // a nota continua emitida e o e-mail espera (aviso de envio pendente) até o financeiro
+  // gerar ou anexar o boleto e clicar em Enviar.
+  const cfgBoleto = await configuracaoBoleto(admin)
+  if (deveGerarAoEmitir(cfgBoleto, nota)) {
+    try {
+      await gerarBoletoDaNota(admin, nota.id, usuarioId)
+    } catch (e) {
+      const motivo = `O boleto não foi gerado (${(e as Error).message}). Gere ou anexe o boleto na nota e clique em Enviar.`
+      await admin.from('notas_fiscais').update({ erro_envio: motivo }).eq('id', nota.id)
+      return { numero, chave, envio: { enviada: false as const, motivo } }
+    }
   }
 
   const envio = await enviarNotaPorEmail(admin, nota.id, { origem })

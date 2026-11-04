@@ -125,3 +125,34 @@ No mesmo repositório privado `eco-gestao-backup`:
 
 O Claude confere login, HTTPS, cabeçalhos de segurança, `noindex`, o rodapé do PDF de uma OS de
 teste e a primeira execução do backup do RS.
+
+## 9. Boleto pelo sistema (Sicredi) ✋ 🟡 código pronto; faltam as credenciais
+
+O sistema registra o boleto na **API de Cobrança do Sicredi** (função `boleto`) e manda o PDF no
+mesmo e-mail da nota. Ao emitir uma nota com forma de pagamento **Boleto**, ele gera o boleto
+sozinho antes do e-mail. Se o boleto falhar, a nota continua emitida e o e-mail fica pendente
+(aparece o aviso). Também dá para gerar pelo botão **Gerar boleto no Sicredi**, na tela da nota.
+
+**Com o Sicredi (gerente da conta):**
+
+1. Pedir a modalidade **API (Cobrança Online)** no convênio de cobrança do RS.
+2. No [Portal do Desenvolvedor](https://developer.sicredi.com.br), criar o app
+   `API Cobrança <coop> <beneficiário> Sandbox` com os produtos **API AUTH - OPENAPI - PARCEIROS** e
+   **API COBRANÇA BOLETO**, e abrir o chamado pedindo o token (x-api-key). O token sai em alguns
+   dias e aparece em **Minhas Apps**. Depois, repetir com um app de **Produção**.
+3. No Internet Banking (pela conta do convênio): **Cobrança → Código de Acesso → Gerar**.
+
+**No sistema:**
+
+4. Supabase **rs** → Edge Functions → Secrets:
+   - `SICREDI_API_KEY`: o token do app (primeiro o do **sandbox**, depois troque pelo de produção)
+   - `SICREDI_CODIGO_ACESSO`: o Código de Acesso do Internet Banking (só produção)
+5. 🤖 `npm run db:push:rs` e `npm run funcoes:rs` (migração `boleto_sicredi` e função `boleto`).
+6. **Financeiro → Cadastros → Boleto pelo sistema (Sicredi):** cooperativa (4 números), posto
+   (2), código do beneficiário (5), multa e juros. Escolha **Testes** e clique em **Testar
+   conexão**. Em uma nota, **Testar boleto (sandbox)** registra um boleto de teste e abre o PDF.
+7. Com o token de produção e o Código de Acesso, mude para **Valendo**. O primeiro boleto de
+   verdade deve ser conferido no Internet Banking.
+
+> Se o Sicredi não responder a tempo, o sistema não tenta de novo sozinho: confira no Internet
+> Banking se o boleto não foi registrado antes de gerar outro, para não cobrar duas vezes.

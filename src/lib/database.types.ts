@@ -1654,6 +1654,15 @@ export type Database = {
           arquivo_xml_id: string | null
           atualizado_em: string
           atualizado_por: string | null
+          boleto_codigo_barras: string | null
+          boleto_consultado_em: string | null
+          boleto_gerado_em: string | null
+          boleto_linha_digitavel: string | null
+          boleto_nosso_numero: string | null
+          boleto_pix: string | null
+          boleto_situacao: string | null
+          boleto_valor: number | null
+          boleto_vencimento: string | null
           chave_acesso: string | null
           cliente_id: string
           codigo_nbs: string | null
@@ -1669,9 +1678,11 @@ export type Database = {
           emitindo_em: string | null
           enviada_em: string | null
           enviada_para: string | null
+          erro_boleto: string | null
           erro_emissao: string | null
           erro_envio: string | null
           forma_pagamento: Database['public']['Enums']['forma_pagamento'] | null
+          gerando_boleto_em: string | null
           id: string
           importada_de: string | null
           iss_retido: boolean
@@ -1705,6 +1716,15 @@ export type Database = {
           arquivo_xml_id?: string | null
           atualizado_em?: string
           atualizado_por?: string | null
+          boleto_codigo_barras?: string | null
+          boleto_consultado_em?: string | null
+          boleto_gerado_em?: string | null
+          boleto_linha_digitavel?: string | null
+          boleto_nosso_numero?: string | null
+          boleto_pix?: string | null
+          boleto_situacao?: string | null
+          boleto_valor?: number | null
+          boleto_vencimento?: string | null
           chave_acesso?: string | null
           cliente_id: string
           codigo_nbs?: string | null
@@ -1720,9 +1740,11 @@ export type Database = {
           emitindo_em?: string | null
           enviada_em?: string | null
           enviada_para?: string | null
+          erro_boleto?: string | null
           erro_emissao?: string | null
           erro_envio?: string | null
           forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
+          gerando_boleto_em?: string | null
           id?: string
           importada_de?: string | null
           iss_retido?: boolean
@@ -1756,6 +1778,15 @@ export type Database = {
           arquivo_xml_id?: string | null
           atualizado_em?: string
           atualizado_por?: string | null
+          boleto_codigo_barras?: string | null
+          boleto_consultado_em?: string | null
+          boleto_gerado_em?: string | null
+          boleto_linha_digitavel?: string | null
+          boleto_nosso_numero?: string | null
+          boleto_pix?: string | null
+          boleto_situacao?: string | null
+          boleto_valor?: number | null
+          boleto_vencimento?: string | null
           chave_acesso?: string | null
           cliente_id?: string
           codigo_nbs?: string | null
@@ -1771,9 +1802,11 @@ export type Database = {
           emitindo_em?: string | null
           enviada_em?: string | null
           enviada_para?: string | null
+          erro_boleto?: string | null
           erro_emissao?: string | null
           erro_envio?: string | null
           forma_pagamento?: Database['public']['Enums']['forma_pagamento'] | null
+          gerando_boleto_em?: string | null
           id?: string
           importada_de?: string | null
           iss_retido?: boolean
@@ -3875,6 +3908,7 @@ export type Database = {
         Args: { cliente: string; motivo?: string; novo_vendedor: string }
         Returns: undefined
       }
+      travar_boleto_nota: { Args: { p_nota_id: string }; Returns: boolean }
       travar_emissao_nota: { Args: { p_nota_id: string }; Returns: boolean }
     }
     Enums: {

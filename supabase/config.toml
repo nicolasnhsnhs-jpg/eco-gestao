@@ -429,3 +429,6 @@ verify_jwt = false
 
 [functions.nfse]
 verify_jwt = false
+
+[functions.boleto]
+verify_jwt = false

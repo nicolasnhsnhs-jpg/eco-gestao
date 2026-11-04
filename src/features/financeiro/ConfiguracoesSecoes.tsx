@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type ChangeEvent } from 'react'
 
 import { Aviso } from '@/components/ui/Aviso'
 import { BotaoIcone } from '@/components/ui/BotaoIcone'
@@ -12,7 +12,7 @@ import { mensagemDeErro } from '@/lib/erros'
 import { supabase } from '@/lib/supabase'
 import { UNIDADE } from '@/lib/unidade'
 
-import { useTestarNfse } from './notasApi'
+import { useTestarBoleto, useTestarNfse } from './notasApi'
 
 // -----------------------------------------------------------------------------
 // Configurações gerais
@@ -193,6 +193,141 @@ export function SecaoNfse() {
         </Button>
         <Button variante="secundario" disabled={testar.isPending} onClick={() => testar.mutate()}>
           {testar.isPending ? 'Testando…' : 'Testar certificado e conexão'}
+        </Button>
+      </div>
+    </Card>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// Boleto pelo sistema (API de Cobrança do Sicredi)
+// -----------------------------------------------------------------------------
+
+export function SecaoBoleto() {
+  const configuracoes = useConfiguracoes()
+  const queryClient = useQueryClient()
+  const testar = useTestarBoleto()
+  const [valores, setValores] = useState<Record<string, string>>({})
+  const salvar = useMutation({
+    mutationFn: async (dados: Record<string, string>) => {
+      for (const [chave, valor] of Object.entries(dados)) {
+        const { error } = await supabase.from('configuracoes').update({ valor }).eq('chave', chave)
+        if (error) throw error
+      }
+    },
+    onSuccess: () => {
+      setValores({})
+      void queryClient.invalidateQueries({ queryKey: ['configuracoes'] })
+    },
+  })
+  const valor = (chave: string) => valores[chave] ?? configuracoes.data?.[chave] ?? ''
+  const mudar = (chave: string, v: string) => setValores({ ...valores, [chave]: v })
+  const numeros = (chave: string, tamanho: number) => (e: ChangeEvent<HTMLInputElement>) =>
+    mudar(chave, e.target.value.replace(/\D/g, '').slice(0, tamanho))
+  const percentual = (chave: string) => (e: ChangeEvent<HTMLInputElement>) =>
+    mudar(chave, e.target.value.replace(',', '.').replace(/[^\d.]/g, ''))
+
+  return (
+    <Card>
+      <h2 className="mb-1 text-lg font-bold">Boleto pelo sistema (Sicredi)</h2>
+      <p className="mb-4 text-sm text-texto-suave">
+        O sistema registra o boleto na API de Cobrança do Sicredi e manda junto com a nota. As
+        credenciais (token do Portal do Desenvolvedor e Código de Acesso do Internet Banking) ficam
+        nos segredos do Supabase, nunca aqui. Comece em <strong>Testes</strong>: os boletos vão ao
+        sandbox do Sicredi, sem valor.
+      </p>
+      {salvar.isError && <Aviso tipo="erro">{mensagemDeErro(salvar.error)}</Aviso>}
+      {salvar.isSuccess && <Aviso tipo="sucesso">Configurações salvas.</Aviso>}
+      <div className="mt-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Campo rotulo="Boleto pelo sistema" htmlFor="bol-amb">
+          <Select
+            id="bol-amb"
+            value={valor('boleto_ambiente')}
+            onChange={(e) => mudar('boleto_ambiente', e.target.value)}
+          >
+            <option value="desligado">Desligado (Internet Banking)</option>
+            <option value="sandbox">Testes (sandbox do Sicredi)</option>
+            <option value="producao">Valendo</option>
+          </Select>
+        </Campo>
+        <Campo rotulo="Cooperativa" htmlFor="bol-coop" dica="4 números.">
+          <Input
+            id="bol-coop"
+            inputMode="numeric"
+            value={valor('boleto_cooperativa')}
+            onChange={numeros('boleto_cooperativa', 4)}
+          />
+        </Campo>
+        <Campo rotulo="Posto (agência)" htmlFor="bol-posto" dica="2 números.">
+          <Input
+            id="bol-posto"
+            inputMode="numeric"
+            value={valor('boleto_posto')}
+            onChange={numeros('boleto_posto', 2)}
+          />
+        </Campo>
+        <Campo rotulo="Código do beneficiário" htmlFor="bol-benef" dica="5 números (convênio).">
+          <Input
+            id="bol-benef"
+            inputMode="numeric"
+            value={valor('boleto_codigo_beneficiario')}
+            onChange={numeros('boleto_codigo_beneficiario', 5)}
+          />
+        </Campo>
+        <Campo rotulo="Tipo de boleto" htmlFor="bol-tipo">
+          <Select
+            id="bol-tipo"
+            value={valor('boleto_tipo_cobranca')}
+            onChange={(e) => mudar('boleto_tipo_cobranca', e.target.value)}
+          >
+            <option value="HIBRIDO">Com QR Code Pix (híbrido)</option>
+            <option value="NORMAL">Só código de barras</option>
+          </Select>
+        </Campo>
+        <Campo rotulo="Multa por atraso (%)" htmlFor="bol-multa" dica="0 = sem multa.">
+          <Input
+            id="bol-multa"
+            inputMode="decimal"
+            value={valor('boleto_multa')}
+            onChange={percentual('boleto_multa')}
+          />
+        </Campo>
+        <Campo rotulo="Juros (% ao mês)" htmlFor="bol-juros" dica="Cobrado por dia de atraso.">
+          <Input
+            id="bol-juros"
+            inputMode="decimal"
+            value={valor('boleto_juros_mes')}
+            onChange={percentual('boleto_juros_mes')}
+          />
+        </Campo>
+        <Campo rotulo="Ao emitir nota paga por boleto" htmlFor="bol-auto">
+          <Select
+            id="bol-auto"
+            value={valor('boleto_ao_emitir')}
+            onChange={(e) => mudar('boleto_ao_emitir', e.target.value)}
+          >
+            <option value="sim">Gerar o boleto e mandar junto</option>
+            <option value="nao">Não gerar (só pelo botão)</option>
+          </Select>
+        </Campo>
+      </div>
+      {testar.isError && <Aviso tipo="erro">{mensagemDeErro(testar.error)}</Aviso>}
+      {testar.data && (
+        <Aviso tipo={testar.data.conexao === 'ok' ? 'sucesso' : 'erro'}>
+          {testar.data.conexao === 'ok'
+            ? `O Sicredi aceitou as credenciais (${testar.data.testado === 'producao' ? 'produção' : 'sandbox'}).`
+            : `A conexão com o Sicredi falhou: ${testar.data.conexao}`}
+        </Aviso>
+      )}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button
+          disabled={Object.keys(valores).length === 0 || salvar.isPending}
+          onClick={() => salvar.mutate(valores)}
+        >
+          {salvar.isPending ? 'Salvando…' : 'Salvar'}
+        </Button>
+        <Button variante="secundario" disabled={testar.isPending} onClick={() => testar.mutate()}>
+          {testar.isPending ? 'Testando…' : 'Testar conexão com o Sicredi'}
         </Button>
       </div>
     </Card>

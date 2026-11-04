@@ -4,18 +4,11 @@ import { useState } from 'react'
 import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { abrirPdfBase64 } from '@/lib/arquivos'
 import { mensagemDeErro } from '@/lib/erros'
 
 import { useAmbienteNfse, useEmitirNota, useEnsaiarNota, type NotaFiscalCompleta } from './notasApi'
 import { textoEmissao } from './notas'
-
-/** Abre o PDF (base64) numa aba nova. */
-function abrirPdf(base64: string) {
-  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
-  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }))
-  window.open(url, '_blank', 'noopener')
-  setTimeout(() => URL.revokeObjectURL(url), 60_000)
-}
 
 /**
  * Rascunho → nota emitida, sem sair do sistema. "Confirmar e emitir" salva o que foi
@@ -114,7 +107,7 @@ export function EmissaoNota({
           </Button>
         )}
         {pdfTeste && (
-          <Button variante="secundario" onClick={() => abrirPdf(pdfTeste)}>
+          <Button variante="secundario" onClick={() => abrirPdfBase64(pdfTeste)}>
             <FileText className="size-4" aria-hidden /> Ver PDF de teste
           </Button>
         )}

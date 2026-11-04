@@ -82,3 +82,11 @@ export async function comprimirSeForFoto(arquivo: File): Promise<File> {
     return arquivo
   }
 }
+
+/** Abre um PDF (base64) numa aba nova. */
+export function abrirPdfBase64(base64: string) {
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
+  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }))
+  window.open(url, '_blank', 'noopener')
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}

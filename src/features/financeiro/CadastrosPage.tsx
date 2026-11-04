@@ -27,7 +27,7 @@ import {
   type ContaBancaria,
   type Fornecedor,
 } from './api'
-import { SecaoConfiguracoes, SecaoFeriados, SecaoNfse } from './ConfiguracoesSecoes'
+import { SecaoBoleto, SecaoConfiguracoes, SecaoFeriados, SecaoNfse } from './ConfiguracoesSecoes'
 import { NovoFornecedorModal } from './NovoFornecedorModal'
 import { NOME_TIPO_CONTA, type TipoConta } from './rotulos'
 
@@ -36,6 +36,7 @@ export function CadastrosPage() {
     <div className="flex flex-col gap-5">
       <SecaoConfiguracoes />
       <SecaoNfse />
+      <SecaoBoleto />
       <SecaoContas />
       <SecaoCategorias />
       <SecaoFornecedores />
