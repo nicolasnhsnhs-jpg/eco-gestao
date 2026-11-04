@@ -28,6 +28,7 @@ export const NOME_STATUS_NOTA: Record<StatusNota, string> = {
 const RELACOES = `
   cliente:clientes(id, nome, nome_fantasia, cpf_cnpj, email),
   pdf:arquivos!arquivo_pdf_id(*),
+  boleto:arquivos!arquivo_boleto_id(*),
   contrato:contratos(id, descricao, valor_mensal),
   lancamento:lancamentos(id, status, valor, vencimento)
 `
@@ -177,42 +178,94 @@ export function useDescartarRascunho() {
 }
 
 /**
- * Guarda o PDF da nota nos arquivos do cliente (ligado à conta a receber, que só o
- * financeiro vê) e o liga à nota.
+ * Guarda um PDF da nota (a própria nota ou o boleto) nos arquivos do cliente, ligado à
+ * conta a receber (que só o financeiro vê). Devolve o id do arquivo.
  */
+async function guardarPdfDaNota(
+  nota: NotaFiscalCompleta,
+  arquivo: File,
+  categoria: 'nota_fiscal' | 'boleto',
+  descricao: string | null,
+): Promise<string> {
+  if (arquivo.type !== 'application/pdf') throw new Error('Escolha um arquivo PDF.')
+  if (arquivo.size > TAMANHO_MAXIMO) throw new Error('O PDF passa de 20 MB.')
+  const id = crypto.randomUUID()
+  const caminho = `clientes/${nota.cliente_id}/${id}-${nomeSeguro(arquivo.name)}`
+  const envio = await supabase.storage
+    .from('arquivos')
+    .upload(caminho, arquivo, { contentType: 'application/pdf' })
+  if (envio.error) throw envio.error
+
+  const { error } = await supabase.from('arquivos').insert({
+    id,
+    caminho_storage: caminho,
+    nome_original: arquivo.name,
+    tipo_mime: 'application/pdf',
+    tamanho_bytes: arquivo.size,
+    categoria,
+    cliente_id: nota.cliente_id,
+    lancamento_id: nota.lancamento_id,
+    descricao,
+  })
+  if (error) {
+    await supabase.storage.from('arquivos').remove([caminho])
+    throw error
+  }
+  return id
+}
+
+/** Liga o PDF da nota emitida (trocar o PDF zera o envio, para mandar de novo). */
 export function useAnexarPdfNota() {
   const atualizar = useAtualizarNotas()
   return useMutation({
     mutationFn: async ({ nota, arquivo }: { nota: NotaFiscalCompleta; arquivo: File }) => {
-      if (arquivo.type !== 'application/pdf') throw new Error('Escolha o PDF da nota.')
-      if (arquivo.size > TAMANHO_MAXIMO) throw new Error('O PDF passa de 20 MB.')
-      const id = crypto.randomUUID()
-      const caminho = `clientes/${nota.cliente_id}/${id}-${nomeSeguro(arquivo.name)}`
-      const envio = await supabase.storage
-        .from('arquivos')
-        .upload(caminho, arquivo, { contentType: 'application/pdf' })
-      if (envio.error) throw envio.error
-
-      const { error } = await supabase.from('arquivos').insert({
-        id,
-        caminho_storage: caminho,
-        nome_original: arquivo.name,
-        tipo_mime: 'application/pdf',
-        tamanho_bytes: arquivo.size,
-        categoria: 'nota_fiscal',
-        cliente_id: nota.cliente_id,
-        lancamento_id: nota.lancamento_id,
-        descricao: nota.numero ? `NF ${nota.numero}` : null,
-      })
-      if (error) {
-        await supabase.storage.from('arquivos').remove([caminho])
-        throw error
-      }
+      const id = await guardarPdfDaNota(
+        nota,
+        arquivo,
+        'nota_fiscal',
+        nota.numero ? `NF ${nota.numero}` : null,
+      )
       const { error: erroNota } = await supabase
         .from('notas_fiscais')
         .update({ arquivo_pdf_id: id, enviada_em: null, enviada_para: null, erro_envio: null })
         .eq('id', nota.id)
       if (erroNota) throw erroNota
+    },
+    onSuccess: atualizar,
+  })
+}
+
+/** Anexa (ou troca) o boleto da nota; ele segue no e-mail junto com a nota. */
+export function useAnexarBoletoNota() {
+  const atualizar = useAtualizarNotas()
+  return useMutation({
+    mutationFn: async ({ nota, arquivo }: { nota: NotaFiscalCompleta; arquivo: File }) => {
+      const id = await guardarPdfDaNota(
+        nota,
+        arquivo,
+        'boleto',
+        nota.numero ? `Boleto da NF ${nota.numero}` : 'Boleto',
+      )
+      const { error } = await supabase
+        .from('notas_fiscais')
+        .update({ arquivo_boleto_id: id })
+        .eq('id', nota.id)
+      if (error) throw error
+    },
+    onSuccess: atualizar,
+  })
+}
+
+/** Tira o boleto da nota (o arquivo continua na ficha do cliente). */
+export function useTirarBoletoNota() {
+  const atualizar = useAtualizarNotas()
+  return useMutation({
+    mutationFn: async (notaId: string) => {
+      const { error } = await supabase
+        .from('notas_fiscais')
+        .update({ arquivo_boleto_id: null })
+        .eq('id', notaId)
+      if (error) throw error
     },
     onSuccess: atualizar,
   })

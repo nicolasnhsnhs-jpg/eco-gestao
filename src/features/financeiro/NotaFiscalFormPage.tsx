@@ -18,6 +18,7 @@ import { mensagemDeErro } from '@/lib/erros'
 
 import { ClienteSeletor, type ClienteEscolhido } from '../clientes/ClienteSeletor'
 import { useContratos } from '../contratos/api'
+import { BoletoNota } from './BoletoNota'
 import { EmissaoNota } from './EmissaoNota'
 import { EnvioNota } from './EnvioNota'
 import {
@@ -508,6 +509,7 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
         </div>
       </form>
 
+      {nota && nota.status !== 'cancelada' && <BoletoNota nota={nota} />}
       {nota?.status === 'rascunho' && <EmissaoNota nota={nota} salvarAntes={salvarRascunho} />}
       {nota?.status === 'emitida' && <EmissaoNota nota={nota} modelo />}
       {nota?.status === 'emitida' && <EnvioNota nota={nota} />}

@@ -15,6 +15,8 @@ export type DadosEmailNota = {
   retido: number
   vencimento: string | null
   formaPagamento: string | null
+  /** O boleto vai anexo junto com a nota. */
+  comBoleto?: boolean
 }
 
 const MESES = [
@@ -85,7 +87,7 @@ export function htmlNota(d: DadosEmailNota): string {
   </head>
   <body style="margin: 0; padding: 0; background-color: #f5f8f1">
     <div style="display: none; max-height: 0; overflow: hidden">
-      Sua nota fiscal de ${mesPorExtenso(d.competencia)} está em anexo${d.vencimento ? `, com vencimento em ${data(d.vencimento)}` : ''}.
+      ${d.comBoleto ? 'Sua nota fiscal e o boleto' : 'Sua nota fiscal'} de ${mesPorExtenso(d.competencia)} ${d.comBoleto ? 'estão' : 'está'} em anexo${d.vencimento ? `, com vencimento em ${data(d.vencimento)}` : ''}.
     </div>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f5f8f1">
       <tr>
@@ -107,7 +109,7 @@ export function htmlNota(d: DadosEmailNota): string {
                   Olá${d.cliente ? `, <strong>${escapar(d.cliente)}</strong>` : ''}!
                 </p>
                 <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6">
-                  Obrigado por contar com a ${escapar(d.empresa)}. Segue em anexo a nota fiscal do
+                  Obrigado por contar com a ${escapar(d.empresa)}. ${d.comBoleto ? 'Seguem em anexo a nota fiscal e o boleto do' : 'Segue em anexo a nota fiscal do'}
                   serviço de <strong>${mesPorExtenso(d.competencia)}</strong>. Os detalhes:
                 </p>
               </td>
@@ -151,7 +153,7 @@ export function textoNota(d: DadosEmailNota): string {
   return [
     `Olá${d.cliente ? `, ${d.cliente}` : ''}!`,
     '',
-    `Segue em anexo a nota fiscal do serviço de ${mesPorExtenso(d.competencia)}.`,
+    `${d.comBoleto ? 'Seguem em anexo a nota fiscal e o boleto' : 'Segue em anexo a nota fiscal'} do serviço de ${mesPorExtenso(d.competencia)}.`,
     '',
     ...linhas(d).map(([r, v]) => `${r}: ${v}`),
     '',

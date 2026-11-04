@@ -1,5 +1,5 @@
-// Manda o PDF da nota fiscal emitida ao e-mail do cliente, pelo Resend. Usado pela
-// função "notas" (botão Enviar) e pela "nfse" (logo depois de emitir).
+// Manda o PDF da nota fiscal emitida (e o boleto, se anexado) ao e-mail do cliente, pelo
+// Resend. Usado pela função "notas" (botão Enviar) e pela "nfse" (logo depois de emitir).
 //
 // Segredos do projeto (Supabase → Edge Functions → Secrets), um conjunto por unidade:
 //   RESEND_API_KEY     chave do Resend com permissão de envio no domínio da unidade
@@ -91,7 +91,7 @@ export async function enviarNotaPorEmail(
   const { data: nota } = await admin
     .from('notas_fiscais')
     .select(
-      '*, cliente:clientes(nome, nome_fantasia), contrato:contratos(descricao), pdf:arquivos!arquivo_pdf_id(caminho_storage, nome_original)',
+      '*, cliente:clientes(nome, nome_fantasia), contrato:contratos(descricao), pdf:arquivos!arquivo_pdf_id(caminho_storage, nome_original), boleto:arquivos!arquivo_boleto_id(caminho_storage)',
     )
     .eq('id', notaId)
     .single()
@@ -116,6 +116,13 @@ export async function enviarNotaPorEmail(
     .from('arquivos')
     .download(nota.pdf.caminho_storage)
   if (erroArquivo || !arquivo) return falhar('Não foi possível abrir o PDF da nota.')
+  let boleto: Blob | null = null
+  if (nota.boleto) {
+    const r = await admin.storage.from('arquivos').download(nota.boleto.caminho_storage)
+    if (r.error || !r.data) return falhar('Não foi possível abrir o PDF do boleto.')
+    boleto = r.data
+  }
+  const nomeNota = nota.numero ?? nota.id.slice(0, 8)
 
   const dados: DadosEmailNota = {
     site: (Deno.env.get('SITE_URL') || origem || '').replace(/\/+$/, ''),
@@ -131,6 +138,7 @@ export async function enviarNotaPorEmail(
     retido: totalRetido(nota),
     vencimento: nota.vencimento,
     formaPagamento: nota.forma_pagamento ? (FORMAS[nota.forma_pagamento] ?? null) : null,
+    comBoleto: !!boleto,
   }
   const envio = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -144,9 +152,17 @@ export async function enviarNotaPorEmail(
       text: textoNota(dados),
       attachments: [
         {
-          filename: `NF ${nota.numero ?? nota.id.slice(0, 8)}.pdf`,
+          filename: `NF ${nomeNota}.pdf`,
           content: encodeBase64(new Uint8Array(await arquivo.arrayBuffer())),
         },
+        ...(boleto
+          ? [
+              {
+                filename: `Boleto NF ${nomeNota}.pdf`,
+                content: encodeBase64(new Uint8Array(await boleto.arrayBuffer())),
+              },
+            ]
+          : []),
       ],
     }),
   })

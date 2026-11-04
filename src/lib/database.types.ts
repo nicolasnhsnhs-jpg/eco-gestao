@@ -1649,6 +1649,7 @@ export type Database = {
           aliquota_iss: number | null
           aliquota_pis: number | null
           ambiente_nfse: string | null
+          arquivo_boleto_id: string | null
           arquivo_pdf_id: string | null
           arquivo_xml_id: string | null
           atualizado_em: string
@@ -1699,6 +1700,7 @@ export type Database = {
           aliquota_iss?: number | null
           aliquota_pis?: number | null
           ambiente_nfse?: string | null
+          arquivo_boleto_id?: string | null
           arquivo_pdf_id?: string | null
           arquivo_xml_id?: string | null
           atualizado_em?: string
@@ -1749,6 +1751,7 @@ export type Database = {
           aliquota_iss?: number | null
           aliquota_pis?: number | null
           ambiente_nfse?: string | null
+          arquivo_boleto_id?: string | null
           arquivo_pdf_id?: string | null
           arquivo_xml_id?: string | null
           atualizado_em?: string
@@ -1795,6 +1798,13 @@ export type Database = {
           vencimento?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: 'notas_fiscais_arquivo_boleto_id_fkey'
+            columns: ['arquivo_boleto_id']
+            isOneToOne: false
+            referencedRelation: 'arquivos'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'notas_fiscais_arquivo_pdf_id_fkey'
             columns: ['arquivo_pdf_id']
@@ -3882,6 +3892,7 @@ export type Database = {
         | 'outro'
         | 'foto_os'
         | 'assinatura'
+        | 'boleto'
       forma_pagamento:
         'pix' | 'boleto' | 'transferencia' | 'cartao' | 'dinheiro' | 'debito_automatico' | 'outro'
       formulario_os: 'generico' | 'pragas' | 'coifa'
@@ -4037,6 +4048,7 @@ export const Constants = {
         'outro',
         'foto_os',
         'assinatura',
+        'boleto',
       ],
       forma_pagamento: [
         'pix',
