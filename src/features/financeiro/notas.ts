@@ -68,3 +68,29 @@ export function textoEmissao(r: {
     ? `NF ${r.numero} emitida e enviada para ${r.envio.para.join(', ')}.`
     : `NF ${r.numero} emitida. ${r.envio.motivo} Ficou o aviso de envio pendente.`
 }
+
+/** CST do PIS/COFINS com alíquota (tributável); vazio = o padrão da empresa (01). */
+const CST_TRIBUTAVEL = ['', '01', '02']
+
+/**
+ * Valores de PIS, COFINS e CSLL a partir do valor do serviço. O fisco confere a conta
+ * (valor = base × alíquota, E0694), então ela é sempre esta. A CSLL só existe quando o
+ * tomador retém (PIS/COFINS/CSLL retidos).
+ */
+export function calcularPisCofins(d: {
+  valor: number
+  aliquotaPis: number | null
+  aliquotaCofins: number | null
+  retidos: boolean
+  cst: string
+  aliquotaCsll: number
+}): { pis: number | null; cofins: number | null; csll: number | null } {
+  const tributavel = CST_TRIBUTAVEL.includes(d.cst)
+  const conta = (aliquota: number | null) =>
+    tributavel && aliquota != null && d.valor > 0 ? Math.round(d.valor * aliquota) / 100 : null
+  return {
+    pis: conta(d.aliquotaPis),
+    cofins: conta(d.aliquotaCofins),
+    csll: d.retidos && d.valor > 0 ? Math.round(d.valor * d.aliquotaCsll) / 100 : null,
+  }
+}

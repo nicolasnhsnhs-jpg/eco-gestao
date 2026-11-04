@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { proximaNota, totalRetido } from './notas'
+import { calcularPisCofins, proximaNota, totalRetido } from './notas'
 
 describe('proximaNota', () => {
   it('avança o mês, o vencimento e a data na descrição', () => {
@@ -74,5 +74,37 @@ describe('totalRetido', () => {
         aliquota_iss: 5,
       }),
     ).toBe(221.5)
+  })
+})
+
+describe('calcularPisCofins', () => {
+  const base = { valor: 460, aliquotaPis: 0.65, aliquotaCofins: 3, cst: '', aliquotaCsll: 1 }
+  it('calcula PIS, COFINS e CSLL retidos', () => {
+    expect(calcularPisCofins({ ...base, retidos: true })).toEqual({
+      pis: 2.99,
+      cofins: 13.8,
+      csll: 4.6,
+    })
+  })
+  it('sem retenção não há CSLL, mas PIS e COFINS continuam destacados', () => {
+    expect(calcularPisCofins({ ...base, retidos: false })).toEqual({
+      pis: 2.99,
+      cofins: 13.8,
+      csll: null,
+    })
+  })
+  it('CST sem incidência não tem PIS nem COFINS', () => {
+    expect(calcularPisCofins({ ...base, cst: '08', retidos: false })).toEqual({
+      pis: null,
+      cofins: null,
+      csll: null,
+    })
+  })
+  it('arredonda nos centavos como a Sefin (398 × 0,65% = 2,59)', () => {
+    expect(calcularPisCofins({ ...base, valor: 398, retidos: true })).toEqual({
+      pis: 2.59,
+      cofins: 11.94,
+      csll: 3.98,
+    })
   })
 })

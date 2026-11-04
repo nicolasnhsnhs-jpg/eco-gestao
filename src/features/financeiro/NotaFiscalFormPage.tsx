@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, Copy, Trash2 } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 import { useForm, useWatch, type UseFormReturn } from 'react-hook-form'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { z } from 'zod'
@@ -19,8 +20,9 @@ import { ClienteSeletor, type ClienteEscolhido } from '../clientes/ClienteSeleto
 import { useContratos } from '../contratos/api'
 import { EmissaoNota } from './EmissaoNota'
 import { EnvioNota } from './EnvioNota'
-import { proximaNota, totalRetido } from './notas'
+import { calcularPisCofins, proximaNota, totalRetido } from './notas'
 import {
+  useAliquotaCsll,
   useDescartarRascunho,
   useMensalidadesDoContrato,
   useNotaFiscal,
@@ -155,8 +157,9 @@ function valoresIniciais(nota: NotaFiscalCompleta | undefined, p: URLSearchParam
     iss_retido: false,
     aliquota_iss: '',
     pis_cofins_retidos: false,
-    aliquota_pis: '',
-    aliquota_cofins: '',
+    // Padrão da empresa (lucro presumido, cumulativo): PIS 0,65% e COFINS 3%.
+    aliquota_pis: '0,65',
+    aliquota_cofins: '3,00',
     valor_pis: '',
     valor_cofins: '',
     valor_csll: '',
@@ -561,6 +564,34 @@ function CopiarUltima({
 function Impostos({ form }: { form: UseFormReturn<Dados> }) {
   const d = useWatch({ control: form.control })
   const valor = lerValor(d.valor_servico ?? '') ?? 0
+  const aliquotaCsll = useAliquotaCsll().data ?? 1
+
+  // PIS, COFINS e CSLL saem da conta (o fisco confere): ao mudar o valor, as alíquotas,
+  // a retenção ou o CST, recalcula. Ao abrir uma nota salva, mantém o que ela tem.
+  const entrada = [
+    d.valor_servico,
+    d.aliquota_pis,
+    d.aliquota_cofins,
+    d.pis_cofins_retidos,
+    d.cst_piscofins,
+    aliquotaCsll,
+  ].join('|')
+  const anterior = useRef(entrada)
+  useEffect(() => {
+    if (anterior.current === entrada) return
+    anterior.current = entrada
+    const r = calcularPisCofins({
+      valor,
+      aliquotaPis: lerValor(d.aliquota_pis ?? ''),
+      aliquotaCofins: lerValor(d.aliquota_cofins ?? ''),
+      retidos: !!d.pis_cofins_retidos,
+      cst: d.cst_piscofins ?? '',
+      aliquotaCsll,
+    })
+    form.setValue('valor_pis', valorParaCampo(r.pis))
+    form.setValue('valor_cofins', valorParaCampo(r.cofins))
+    form.setValue('valor_csll', valorParaCampo(r.csll))
+  }, [entrada]) // eslint-disable-line react-hooks/exhaustive-deps
   const retido = totalRetido({
     iss_retido: !!d.iss_retido,
     aliquota_iss: lerValor(d.aliquota_iss ?? ''),

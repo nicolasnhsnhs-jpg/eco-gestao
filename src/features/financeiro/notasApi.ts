@@ -284,6 +284,23 @@ export function useAmbienteNfse() {
   })
 }
 
+/** Alíquota da CSLL retida (%), da configuração da emissão (padrão 1). */
+export function useAliquotaCsll() {
+  return useQuery({
+    queryKey: ['configuracoes', 'nfse_aliquota_csll'],
+    staleTime: Infinity,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('configuracoes')
+        .select('valor')
+        .eq('chave', 'nfse_aliquota_csll')
+        .maybeSingle()
+      const n = Number(String(data?.valor ?? '').replace(',', '.'))
+      return Number.isFinite(n) && n > 0 ? n : 1
+    },
+  })
+}
+
 async function chamarNfse<T>(corpo: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke('nfse', { body: corpo })
   if (error) {
