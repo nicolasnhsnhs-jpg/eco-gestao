@@ -252,24 +252,34 @@ async function concluir(
 ) {
   const { nota, dados } = montada
   const numero = tag(xml, 'nNFSe') ?? ''
-  const pdf = await gerarDanfse(xml)
-  const enc = new TextEncoder()
-  const xmlId = await guardarArquivo(
-    admin,
-    nota,
-    usuarioId,
-    `NFSe-${numero}.xml`,
-    'application/xml',
-    enc.encode(xml),
-  )
-  const pdfId = await guardarArquivo(
-    admin,
-    nota,
-    usuarioId,
-    `NFSe-${numero}.pdf`,
-    'application/pdf',
-    pdf,
-  )
+  let xmlId: string, pdfId: string
+  try {
+    const pdf = await gerarDanfse(xml)
+    xmlId = await guardarArquivo(
+      admin,
+      nota,
+      usuarioId,
+      `NFSe-${numero}.xml`,
+      'application/xml',
+      new TextEncoder().encode(xml),
+    )
+    pdfId = await guardarArquivo(
+      admin,
+      nota,
+      usuarioId,
+      `NFSe-${numero}.pdf`,
+      'application/pdf',
+      pdf,
+    )
+  } catch (e) {
+    // Nova tentativa acha a nota pela DPS e só termina de guardar, sem emitir outra.
+    console.error('Nota autorizada mas arquivos não guardados', nota.id, chave, e)
+    throw new Falha(
+      `A NFS-e ${numero} foi emitida no governo, mas não consegui guardar o PDF/XML ` +
+        `(${(e as Error).message}). Não emita de novo em outro lugar: clique outra vez ` +
+        `aqui, o sistema busca esta mesma nota e termina.`,
+    )
+  }
   const pc = dados.valores.pisCofins!
 
   const { error } = await admin
