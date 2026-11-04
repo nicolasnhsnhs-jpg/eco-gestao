@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import type { Database } from '@/lib/database.types'
 import { cnpjValido, cpfValido, limparDocumento, soNumeros, telefoneValido } from '@/lib/documentos'
+import { UNIDADE } from '@/lib/unidade'
 
 /*
  * Regras dos formulários de clientes (o que é obrigatório, o que é válido)
@@ -71,8 +72,8 @@ export const ENDERECO_VAZIO: FormEndereco = {
   numero: '',
   complemento: '',
   bairro: '',
-  cidade: 'Palhoça',
-  uf: 'SC',
+  cidade: UNIDADE.cidade,
+  uf: UNIDADE.uf,
   principal: false,
 }
 

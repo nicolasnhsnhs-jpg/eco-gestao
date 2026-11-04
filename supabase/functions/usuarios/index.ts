@@ -11,8 +11,9 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const PAPEIS = ['admin', 'financeiro', 'vendedor', 'recepcao', 'operador'] as const
 
-// Endereço só para identificar o login; ninguém recebe e-mail nele.
-const DOMINIO_OPERADOR = 'op.ecoambientalsc.com.br'
+// Endereço só para identificar o login; ninguém recebe e-mail nele. Cada unidade tem o
+// seu (segredo DOMINIO_OPERADOR do projeto; sem ele, vale o de SC). Igual a src/lib/unidade.ts.
+const DOMINIO_OPERADOR = Deno.env.get('DOMINIO_OPERADOR') ?? 'op.ecoambientalsc.com.br'
 const SENHA_MINIMA = 8
 type Papel = (typeof PAPEIS)[number]
 

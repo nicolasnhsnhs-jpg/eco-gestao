@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/Card'
 import { formatarData, hojeISO } from '@/lib/datas'
 import { mensagemDeErro } from '@/lib/erros'
 import { supabase } from '@/lib/supabase'
+import { UNIDADE } from '@/lib/unidade'
 
 // -----------------------------------------------------------------------------
 // Configurações gerais
@@ -99,7 +100,11 @@ export function SecaoConfiguracoes() {
 // Feriados
 // -----------------------------------------------------------------------------
 
-const NOME_ABRANGENCIA = { estadual: 'SC', municipal: 'Palhoça', outro: 'Outro' } as const
+const NOME_ABRANGENCIA = {
+  estadual: UNIDADE.uf,
+  municipal: UNIDADE.cidade,
+  outro: 'Outro',
+} as const
 type Abrangencia = keyof typeof NOME_ABRANGENCIA
 
 export function SecaoFeriados() {
@@ -156,8 +161,8 @@ export function SecaoFeriados() {
       <h2 className="mb-1 text-lg font-bold">Feriados</h2>
       <p className="mb-4 text-sm text-texto-suave">
         Usados para calcular os dias úteis. Os nacionais (inclusive Carnaval, Sexta-feira Santa e
-        Corpus Christi) já vêm prontos, para qualquer ano. Cadastre aqui os de SC e de Palhoça,
-        conferidos com a contabilidade.
+        Corpus Christi) já vêm prontos, para qualquer ano. Cadastre aqui os de {UNIDADE.uf} e de{' '}
+        {UNIDADE.cidade}, conferidos com a contabilidade.
       </p>
       {(adicionar.isError || remover.isError) && (
         <Aviso tipo="erro">{mensagemDeErro(adicionar.error ?? remover.error)}</Aviso>
@@ -180,7 +185,7 @@ export function SecaoFeriados() {
         />
         <Input
           aria-label="Nome do feriado"
-          placeholder="Ex.: Aniversário de Palhoça"
+          placeholder={`Ex.: Aniversário de ${UNIDADE.cidade}`}
           value={novo.descricao}
           onChange={(e) => setNovo({ ...novo, descricao: e.target.value })}
         />
@@ -203,7 +208,7 @@ export function SecaoFeriados() {
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <h3 className="mb-2 text-sm font-bold text-texto-suave uppercase">
-            SC, Palhoça e outros
+            {UNIDADE.uf}, {UNIDADE.cidade} e outros
           </h3>
           {locais.data?.length === 0 && (
             <p className="text-sm text-texto-suave">Nenhum cadastrado ainda.</p>

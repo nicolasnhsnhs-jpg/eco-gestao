@@ -71,7 +71,8 @@ npm run dev                  # abre em http://localhost:5173
 | `npm run build`  | confere os tipos e gera a versão de produção |
 
 A configuração dos serviços externos (GitHub, Supabase, Netlify, domínio e e-mail) está em
-[docs/CONFIGURACAO.md](docs/CONFIGURACAO.md). O guia de uso de cada perfil está em
+[docs/CONFIGURACAO.md](docs/CONFIGURACAO.md); a da unidade RS (mesmo código, banco separado), em
+[docs/CONFIGURACAO-RS.md](docs/CONFIGURACAO-RS.md). O guia de uso de cada perfil está em
 [docs/GUIA-DE-USO.md](docs/GUIA-DE-USO.md).
 
 ## Fases

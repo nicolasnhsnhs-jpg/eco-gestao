@@ -1,4 +1,6 @@
-# Backup do Eco Gestão: banco de dados (todo dia) e arquivos do Storage (todo domingo).
+# Backup do Eco Gestão: banco de dados (todo dia) e arquivos do Storage (todo domingo),
+# de cada unidade (SC e RS), cada uma com os seus segredos: os de SC sem sufixo e os do RS
+# terminados em _RS (ex.: SUPABASE_DB_URL_RS). A senha BACKUP_SENHA é a mesma.
 #
 # ATENÇÃO: este arquivo NÃO roda neste repositório (que é público).
 # Copie-o para um repositório PRIVADO separado, em .github/workflows/backup-diario.yml,
@@ -20,6 +22,12 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 6 * * *'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false # se uma unidade falhar, a outra continua
+      matrix:
+        include:
+          - { unidade: sc, sufixo: '' }
+          - { unidade: rs, sufixo: '_RS' }
     steps:
       - name: Instalar o cliente do PostgreSQL 17
         run: |
@@ -30,9 +38,9 @@ jobs:
 
       - name: Exportar o banco
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_DB_URL: ${{ secrets[format('SUPABASE_DB_URL{0}', matrix.sufixo)] }}
         run: |
-          arquivo="eco-gestao-banco-$(date -u +%Y-%m-%d).dump"
+          arquivo="eco-gestao-${{ matrix.unidade }}-banco-$(date -u +%Y-%m-%d).dump"
           /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" \
             --format=custom --no-owner --no-privileges \
             --schema=public --schema=auth --schema=privado \
@@ -60,6 +68,12 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 7 * * 0'
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false # se uma unidade falhar, a outra continua
+      matrix:
+        include:
+          - { unidade: sc, sufixo: '' }
+          - { unidade: rs, sufixo: '_RS' }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -68,15 +82,15 @@ jobs:
 
       - name: Baixar os arquivos do Storage
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SUPABASE_URL: ${{ secrets[format('SUPABASE_URL{0}', matrix.sufixo)] }}
+          SUPABASE_SECRET_KEY: ${{ secrets[format('SUPABASE_SECRET_KEY{0}', matrix.sufixo)] }}
         run: node backup-arquivos.mjs
 
       - name: Compactar e criptografar
         env:
           BACKUP_SENHA: ${{ secrets.BACKUP_SENHA }}
         run: |
-          arquivo="eco-gestao-arquivos-$(date -u +%Y-%m-%d).tar.gz"
+          arquivo="eco-gestao-${{ matrix.unidade }}-arquivos-$(date -u +%Y-%m-%d).tar.gz"
           mkdir -p arquivos
           tar -czf "$arquivo" arquivos
           gpg --batch --yes --symmetric --cipher-algo AES256 \

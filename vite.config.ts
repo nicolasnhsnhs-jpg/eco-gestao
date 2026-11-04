@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import type { Plugin } from 'vite'
+import { loadEnv, type Plugin } from 'vite'
 import { defineConfig } from 'vitest/config'
 
 // Arquivos da pasta public que o app precisa para abrir sem internet.
@@ -49,9 +49,24 @@ function serviceWorker(): Plugin {
   }
 }
 
+/** Põe o nome da unidade (VITE_UNIDADE, veja src/lib/unidade.ts) no título da página. */
+function nomeDaUnidade(sigla: string): Plugin {
+  if (!['sc', 'rs'].includes(sigla)) throw new Error(`VITE_UNIDADE inválida: "${sigla}".`)
+  return {
+    name: 'eco-nome-unidade',
+    transformIndexHtml: (html) =>
+      html.replace('%NOME_UNIDADE%', `Eco Ambiental ${sigla.toUpperCase()}`),
+  }
+}
+
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [react(), tailwindcss(), serviceWorker()],
+export default defineConfig(({ mode }) => ({
+  plugins: [
+    react(),
+    tailwindcss(),
+    serviceWorker(),
+    nomeDaUnidade((loadEnv(mode, process.cwd(), 'VITE_').VITE_UNIDADE || 'sc').toLowerCase()),
+  ],
   resolve: {
     // Permite importar com "@/..." em vez de "../../.."
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
@@ -59,4 +74,4 @@ export default defineConfig({
   test: {
     environment: 'node',
   },
-})
+}))

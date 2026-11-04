@@ -3,6 +3,7 @@ import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFImage, type PDFP
 import type { Arquivo } from '@/features/arquivos/api'
 import { formatarData } from '@/lib/datas'
 import { formatarCnpj, formatarCpf, formatarTelefone } from '@/lib/documentos'
+import { UNIDADE } from '@/lib/unidade'
 import { supabase } from '@/lib/supabase'
 
 import { enderecoDaFicha, fichaDaOs, type OsCompleta } from '../api'
@@ -24,11 +25,8 @@ const VERDE_ESCURO = rgb(0.122, 0.302, 0.102) // #1F4D1A
 const CINZA = rgb(0.4, 0.4, 0.4)
 const BORDA = rgb(0.82, 0.86, 0.8)
 
-/** Dados da empresa no rodapé de todas as páginas. */
-export const EMPRESA_RODAPE = [
-  'Eco Ambiental Serviços Ambientais LTDA · CNPJ 69.636.469/0001-18',
-  'Rua Albino Dias, 51 - Caminho Novo, Palhoça/SC - CEP 88132-592 · adm@ecoambientalsc.com.br',
-]
+/** Dados da empresa no rodapé de todas as páginas (cada unidade tem os seus). */
+export const EMPRESA_RODAPE = UNIDADE.rodape
 
 /** As fontes padrão do PDF só têm os caracteres do português "comum". */
 export function textoSeguro(texto: string | null | undefined) {
@@ -254,7 +252,7 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
   const e = os.execucao
   const pdf = await PDFDocument.create()
   pdf.setTitle(`${os.numero} - ${os.tipo?.nome ?? ''}`)
-  pdf.setAuthor('Eco Ambiental SC')
+  pdf.setAuthor(UNIDADE.nome)
   const normal = await pdf.embedFont(StandardFonts.Helvetica)
   const negrito = await pdf.embedFont(StandardFonts.HelveticaBold)
 

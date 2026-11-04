@@ -48,6 +48,13 @@ criptografado, um backup com dados de clientes nunca deve ficar acessível a qua
 > Os segredos ficam guardados criptografados no GitHub e não aparecem nos registros da execução.
 > A chave secreta e a senha do banco **nunca** vão para o repositório público nem para o chat.
 
+## Unidade RS
+
+O mesmo arquivo de backup também guarda o RS, com três segredos a mais, terminados em `_RS`
+(`SUPABASE_DB_URL_RS`, `SUPABASE_URL_RS` e `SUPABASE_SECRET_KEY_RS`), do projeto `eco-gestao-rs`.
+Veja [CONFIGURACAO-RS.md](CONFIGURACAO-RS.md), passo 7. Os arquivos saem com o nome da unidade
+(`eco-gestao-sc-banco-...` e `eco-gestao-rs-banco-...`).
+
 ## Rotina
 
 | Quando                 | O quê                                                                              |
@@ -63,10 +70,10 @@ Se uma execução falhar, o GitHub manda um e-mail para você e aparece um ✗ v
 
 ```bash
 # Banco: descriptografar (pede a BACKUP_SENHA) e restaurar (de preferência no dev, para conferir antes)
-gpg --output eco-gestao.dump --decrypt eco-gestao-banco-AAAA-MM-DD.dump.gpg
+gpg --output eco-gestao.dump --decrypt eco-gestao-sc-banco-AAAA-MM-DD.dump.gpg
 pg_restore --dbname "ENDEREÇO_DO_BANCO" --no-owner --clean --if-exists eco-gestao.dump
 
 # Arquivos: descriptografar e descompactar (a pasta "arquivos" tem a mesma estrutura do Storage)
-gpg --output arquivos.tar.gz --decrypt eco-gestao-arquivos-AAAA-MM-DD.tar.gz.gpg
+gpg --output arquivos.tar.gz --decrypt eco-gestao-sc-arquivos-AAAA-MM-DD.tar.gz.gpg
 tar -xzf arquivos.tar.gz
 ```

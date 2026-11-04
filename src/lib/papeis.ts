@@ -1,3 +1,5 @@
+import { UNIDADE } from '@/lib/unidade'
+
 /**
  * Perfis de acesso do sistema.
  * Os mesmos valores existem no banco de dados (tipo "papel"). A tela usa esta lista só
@@ -23,6 +25,6 @@ export const PAPEIS_ESCRITORIO_OS: readonly Papel[] = ['admin', 'financeiro', 'r
 
 /**
  * Operadores entram com um login curto (ex.: "joao"), que vira joao@<este domínio>.
- * Ninguém recebe e-mail nesse endereço: ele só identifica a conta.
+ * Ninguém recebe e-mail nesse endereço: ele só identifica a conta. Cada unidade tem o seu.
  */
-export const DOMINIO_OPERADOR = 'op.ecoambientalsc.com.br'
+export const DOMINIO_OPERADOR = UNIDADE.dominioOperador
