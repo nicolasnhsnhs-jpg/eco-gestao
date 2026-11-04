@@ -1683,7 +1683,9 @@ export type Database = {
           serie_dps: string | null
           status: Database['public']['Enums']['status_nota_fiscal']
           tipo: Database['public']['Enums']['tipo_nota_fiscal']
+          tp_imunidade: number | null
           tp_ret_piscofins: number | null
+          trib_issqn: number | null
           valor_cofins: number | null
           valor_csll: number | null
           valor_inss: number | null
@@ -1731,7 +1733,9 @@ export type Database = {
           serie_dps?: string | null
           status?: Database['public']['Enums']['status_nota_fiscal']
           tipo: Database['public']['Enums']['tipo_nota_fiscal']
+          tp_imunidade?: number | null
           tp_ret_piscofins?: number | null
+          trib_issqn?: number | null
           valor_cofins?: number | null
           valor_csll?: number | null
           valor_inss?: number | null
@@ -1779,7 +1783,9 @@ export type Database = {
           serie_dps?: string | null
           status?: Database['public']['Enums']['status_nota_fiscal']
           tipo?: Database['public']['Enums']['tipo_nota_fiscal']
+          tp_imunidade?: number | null
           tp_ret_piscofins?: number | null
+          trib_issqn?: number | null
           valor_cofins?: number | null
           valor_csll?: number | null
           valor_inss?: number | null

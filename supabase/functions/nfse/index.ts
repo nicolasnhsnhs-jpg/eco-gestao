@@ -106,6 +106,8 @@ async function montarDados(
   notaId: string,
   cfg: Record<string, string>,
   cert: Certificado,
+  /** Só para o ensaio: aceita uma nota já emitida como modelo. */
+  modelo = false,
 ): Promise<NotaMontada> {
   const { data: nota } = await admin
     .from('notas_fiscais')
@@ -113,7 +115,7 @@ async function montarDados(
     .eq('id', notaId)
     .single()
   if (!nota) throw new Falha('Nota não encontrada.')
-  if (nota.status !== 'rascunho') throw new Falha('Só o rascunho é emitido.')
+  if (!modelo && nota.status !== 'rascunho') throw new Falha('Só o rascunho é emitido.')
 
   if (!cert.cnpj) throw new Falha('O certificado não é de pessoa jurídica (e-CNPJ).')
   if (!/^\d{7}$/.test(cfg.nfse_municipio_ibge ?? ''))
@@ -125,6 +127,7 @@ async function montarDados(
   if (!nota.codigo_tributacao) throw new Falha('Falta o código de tributação nacional na nota.')
 
   const hoje = agoraBrasilia().slice(0, 10)
+  if (nota.status === 'cancelada') throw new Falha('Nota cancelada.')
   if (nota.competencia > hoje)
     throw new Falha('A competência ainda não começou: emita a partir do dia 1.')
 
@@ -170,6 +173,8 @@ async function montarDados(
       valores: {
         servico: valor,
         issRetido: !!nota.iss_retido,
+        tributacaoIss: String(nota.trib_issqn ?? 1),
+        imunidade: nota.tp_imunidade == null ? null : String(nota.tp_imunidade),
         pisCofins: {
           cst,
           aliquotaPis: aliqPis,
@@ -359,7 +364,8 @@ async function emitir(
 async function ensaiar(admin: SupabaseClient, notaId: string, origem: string | null) {
   const cfg = await configuracao(admin)
   const cert = certificadoDaEmpresa()
-  const montada = await montarDados(admin, notaId, cfg, cert)
+  // Vale também com uma nota já emitida (ex.: as de novembro) como modelo: nada nela muda.
+  const montada = await montarDados(admin, notaId, cfg, cert, true)
   const { data: reserva, error } = await admin.rpc('reservar_numero_dps', {
     p_nota_id: notaId,
     p_ambiente: 'homologacao',

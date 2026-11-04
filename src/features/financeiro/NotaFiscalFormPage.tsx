@@ -68,6 +68,8 @@ const esquema = z
       .trim()
       .refine((v) => v === '' || /^\d{7}$/.test(v), 'O código IBGE tem 7 números.'),
     cst_piscofins: z.string(),
+    trib_issqn: z.string(),
+    tp_imunidade: z.string(),
     tp_ret_piscofins: z.string(),
     observacoes: z.string().trim(),
   })
@@ -128,6 +130,8 @@ function valoresIniciais(nota: NotaFiscalCompleta | undefined, p: URLSearchParam
       valor_inss: valorParaCampo(nota.valor_inss),
       municipio_prestacao: nota.municipio_prestacao ?? '',
       cst_piscofins: nota.cst_piscofins ?? '',
+      trib_issqn: String(nota.trib_issqn ?? 1),
+      tp_imunidade: nota.tp_imunidade == null ? '' : String(nota.tp_imunidade),
       tp_ret_piscofins: nota.tp_ret_piscofins == null ? '' : String(nota.tp_ret_piscofins),
       observacoes: nota.observacoes ?? '',
     }
@@ -160,6 +164,8 @@ function valoresIniciais(nota: NotaFiscalCompleta | undefined, p: URLSearchParam
     valor_inss: '',
     municipio_prestacao: '',
     cst_piscofins: '',
+    trib_issqn: '1',
+    tp_imunidade: '',
     tp_ret_piscofins: '',
     observacoes: '',
   }
@@ -225,6 +231,8 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
         valor_inss: numeroOuNulo(d.valor_inss),
         municipio_prestacao: ouNulo(d.municipio_prestacao),
         cst_piscofins: ouNulo(d.cst_piscofins),
+        trib_issqn: Number(d.trib_issqn || 1),
+        tp_imunidade: d.trib_issqn === '2' && d.tp_imunidade !== '' ? Number(d.tp_imunidade) : null,
         tp_ret_piscofins: d.tp_ret_piscofins === '' ? null : Number(d.tp_ret_piscofins),
         observacoes: ouNulo(d.observacoes),
       },
@@ -470,6 +478,7 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
       </form>
 
       {nota?.status === 'rascunho' && <EmissaoNota nota={nota} salvarAntes={salvarRascunho} />}
+      {nota?.status === 'emitida' && <EmissaoNota nota={nota} modelo />}
       {nota?.status === 'emitida' && <EnvioNota nota={nota} />}
     </div>
   )
@@ -520,6 +529,8 @@ function CopiarUltima({
     form.setValue('valor_inss', ajustar(ultima.valor_inss))
     form.setValue('municipio_prestacao', ultima.municipio_prestacao ?? '')
     form.setValue('cst_piscofins', ultima.cst_piscofins ?? '')
+    form.setValue('trib_issqn', String(ultima.trib_issqn ?? 1))
+    form.setValue('tp_imunidade', ultima.tp_imunidade == null ? '' : String(ultima.tp_imunidade))
     form.setValue(
       'tp_ret_piscofins',
       ultima.tp_ret_piscofins == null ? '' : String(ultima.tp_ret_piscofins),
@@ -578,6 +589,7 @@ function Impostos({ form }: { form: UseFormReturn<Dados> }) {
       </Campo>
       <Caixa form={form} nome="iss_retido" rotulo="ISS retido pelo tomador" />
       <CampoPercentual form={form} nome="aliquota_iss" rotulo="Alíquota ISS (%)" />
+      <TributacaoIss form={form} />
       <Caixa
         form={form}
         nome="pis_cofins_retidos"
@@ -634,6 +646,51 @@ function Impostos({ form }: { form: UseFormReturn<Dados> }) {
         </span>
       </div>
     </Card>
+  )
+}
+
+/** tribISSQN e tpImunidade do leiaute nacional. */
+const TRIBUTACAO_ISS: Record<string, string> = {
+  '1': 'Operação tributável',
+  '2': 'Imunidade',
+  '3': 'Exportação de serviço',
+  '4': 'Não incidência',
+}
+const IMUNIDADE: Record<string, string> = {
+  '1': 'Patrimônio, renda ou serviços (art. 150, VI, a)',
+  '2': 'Templos de qualquer culto',
+  '3': 'Partidos, sindicatos, educação e assistência social',
+  '4': 'Livros, jornais e papel',
+  '5': 'Fonogramas e videofonogramas',
+  '0': 'Imunidade (tipo não informado)',
+}
+
+function TributacaoIss({ form }: { form: UseFormReturn<Dados> }) {
+  const trib = useWatch({ control: form.control, name: 'trib_issqn' })
+  return (
+    <>
+      <Campo rotulo="Tributação do ISS" htmlFor="tribiss">
+        <SelectForm id="tribiss" control={form.control} name="trib_issqn">
+          {Object.entries(TRIBUTACAO_ISS).map(([v, r]) => (
+            <option key={v} value={v}>
+              {r}
+            </option>
+          ))}
+        </SelectForm>
+      </Campo>
+      {trib === '2' && (
+        <Campo rotulo="Tipo de imunidade" htmlFor="imun" className="sm:col-span-2">
+          <SelectForm id="imun" control={form.control} name="tp_imunidade">
+            <option value="">Escolha…</option>
+            {Object.entries(IMUNIDADE).map(([v, r]) => (
+              <option key={v} value={v}>
+                {r}
+              </option>
+            ))}
+          </SelectForm>
+        </Campo>
+      )}
+    </>
   )
 }
 

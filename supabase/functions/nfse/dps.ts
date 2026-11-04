@@ -54,6 +54,10 @@ export type DadosDps = {
   valores: {
     servico: number
     issRetido: boolean
+    /** tribISSQN: 1 tributável, 2 imunidade, 3 exportação, 4 não incidência. */
+    tributacaoIss: string
+    /** tpImunidade (só com tributacaoIss 2). */
+    imunidade: string | null
     pisCofins: {
       cst: string
       aliquotaPis: number | null
@@ -195,7 +199,8 @@ function corpoInfDps(d: DadosDps): string {
     el('vServPrest', campo('vServ', dec(v.servico))),
     el('trib', [
       el('tribMun', [
-        campo('tribISSQN', '1'), // operação tributável
+        campo('tribISSQN', v.tributacaoIss),
+        v.tributacaoIss === '2' ? campo('tpImunidade', v.imunidade ?? '0') : null,
         campo('tpRetISSQN', v.issRetido ? '2' : '1'), // 2 = retido pelo tomador
         // A alíquota vem da parametrização do município no Sistema Nacional.
       ]),

@@ -24,11 +24,14 @@ function abrirPdf(base64: string) {
  */
 export function EmissaoNota({
   nota,
-  salvarAntes,
+  salvarAntes = async () => true,
+  modelo = false,
 }: {
   nota: NotaFiscalCompleta
   /** Salva o formulário como rascunho; false se algo impediu (o erro aparece no formulário). */
-  salvarAntes: () => Promise<boolean>
+  salvarAntes?: () => Promise<boolean>
+  /** Nota já emitida: só o teste no ambiente do governo, usando esta nota como modelo. */
+  modelo?: boolean
 }) {
   const ambiente = useAmbienteNfse()
   const emitir = useEmitirNota()
@@ -38,6 +41,7 @@ export function EmissaoNota({
   const ocupado = emitir.isPending || ensaiar.isPending
 
   if (ambiente.data !== 'producao' && ambiente.data !== 'homologacao') return null
+  if (modelo && ambiente.data !== 'homologacao') return null
 
   async function confirmarEEmitir() {
     if (
@@ -75,8 +79,13 @@ export function EmissaoNota({
 
   return (
     <Card className="flex flex-col gap-3">
-      <h2 className="font-bold">Emitir pelo sistema</h2>
-      {ambiente.data === 'homologacao' ? (
+      <h2 className="font-bold">{modelo ? 'Testar emissão' : 'Emitir pelo sistema'}</h2>
+      {modelo ? (
+        <p className="text-sm text-texto-suave">
+          Teste com os dados desta nota já emitida: vai ao ambiente de testes do governo, sem valor
+          fiscal, e esta nota não muda.
+        </p>
+      ) : ambiente.data === 'homologacao' ? (
         <p className="text-sm text-texto-suave">
           A emissão está em <strong>testes</strong>: a nota vai ao ambiente de testes do governo,
           sem valor fiscal, e este rascunho não muda. Serve para conferir se tudo está certo antes
@@ -88,7 +97,7 @@ export function EmissaoNota({
           guarda o PDF e o XML e manda o PDF ao e-mail do cliente.
         </p>
       )}
-      {nota.erro_emissao && !mensagem && (
+      {!modelo && nota.erro_emissao && !mensagem && (
         <Aviso tipo="erro">Última tentativa: {nota.erro_emissao}</Aviso>
       )}
       {mensagem && <Aviso tipo={mensagem.tipo}>{mensagem.texto}</Aviso>}
