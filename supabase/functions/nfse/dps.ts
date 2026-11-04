@@ -22,8 +22,15 @@ export type Endereco = {
   bairro: string | null
 }
 
+/**
+ * "nt009": leiaute da NT SE/CGNFS-e 009 (ambiente de testes desde 29/10/2026 e, pelo que
+ * se sabe, produção a partir de 01/12/2026). "anterior": o da produção até a virada.
+ */
+export type Leiaute = 'nt009' | 'anterior'
+
 export type DadosDps = {
   ambiente: 'producao' | 'homologacao'
+  leiaute: Leiaute
   /** "2026-11-01T08:00:00-03:00" */
   dhEmi: string
   serie: string
@@ -141,6 +148,8 @@ function corpoInfDps(d: DadosDps): string {
   const t = d.tomador
   const v = d.valores
   const docTomador = digitos(t.documento)
+  const nt009 = d.leiaute === 'nt009'
+  const descricao = campo('xDescServ', corta(d.servico.descricao.trim(), 2000))
 
   const regTrib = el('regTrib', [
     campo('opSimpNac', p.regimeSimples),
@@ -161,8 +170,10 @@ function corpoInfDps(d: DadosDps): string {
     el('locPrest', campo('cLocPrestacao', d.servico.municipioPrestacao)),
     el('cServ', [
       campo('cTribNac', d.servico.codigoTributacao),
-      campo('xDescServ', corta(d.servico.descricao.trim(), 2000)),
+      // Na NT 009 a descrição vai depois do NBS.
+      nt009 ? null : descricao,
       campo('cNBS', digitos(d.servico.codigoNbs) || null),
+      nt009 ? descricao : null,
     ]),
   ])
 
@@ -223,19 +234,22 @@ function corpoInfDps(d: DadosDps): string {
 
   const ibscbs = d.ibsCbs
     ? el('IBSCBS', [
-        campo('finNFSe', '0'), // NFS-e regular
+        nt009 ? null : campo('finNFSe', '0'), // NFS-e regular
         campo('indFinal', '0'),
         campo('cIndOp', d.ibsCbs.indicadorOperacao),
         campo('indDest', '0'), // destinatário = o próprio tomador
         el(
           'valores',
-          el(
-            'trib',
-            el('gIBSCBS', [
-              campo('CST', d.ibsCbs.cst),
-              campo('cClassTrib', d.ibsCbs.classificacao),
-            ]),
-          ),
+          // Na NT 009, CST e classificação ficam direto em trib.
+          nt009
+            ? el('trib', [campo('CST', d.ibsCbs.cst), campo('cClassTrib', d.ibsCbs.classificacao)])
+            : el(
+                'trib',
+                el('gIBSCBS', [
+                  campo('CST', d.ibsCbs.cst),
+                  campo('cClassTrib', d.ibsCbs.classificacao),
+                ]),
+              ),
         ),
       ])
     : null
@@ -248,6 +262,7 @@ function corpoInfDps(d: DadosDps): string {
     campo('nDPS', d.numero),
     campo('dCompet', d.competencia),
     campo('tpEmit', '1'), // o prestador é o emitente
+    nt009 ? campo('finNFSe', '0') : null, // NFS-e regular
     campo('cLocEmi', p.municipioIbge),
     // Prestador emitente: CNPJ, IM e regime — sem nome nem endereço (E0121/E0128).
     el('prest', [

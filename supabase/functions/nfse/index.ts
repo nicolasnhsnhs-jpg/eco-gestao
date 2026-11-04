@@ -16,7 +16,14 @@ import { enviarNotaPorEmail, emailDoCliente } from '../_shared/enviarNota.ts'
 import { clienteAdmin, conferirFinanceiro, CORS, resposta } from '../_shared/servidor.ts'
 import { certificadoDaEmpresa, type Certificado } from './certificado.ts'
 import { gerarDanfse } from './danfse.ts'
-import { agoraBrasilia, idDps, montarDpsAssinada, type DadosDps, type Endereco } from './dps.ts'
+import {
+  agoraBrasilia,
+  idDps,
+  montarDpsAssinada,
+  type DadosDps,
+  type Endereco,
+  type Leiaute,
+} from './dps.ts'
 import { Sefin, tag, textoDosErros, type Ambiente } from './sefin.ts'
 
 type Pedido =
@@ -97,7 +104,7 @@ async function enderecoDoTomador(
 
 type NotaMontada = {
   nota: Record<string, any>
-  dados: Omit<DadosDps, 'ambiente' | 'serie' | 'numero' | 'dhEmi'>
+  dados: Omit<DadosDps, 'ambiente' | 'serie' | 'numero' | 'dhEmi' | 'leiaute'>
 }
 
 /** Junta tudo o que a DPS precisa a partir do rascunho, do cliente e da configuração. */
@@ -297,6 +304,28 @@ async function concluir(
   return { numero, chave, envio }
 }
 
+/**
+ * Leiaute da DPS: o novo (NT 009) no ambiente de testes e, a partir de 01/12/2026, na
+ * produção. Se a Sefin recusar pelo esquema (E1235) — a data da virada mudou, por
+ * exemplo —, tenta uma vez no outro leiaute (a recusa não gasta o número da DPS).
+ */
+async function enviarDps(
+  sefin: Sefin,
+  dados: Omit<DadosDps, 'leiaute' | 'dhEmi'>,
+  cert: Certificado,
+) {
+  const primeiro: Leiaute =
+    sefin.ambiente === 'homologacao' || agoraBrasilia() >= '2026-12-01' ? 'nt009' : 'anterior'
+  const enviar = (leiaute: Leiaute) =>
+    sefin.emitir(montarDpsAssinada({ ...dados, leiaute, dhEmi: agoraBrasilia() }, cert).xml)
+  const deEsquema = (r: Awaited<ReturnType<Sefin['emitir']>>) =>
+    !r.ok && r.erros.some((e) => e.codigo === 'E1235')
+  const r = await enviar(primeiro)
+  if (!deEsquema(r)) return r
+  const outra = await enviar(primeiro === 'nt009' ? 'anterior' : 'nt009')
+  return deEsquema(outra) ? r : outra
+}
+
 async function emitir(
   admin: SupabaseClient,
   notaId: string,
@@ -338,13 +367,9 @@ async function emitir(
       }
     }
 
-    const { xml: dps } = montarDpsAssinada(
-      { ...montada.dados, ambiente: 'producao', serie, numero, dhEmi: agoraBrasilia() },
-      cert,
-    )
     let r
     try {
-      r = await sefin.emitir(dps)
+      r = await enviarDps(sefin, { ...montada.dados, ambiente: 'producao', serie, numero }, cert)
     } catch (e) {
       // Sem resposta (queda, tempo esgotado): confere se a nota saiu mesmo assim.
       const chave = await sefin.chaveDaDps(id).catch(() => null)
@@ -373,12 +398,12 @@ async function ensaiar(admin: SupabaseClient, notaId: string, origem: string | n
   })
   if (error || !reserva?.[0]) throw new Error(`Não reservei o número da DPS: ${error?.message}`)
   const { serie, numero } = reserva[0] as { serie: string; numero: string }
-  const { xml: dps } = montarDpsAssinada(
-    { ...montada.dados, ambiente: 'homologacao', serie, numero, dhEmi: agoraBrasilia() },
+  const r = await enviarDps(
+    new Sefin('homologacao', cert, origem),
+    { ...montada.dados, ambiente: 'homologacao', serie, numero },
     cert,
   )
-  const r = await new Sefin('homologacao', cert, origem).emitir(dps)
-  if (!r.ok) return { ok: false, erro: textoDosErros(r.erros), dps }
+  if (!r.ok) return { ok: false, erro: textoDosErros(r.erros) }
   const pdf = await gerarDanfse(r.xml)
   return {
     ok: true,
