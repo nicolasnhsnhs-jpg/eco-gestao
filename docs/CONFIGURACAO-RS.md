@@ -45,11 +45,11 @@ conjuntos de testes de permissão passaram (eles desfazem tudo no final; o banco
 Daqui para frente, toda mudança no banco vai para os dois: `npm run db:push:prod` e
 `npm run db:push:rs` (e o mesmo para `funcoes:prod` / `funcoes:rs`).
 
-## 3. Domínio na KingHost e e-mails pelo Resend ✋ 🟡 DNS feito em 04/11/2026; falta a chave
+## 3. Domínio na KingHost e e-mails pelo Resend ✋ ✅ feito em 04/11/2026 (domínio verificado)
 
 Feito: domínio no Resend (São Paulo) e, na KingHost, `TXT resend._domainkey`, `CNAME rsend`,
 `CNAME send` e `TXT _dmarc`. O `MX` de recebimento do Resend **não** foi adicionado (os e-mails
-continuam chegando na KingHost). Falta: aguardar o Resend marcar **Verified** e criar a chave (3.4).
+continuam chegando na KingHost). A chave `supabase-rs` foi criada e está no SMTP do Supabase do RS.
 
 > ⚠️ O plano gratuito do Resend aceita **um domínio só**, e o `ecoambientalsc.com.br` já está
 > nele. Para enviar como `@ecoambientalrs.com.br`, é preciso um plano pago do Resend (ou uma conta
@@ -64,7 +64,7 @@ continuam chegando na KingHost). Falta: aguardar o Resend marcar **Verified** e 
 4. **Resend → API Keys:** crie a chave `supabase-rs`, permissão _Sending access_, domínio
    `ecoambientalrs.com.br`.
 
-## 4. Configurações de login do `rs` ✋ 🟡 itens 1 e 2 feitos em 04/11/2026; falta o SMTP (3)
+## 4. Configurações de login do `rs` ✋ ✅ feito em 04/11/2026 (convite de teste recebido)
 
 No painel do projeto **eco-gestao-rs**:
 
@@ -74,9 +74,10 @@ No painel do projeto **eco-gestao-rs**:
    - **Redirect URLs:** `https://sistema.ecoambientalrs.com.br/**`
 3. **Authentication → Emails → SMTP Settings:**
    - **Sender email:** `nicolas.hernandes@ecoambientalrs.com.br` · **Sender name:** `Eco Ambiental RS`
-   - **Host:** `smtp.resend.com` · **Port:** `587` ⚠️ (com `465` o convite dá “Gateway Timeout”)
+   - **Host:** `smtp.resend.com` · **Port:** `587` ⚠️ (com outra porta, como `465` ou um erro de digitação, o convite dá “Gateway Timeout”)
    - **Username:** `resend` · **Password:** a chave `re_...` do passo 3.4
-4. **Authentication → Emails → Templates** (opcional): os mesmos textos em português de SC.
+4. **Authentication → Emails → Templates:** _Invite user_ e _Reset password_ com os modelos de
+   [`supabase/templates`](../supabase/templates) (os mesmos de SC). ✅ colados em 04/11/2026.
 
 ## 5. Netlify ✋ ✅ feito em 04/11/2026 (HTTPS ativo, Let's Encrypt)
 
@@ -99,7 +100,7 @@ na KingHost para confirmar o domínio.
 > ⚠️ Confira que o site de **SC** continua sem `VITE_UNIDADE` (ou com `sc`). Os dois sites
 > publicam juntos a cada mudança no código.
 
-## 6. Primeiro acesso (administrador) ✋
+## 6. Primeiro acesso (administrador) ✋ 🟡 administrador criado em 04/11/2026; falta o item 3
 
 1. Supabase **rs** → **Authentication → Users → Add user → Create new user**: seu e-mail, senha
    forte, **Auto Confirm User**. O primeiro usuário vira administrador.
