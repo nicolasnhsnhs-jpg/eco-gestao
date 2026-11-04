@@ -39,6 +39,38 @@ export function proximaNota(
   return { competencia, vencimento, descricao }
 }
 
+/**
+ * Vencimento da mensalidade de um mês pela regra do contrato (como
+ * privado.vencimento_contrato). Cobrança por dia útil depende dos feriados: null.
+ */
+export function vencimentoDoContrato(
+  competencia: string,
+  k: { dia_vencimento: number | null; vence_mes_seguinte: boolean },
+): string | null {
+  if (k.dia_vencimento == null) return null
+  const mes = somarMeses(`${competencia.slice(0, 7)}-01`, k.vence_mes_seguinte ? 1 : 0)
+  const ultimoDia = new Date(
+    Date.UTC(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 0),
+  ).getUTCDate()
+  return `${mes.slice(0, 8)}${String(Math.min(k.dia_vencimento, ultimoDia)).padStart(2, '0')}`
+}
+
+/**
+ * A primeira nota de um contrato (sem nota anterior para copiar): valor e descrição do
+ * contrato e, no boleto, "BOLETO COM VENCIMENTO EM dd/mm/aaaa" no fim, como nas outras.
+ */
+export function notaDoContrato(
+  k: { descricao: string; valor_mensal: number; forma_pagamento: string | null },
+  vencimento: string | null,
+): { valor: number; descricao: string; forma_pagamento: string } {
+  const forma = k.forma_pagamento ?? 'boleto'
+  const descricao =
+    forma === 'boleto' && vencimento
+      ? `${k.descricao.trim()} - BOLETO COM VENCIMENTO EM ${formatarData(vencimento)}`
+      : k.descricao.trim()
+  return { valor: Number(k.valor_mensal), descricao, forma_pagamento: forma }
+}
+
 /** Total retido pelo tomador (o que sai do valor do serviço). */
 export function totalRetido(n: {
   iss_retido: boolean

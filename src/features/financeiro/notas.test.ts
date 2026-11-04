@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { calcularPisCofins, proximaNota, totalRetido } from './notas'
+import {
+  calcularPisCofins,
+  notaDoContrato,
+  proximaNota,
+  totalRetido,
+  vencimentoDoContrato,
+} from './notas'
 
 describe('proximaNota', () => {
   it('avança o mês, o vencimento e a data na descrição', () => {
@@ -106,5 +112,44 @@ describe('calcularPisCofins', () => {
       cofins: 11.94,
       csll: 3.98,
     })
+  })
+})
+
+describe('vencimentoDoContrato', () => {
+  it('dia do mês seguinte', () => {
+    expect(vencimentoDoContrato('2026-11', { dia_vencimento: 6, vence_mes_seguinte: true })).toBe(
+      '2026-12-06',
+    )
+  })
+  it('dia 31 em mês curto vira o último dia', () => {
+    expect(
+      vencimentoDoContrato('2027-02-01', { dia_vencimento: 31, vence_mes_seguinte: false }),
+    ).toBe('2027-02-28')
+  })
+  it('cobrança por dia útil: sem cálculo aqui', () => {
+    expect(
+      vencimentoDoContrato('2026-11', { dia_vencimento: null, vence_mes_seguinte: false }),
+    ).toBeNull()
+  })
+})
+
+describe('notaDoContrato', () => {
+  it('boleto: põe o vencimento no fim da descrição', () => {
+    expect(
+      notaDoContrato(
+        { descricao: 'CONTROLE DE PRAGAS ', valor_mensal: 460, forma_pagamento: 'boleto' },
+        '2026-12-06',
+      ),
+    ).toEqual({
+      valor: 460,
+      descricao: 'CONTROLE DE PRAGAS - BOLETO COM VENCIMENTO EM 06/12/2026',
+      forma_pagamento: 'boleto',
+    })
+  })
+  it('pix: só a descrição do contrato', () => {
+    expect(
+      notaDoContrato({ descricao: 'X', valor_mensal: 100, forma_pagamento: 'pix' }, '2026-12-06')
+        .descricao,
+    ).toBe('X')
   })
 })

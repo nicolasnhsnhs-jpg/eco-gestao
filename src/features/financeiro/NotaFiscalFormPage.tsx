@@ -20,7 +20,13 @@ import { ClienteSeletor, type ClienteEscolhido } from '../clientes/ClienteSeleto
 import { useContratos } from '../contratos/api'
 import { EmissaoNota } from './EmissaoNota'
 import { EnvioNota } from './EnvioNota'
-import { calcularPisCofins, proximaNota, totalRetido } from './notas'
+import {
+  calcularPisCofins,
+  notaDoContrato,
+  proximaNota,
+  totalRetido,
+  vencimentoDoContrato,
+} from './notas'
 import {
   useAliquotaCsll,
   useDescartarRascunho,
@@ -196,6 +202,28 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
   const mensalidades = useMensalidadesDoContrato(
     tipo === 'contrato' ? contratoId || undefined : undefined,
   )
+
+  // Ao escolher o contrato numa nota nova: valor, vencimento, forma e descrição vêm dele.
+  // Se houver nota anterior, "Copiar dados da última" continua disponível por cima disso.
+  const preenchido = useRef(editando ? contratoId : '')
+  const contratoEscolhido = contratosDoCliente.find((c) => c.id === contratoId)
+  useEffect(() => {
+    if (editando || tipo !== 'contrato' || !contratoEscolhido || !mensalidades.isFetched) return
+    if (preenchido.current === contratoEscolhido.id) return
+    preenchido.current = contratoEscolhido.id
+    const competencia = form.getValues('competencia')
+    const mensalidade = (mensalidades.data ?? []).find(
+      (m) => m.competencia.slice(0, 7) === competencia,
+    )
+    const vencimento =
+      mensalidade?.vencimento ?? vencimentoDoContrato(competencia, contratoEscolhido)
+    const n = notaDoContrato(contratoEscolhido, vencimento)
+    form.setValue('valor_servico', valorParaCampo(mensalidade?.valor ?? n.valor))
+    form.setValue('vencimento', vencimento ?? '')
+    form.setValue('forma_pagamento', n.forma_pagamento)
+    form.setValue('descricao', n.descricao)
+    form.setValue('lancamento_id', mensalidade?.id ?? '')
+  }, [editando, tipo, contratoEscolhido, mensalidades.isFetched, mensalidades.data, form])
 
   function aoEscolherCliente(c: ClienteEscolhido | null) {
     form.setValue('cliente_id', c?.id ?? '', { shouldValidate: !!c })
