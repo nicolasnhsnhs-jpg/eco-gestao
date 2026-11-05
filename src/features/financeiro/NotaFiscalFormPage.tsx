@@ -1,13 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, Copy, Trash2 } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { ArrowLeft, Copy, MapPin, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm, useWatch, type UseFormReturn } from 'react-hook-form'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { z } from 'zod'
 
 import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
-import { Campo, Input, Textarea } from '@/components/ui/Campo'
+import { Campo, Input, Select, Textarea } from '@/components/ui/Campo'
 import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
 import { SelectForm } from '@/components/ui/SelectForm'
@@ -27,12 +27,18 @@ import {
   calcularPisCofins,
   notaDoContrato,
   proximaNota,
+  RETENCOES_PISCOFINS,
+  retemPisCofins,
+  tipoRetencaoPisCofins,
   totalRetido,
+  valorPorAliquota,
   vencimentoDoContrato,
 } from './notas'
 import {
   useAliquotaCsll,
+  useAliquotaIssDaCidade,
   useDescartarRascunho,
+  useIbsCbs,
   useMensalidadesDoContrato,
   useNotaFiscal,
   useSalvarNotaFiscal,
@@ -71,9 +77,11 @@ const esquema = z
     aliquota_cofins: valorOpcional,
     valor_pis: valorOpcional,
     valor_cofins: valorOpcional,
+    aliquota_csll: valorOpcional,
     valor_csll: valorOpcional,
     aliquota_irrf: valorOpcional,
     valor_irrf: valorOpcional,
+    aliquota_inss: valorOpcional,
     valor_inss: valorOpcional,
     municipio_prestacao: z
       .string()
@@ -101,6 +109,11 @@ const numeroOuNulo = (v: string) => (v.trim() === '' ? null : lerValor(v))
 /** Percentual com vírgula: 0.65 → "0,65". */
 const percentualParaCampo = (v: number | null | undefined) =>
   v == null ? '' : String(v).replace('.', ',')
+/** Alíquota da nota; nas antigas (só com o valor em reais), a que dá aquele valor. */
+const aliquotaDaNota = (aliquota: number | null, valor: number | null, base: number) =>
+  percentualParaCampo(
+    aliquota ?? (valor != null && base > 0 ? Math.round((valor / base) * 10000) / 100 : null),
+  )
 
 /** /financeiro/notas/nova e /financeiro/notas/:id */
 export function NotaFiscalFormPage() {
@@ -138,15 +151,17 @@ function valoresIniciais(nota: NotaFiscalCompleta | undefined, p: URLSearchParam
       aliquota_cofins: percentualParaCampo(nota.aliquota_cofins),
       valor_pis: valorParaCampo(nota.valor_pis),
       valor_cofins: valorParaCampo(nota.valor_cofins),
+      aliquota_csll: aliquotaDaNota(nota.aliquota_csll, nota.valor_csll, nota.valor_servico),
       valor_csll: valorParaCampo(nota.valor_csll),
-      aliquota_irrf: percentualParaCampo(nota.aliquota_irrf),
+      aliquota_irrf: aliquotaDaNota(nota.aliquota_irrf, nota.valor_irrf, nota.valor_servico),
       valor_irrf: valorParaCampo(nota.valor_irrf),
+      aliquota_inss: aliquotaDaNota(nota.aliquota_inss, nota.valor_inss, nota.valor_servico),
       valor_inss: valorParaCampo(nota.valor_inss),
       municipio_prestacao: nota.municipio_prestacao ?? '',
       cst_piscofins: nota.cst_piscofins ?? '',
       trib_issqn: String(nota.trib_issqn ?? 1),
       tp_imunidade: nota.tp_imunidade == null ? '' : String(nota.tp_imunidade),
-      tp_ret_piscofins: nota.tp_ret_piscofins == null ? '' : String(nota.tp_ret_piscofins),
+      tp_ret_piscofins: String(tipoRetencaoPisCofins(nota)),
       observacoes: nota.observacoes ?? '',
     }
   const hoje = hojeISO()
@@ -176,15 +191,17 @@ function valoresIniciais(nota: NotaFiscalCompleta | undefined, p: URLSearchParam
     aliquota_cofins: '3,00',
     valor_pis: '',
     valor_cofins: '',
+    aliquota_csll: '',
     valor_csll: '',
     aliquota_irrf: '',
     valor_irrf: '',
+    aliquota_inss: '',
     valor_inss: '',
     municipio_prestacao: '',
     cst_piscofins: '',
     trib_issqn: '1',
     tp_imunidade: '',
-    tp_ret_piscofins: '',
+    tp_ret_piscofins: '0',
     observacoes: '',
   }
 }
@@ -261,20 +278,22 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
         codigo_nbs: ouNulo(d.codigo_nbs),
         iss_retido: d.iss_retido,
         aliquota_iss: numeroOuNulo(d.aliquota_iss),
-        pis_cofins_retidos: d.pis_cofins_retidos,
+        pis_cofins_retidos: retemPisCofins(Number(d.tp_ret_piscofins)),
         aliquota_pis: numeroOuNulo(d.aliquota_pis),
         aliquota_cofins: numeroOuNulo(d.aliquota_cofins),
         valor_pis: numeroOuNulo(d.valor_pis),
         valor_cofins: numeroOuNulo(d.valor_cofins),
+        aliquota_csll: numeroOuNulo(d.aliquota_csll),
         valor_csll: numeroOuNulo(d.valor_csll),
         aliquota_irrf: numeroOuNulo(d.aliquota_irrf),
         valor_irrf: numeroOuNulo(d.valor_irrf),
+        aliquota_inss: numeroOuNulo(d.aliquota_inss),
         valor_inss: numeroOuNulo(d.valor_inss),
         municipio_prestacao: ouNulo(d.municipio_prestacao),
         cst_piscofins: ouNulo(d.cst_piscofins),
         trib_issqn: Number(d.trib_issqn || 1),
         tp_imunidade: d.trib_issqn === '2' && d.tp_imunidade !== '' ? Number(d.tp_imunidade) : null,
-        tp_ret_piscofins: d.tp_ret_piscofins === '' ? null : Number(d.tp_ret_piscofins),
+        tp_ret_piscofins: Number(d.tp_ret_piscofins || 0),
         observacoes: ouNulo(d.observacoes),
       },
     })
@@ -437,7 +456,6 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
           >
             <Input id="competencia" type="month" {...form.register('competencia')} />
           </Campo>
-          <CampoValor form={form} nome="valor_servico" rotulo="Valor do serviço (R$)" obrigatorio />
           <Campo rotulo="Vencimento" htmlFor="vencimento">
             <Input id="vencimento" type="date" {...form.register('vencimento')} />
           </Campo>
@@ -567,23 +585,21 @@ function CopiarUltima({
     form.setValue('aliquota_cofins', percentualParaCampo(ultima.aliquota_cofins))
     form.setValue('valor_pis', ajustar(ultima.valor_pis))
     form.setValue('valor_cofins', ajustar(ultima.valor_cofins))
-    form.setValue('valor_csll', ajustar(ultima.valor_csll))
-    form.setValue('aliquota_irrf', percentualParaCampo(ultima.aliquota_irrf))
-    form.setValue(
-      'valor_irrf',
-      ultima.aliquota_irrf != null
-        ? valorParaCampo(Math.round(valor * Number(ultima.aliquota_irrf)) / 100)
-        : ajustar(ultima.valor_irrf),
-    )
-    form.setValue('valor_inss', ajustar(ultima.valor_inss))
+    // Com alíquota, o valor sai da conta; sem ela (notas antigas), na proporção.
+    const porAliquota = (aliquota: number | null, antigo: number | null) =>
+      aliquota != null ? valorParaCampo(valorPorAliquota(valor, Number(aliquota))) : ajustar(antigo)
+    const base = Number(ultima.valor_servico)
+    form.setValue('aliquota_csll', aliquotaDaNota(ultima.aliquota_csll, ultima.valor_csll, base))
+    form.setValue('valor_csll', porAliquota(ultima.aliquota_csll, ultima.valor_csll))
+    form.setValue('aliquota_irrf', aliquotaDaNota(ultima.aliquota_irrf, ultima.valor_irrf, base))
+    form.setValue('valor_irrf', porAliquota(ultima.aliquota_irrf, ultima.valor_irrf))
+    form.setValue('aliquota_inss', aliquotaDaNota(ultima.aliquota_inss, ultima.valor_inss, base))
+    form.setValue('valor_inss', porAliquota(ultima.aliquota_inss, ultima.valor_inss))
     form.setValue('municipio_prestacao', ultima.municipio_prestacao ?? '')
     form.setValue('cst_piscofins', ultima.cst_piscofins ?? '')
     form.setValue('trib_issqn', String(ultima.trib_issqn ?? 1))
     form.setValue('tp_imunidade', ultima.tp_imunidade == null ? '' : String(ultima.tp_imunidade))
-    form.setValue(
-      'tp_ret_piscofins',
-      ultima.tp_ret_piscofins == null ? '' : String(ultima.tp_ret_piscofins),
-    )
+    form.setValue('tp_ret_piscofins', String(tipoRetencaoPisCofins(ultima)))
   }
 
   return (
@@ -607,20 +623,30 @@ function CopiarUltima({
   )
 }
 
+/** Tributação no mesmo arranjo do emissor que o financeiro usava (Safe Nota). */
 function Impostos({ form }: { form: UseFormReturn<Dados> }) {
   const d = useWatch({ control: form.control })
   const valor = lerValor(d.valor_servico ?? '') ?? 0
-  const aliquotaCsll = useAliquotaCsll().data ?? 1
+  const csllDaEmpresa = useAliquotaCsll().data ?? 1
+  const ibsCbs = useIbsCbs().data
+  const tipo = Number(d.tp_ret_piscofins || 0)
+  const retemCsll = RETENCOES_PISCOFINS[tipo]?.retidos[2] ?? false
+
+  // Tipo que retém CSLL e a alíquota vazia: a da empresa (configuração).
+  useEffect(() => {
+    if (retemCsll && !form.getValues('aliquota_csll'))
+      form.setValue('aliquota_csll', percentualParaCampo(csllDaEmpresa))
+  }, [retemCsll, csllDaEmpresa, form])
 
   // PIS, COFINS e CSLL saem da conta (o fisco confere): ao mudar o valor, as alíquotas,
-  // a retenção ou o CST, recalcula. Ao abrir uma nota salva, mantém o que ela tem.
+  // o tipo de retenção ou o CST, recalcula. Ao abrir uma nota salva, mantém o que ela tem.
   const entrada = [
     d.valor_servico,
     d.aliquota_pis,
     d.aliquota_cofins,
-    d.pis_cofins_retidos,
+    d.aliquota_csll,
+    d.tp_ret_piscofins,
     d.cst_piscofins,
-    aliquotaCsll,
   ].join('|')
   const anterior = useRef(entrada)
   useEffect(() => {
@@ -630,119 +656,261 @@ function Impostos({ form }: { form: UseFormReturn<Dados> }) {
       valor,
       aliquotaPis: lerValor(d.aliquota_pis ?? ''),
       aliquotaCofins: lerValor(d.aliquota_cofins ?? ''),
-      retidos: !!d.pis_cofins_retidos,
+      tipoRetencao: tipo,
       cst: d.cst_piscofins ?? '',
-      aliquotaCsll,
+      aliquotaCsll: lerValor(d.aliquota_csll ?? ''),
     })
     form.setValue('valor_pis', valorParaCampo(r.pis))
     form.setValue('valor_cofins', valorParaCampo(r.cofins))
     form.setValue('valor_csll', valorParaCampo(r.csll))
   }, [entrada]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // IRRF pela alíquota, como no emissor antigo: com a porcentagem preenchida, o valor em
-  // reais sai da conta. Sem ela, vale o valor digitado.
-  const entradaIrrf = `${d.valor_servico}|${d.aliquota_irrf}`
-  const anteriorIrrf = useRef(entradaIrrf)
+  // CP e IRRF pela alíquota: com a porcentagem preenchida, o valor em reais sai da conta.
+  // Sem ela, vale o valor digitado.
+  const entradaAliquotas = `${d.valor_servico}|${d.aliquota_inss}|${d.aliquota_irrf}`
+  const anteriorAliquotas = useRef(entradaAliquotas)
   useEffect(() => {
-    if (anteriorIrrf.current === entradaIrrf) return
-    anteriorIrrf.current = entradaIrrf
-    const aliquota = lerValor(d.aliquota_irrf ?? '')
-    if (aliquota == null) return
-    form.setValue('valor_irrf', valor > 0 ? valorParaCampo(Math.round(valor * aliquota) / 100) : '')
-  }, [entradaIrrf]) // eslint-disable-line react-hooks/exhaustive-deps
-  const retido = totalRetido({
-    iss_retido: !!d.iss_retido,
+    if (anteriorAliquotas.current === entradaAliquotas) return
+    anteriorAliquotas.current = entradaAliquotas
+    for (const [aliquota, campo] of [
+      [d.aliquota_inss, 'valor_inss'],
+      [d.aliquota_irrf, 'valor_irrf'],
+    ] as const) {
+      const a = lerValor(aliquota ?? '')
+      if (a != null) form.setValue(campo, valorParaCampo(valorPorAliquota(valor, a)))
+    }
+  }, [entradaAliquotas]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const contas = {
     aliquota_iss: lerValor(d.aliquota_iss ?? ''),
     valor_servico: valor,
-    pis_cofins_retidos: !!d.pis_cofins_retidos,
+    pis_cofins_retidos: retemPisCofins(tipo),
+    tp_ret_piscofins: tipo,
     valor_pis: lerValor(d.valor_pis ?? ''),
     valor_cofins: lerValor(d.valor_cofins ?? ''),
     valor_csll: lerValor(d.valor_csll ?? ''),
     valor_irrf: lerValor(d.valor_irrf ?? ''),
     valor_inss: lerValor(d.valor_inss ?? ''),
-  })
+  }
+  const federais = totalRetido({ ...contas, iss_retido: false })
+  const retido = totalRetido({ ...contas, iss_retido: !!d.iss_retido })
 
   return (
-    <Card className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <h2 className="font-bold sm:col-span-2 lg:col-span-4">Tributação e retenções</h2>
-      <Campo rotulo="Código de tributação nacional" htmlFor="ctn" className="lg:col-span-2">
-        <CampoCodigoNfse
-          id="ctn"
-          lista="tributacao"
-          placeholder="Clique para ver a lista ou digite (ex.: dedetização)"
-          valor={d.codigo_tributacao ?? ''}
-          aoMudar={(c) => form.setValue('codigo_tributacao', c, { shouldDirty: true })}
+    <>
+      <Card className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <h2 className="font-bold sm:col-span-2 lg:col-span-4">Serviço</h2>
+        <Campo rotulo="Código de tributação nacional" htmlFor="ctn" className="lg:col-span-2">
+          <CampoCodigoNfse
+            id="ctn"
+            lista="tributacao"
+            placeholder="Clique para ver a lista ou digite (ex.: dedetização)"
+            valor={d.codigo_tributacao ?? ''}
+            aoMudar={(c) => form.setValue('codigo_tributacao', c, { shouldDirty: true })}
+          />
+        </Campo>
+        <Campo rotulo="Código NBS" htmlFor="nbs" className="lg:col-span-2">
+          <CampoCodigoNfse
+            id="nbs"
+            lista="nbs"
+            placeholder="Clique para ver a lista ou digite (ex.: pragas)"
+            valor={d.codigo_nbs ?? ''}
+            aoMudar={(c) => form.setValue('codigo_nbs', c, { shouldDirty: true })}
+          />
+        </Campo>
+        <Campo
+          rotulo="Município da prestação (IBGE)"
+          htmlFor="mun"
+          dica="Vazio = cidade do endereço do cliente."
+          erro={form.formState.errors.municipio_prestacao?.message}
+        >
+          <Input
+            id="mun"
+            inputMode="numeric"
+            placeholder="4314902"
+            {...form.register('municipio_prestacao')}
+          />
+        </Campo>
+      </Card>
+
+      <Card className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <h2 className="font-bold sm:col-span-2 lg:col-span-4">Valores</h2>
+        <CampoValor
+          form={form}
+          nome="valor_servico"
+          rotulo="Valor do(s) serviço(s) (R$)"
+          obrigatorio
         />
-      </Campo>
-      <Campo rotulo="Código NBS" htmlFor="nbs" className="lg:col-span-2">
-        <CampoCodigoNfse
-          id="nbs"
-          lista="nbs"
-          placeholder="Clique para ver a lista ou digite (ex.: pragas)"
-          valor={d.codigo_nbs ?? ''}
-          aoMudar={(c) => form.setValue('codigo_nbs', c, { shouldDirty: true })}
-        />
-      </Campo>
-      <Caixa form={form} nome="iss_retido" rotulo="ISS retido pelo tomador" />
-      <CampoPercentual form={form} nome="aliquota_iss" rotulo="Alíquota ISS (%)" />
-      <TributacaoIss form={form} />
-      <Caixa
-        form={form}
-        nome="pis_cofins_retidos"
-        rotulo="PIS, COFINS e CSLL retidos"
-        className="sm:col-span-2"
-      />
-      <CampoPercentual form={form} nome="aliquota_pis" rotulo="Alíquota PIS (%)" />
-      <CampoPercentual form={form} nome="aliquota_cofins" rotulo="Alíquota COFINS (%)" />
-      <CampoValor form={form} nome="valor_pis" rotulo="PIS (R$)" />
-      <CampoValor form={form} nome="valor_cofins" rotulo="COFINS (R$)" />
-      <CampoValor form={form} nome="valor_csll" rotulo="CSLL (R$)" />
-      <CampoPercentual form={form} nome="aliquota_irrf" rotulo="Alíquota IRRF (%)" />
-      <CampoValor form={form} nome="valor_irrf" rotulo="IRRF (R$)" />
-      <CampoValor form={form} nome="valor_inss" rotulo="INSS (R$)" />
-      <Campo
-        rotulo="Município da prestação (IBGE)"
-        htmlFor="mun"
-        dica="Vazio = cidade do endereço do cliente."
-        erro={form.formState.errors.municipio_prestacao?.message}
+        <CampoPercentual form={form} nome="aliquota_iss" rotulo="Alíquota ISS (%)" />
+        <TributacaoIss form={form} />
+        <Campo rotulo="Tipo de retenção do ISSQN" htmlFor="retiss">
+          <Select
+            id="retiss"
+            value={d.iss_retido ? '2' : '1'}
+            onChange={(e) =>
+              form.setValue('iss_retido', e.target.value === '2', { shouldDirty: true })
+            }
+          >
+            <option value="1">Não retido</option>
+            <option value="2">Retido pelo tomador</option>
+          </Select>
+        </Campo>
+        {d.iss_retido && <AliquotaDaCidade form={form} />}
+      </Card>
+
+      <Card className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <h2 className="font-bold sm:col-span-2 lg:col-span-4">Retenções federais</h2>
+        <Campo rotulo="Base de cálculo (R$)" htmlFor="base">
+          <Input id="base" readOnly tabIndex={-1} value={valorParaCampo(valor)} />
+        </Campo>
+        <CampoPercentual form={form} nome="aliquota_inss" rotulo="Alíquota CP (%)" />
+        <CampoValor form={form} nome="valor_inss" rotulo="Valor CP retido (R$)" />
+        <div className="hidden lg:block" />
+        <CampoPercentual form={form} nome="aliquota_irrf" rotulo="Alíquota IRRF (%)" />
+        <CampoValor form={form} nome="valor_irrf" rotulo="Valor IRRF retido (R$)" />
+        <Campo rotulo="Situação tributária (CST)" htmlFor="cst" className="sm:col-span-2">
+          <SelectForm id="cst" control={form.control} name="cst_piscofins">
+            <option value="">Padrão da empresa (01 · tributável)</option>
+            {Object.entries(CST_PISCOFINS).map(([v, r]) => (
+              <option key={v} value={v}>
+                {v} · {r}
+              </option>
+            ))}
+          </SelectForm>
+        </Campo>
+        <Campo
+          rotulo="Tipo de retenção PIS/COFINS"
+          htmlFor="tpret"
+          className="sm:col-span-2 lg:col-span-4"
+        >
+          <SelectForm id="tpret" control={form.control} name="tp_ret_piscofins">
+            {Object.entries(RETENCOES_PISCOFINS).map(([v, r]) => (
+              <option key={v} value={v}>
+                {r.rotulo}
+              </option>
+            ))}
+          </SelectForm>
+        </Campo>
+        <CampoPercentual form={form} nome="aliquota_pis" rotulo="Alíquota PIS (%)" />
+        <CampoValor form={form} nome="valor_pis" rotulo="Valor PIS (R$)" />
+        <CampoPercentual form={form} nome="aliquota_cofins" rotulo="Alíquota COFINS (%)" />
+        <CampoValor form={form} nome="valor_cofins" rotulo="Valor COFINS (R$)" />
+        {retemCsll && (
+          <>
+            <CampoPercentual form={form} nome="aliquota_csll" rotulo="Alíquota CSLL (%)" />
+            <CampoValor form={form} nome="valor_csll" rotulo="Valor CSLL retido (R$)" />
+          </>
+        )}
+        <div className="flex flex-col justify-end gap-1 text-sm sm:col-span-2 lg:col-span-4 lg:items-end">
+          <span>
+            Total tributos federais retidos: <strong>{formatarReais(federais)}</strong>
+          </span>
+          {d.iss_retido && (
+            <span>
+              Com o ISS retido: <strong>{formatarReais(retido)}</strong>
+            </span>
+          )}
+          <span>
+            Valor líquido a receber:{' '}
+            <strong className="text-verde">{formatarReais(valor - retido)}</strong>
+          </span>
+        </div>
+      </Card>
+
+      <Card className="grid gap-4 sm:grid-cols-2">
+        <h2 className="font-bold sm:col-span-2">IBS/CBS</h2>
+        <Campo rotulo="Situação tributária" htmlFor="ibscst">
+          <Input
+            id="ibscst"
+            readOnly
+            tabIndex={-1}
+            value={
+              ibsCbs ? `${ibsCbs.cst}${ibsCbs.cst === '000' ? ' - Tributação integral' : ''}` : ''
+            }
+          />
+        </Campo>
+        <Campo rotulo="Classificação tributária" htmlFor="ibsclass">
+          <Input
+            id="ibsclass"
+            readOnly
+            tabIndex={-1}
+            value={
+              ibsCbs
+                ? `${ibsCbs.classificacao}${ibsCbs.classificacao === '000001' ? ' - Situações tributadas integralmente pelo IBS e CBS' : ''}`
+                : ''
+            }
+          />
+        </Campo>
+        <p className="text-sm text-texto-suave sm:col-span-2">
+          Vai igual em todas as notas, pela configuração da empresa. Os valores de IBS e CBS só
+          entram a partir de 2027.
+        </p>
+      </Card>
+    </>
+  )
+}
+
+/**
+ * ISS retido pelo tomador: a alíquota é a da cidade de incidência (a da prestação ou a
+ * do endereço do cliente), como está no Sistema Nacional. Busca sozinha quando a
+ * alíquota está vazia; o botão busca de novo.
+ */
+function AliquotaDaCidade({ form }: { form: UseFormReturn<Dados> }) {
+  const [clienteId, contratoId, municipio, codigo, aliquota] = useWatch({
+    control: form.control,
+    name: ['cliente_id', 'contrato_id', 'municipio_prestacao', 'codigo_tributacao', 'aliquota_iss'],
+  })
+  const buscar = useAliquotaIssDaCidade()
+  const [aviso, setAviso] = useState<string | null>(null)
+  const pronto = !!clienteId && codigo.replace(/\D/g, '').length === 6
+
+  async function consultar() {
+    setAviso(null)
+    try {
+      const r = await buscar.mutateAsync({
+        clienteId,
+        contratoId: contratoId || null,
+        municipio: municipio || null,
+        codigoTributacao: codigo,
+      })
+      if (r.aliquota != null) {
+        form.setValue('aliquota_iss', percentualParaCampo(r.aliquota), { shouldDirty: true })
+        setAviso(
+          `Alíquota do município ${r.municipio} no Sistema Nacional: ${percentualParaCampo(r.aliquota)}%.`,
+        )
+      } else
+        setAviso(
+          `O Sistema Nacional não devolveu alíquota para o município ${r.municipio}. Informe à mão.${r.detalhe ? ` (${r.detalhe})` : ''}`,
+        )
+    } catch (e) {
+      setAviso(mensagemDeErro(e))
+    }
+  }
+
+  const tentado = useRef('')
+  useEffect(() => {
+    const chave = `${clienteId}|${municipio}|${codigo}`
+    if (!pronto || aliquota || tentado.current === chave) return
+    tentado.current = chave
+    void consultar()
+  }, [pronto, aliquota, clienteId, municipio, codigo]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-xl bg-lima-claro p-3 text-sm sm:col-span-2 lg:col-span-4">
+      <p className="flex-1">
+        {aviso ??
+          (pronto
+            ? 'Retido pelo tomador: o ISS vai pela alíquota da cidade do cliente.'
+            : 'Retido pelo tomador: escolha o cliente e o código de tributação para buscar a alíquota da cidade.')}
+      </p>
+      <Button
+        variante="secundario"
+        disabled={!pronto || buscar.isPending}
+        onClick={() => void consultar()}
       >
-        <Input
-          id="mun"
-          inputMode="numeric"
-          placeholder="4314902"
-          {...form.register('municipio_prestacao')}
-        />
-      </Campo>
-      <Campo rotulo="CST do PIS/COFINS" htmlFor="cst">
-        <SelectForm id="cst" control={form.control} name="cst_piscofins">
-          <option value="">Padrão da empresa</option>
-          {Object.entries(CST_PISCOFINS).map(([v, r]) => (
-            <option key={v} value={v}>
-              {v} · {r}
-            </option>
-          ))}
-        </SelectForm>
-      </Campo>
-      <Campo rotulo="Retenção federal (na nota)" htmlFor="tpret" className="sm:col-span-2">
-        <SelectForm id="tpret" control={form.control} name="tp_ret_piscofins">
-          <option value="">Pela caixa de PIS, COFINS e CSLL retidos</option>
-          {Object.entries(RETENCAO_PISCOFINS).map(([v, r]) => (
-            <option key={v} value={v}>
-              {r}
-            </option>
-          ))}
-        </SelectForm>
-      </Campo>
-      <div className="flex flex-col justify-end gap-1 text-sm sm:col-span-2 lg:col-span-3 lg:items-end">
-        <span>
-          Retido pelo tomador: <strong>{formatarReais(retido)}</strong>
-        </span>
-        <span>
-          Valor líquido a receber:{' '}
-          <strong className="text-verde">{formatarReais(valor - retido)}</strong>
-        </span>
-      </div>
-    </Card>
+        <MapPin className="size-4" aria-hidden />
+        {buscar.isPending ? 'Buscando…' : 'Buscar alíquota da cidade'}
+      </Button>
+    </div>
   )
 }
 
@@ -766,7 +934,7 @@ function TributacaoIss({ form }: { form: UseFormReturn<Dados> }) {
   const trib = useWatch({ control: form.control, name: 'trib_issqn' })
   return (
     <>
-      <Campo rotulo="Tributação do ISS" htmlFor="tribiss">
+      <Campo rotulo="Tributação do ISSQN" htmlFor="tribiss">
         <SelectForm id="tribiss" control={form.control} name="trib_issqn">
           {Object.entries(TRIBUTACAO_ISS).map(([v, r]) => (
             <option key={v} value={v}>
@@ -776,7 +944,7 @@ function TributacaoIss({ form }: { form: UseFormReturn<Dados> }) {
         </SelectForm>
       </Campo>
       {trib === '2' && (
-        <Campo rotulo="Tipo de imunidade" htmlFor="imun" className="sm:col-span-2">
+        <Campo rotulo="Tipo imunidade" htmlFor="imun" className="sm:col-span-2">
           <SelectForm id="imun" control={form.control} name="tp_imunidade">
             <option value="">Escolha…</option>
             {Object.entries(IMUNIDADE).map(([v, r]) => (
@@ -799,14 +967,6 @@ const CST_PISCOFINS: Record<string, string> = {
   '07': 'Isenta',
   '08': 'Sem incidência',
   '09': 'Com suspensão',
-}
-
-/** tpRetPisCofins do leiaute nacional. */
-const RETENCAO_PISCOFINS: Record<string, string> = {
-  '0': 'PIS, COFINS e CSLL não retidos',
-  '1': 'PIS e COFINS retidos',
-  '2': 'PIS e COFINS não retidos',
-  '3': 'PIS, COFINS e CSLL retidos',
 }
 
 type CampoTexto = Exclude<keyof Dados, 'tipo' | 'status' | 'iss_retido' | 'pis_cofins_retidos'>
@@ -857,26 +1017,5 @@ function CampoPercentual({
     <Campo rotulo={rotulo} htmlFor={nome} erro={form.formState.errors[nome]?.message}>
       <Input id={nome} inputMode="decimal" placeholder="0,00" {...form.register(nome)} />
     </Campo>
-  )
-}
-
-function Caixa({
-  form,
-  nome,
-  rotulo,
-  className,
-}: {
-  form: UseFormReturn<Dados>
-  nome: 'iss_retido' | 'pis_cofins_retidos'
-  rotulo: string
-  className?: string
-}) {
-  return (
-    <label
-      className={`flex min-h-11 cursor-pointer items-center gap-3 self-end rounded-xl border border-borda px-3 has-checked:border-verde has-checked:bg-lima-claro ${className ?? ''}`}
-    >
-      <input type="checkbox" className="size-5 shrink-0 accent-verde" {...form.register(nome)} />
-      <span className="text-sm font-semibold">{rotulo}</span>
-    </label>
   )
 }

@@ -355,6 +355,43 @@ export function useAliquotaCsll() {
   })
 }
 
+/** IBS/CBS da configuração (vai igual em todas as notas até as regras de 2027). */
+export function useIbsCbs() {
+  return useQuery({
+    queryKey: ['configuracoes', 'nfse_ibscbs'],
+    staleTime: Infinity,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('configuracoes')
+        .select('chave, valor')
+        .in('chave', ['nfse_ibscbs_cst', 'nfse_ibscbs_classificacao'])
+      const valor = (chave: string) => data?.find((c) => c.chave === chave)?.valor ?? ''
+      return {
+        cst: String(valor('nfse_ibscbs_cst') || '000'),
+        classificacao: String(valor('nfse_ibscbs_classificacao') || '000001'),
+      }
+    },
+  })
+}
+
+export type AliquotaDaCidade = {
+  municipio: string
+  aliquota: number | null
+  detalhe: string | null
+}
+
+/** A alíquota do ISS como está parametrizada no Sistema Nacional para a cidade. */
+export function useAliquotaIssDaCidade() {
+  return useMutation({
+    mutationFn: (p: {
+      clienteId: string
+      contratoId?: string | null
+      municipio?: string | null
+      codigoTributacao: string
+    }) => chamarNfse<AliquotaDaCidade>({ acao: 'aliquotaIss', ...p }),
+  })
+}
+
 async function chamarNfse<T>(corpo: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke('nfse', { body: corpo })
   if (error) {
@@ -441,6 +478,8 @@ export function useCorrigirNota() {
           valor_cofins: n.valor_cofins,
           valor_csll: n.valor_csll,
           aliquota_irrf: n.aliquota_irrf,
+          aliquota_csll: n.aliquota_csll,
+          aliquota_inss: n.aliquota_inss,
           valor_irrf: n.valor_irrf,
           valor_inss: n.valor_inss,
           municipio_prestacao: n.municipio_prestacao,

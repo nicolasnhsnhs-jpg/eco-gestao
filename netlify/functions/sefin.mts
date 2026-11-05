@@ -12,7 +12,8 @@ const HOSTS = {
 } as const
 
 // Só os caminhos que a função usa: emitir, consultar DPS e consultar nota.
-const CAMINHO = /^(nfse|dps\/DPS\d{42}|nfse\/\d{50}|nfse\/\d{50}\/eventos)$/
+const CAMINHO =
+  /^(nfse|dps\/DPS\d{42}|nfse\/\d{50}|nfse\/\d{50}\/eventos|parametros_municipais\/\d{7}\/(\d{6,9}|convenio))$/
 
 type Pedido = {
   ambiente: keyof typeof HOSTS

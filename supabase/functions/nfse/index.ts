@@ -34,6 +34,13 @@ type Pedido =
   | { acao: 'modelo'; notaId: string }
   | { acao: 'ensaiar'; notaId: string }
   | { acao: 'emitir'; notaId: string; enviar?: boolean }
+  | {
+      acao: 'aliquotaIss'
+      clienteId: string
+      contratoId?: string | null
+      municipio?: string | null
+      codigoTributacao: string
+    }
   | { acao: 'cancelar'; notaId: string; motivo: MotivoCancelamento; justificativa: string }
 
 class Falha extends Error {}
@@ -184,6 +191,7 @@ async function montarDados(
       valores: {
         servico: valor,
         issRetido: !!nota.iss_retido,
+        aliquotaIss: nota.aliquota_iss != null ? Number(nota.aliquota_iss) : null,
         tributacaoIss: String(nota.trib_issqn ?? 1),
         imunidade: nota.tp_imunidade == null ? null : String(nota.tp_imunidade),
         pisCofins: {
@@ -372,6 +380,20 @@ async function enviarDps(
         return r
       }
       r = outra
+    } else if (
+      (tem(r, 'E0619') || tem(r, 'E0621') || tem(r, 'E0628')) &&
+      !atual.valores.informarAliquotaIss &&
+      atual.valores.aliquotaIss != null
+    ) {
+      // Município fora do convênio: a alíquota tem de ir na nota.
+      atual = { ...atual, valores: { ...atual.valores, informarAliquotaIss: true } }
+      r = await enviar()
+    } else if (
+      (tem(r, 'E0617') || tem(r, 'E0625') || tem(r, 'E0631')) &&
+      atual.valores.informarAliquotaIss
+    ) {
+      atual = { ...atual, valores: { ...atual.valores, informarAliquotaIss: false } }
+      r = await enviar()
     } else if (tem(r, 'E0120') && atual.prestador.inscricaoMunicipal) {
       atual = { ...atual, prestador: { ...atual.prestador, inscricaoMunicipal: null } }
       r = await enviar()
@@ -437,6 +459,67 @@ async function emitir(
   } catch (e) {
     await soltar((e as Error).message)
     throw e
+  }
+}
+
+/** Procura no JSON da parametrização um número com cara de alíquota (0 a 5%). */
+function acharAliquota(dados: unknown): number | null {
+  if (dados == null || typeof dados !== 'object') return null
+  for (const [chave, valor] of Object.entries(dados as Record<string, unknown>)) {
+    if (/aliq/i.test(chave)) {
+      const n = typeof valor === 'number' ? valor : Number(String(valor ?? '').replace(',', '.'))
+      if (Number.isFinite(n) && n > 0 && n <= 5) return n
+    }
+  }
+  for (const valor of Object.values(dados as Record<string, unknown>)) {
+    const n = acharAliquota(valor)
+    if (n != null) return n
+  }
+  return null
+}
+
+/**
+ * A alíquota do ISS do município de incidência (o da prestação, ou o do endereço do
+ * cliente), como está parametrizada no Sistema Nacional: é a que a Sefin usa quando o
+ * ISS é retido pelo tomador.
+ */
+async function aliquotaIss(
+  admin: SupabaseClient,
+  p: {
+    clienteId: string
+    contratoId?: string | null
+    municipio?: string | null
+    codigoTributacao: string
+  },
+  origem: string | null,
+) {
+  const servico = (p.codigoTributacao ?? '').replace(/\D/g, '')
+  if (servico.length !== 6) throw new Falha('Escolha o código de tributação nacional antes.')
+  let municipio = (p.municipio ?? '').replace(/\D/g, '')
+  if (!municipio) {
+    let enderecoContrato: string | null = null
+    if (p.contratoId) {
+      const { data } = await admin
+        .from('contratos')
+        .select('endereco_id')
+        .eq('id', p.contratoId)
+        .maybeSingle()
+      enderecoContrato = data?.endereco_id ?? null
+    }
+    municipio = (await enderecoDoTomador(admin, p.clienteId, enderecoContrato)).codigoIbge
+  }
+  const cfg = await configuracao(admin)
+  const ambiente: Ambiente = cfg.nfse_ambiente === 'producao' ? 'producao' : 'homologacao'
+  const dados = await new Sefin(ambiente, certificadoDaEmpresa(), origem).parametrosMunicipais(
+    municipio,
+    servico,
+  )
+  const aliquota = acharAliquota(dados)
+  return {
+    municipio,
+    aliquota,
+    // Para conferir quando a Sefin responde num formato que ainda não conhecemos.
+    detalhe: aliquota == null && dados != null ? JSON.stringify(dados).slice(0, 400) : null,
   }
 }
 
@@ -627,6 +710,8 @@ Deno.serve(async (req) => {
             pedido.enviar !== false,
           ),
         )
+      case 'aliquotaIss':
+        return resposta(200, await aliquotaIss(admin, pedido, req.headers.get('origin')))
       case 'cancelar':
         return resposta(
           200,

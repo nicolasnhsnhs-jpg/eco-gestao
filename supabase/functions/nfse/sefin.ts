@@ -10,6 +10,7 @@
 //   GET  /dps/{id}            → chave da nota gerada por aquela DPS (se já foi gerada)
 //   GET  /nfse/{chave}        → o XML da nota
 //   POST /nfse/{chave}/eventos → registra um evento (cancelamento): {eventoXmlGZipB64} ou {erros}
+//   GET  /parametros_municipais/{município}/{serviço} → a parametrização (alíquota) do município
 
 import { decodeBase64, encodeBase64 } from 'jsr:@std/encoding@1/base64'
 
@@ -192,6 +193,25 @@ export class Sefin {
       }
     }
     return { ok: true, xml: await descomprimir(String(dados.eventoXmlGZipB64)) }
+  }
+
+  /** A parametrização do município para o serviço (JSON da Sefin), ou null se não houver. */
+  async parametrosMunicipais(municipio: string, servico: string): Promise<unknown | null> {
+    const r = await this.pedir('GET', `parametros_municipais/${municipio}/${servico}`)
+    if (r.status === 404) {
+      await r.body?.cancel()
+      return null
+    }
+    const bruto = await r.text()
+    if (!r.ok)
+      throw new Error(
+        `Consulta da alíquota do município falhou (HTTP ${r.status})${FALHAS[r.status] ? `: ${FALHAS[r.status]}` : ''}.`,
+      )
+    try {
+      return JSON.parse(bruto)
+    } catch {
+      return null
+    }
   }
 
   async xmlDaNota(chave: string): Promise<string | null> {

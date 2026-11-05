@@ -26,23 +26,42 @@ const FORMAS: Record<string, string> = {
   outro: 'Outro',
 }
 
+/** [PIS, COFINS, CSLL] retidos por tipo (tpRetPisCofins); igual a RETENCOES_PISCOFINS do app. */
+const RETIDOS: Record<number, [boolean, boolean, boolean]> = {
+  1: [true, true, false],
+  3: [true, true, true],
+  4: [true, true, false],
+  5: [true, false, false],
+  6: [false, true, false],
+  7: [false, true, true],
+  8: [false, false, true],
+  9: [true, false, true],
+}
+
 /** Igual a totalRetido em src/features/financeiro/notas.ts. */
 export function totalRetido(n: {
   iss_retido: boolean
   aliquota_iss: number | null
   valor_servico: number
   pis_cofins_retidos: boolean
+  tp_ret_piscofins: number | null
   valor_pis: number | null
   valor_cofins: number | null
   valor_csll: number | null
   valor_irrf: number | null
   valor_inss: number | null
 }): number {
-  const iss = n.iss_retido ? (Number(n.valor_servico) * Number(n.aliquota_iss ?? 0)) / 100 : 0
-  const pisCofins = n.pis_cofins_retidos
-    ? Number(n.valor_pis ?? 0) + Number(n.valor_cofins ?? 0) + Number(n.valor_csll ?? 0)
+  const iss = n.iss_retido
+    ? Math.round(Number(n.valor_servico) * Number(n.aliquota_iss ?? 0)) / 100
     : 0
-  const total = iss + pisCofins + Number(n.valor_irrf ?? 0) + Number(n.valor_inss ?? 0)
+  const tipo =
+    n.tp_ret_piscofins ?? (n.pis_cofins_retidos ? (Number(n.valor_csll ?? 0) > 0 ? 3 : 1) : 0)
+  const [pis, cofins, csll] = RETIDOS[tipo] ?? []
+  const federais =
+    (pis ? Number(n.valor_pis ?? 0) : 0) +
+    (cofins ? Number(n.valor_cofins ?? 0) : 0) +
+    (csll ? Number(n.valor_csll ?? 0) : 0)
+  const total = iss + federais + Number(n.valor_irrf ?? 0) + Number(n.valor_inss ?? 0)
   return Math.round(total * 100) / 100
 }
 

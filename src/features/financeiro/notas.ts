@@ -71,23 +71,69 @@ export function notaDoContrato(
   return { valor: Number(k.valor_mensal), descricao, forma_pagamento: forma }
 }
 
-/** Total retido pelo tomador (o que sai do valor do serviço). */
+/**
+ * Tipos de retenção de PIS/COFINS/CSLL do Sistema Nacional (tpRetPisCofins): quais das
+ * três o tomador retém, na ordem [PIS, COFINS, CSLL]. 0 e 2 = nenhuma retida.
+ */
+export const RETENCOES_PISCOFINS: Record<
+  number,
+  { rotulo: string; retidos: [boolean, boolean, boolean] }
+> = {
+  0: { rotulo: 'PIS/COFINS/CSLL não retidos', retidos: [false, false, false] },
+  1: { rotulo: 'PIS/COFINS retidos', retidos: [true, true, false] },
+  2: { rotulo: 'PIS/COFINS não retidos', retidos: [false, false, false] },
+  3: { rotulo: 'PIS/COFINS/CSLL retidos', retidos: [true, true, true] },
+  4: { rotulo: 'PIS/COFINS retidos, CSLL não retido', retidos: [true, true, false] },
+  5: { rotulo: 'PIS retido, COFINS/CSLL não retidos', retidos: [true, false, false] },
+  6: { rotulo: 'COFINS retido, PIS/CSLL não retidos', retidos: [false, true, false] },
+  7: { rotulo: 'PIS não retido, COFINS/CSLL retidos', retidos: [false, true, true] },
+  8: { rotulo: 'PIS/COFINS não retidos, CSLL retido', retidos: [false, false, true] },
+  9: { rotulo: 'COFINS não retido, PIS/CSLL retidos', retidos: [true, false, true] },
+}
+
+/** O tipo de retenção da nota; nas antigas (sem tipo), o que a emissão já usava. */
+export function tipoRetencaoPisCofins(n: {
+  tp_ret_piscofins: number | null
+  pis_cofins_retidos: boolean
+  valor_csll: number | null
+}): number {
+  if (n.tp_ret_piscofins != null) return n.tp_ret_piscofins
+  if (!n.pis_cofins_retidos) return 0
+  return Number(n.valor_csll ?? 0) > 0 ? 3 : 1
+}
+
+/** Retido = algum dos três sai do valor (tipos 0 e 2 não retêm nada). */
+export const retemPisCofins = (tipo: number) =>
+  RETENCOES_PISCOFINS[tipo]?.retidos.some(Boolean) ?? false
+
+/** Valor de uma retenção por alíquota: base × alíquota, nos centavos (como a Sefin). */
+export function valorPorAliquota(base: number, aliquota: number | null): number | null {
+  return aliquota != null && base > 0 ? Math.round(base * aliquota) / 100 : null
+}
+
+/**
+ * Total retido pelo tomador (o que sai do valor do serviço), na conta do Sistema
+ * Nacional: CP + IRRF + os PIS/COFINS/CSLL que o tipo de retenção diz retidos + ISS retido.
+ */
 export function totalRetido(n: {
   iss_retido: boolean
   aliquota_iss: number | null
   valor_servico: number
   pis_cofins_retidos: boolean
+  tp_ret_piscofins: number | null
   valor_pis: number | null
   valor_cofins: number | null
   valor_csll: number | null
   valor_irrf: number | null
   valor_inss: number | null
 }): number {
-  const iss = n.iss_retido ? (Number(n.valor_servico) * Number(n.aliquota_iss ?? 0)) / 100 : 0
-  const pisCofins = n.pis_cofins_retidos
-    ? Number(n.valor_pis ?? 0) + Number(n.valor_cofins ?? 0) + Number(n.valor_csll ?? 0)
-    : 0
-  const total = iss + pisCofins + Number(n.valor_irrf ?? 0) + Number(n.valor_inss ?? 0)
+  const iss = n.iss_retido ? (valorPorAliquota(Number(n.valor_servico), n.aliquota_iss) ?? 0) : 0
+  const [pis, cofins, csll] = RETENCOES_PISCOFINS[tipoRetencaoPisCofins(n)]?.retidos ?? []
+  const federais =
+    (pis ? Number(n.valor_pis ?? 0) : 0) +
+    (cofins ? Number(n.valor_cofins ?? 0) : 0) +
+    (csll ? Number(n.valor_csll ?? 0) : 0)
+  const total = iss + federais + Number(n.valor_irrf ?? 0) + Number(n.valor_inss ?? 0)
   return Math.round(total * 100) / 100
 }
 
@@ -109,15 +155,15 @@ const CST_TRIBUTAVEL = ['', '01', '02']
 /**
  * Valores de PIS, COFINS e CSLL a partir do valor do serviço. O fisco confere a conta
  * (valor = base × alíquota, E0694), então ela é sempre esta. A CSLL só existe quando o
- * tomador retém (PIS/COFINS/CSLL retidos).
+ * tipo de retenção a retém (3, 7, 8 e 9).
  */
 export function calcularPisCofins(d: {
   valor: number
   aliquotaPis: number | null
   aliquotaCofins: number | null
-  retidos: boolean
+  tipoRetencao: number
   cst: string
-  aliquotaCsll: number
+  aliquotaCsll: number | null
 }): { pis: number | null; cofins: number | null; csll: number | null } {
   const tributavel = CST_TRIBUTAVEL.includes(d.cst)
   const conta = (aliquota: number | null) =>
@@ -125,6 +171,8 @@ export function calcularPisCofins(d: {
   return {
     pis: conta(d.aliquotaPis),
     cofins: conta(d.aliquotaCofins),
-    csll: d.retidos && d.valor > 0 ? Math.round(d.valor * d.aliquotaCsll) / 100 : null,
+    csll: RETENCOES_PISCOFINS[d.tipoRetencao]?.retidos[2]
+      ? valorPorAliquota(d.valor, d.aliquotaCsll)
+      : null,
   }
 }

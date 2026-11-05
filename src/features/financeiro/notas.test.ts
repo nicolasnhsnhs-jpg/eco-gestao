@@ -7,6 +7,7 @@ import {
   notaDoContrato,
   proximaNota,
   totalRetido,
+  valorPorAliquota,
   vencimentoDoContrato,
 } from './notas'
 
@@ -60,6 +61,7 @@ describe('totalRetido', () => {
     aliquota_iss: null,
     valor_servico: 1000,
     pis_cofins_retidos: false,
+    tp_ret_piscofins: null,
     valor_pis: 6.5,
     valor_cofins: 30,
     valor_csll: 10,
@@ -83,33 +85,60 @@ describe('totalRetido', () => {
       }),
     ).toBe(221.5)
   })
+
+  it('só entra o que o tipo de retenção diz retido (7 = COFINS e CSLL)', () => {
+    expect(totalRetido({ ...base, pis_cofins_retidos: true, tp_ret_piscofins: 7 })).toBe(40)
+  })
+
+  it('IRRF 1% e PIS/COFINS/CSLL retidos sobre 2.280,00', () => {
+    expect(
+      totalRetido({
+        ...base,
+        valor_servico: 2280,
+        pis_cofins_retidos: true,
+        tp_ret_piscofins: 3,
+        valor_pis: 14.82,
+        valor_cofins: 68.4,
+        valor_csll: 22.8,
+        valor_irrf: 22.8,
+      }),
+    ).toBe(128.82)
+  })
+})
+
+describe('valorPorAliquota', () => {
+  it('base × alíquota nos centavos', () => {
+    expect(valorPorAliquota(2280, 1)).toBe(22.8)
+    expect(valorPorAliquota(2280, 0.65)).toBe(14.82)
+    expect(valorPorAliquota(2280, null)).toBeNull()
+  })
 })
 
 describe('calcularPisCofins', () => {
   const base = { valor: 460, aliquotaPis: 0.65, aliquotaCofins: 3, cst: '', aliquotaCsll: 1 }
   it('calcula PIS, COFINS e CSLL retidos', () => {
-    expect(calcularPisCofins({ ...base, retidos: true })).toEqual({
+    expect(calcularPisCofins({ ...base, tipoRetencao: 3 })).toEqual({
       pis: 2.99,
       cofins: 13.8,
       csll: 4.6,
     })
   })
   it('sem retenção não há CSLL, mas PIS e COFINS continuam destacados', () => {
-    expect(calcularPisCofins({ ...base, retidos: false })).toEqual({
+    expect(calcularPisCofins({ ...base, tipoRetencao: 0 })).toEqual({
       pis: 2.99,
       cofins: 13.8,
       csll: null,
     })
   })
   it('CST sem incidência não tem PIS nem COFINS', () => {
-    expect(calcularPisCofins({ ...base, cst: '08', retidos: false })).toEqual({
+    expect(calcularPisCofins({ ...base, cst: '08', tipoRetencao: 0 })).toEqual({
       pis: null,
       cofins: null,
       csll: null,
     })
   })
   it('arredonda nos centavos como a Sefin (398 × 0,65% = 2,59)', () => {
-    expect(calcularPisCofins({ ...base, valor: 398, retidos: true })).toEqual({
+    expect(calcularPisCofins({ ...base, valor: 398, tipoRetencao: 3 })).toEqual({
       pis: 2.59,
       cofins: 11.94,
       csll: 3.98,
