@@ -931,6 +931,35 @@ export type Database = {
           },
         ]
       }
+      custos_orcamento: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          chave: string
+          valor: number | null
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          chave: string
+          valor?: number | null
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          chave?: string
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'custos_orcamento_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       enderecos: {
         Row: {
           apelido: string | null

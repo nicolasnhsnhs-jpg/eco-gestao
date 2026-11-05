@@ -2,6 +2,7 @@ import {
   Bell,
   BriefcaseBusiness,
   Building2,
+  Calculator,
   ClipboardList,
   FileText,
   HandCoins,
@@ -64,6 +65,13 @@ export const MENU: readonly ItemMenu[] = [
     icone: Wrench,
     papeis: ['admin', 'financeiro', 'vendedor'],
     barraInferior: ['vendedor'],
+  },
+  {
+    rotulo: 'Calculadora de orçamentos',
+    caminho: '/orcamentos',
+    icone: Calculator,
+    // O financeiro não usa: só quem vende (e o admin).
+    papeis: ['admin', 'vendedor'],
   },
   {
     rotulo: 'Contratos',

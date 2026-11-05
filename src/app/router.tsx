@@ -40,6 +40,9 @@ import { ExecucaoPage } from '@/features/os/operador/ExecucaoPage'
 import { OsFormPage } from '@/features/os/OsFormPage'
 import { OsListaPage } from '@/features/os/OsListaPage'
 import { OsPage } from '@/features/os/OsPage'
+import { CalculadoraPage } from '@/features/orcamentos/CalculadoraPage'
+import { CustosPage } from '@/features/orcamentos/CustosPage'
+import { OrcamentosLayout } from '@/features/orcamentos/OrcamentosLayout'
 import { UsuariosPage } from '@/features/usuarios/UsuariosPage'
 import { PAPEIS, PAPEIS_ACESSO_TOTAL, PAPEIS_ESCRITORIO_OS } from '@/lib/papeis'
 
@@ -198,6 +201,25 @@ export const router = createBrowserRouter([
           { path: 'novo', element: <ContratoFormPage /> },
           { path: ':id', element: <ContratoPage /> },
           { path: ':id/editar', element: <ContratoFormPage /> },
+        ],
+      },
+      {
+        path: 'orcamentos',
+        element: (
+          <ExigePapel papeis={['admin', 'vendedor']}>
+            <OrcamentosLayout />
+          </ExigePapel>
+        ),
+        children: [
+          { index: true, element: <CalculadoraPage /> },
+          {
+            path: 'custos',
+            element: (
+              <ExigePapel papeis={['admin']}>
+                <CustosPage />
+              </ExigePapel>
+            ),
+          },
         ],
       },
       {

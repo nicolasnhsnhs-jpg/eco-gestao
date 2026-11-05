@@ -35,6 +35,13 @@ describe('menuDoPapel', () => {
     expect(caminhos('recepcao')).not.toContain('/comissoes')
   })
 
+  it('só admin e vendedor veem a calculadora de orçamentos', () => {
+    expect(caminhos('admin')).toContain('/orcamentos')
+    expect(caminhos('vendedor')).toContain('/orcamentos')
+    for (const papel of ['financeiro', 'recepcao', 'operador'] as const)
+      expect(caminhos(papel)).not.toContain('/orcamentos')
+  })
+
   it('recepção tem início, clientes, ordens de serviço e avisos', () => {
     expect(caminhos('recepcao')).toEqual(['/', '/clientes', '/os', '/avisos'])
   })
