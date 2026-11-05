@@ -72,6 +72,7 @@ const esquema = z
     valor_pis: valorOpcional,
     valor_cofins: valorOpcional,
     valor_csll: valorOpcional,
+    aliquota_irrf: valorOpcional,
     valor_irrf: valorOpcional,
     valor_inss: valorOpcional,
     municipio_prestacao: z
@@ -138,6 +139,7 @@ function valoresIniciais(nota: NotaFiscalCompleta | undefined, p: URLSearchParam
       valor_pis: valorParaCampo(nota.valor_pis),
       valor_cofins: valorParaCampo(nota.valor_cofins),
       valor_csll: valorParaCampo(nota.valor_csll),
+      aliquota_irrf: percentualParaCampo(nota.aliquota_irrf),
       valor_irrf: valorParaCampo(nota.valor_irrf),
       valor_inss: valorParaCampo(nota.valor_inss),
       municipio_prestacao: nota.municipio_prestacao ?? '',
@@ -175,6 +177,7 @@ function valoresIniciais(nota: NotaFiscalCompleta | undefined, p: URLSearchParam
     valor_pis: '',
     valor_cofins: '',
     valor_csll: '',
+    aliquota_irrf: '',
     valor_irrf: '',
     valor_inss: '',
     municipio_prestacao: '',
@@ -264,6 +267,7 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
         valor_pis: numeroOuNulo(d.valor_pis),
         valor_cofins: numeroOuNulo(d.valor_cofins),
         valor_csll: numeroOuNulo(d.valor_csll),
+        aliquota_irrf: numeroOuNulo(d.aliquota_irrf),
         valor_irrf: numeroOuNulo(d.valor_irrf),
         valor_inss: numeroOuNulo(d.valor_inss),
         municipio_prestacao: ouNulo(d.municipio_prestacao),
@@ -564,7 +568,13 @@ function CopiarUltima({
     form.setValue('valor_pis', ajustar(ultima.valor_pis))
     form.setValue('valor_cofins', ajustar(ultima.valor_cofins))
     form.setValue('valor_csll', ajustar(ultima.valor_csll))
-    form.setValue('valor_irrf', ajustar(ultima.valor_irrf))
+    form.setValue('aliquota_irrf', percentualParaCampo(ultima.aliquota_irrf))
+    form.setValue(
+      'valor_irrf',
+      ultima.aliquota_irrf != null
+        ? valorParaCampo(Math.round(valor * Number(ultima.aliquota_irrf)) / 100)
+        : ajustar(ultima.valor_irrf),
+    )
     form.setValue('valor_inss', ajustar(ultima.valor_inss))
     form.setValue('municipio_prestacao', ultima.municipio_prestacao ?? '')
     form.setValue('cst_piscofins', ultima.cst_piscofins ?? '')
@@ -628,6 +638,18 @@ function Impostos({ form }: { form: UseFormReturn<Dados> }) {
     form.setValue('valor_cofins', valorParaCampo(r.cofins))
     form.setValue('valor_csll', valorParaCampo(r.csll))
   }, [entrada]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // IRRF pela alíquota, como no emissor antigo: com a porcentagem preenchida, o valor em
+  // reais sai da conta. Sem ela, vale o valor digitado.
+  const entradaIrrf = `${d.valor_servico}|${d.aliquota_irrf}`
+  const anteriorIrrf = useRef(entradaIrrf)
+  useEffect(() => {
+    if (anteriorIrrf.current === entradaIrrf) return
+    anteriorIrrf.current = entradaIrrf
+    const aliquota = lerValor(d.aliquota_irrf ?? '')
+    if (aliquota == null) return
+    form.setValue('valor_irrf', valor > 0 ? valorParaCampo(Math.round(valor * aliquota) / 100) : '')
+  }, [entradaIrrf]) // eslint-disable-line react-hooks/exhaustive-deps
   const retido = totalRetido({
     iss_retido: !!d.iss_retido,
     aliquota_iss: lerValor(d.aliquota_iss ?? ''),
@@ -675,6 +697,7 @@ function Impostos({ form }: { form: UseFormReturn<Dados> }) {
       <CampoValor form={form} nome="valor_pis" rotulo="PIS (R$)" />
       <CampoValor form={form} nome="valor_cofins" rotulo="COFINS (R$)" />
       <CampoValor form={form} nome="valor_csll" rotulo="CSLL (R$)" />
+      <CampoPercentual form={form} nome="aliquota_irrf" rotulo="Alíquota IRRF (%)" />
       <CampoValor form={form} nome="valor_irrf" rotulo="IRRF (R$)" />
       <CampoValor form={form} nome="valor_inss" rotulo="INSS (R$)" />
       <Campo

@@ -440,6 +440,7 @@ export function useCorrigirNota() {
           valor_pis: n.valor_pis,
           valor_cofins: n.valor_cofins,
           valor_csll: n.valor_csll,
+          aliquota_irrf: n.aliquota_irrf,
           valor_irrf: n.valor_irrf,
           valor_inss: n.valor_inss,
           municipio_prestacao: n.municipio_prestacao,

@@ -1675,6 +1675,7 @@ export type Database = {
       notas_fiscais: {
         Row: {
           aliquota_cofins: number | null
+          aliquota_irrf: number | null
           aliquota_iss: number | null
           aliquota_pis: number | null
           ambiente_nfse: string | null
@@ -1741,6 +1742,7 @@ export type Database = {
         }
         Insert: {
           aliquota_cofins?: number | null
+          aliquota_irrf?: number | null
           aliquota_iss?: number | null
           aliquota_pis?: number | null
           ambiente_nfse?: string | null
@@ -1807,6 +1809,7 @@ export type Database = {
         }
         Update: {
           aliquota_cofins?: number | null
+          aliquota_irrf?: number | null
           aliquota_iss?: number | null
           aliquota_pis?: number | null
           ambiente_nfse?: string | null
