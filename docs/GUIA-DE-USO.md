@@ -139,6 +139,13 @@ O que você vê: tudo. O Administrador, além disso, gerencia os usuários.
   agendado, débito automático). **Atrasado** o sistema calcula sozinho.
 - Lançamento confirmado só o Administrador altera ou reabre.
 
+**Antecipação (Sicredi, financeira):** **Financeiro → Lançamentos → Antecipar**. Aparecem só as
+contas a receber em aberto: marque as que foram antecipadas (ou **Marcar todas**), toque em
+**Antecipar**, informe quem antecipou, o desconto (em **R$** ou **%**), a data e a conta em que o
+dinheiro caiu. O sistema mostra o total, o desconto e o líquido antes de gravar. No saldo entra só
+o líquido; cada conta fica **Antecipado**, com o vencimento do cliente guardado. O histórico fica
+em **Ver antecipações feitas**; antecipação lançada errado, o Administrador desfaz por lá.
+
 **Serviço concluído:** abra o serviço → **Lançar conta a receber**. Valor, cliente e vencimento
 (data do serviço + prazo da proposta) já vêm preenchidos.
 

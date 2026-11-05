@@ -387,6 +387,18 @@ function Formulario({ lancamento }: { lancamento?: LancamentoCompleto }) {
         </Aviso>
       )}
 
+      {editando && lancamento.antecipacao_id && (
+        <Aviso>
+          Esta conta foi antecipada: o dinheiro já entrou (com o desconto) e o vencimento do cliente
+          continua sendo {formatarData(lancamento.vencimento)}. Para voltar a deixá-la em aberto,
+          desfaça a antecipação em{' '}
+          <Link to="/financeiro/antecipacoes" className="font-semibold underline">
+            Antecipações
+          </Link>
+          .
+        </Aviso>
+      )}
+
       {editando && lancamento.status === 'realizado' && (
         <Card className="grid gap-2 text-sm sm:grid-cols-2">
           <p>

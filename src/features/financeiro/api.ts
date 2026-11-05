@@ -517,3 +517,72 @@ export function useCancelarMovimentoInvestimento() {
     onSuccess: atualizar,
   })
 }
+
+// -----------------------------------------------------------------------------
+// Antecipação de recebíveis
+// -----------------------------------------------------------------------------
+
+export type Antecipacao = {
+  lancamentos: string[]
+  data: string
+  conta_bancaria_id: string
+  instituicao: string
+  /** Em reais (a tela converte quando a pessoa digita em %). */
+  desconto: number
+  observacoes?: string
+}
+
+/**
+ * Antecipa as contas a receber escolhidas: ficam realizadas na data da antecipação,
+ * cada uma com a sua parte do desconto, e o vencimento do cliente continua guardado.
+ */
+export function useAntecipar() {
+  const atualizar = useAtualizarFinanceiro()
+  return useMutation({
+    mutationFn: async (a: Antecipacao) => {
+      const { data, error } = await supabase.rpc('antecipar_recebiveis', {
+        p_lancamentos: a.lancamentos,
+        p_data: a.data,
+        p_conta: a.conta_bancaria_id,
+        p_instituicao: a.instituicao,
+        p_desconto: a.desconto,
+        p_observacoes: a.observacoes || undefined,
+      })
+      if (error) throw error
+      return data
+    },
+    onSuccess: atualizar,
+  })
+}
+
+export function useAntecipacoes() {
+  return useQuery({
+    queryKey: ['financeiro', 'antecipacoes'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('antecipacoes')
+        .select(
+          '*, conta:contas_bancarias(id, nome), lancamentos(id, descricao, vencimento, valor, valor_pago, cliente:clientes(id, nome, nome_fantasia))',
+        )
+        .order('data', { ascending: false })
+        .order('criado_em', { ascending: false })
+        .limit(100)
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export type AntecipacaoCompleta = NonNullable<ReturnType<typeof useAntecipacoes>['data']>[number]
+
+/** Antecipação lançada errado: as contas voltam a ficar em aberto. Só o administrador. */
+export function useDesfazerAntecipacao() {
+  const atualizar = useAtualizarFinanceiro()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.rpc('desfazer_antecipacao', { p_antecipacao: id })
+      if (error) throw error
+    },
+    onSuccess: atualizar,
+  })
+}

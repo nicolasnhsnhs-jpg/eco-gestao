@@ -10,6 +10,7 @@ import { ExigePapel, RotaProtegida } from '@/features/auth/RotaProtegida'
 import { ClienteFichaPage } from '@/features/clientes/ClienteFichaPage'
 import { ClienteFormPage } from '@/features/clientes/ClienteFormPage'
 import { ClientesPage } from '@/features/clientes/ClientesPage'
+import { AntecipacoesPage } from '@/features/financeiro/AntecipacoesPage'
 import { CadastrosPage } from '@/features/financeiro/CadastrosPage'
 import { CartoesPage } from '@/features/financeiro/CartoesPage'
 import { ContasFixasPage } from '@/features/financeiro/ContasFixasPage'
@@ -137,6 +138,7 @@ export const router = createBrowserRouter([
           { path: 'lancamentos', element: <LancamentosPage /> },
           { path: 'lancamentos/novo', element: <LancamentoFormPage /> },
           { path: 'lancamentos/:id', element: <LancamentoFormPage /> },
+          { path: 'antecipacoes', element: <AntecipacoesPage /> },
           { path: 'notas', element: <NotasFiscaisPage /> },
           { path: 'notas/nova', element: <NotaFiscalFormPage /> },
           { path: 'notas/:id', element: <NotaFiscalFormPage /> },

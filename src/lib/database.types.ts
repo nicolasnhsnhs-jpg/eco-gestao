@@ -14,6 +14,81 @@ export type Database = {
   }
   public: {
     Tables: {
+      antecipacoes: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          conta_bancaria_id: string
+          criado_em: string
+          criado_por: string | null
+          data: string
+          desconto: number
+          desfeita: boolean
+          id: string
+          instituicao: string
+          observacoes: string | null
+          valor_bruto: number
+          valor_liquido: number | null
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          conta_bancaria_id: string
+          criado_em?: string
+          criado_por?: string | null
+          data: string
+          desconto: number
+          desfeita?: boolean
+          id?: string
+          instituicao: string
+          observacoes?: string | null
+          valor_bruto: number
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          conta_bancaria_id?: string
+          criado_em?: string
+          criado_por?: string | null
+          data?: string
+          desconto?: number
+          desfeita?: boolean
+          id?: string
+          instituicao?: string
+          observacoes?: string | null
+          valor_bruto?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "antecipacoes_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "antecipacoes_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "antecipacoes_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "v_saldos_contas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "antecipacoes_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       arquivos: {
         Row: {
           caminho_storage: string
@@ -1284,6 +1359,7 @@ export type Database = {
       }
       lancamentos: {
         Row: {
+          antecipacao_id: string | null
           atualizado_em: string
           atualizado_por: string | null
           cartao_credito_id: string | null
@@ -1316,6 +1392,7 @@ export type Database = {
           vencimento: string
         }
         Insert: {
+          antecipacao_id?: string | null
           atualizado_em?: string
           atualizado_por?: string | null
           cartao_credito_id?: string | null
@@ -1350,6 +1427,7 @@ export type Database = {
           vencimento: string
         }
         Update: {
+          antecipacao_id?: string | null
           atualizado_em?: string
           atualizado_por?: string | null
           cartao_credito_id?: string | null
@@ -1384,6 +1462,13 @@ export type Database = {
           vencimento?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "lancamentos_antecipacao_id_fkey"
+            columns: ["antecipacao_id"]
+            isOneToOne: false
+            referencedRelation: "antecipacoes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lancamentos_atualizado_por_fkey"
             columns: ["atualizado_por"]
@@ -3410,6 +3495,7 @@ export type Database = {
       v_lancamentos: {
         Row: {
           atrasado: boolean | null
+          antecipacao_id: string | null
           atualizado_em: string | null
           atualizado_por: string | null
           cartao_credito_id: string | null
@@ -3884,8 +3970,23 @@ export type Database = {
     }
     Functions: {
       anonimizar_cliente: { Args: { cliente: string }; Returns: undefined }
+      antecipar_recebiveis: {
+        Args: {
+          p_conta: string
+          p_data: string
+          p_desconto: number
+          p_instituicao: string
+          p_lancamentos: string[]
+          p_observacoes?: string
+        }
+        Returns: string
+      }
       atualizar_avisos: { Args: never; Returns: number }
       atualizar_pontos_os: { Args: { os: string }; Returns: undefined }
+      desfazer_antecipacao: {
+        Args: { p_antecipacao: string }
+        Returns: undefined
+      }
       buscar_clientes: {
         Args: { incluir_inativos?: boolean; termo?: string }
         Returns: {
