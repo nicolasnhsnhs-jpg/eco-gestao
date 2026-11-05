@@ -12,7 +12,7 @@
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 
-import { configuracaoBoleto, deveGerarAoEmitir, gerarBoletoDaNota } from '../_shared/boletoNota.ts'
+import { bancoAoEmitir, configuracaoBoleto, gerarBoletoDaNota } from '../_shared/boletoNota.ts'
 import { enviarNotaPorEmail, emailDoCliente } from '../_shared/enviarNota.ts'
 import { clienteAdmin, conferirFinanceiro, CORS, resposta } from '../_shared/servidor.ts'
 import { certificadoDaEmpresa, type Certificado } from './certificado.ts'
@@ -328,13 +328,15 @@ async function concluir(
 
   if (!enviar) return { numero, chave, envio: null }
 
-  // Nota paga por boleto: o boleto do Sicredi sai agora e vai no mesmo e-mail. Se falhar,
-  // a nota continua emitida e o e-mail espera (aviso de envio pendente) até o financeiro
-  // gerar ou anexar o boleto e clicar em Enviar.
+  // Nota paga por boleto: o boleto sai agora (pelo banco escolhido na nota, ou pela regra
+  // da configuração) e vai no mesmo e-mail. Se falhar, a nota continua emitida e o e-mail
+  // espera (aviso de envio pendente) até o financeiro gerar ou anexar o boleto e clicar em
+  // Enviar.
   const cfgBoleto = await configuracaoBoleto(admin)
-  if (deveGerarAoEmitir(cfgBoleto, nota)) {
+  const banco = bancoAoEmitir(cfgBoleto, nota)
+  if (banco) {
     try {
-      await gerarBoletoDaNota(admin, nota.id, usuarioId)
+      await gerarBoletoDaNota(admin, nota.id, usuarioId, banco)
     } catch (e) {
       const motivo = `O boleto não foi gerado (${(e as Error).message}). Gere ou anexe o boleto na nota e clique em Enviar.`
       await admin.from('notas_fiscais').update({ erro_envio: motivo }).eq('id', nota.id)

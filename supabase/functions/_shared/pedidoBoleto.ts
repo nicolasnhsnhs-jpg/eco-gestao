@@ -87,9 +87,12 @@ export function montarPedidoBoleto(cfg: ConfigBoleto, d: DadosBoleto): Record<st
   return pedido
 }
 
-/** A situação do Sicredi diz que o boleto foi pago (LIQUIDADO, LIQUIDADO PIX…). */
+/**
+ * A situação diz que o boleto foi pago: no Sicredi LIQUIDADO, LIQUIDADO PIX…; no Asaas
+ * RECEIVED, CONFIRMED ou RECEIVED_IN_CASH.
+ */
 export const boletoPago = (situacao: string | null | undefined) =>
-  /^LIQUIDADO/i.test(situacao ?? '')
+  /^(LIQUIDADO|RECEIVED|CONFIRMED)/i.test(situacao ?? '')
 
 /** O boleto não vale mais (baixado ou pago): pode-se gerar outro só se baixado. */
 export const boletoBaixado = (situacao: string | null | undefined) =>

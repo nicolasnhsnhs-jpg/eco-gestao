@@ -12,7 +12,7 @@ import { mensagemDeErro } from '@/lib/erros'
 import { supabase } from '@/lib/supabase'
 import { UNIDADE } from '@/lib/unidade'
 
-import { useTestarBoleto, useTestarNfse } from './notasApi'
+import { NOME_BANCO, useTestarBoleto, useTestarNfse } from './notasApi'
 
 // -----------------------------------------------------------------------------
 // Configurações gerais
@@ -229,17 +229,34 @@ export function SecaoBoleto() {
 
   return (
     <Card>
-      <h2 className="mb-1 text-lg font-bold">Boleto pelo sistema (Sicredi)</h2>
+      <h2 className="mb-1 text-lg font-bold">Boleto pelo sistema (Asaas e Sicredi)</h2>
       <p className="mb-4 text-sm text-texto-suave">
-        O sistema registra o boleto na API de Cobrança do Sicredi e manda junto com a nota. As
-        credenciais (token do Portal do Desenvolvedor e Código de Acesso do Internet Banking) ficam
-        nos segredos do Supabase, nunca aqui. Comece em <strong>Testes</strong>: os boletos vão ao
-        sandbox do Sicredi, sem valor.
+        O sistema registra o boleto no banco e manda junto com a nota. As credenciais ficam nos
+        segredos do Supabase, nunca aqui: <code>ASAAS_API_KEY</code> (Asaas) e{' '}
+        <code>SICREDI_API_KEY</code> e <code>SICREDI_CODIGO_ACESSO</code> (Sicredi). Comece em{' '}
+        <strong>Testes</strong>: os boletos vão ao sandbox do banco, sem valor.
       </p>
       {salvar.isError && <Aviso tipo="erro">{mensagemDeErro(salvar.error)}</Aviso>}
       {salvar.isSuccess && <Aviso tipo="sucesso">Configurações salvas.</Aviso>}
+
+      <h3 className="mt-2 font-semibold">Asaas</h3>
       <div className="mt-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Campo rotulo="Boleto pelo sistema" htmlFor="bol-amb">
+        <Campo rotulo="Boleto pelo Asaas" htmlFor="bol-asaas-amb">
+          <Select
+            id="bol-asaas-amb"
+            value={valor('boleto_asaas_ambiente')}
+            onChange={(e) => mudar('boleto_asaas_ambiente', e.target.value)}
+          >
+            <option value="desligado">Desligado</option>
+            <option value="sandbox">Testes (sandbox do Asaas)</option>
+            <option value="producao">Valendo</option>
+          </Select>
+        </Campo>
+      </div>
+
+      <h3 className="mt-4 font-semibold">Sicredi</h3>
+      <div className="mt-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Campo rotulo="Boleto pelo Sicredi" htmlFor="bol-amb">
           <Select
             id="bol-amb"
             value={valor('boleto_ambiente')}
@@ -284,6 +301,10 @@ export function SecaoBoleto() {
             <option value="NORMAL">Só código de barras</option>
           </Select>
         </Campo>
+      </div>
+
+      <h3 className="mt-4 font-semibold">Para os dois bancos</h3>
+      <div className="mt-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Campo rotulo="Multa por atraso (%)" htmlFor="bol-multa" dica="0 = sem multa.">
           <Input
             id="bol-multa"
@@ -300,25 +321,45 @@ export function SecaoBoleto() {
             onChange={percentual('boleto_juros_mes')}
           />
         </Campo>
-        <Campo rotulo="Ao emitir nota paga por boleto" htmlFor="bol-auto">
+        <Campo
+          rotulo="Ao emitir nota paga por boleto"
+          htmlFor="bol-auto"
+          dica="Quando a nota não escolheu o banco. Na nota dá para trocar."
+        >
           <Select
             id="bol-auto"
             value={valor('boleto_ao_emitir')}
             onChange={(e) => mudar('boleto_ao_emitir', e.target.value)}
           >
-            <option value="sim">Gerar o boleto e mandar junto</option>
+            <option value="asaas">Gerar pelo Asaas</option>
+            <option value="sicredi">Gerar pelo Sicredi</option>
+            <option value="valor">Pelo valor (até o limite, Asaas)</option>
             <option value="nao">Não gerar (só pelo botão)</option>
           </Select>
         </Campo>
+        {valor('boleto_ao_emitir') === 'valor' && (
+          <Campo
+            rotulo="Limite do Asaas (R$)"
+            htmlFor="bol-limite"
+            dica="Boletos até este valor saem pelo Asaas; acima, pelo Sicredi."
+          >
+            <Input
+              id="bol-limite"
+              inputMode="decimal"
+              value={valor('boleto_limite_asaas')}
+              onChange={percentual('boleto_limite_asaas')}
+            />
+          </Campo>
+        )}
       </div>
       {testar.isError && <Aviso tipo="erro">{mensagemDeErro(testar.error)}</Aviso>}
-      {testar.data && (
-        <Aviso tipo={testar.data.conexao === 'ok' ? 'sucesso' : 'erro'}>
-          {testar.data.conexao === 'ok'
-            ? `O Sicredi aceitou as credenciais (${testar.data.testado === 'producao' ? 'produção' : 'sandbox'}).`
-            : `A conexão com o Sicredi falhou: ${testar.data.conexao}`}
+      {testar.data?.resultados.map((r) => (
+        <Aviso key={r.banco} tipo={r.conexao === 'ok' ? 'sucesso' : 'erro'}>
+          {r.conexao === 'ok'
+            ? `O ${NOME_BANCO[r.banco]} aceitou as credenciais (${r.testado === 'producao' ? 'produção' : 'sandbox'}).`
+            : `A conexão com o ${NOME_BANCO[r.banco]} falhou: ${r.conexao}`}
         </Aviso>
-      )}
+      ))}
       <div className="mt-4 flex flex-wrap gap-2">
         <Button
           disabled={Object.keys(valores).length === 0 || salvar.isPending}
@@ -327,7 +368,7 @@ export function SecaoBoleto() {
           {salvar.isPending ? 'Salvando…' : 'Salvar'}
         </Button>
         <Button variante="secundario" disabled={testar.isPending} onClick={() => testar.mutate()}>
-          {testar.isPending ? 'Testando…' : 'Testar conexão com o Sicredi'}
+          {testar.isPending ? 'Testando…' : 'Testar conexão com os bancos'}
         </Button>
       </div>
     </Card>

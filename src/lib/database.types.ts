@@ -1705,6 +1705,8 @@ export type Database = {
           arquivo_xml_id: string | null
           atualizado_em: string
           atualizado_por: string | null
+          boleto_banco: string | null
+          boleto_cobranca_id: string | null
           boleto_codigo_barras: string | null
           boleto_consultado_em: string | null
           boleto_gerado_em: string | null
@@ -1774,6 +1776,8 @@ export type Database = {
           arquivo_xml_id?: string | null
           atualizado_em?: string
           atualizado_por?: string | null
+          boleto_banco?: string | null
+          boleto_cobranca_id?: string | null
           boleto_codigo_barras?: string | null
           boleto_consultado_em?: string | null
           boleto_gerado_em?: string | null
@@ -1845,6 +1849,8 @@ export type Database = {
           arquivo_xml_id?: string | null
           atualizado_em?: string
           atualizado_por?: string | null
+          boleto_banco?: string | null
+          boleto_cobranca_id?: string | null
           boleto_codigo_barras?: string | null
           boleto_consultado_em?: string | null
           boleto_gerado_em?: string | null

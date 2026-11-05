@@ -1,62 +1,80 @@
-// Edge Function "boleto": registra o boleto da nota fiscal na API de Cobrança do Sicredi.
-// Só Admin e Financeiro chamam.
+// Edge Function "boleto": registra o boleto da nota fiscal no Sicredi (API de Cobrança) ou
+// no Asaas. Só Admin e Financeiro chamam.
 //
-//   testar     confere as credenciais (autentica no ambiente ligado)
-//   ensaiar    registra um boleto de teste no sandbox do Sicredi (nada vale, a nota não muda)
+//   testar     confere as credenciais de cada banco ligado (ou em testes)
+//   ensaiar    registra um boleto de teste no sandbox do banco (nada vale, a nota não muda)
 //   gerar      registra de verdade, guarda o PDF e liga à nota (vai no e-mail da nota)
-//   consultar  atualiza a situação do boleto (em carteira, pago, baixado…)
-//   baixar     pede a baixa no Sicredi (o boleto deixa de valer) e o tira da nota
+//   consultar  atualiza a situação do boleto (aguardando, pago, vencido…)
+//   baixar     cancela o boleto no banco e o tira da nota
 //
-// A configuração fica em configuracoes (boleto_*); os segredos, em _shared/sicredi.ts.
+// A configuração fica em configuracoes (boleto_*); os segredos, em _shared/sicredi.ts e
+// _shared/asaas.ts.
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 
 import {
+  ambienteDoBanco,
   configuracaoBoleto,
+  contaDoBanco,
+  ehFalhaDeBoleto,
   ensaiarBoletoDaNota,
+  FalhaBoleto,
   gerarBoletoDaNota,
-  sicrediDaConfiguracao,
+  NOME_BANCO,
+  type Banco,
 } from '../_shared/boletoNota.ts'
 import { boletoPago } from '../_shared/pedidoBoleto.ts'
 import { clienteAdmin, conferirFinanceiro, CORS, resposta } from '../_shared/servidor.ts'
-import { FalhaSicredi } from '../_shared/sicredi.ts'
 
 type Pedido =
   | { acao: 'testar' }
-  | { acao: 'ensaiar'; notaId: string }
-  | { acao: 'gerar'; notaId: string }
+  | { acao: 'ensaiar'; notaId: string; banco: Banco }
+  | { acao: 'gerar'; notaId: string; banco?: Banco }
   | { acao: 'consultar'; notaId: string }
   | { acao: 'baixar'; notaId: string }
 
+const BANCOS: Banco[] = ['asaas', 'sicredi']
+
+const bancoValido = (b: unknown): b is Banco => b === 'asaas' || b === 'sicredi'
+
+/** Cada banco que não está desligado; o Sicredi desligado é testado no sandbox. */
 async function testar(admin: SupabaseClient) {
   const cfg = await configuracaoBoleto(admin)
-  const ambiente = cfg.boleto_ambiente === 'producao' ? 'producao' : 'sandbox'
-  let conexao: string
-  try {
-    await sicrediDaConfiguracao(cfg, ambiente).autenticar()
-    conexao = 'ok'
-  } catch (e) {
-    conexao = (e as Error).message
+  const resultados = []
+  for (const banco of BANCOS) {
+    const ambiente = ambienteDoBanco(cfg, banco)
+    if (banco === 'asaas' && ambiente === 'desligado') continue
+    const testado = ambiente === 'producao' ? 'producao' : 'sandbox'
+    let conexao: string
+    try {
+      await contaDoBanco(cfg, banco, testado).autenticar()
+      conexao = 'ok'
+    } catch (e) {
+      conexao = (e as Error).message
+    }
+    resultados.push({ banco, ambiente, testado, conexao })
   }
-  return { ambiente: cfg.boleto_ambiente || 'desligado', testado: ambiente, conexao }
+  return { resultados }
 }
 
 async function boletoDaNota(admin: SupabaseClient, notaId: string) {
   const { data: nota } = await admin
     .from('notas_fiscais')
-    .select('id, boleto_nosso_numero, boleto_situacao, arquivo_boleto_id')
+    .select('id, boleto_banco, boleto_cobranca_id, boleto_situacao, arquivo_boleto_id')
     .eq('id', notaId)
     .single()
-  if (!nota?.boleto_nosso_numero) throw new FalhaSicredi('Esta nota não tem boleto do Sicredi.')
+  if (!nota?.boleto_cobranca_id || !bancoValido(nota.boleto_banco))
+    throw new FalhaBoleto('Esta nota não tem boleto registrado em banco.')
+  const banco = nota.boleto_banco
   const cfg = await configuracaoBoleto(admin)
-  if (cfg.boleto_ambiente !== 'producao')
-    throw new FalhaSicredi('O boleto pelo sistema está desligado nas configurações.')
-  return { nota, sicredi: sicrediDaConfiguracao(cfg, 'producao') }
+  if (ambienteDoBanco(cfg, banco) !== 'producao')
+    throw new FalhaBoleto(`O boleto pelo ${NOME_BANCO[banco]} está desligado nas configurações.`)
+  return { nota, banco, conta: contaDoBanco(cfg, banco, 'producao') }
 }
 
 async function consultar(admin: SupabaseClient, notaId: string) {
-  const { nota, sicredi } = await boletoDaNota(admin, notaId)
-  const r = await sicredi.consultar(nota.boleto_nosso_numero)
+  const { nota, conta } = await boletoDaNota(admin, notaId)
+  const r = await conta.consultar(nota.boleto_cobranca_id)
   await admin
     .from('notas_fiscais')
     .update({ boleto_situacao: r.situacao, boleto_consultado_em: new Date().toISOString() })
@@ -65,15 +83,16 @@ async function consultar(admin: SupabaseClient, notaId: string) {
 }
 
 async function baixar(admin: SupabaseClient, notaId: string, usuarioId: string) {
-  const { nota, sicredi } = await boletoDaNota(admin, notaId)
-  if (boletoPago(nota.boleto_situacao)) throw new FalhaSicredi('Este boleto já foi pago.')
-  await sicredi.baixar(nota.boleto_nosso_numero)
-  // O boleto baixado sai da nota (o PDF continua nos arquivos do cliente e a auditoria
-  // guarda o nosso número): a nota pode ganhar outro.
+  const { nota, banco, conta } = await boletoDaNota(admin, notaId)
+  if (boletoPago(nota.boleto_situacao)) throw new FalhaBoleto('Este boleto já foi pago.')
+  await conta.baixar(nota.boleto_cobranca_id)
+  // O boleto cancelado sai da nota (o PDF continua nos arquivos do cliente e a auditoria
+  // guarda o id da cobrança): a nota pode ganhar outro, pelo mesmo banco ou pelo outro.
   const { error } = await admin
     .from('notas_fiscais')
     .update({
       arquivo_boleto_id: null,
+      boleto_cobranca_id: null,
       boleto_nosso_numero: null,
       boleto_linha_digitavel: null,
       boleto_codigo_barras: null,
@@ -89,9 +108,9 @@ async function baixar(admin: SupabaseClient, notaId: string, usuarioId: string) 
     .eq('id', notaId)
   if (error)
     throw new Error(
-      `A baixa foi pedida no Sicredi, mas a nota não foi atualizada: ${error.message}`,
+      `O boleto foi cancelado no ${NOME_BANCO[banco]}, mas a nota não foi atualizada: ${error.message}`,
     )
-  return { baixado: nota.boleto_nosso_numero }
+  return { baixado: nota.boleto_cobranca_id, banco }
 }
 
 Deno.serve(async (req) => {
@@ -114,9 +133,15 @@ Deno.serve(async (req) => {
       case 'testar':
         return resposta(200, await testar(admin))
       case 'ensaiar':
-        return resposta(200, await ensaiarBoletoDaNota(admin, pedido.notaId))
+        if (!bancoValido(pedido.banco)) return resposta(400, { erro: 'Banco inválido.' })
+        return resposta(200, await ensaiarBoletoDaNota(admin, pedido.notaId, pedido.banco))
       case 'gerar':
-        return resposta(200, await gerarBoletoDaNota(admin, pedido.notaId, quem.usuarioId))
+        if (pedido.banco !== undefined && !bancoValido(pedido.banco))
+          return resposta(400, { erro: 'Banco inválido.' })
+        return resposta(
+          200,
+          await gerarBoletoDaNota(admin, pedido.notaId, quem.usuarioId, pedido.banco),
+        )
       case 'consultar':
         return resposta(200, await consultar(admin, pedido.notaId))
       case 'baixar':
@@ -125,7 +150,7 @@ Deno.serve(async (req) => {
         return resposta(400, { erro: 'Ação desconhecida.' })
     }
   } catch (e) {
-    const falha = e instanceof FalhaSicredi
+    const falha = ehFalhaDeBoleto(e)
     if (!falha) console.error(e)
     return resposta(falha ? 400 : 500, { erro: (e as Error).message })
   }

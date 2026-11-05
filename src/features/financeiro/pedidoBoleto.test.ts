@@ -114,6 +114,9 @@ describe('textoSicredi e situação', () => {
   it('reconhece boleto pago', () => {
     expect(boletoPago('LIQUIDADO PIX')).toBe(true)
     expect(boletoPago('LIQUIDADO')).toBe(true)
+    expect(boletoPago('RECEIVED')).toBe(true)
+    expect(boletoPago('CONFIRMED')).toBe(true)
+    expect(boletoPago('PENDING')).toBe(false)
     expect(boletoPago('EM CARTEIRA')).toBe(false)
     expect(boletoPago(null)).toBe(false)
   })

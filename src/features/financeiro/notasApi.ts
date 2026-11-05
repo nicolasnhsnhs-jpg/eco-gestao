@@ -529,25 +529,57 @@ export function useTestarNfse() {
 }
 
 // -----------------------------------------------------------------------------
-// Boleto pelo sistema (Edge Function "boleto", API de Cobrança do Sicredi)
+// Boleto pelo sistema (Edge Function "boleto", no Sicredi ou no Asaas)
 // -----------------------------------------------------------------------------
 
-/** desligado | sandbox (testes do Sicredi, nada vale) | producao */
+export type BancoBoleto = 'sicredi' | 'asaas'
+
+export const NOME_BANCO: Record<BancoBoleto, string> = { sicredi: 'Sicredi', asaas: 'Asaas' }
+
+/** desligado | sandbox (testes do banco, nada vale) | producao */
 export type AmbienteBoleto = 'desligado' | 'sandbox' | 'producao'
 
-export function useAmbienteBoleto() {
+export type ConfigBoleto = {
+  ambiente: Record<BancoBoleto, AmbienteBoleto>
+  /** Banco quando a nota não escolheu: nao, sicredi, asaas ou valor (até o limite, Asaas). */
+  regra: 'nao' | BancoBoleto | 'valor'
+  limiteAsaas: number | null
+}
+
+export function useConfigBoleto() {
   return useQuery({
-    queryKey: ['configuracoes', 'boleto_ambiente'],
-    queryFn: async () => {
+    queryKey: ['configuracoes', 'boleto'],
+    queryFn: async (): Promise<ConfigBoleto> => {
       const { data, error } = await supabase
         .from('configuracoes')
-        .select('valor')
-        .eq('chave', 'boleto_ambiente')
-        .maybeSingle()
+        .select('chave, valor')
+        .in('chave', [
+          'boleto_ambiente',
+          'boleto_asaas_ambiente',
+          'boleto_ao_emitir',
+          'boleto_limite_asaas',
+        ])
       if (error) throw error
-      return (data?.valor ?? 'desligado') as AmbienteBoleto
+      const c = Object.fromEntries(data.map((l) => [l.chave, (l.valor ?? '').trim()]))
+      const limite = Number(c.boleto_limite_asaas)
+      return {
+        ambiente: {
+          sicredi: (c.boleto_ambiente || 'desligado') as AmbienteBoleto,
+          asaas: (c.boleto_asaas_ambiente || 'desligado') as AmbienteBoleto,
+        },
+        regra: (c.boleto_ao_emitir || 'nao') as ConfigBoleto['regra'],
+        limiteAsaas: c.boleto_limite_asaas && Number.isFinite(limite) ? limite : null,
+      }
     },
   })
+}
+
+/** Banco pela regra da configuração (o mesmo cálculo da função "boleto"). */
+export function bancoPelaRegra(cfg: ConfigBoleto, valorBoleto: number): BancoBoleto | null {
+  if (cfg.regra === 'sicredi' || cfg.regra === 'asaas') return cfg.regra
+  if (cfg.regra === 'valor' && cfg.limiteAsaas != null)
+    return valorBoleto <= cfg.limiteAsaas ? 'asaas' : 'sicredi'
+  return null
 }
 
 async function chamarBoleto<T>(corpo: Record<string, unknown>): Promise<T> {
@@ -555,7 +587,7 @@ async function chamarBoleto<T>(corpo: Record<string, unknown>): Promise<T> {
   if (error) {
     if (error instanceof FunctionsHttpError) {
       const detalhe = (await error.context.json().catch(() => null)) as { erro?: string } | null
-      throw new Error(detalhe?.erro ?? 'O pedido ao Sicredi falhou.')
+      throw new Error(detalhe?.erro ?? 'O pedido ao banco falhou.')
     }
     throw error
   }
@@ -563,18 +595,36 @@ async function chamarBoleto<T>(corpo: Record<string, unknown>): Promise<T> {
 }
 
 export type BoletoGerado = {
-  nossoNumero: string
+  banco: BancoBoleto
+  cobrancaId: string
   linhaDigitavel: string
   valor: number
   vencimento: string
 }
 
-/** Registra o boleto da nota no Sicredi; o PDF fica ligado à nota e vai no e-mail. */
+/** Registra o boleto da nota no banco; o PDF fica ligado à nota e vai no e-mail. */
 export function useGerarBoleto() {
   const atualizar = useAtualizarNotas()
   return useMutation({
-    mutationFn: (notaId: string) => chamarBoleto<BoletoGerado>({ acao: 'gerar', notaId }),
+    mutationFn: ({ notaId, banco }: { notaId: string; banco: BancoBoleto }) =>
+      chamarBoleto<BoletoGerado>({ acao: 'gerar', notaId, banco }),
     onSettled: atualizar,
+  })
+}
+
+/** No rascunho: por qual banco sai o boleto na emissão (null = pela regra). */
+export function useEscolherBancoBoleto() {
+  const atualizar = useAtualizarNotas()
+  return useMutation({
+    mutationFn: async ({ notaId, banco }: { notaId: string; banco: BancoBoleto | null }) => {
+      const { error } = await supabase
+        .from('notas_fiscais')
+        .update({ boleto_banco: banco })
+        .eq('id', notaId)
+        .is('boleto_cobranca_id', null)
+      if (error) throw error
+    },
+    onSuccess: atualizar,
   })
 }
 
@@ -584,10 +634,11 @@ export type EnsaioBoleto = BoletoGerado & {
   erroPdf: string | null
 }
 
-/** Registra um boleto de teste no sandbox do Sicredi. A nota não muda. */
+/** Registra um boleto de teste no sandbox do banco. A nota não muda. */
 export function useEnsaiarBoleto() {
   return useMutation({
-    mutationFn: (notaId: string) => chamarBoleto<EnsaioBoleto>({ acao: 'ensaiar', notaId }),
+    mutationFn: ({ notaId, banco }: { notaId: string; banco: BancoBoleto }) =>
+      chamarBoleto<EnsaioBoleto>({ acao: 'ensaiar', notaId, banco }),
   })
 }
 
@@ -598,7 +649,7 @@ export type SituacaoBoleto = {
   valorPago: number | null
 }
 
-/** Atualiza a situação do boleto no Sicredi (em carteira, pago, baixado…). */
+/** Atualiza a situação do boleto no banco (aguardando, pago, vencido…). */
 export function useConsultarBoleto() {
   const atualizar = useAtualizarNotas()
   return useMutation({
@@ -607,7 +658,7 @@ export function useConsultarBoleto() {
   })
 }
 
-/** Pede a baixa do boleto no Sicredi (deixa de valer) e o tira da nota. */
+/** Cancela o boleto no banco (deixa de valer) e o tira da nota. */
 export function useBaixarBoleto() {
   const atualizar = useAtualizarNotas()
   return useMutation({
@@ -616,9 +667,16 @@ export function useBaixarBoleto() {
   })
 }
 
-export type ResultadoTesteBoleto = { ambiente: AmbienteBoleto; testado: string; conexao: string }
+export type ResultadoTesteBoleto = {
+  resultados: {
+    banco: BancoBoleto
+    ambiente: AmbienteBoleto
+    testado: 'sandbox' | 'producao'
+    conexao: string
+  }[]
+}
 
-/** Confere as credenciais do Sicredi no ambiente ligado (ou no sandbox, se desligado). */
+/** Confere as credenciais de cada banco ligado (o Sicredi desligado, no sandbox). */
 export function useTestarBoleto() {
   return useMutation({
     mutationFn: () => chamarBoleto<ResultadoTesteBoleto>({ acao: 'testar' }),
