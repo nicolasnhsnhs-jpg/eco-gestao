@@ -94,8 +94,10 @@ export function totalRetido(n: {
 /** O texto do resultado da emissão, também usado na emissão em lote. */
 export function textoEmissao(r: {
   numero: string
-  envio: { enviada: true; para: string[] } | { enviada: false; motivo: string }
+  envio: { enviada: true; para: string[] } | { enviada: false; motivo: string } | null
 }): string {
+  if (!r.envio)
+    return `NF ${r.numero} emitida. Anexe o boleto e clique em Enviar para mandar ao cliente.`
   return r.envio.enviada
     ? `NF ${r.numero} emitida e enviada para ${r.envio.para.join(', ')}.`
     : `NF ${r.numero} emitida. ${r.envio.motivo} Ficou o aviso de envio pendente.`

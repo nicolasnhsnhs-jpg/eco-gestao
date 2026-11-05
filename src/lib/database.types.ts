@@ -1679,6 +1679,7 @@ export type Database = {
           aliquota_pis: number | null
           ambiente_nfse: string | null
           arquivo_boleto_id: string | null
+          arquivo_cancelamento_id: string | null
           arquivo_pdf_id: string | null
           arquivo_xml_id: string | null
           atualizado_em: string
@@ -1692,6 +1693,7 @@ export type Database = {
           boleto_situacao: string | null
           boleto_valor: number | null
           boleto_vencimento: string | null
+          cancelada_em: string | null
           chave_acesso: string | null
           cliente_id: string
           codigo_nbs: string | null
@@ -1716,6 +1718,7 @@ export type Database = {
           importada_de: string | null
           iss_retido: boolean
           lancamento_id: string | null
+          motivo_cancelamento: string | null
           municipio_prestacao: string | null
           numero: string | null
           numero_dps: string | null
@@ -1723,6 +1726,7 @@ export type Database = {
           pis_cofins_retidos: boolean
           serie_dps: string | null
           status: Database['public']['Enums']['status_nota_fiscal']
+          substitui_nota_id: string | null
           tipo: Database['public']['Enums']['tipo_nota_fiscal']
           tp_imunidade: number | null
           tp_ret_piscofins: number | null
@@ -1741,6 +1745,7 @@ export type Database = {
           aliquota_pis?: number | null
           ambiente_nfse?: string | null
           arquivo_boleto_id?: string | null
+          arquivo_cancelamento_id?: string | null
           arquivo_pdf_id?: string | null
           arquivo_xml_id?: string | null
           atualizado_em?: string
@@ -1754,6 +1759,7 @@ export type Database = {
           boleto_situacao?: string | null
           boleto_valor?: number | null
           boleto_vencimento?: string | null
+          cancelada_em?: string | null
           chave_acesso?: string | null
           cliente_id: string
           codigo_nbs?: string | null
@@ -1778,6 +1784,7 @@ export type Database = {
           importada_de?: string | null
           iss_retido?: boolean
           lancamento_id?: string | null
+          motivo_cancelamento?: string | null
           municipio_prestacao?: string | null
           numero?: string | null
           numero_dps?: string | null
@@ -1785,6 +1792,7 @@ export type Database = {
           pis_cofins_retidos?: boolean
           serie_dps?: string | null
           status?: Database['public']['Enums']['status_nota_fiscal']
+          substitui_nota_id?: string | null
           tipo: Database['public']['Enums']['tipo_nota_fiscal']
           tp_imunidade?: number | null
           tp_ret_piscofins?: number | null
@@ -1803,6 +1811,7 @@ export type Database = {
           aliquota_pis?: number | null
           ambiente_nfse?: string | null
           arquivo_boleto_id?: string | null
+          arquivo_cancelamento_id?: string | null
           arquivo_pdf_id?: string | null
           arquivo_xml_id?: string | null
           atualizado_em?: string
@@ -1816,6 +1825,7 @@ export type Database = {
           boleto_situacao?: string | null
           boleto_valor?: number | null
           boleto_vencimento?: string | null
+          cancelada_em?: string | null
           chave_acesso?: string | null
           cliente_id?: string
           codigo_nbs?: string | null
@@ -1840,6 +1850,7 @@ export type Database = {
           importada_de?: string | null
           iss_retido?: boolean
           lancamento_id?: string | null
+          motivo_cancelamento?: string | null
           municipio_prestacao?: string | null
           numero?: string | null
           numero_dps?: string | null
@@ -1847,6 +1858,7 @@ export type Database = {
           pis_cofins_retidos?: boolean
           serie_dps?: string | null
           status?: Database['public']['Enums']['status_nota_fiscal']
+          substitui_nota_id?: string | null
           tipo?: Database['public']['Enums']['tipo_nota_fiscal']
           tp_imunidade?: number | null
           tp_ret_piscofins?: number | null
@@ -1863,6 +1875,13 @@ export type Database = {
           {
             foreignKeyName: 'notas_fiscais_arquivo_boleto_id_fkey'
             columns: ['arquivo_boleto_id']
+            isOneToOne: false
+            referencedRelation: 'arquivos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notas_fiscais_arquivo_cancelamento_id_fkey'
+            columns: ['arquivo_cancelamento_id']
             isOneToOne: false
             referencedRelation: 'arquivos'
             referencedColumns: ['id']
@@ -1921,6 +1940,13 @@ export type Database = {
             columns: ['lancamento_id']
             isOneToOne: false
             referencedRelation: 'v_lancamentos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notas_fiscais_substitui_nota_id_fkey'
+            columns: ['substitui_nota_id']
+            isOneToOne: false
+            referencedRelation: 'notas_fiscais'
             referencedColumns: ['id']
           },
         ]

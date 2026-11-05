@@ -20,7 +20,9 @@ import { gerarDanfse } from './danfse.ts'
 import {
   agoraBrasilia,
   idDps,
+  montarCancelamentoAssinado,
   montarDpsAssinada,
+  type MotivoCancelamento,
   type DadosDps,
   type Endereco,
   type Leiaute,
@@ -31,7 +33,8 @@ type Pedido =
   | { acao: 'testar' }
   | { acao: 'modelo'; notaId: string }
   | { acao: 'ensaiar'; notaId: string }
-  | { acao: 'emitir'; notaId: string }
+  | { acao: 'emitir'; notaId: string; enviar?: boolean }
+  | { acao: 'cancelar'; notaId: string; motivo: MotivoCancelamento; justificativa: string }
 
 class Falha extends Error {}
 
@@ -242,7 +245,10 @@ async function guardarArquivo(
   return id
 }
 
-/** A nota foi autorizada: guarda XML e PDF, marca como emitida e manda o e-mail. */
+/**
+ * A nota foi autorizada: guarda XML e PDF, marca como emitida e, com `enviar`, manda o
+ * e-mail. Sem `enviar` ("Só emitir"), o financeiro anexa o boleto e clica em Enviar.
+ */
 async function concluir(
   admin: SupabaseClient,
   montada: NotaMontada,
@@ -250,6 +256,7 @@ async function concluir(
   chave: string,
   xml: string,
   origem: string | null,
+  enviar: boolean,
 ) {
   const { nota, dados } = montada
   const numero = tag(xml, 'nNFSe') ?? ''
@@ -310,6 +317,8 @@ async function concluir(
       `A NFS-e ${numero} foi emitida (chave ${chave}), mas não consegui gravar no sistema: ${error.message}`,
     )
   }
+
+  if (!enviar) return { numero, chave, envio: null }
 
   // Nota paga por boleto: o boleto do Sicredi sai agora e vai no mesmo e-mail. Se falhar,
   // a nota continua emitida e o e-mail espera (aviso de envio pendente) até o financeiro
@@ -376,6 +385,7 @@ async function emitir(
   notaId: string,
   usuarioId: string,
   origem: string | null,
+  enviar: boolean,
 ) {
   const cfg = await configuracao(admin)
   if (cfg.nfse_ambiente !== 'producao')
@@ -408,7 +418,7 @@ async function emitir(
       const chave = await sefin.chaveDaDps(id)
       if (chave) {
         const xml = await sefin.xmlDaNota(chave)
-        if (xml) return await concluir(admin, montada, usuarioId, chave, xml, origem)
+        if (xml) return await concluir(admin, montada, usuarioId, chave, xml, origem, enviar)
       }
     }
 
@@ -419,15 +429,93 @@ async function emitir(
       // Sem resposta (queda, tempo esgotado): confere se a nota saiu mesmo assim.
       const chave = await sefin.chaveDaDps(id).catch(() => null)
       const xml = chave ? await sefin.xmlDaNota(chave).catch(() => null) : null
-      if (chave && xml) return await concluir(admin, montada, usuarioId, chave, xml, origem)
+      if (chave && xml) return await concluir(admin, montada, usuarioId, chave, xml, origem, enviar)
       throw new Falha(`A Sefin Nacional não respondeu (${(e as Error).message}). Tente de novo.`)
     }
     if (!r.ok) throw new Falha(`Recusada pela Sefin: ${textoDosErros(r.erros)}`)
-    return await concluir(admin, montada, usuarioId, r.chaveAcesso, r.xml, origem)
+    return await concluir(admin, montada, usuarioId, r.chaveAcesso, r.xml, origem, enviar)
   } catch (e) {
     await soltar((e as Error).message)
     throw e
   }
+}
+
+/**
+ * Cancela a NFS-e no Sistema Nacional (evento e101101) e marca a nota como cancelada.
+ * A conta a receber deixa de mostrar o número dela; a nota que a corrige é outra.
+ */
+async function cancelar(
+  admin: SupabaseClient,
+  notaId: string,
+  usuarioId: string,
+  motivo: MotivoCancelamento,
+  justificativa: string,
+  origem: string | null,
+) {
+  if (!['1', '2', '9'].includes(motivo)) throw new Falha('Escolha o motivo do cancelamento.')
+  const texto = (justificativa ?? '').replace(/\s+/g, ' ').trim()
+  if (texto.length < 15) throw new Falha('Explique o motivo com pelo menos 15 letras.')
+
+  const { data: nota } = await admin.from('notas_fiscais').select('*').eq('id', notaId).single()
+  if (!nota) throw new Falha('Nota não encontrada.')
+  if (nota.status !== 'emitida') throw new Falha('Só a nota emitida pode ser cancelada.')
+  if (!nota.chave_acesso)
+    throw new Falha(
+      'Esta nota não tem a chave de acesso no sistema: cancele no emissor onde ela foi feita.',
+    )
+
+  const cert = certificadoDaEmpresa()
+  const xml = montarCancelamentoAssinado(
+    {
+      ambiente: 'producao',
+      cnpj: cert.cnpj ?? '',
+      chave: nota.chave_acesso,
+      motivo,
+      justificativa: texto,
+    },
+    cert,
+  )
+  const r = await new Sefin('producao', cert, origem).cancelar(nota.chave_acesso, xml)
+  if (!r.ok) throw new Falha(`Cancelamento recusado pela Sefin: ${textoDosErros(r.erros)}`)
+
+  // O cancelamento já vale no governo: daqui para baixo, falhar não pode desfazer nada.
+  let arquivoId: string | null = null
+  try {
+    arquivoId = await guardarArquivo(
+      admin,
+      nota,
+      usuarioId,
+      `Cancelamento-NFSe-${nota.numero ?? ''}.xml`,
+      'application/xml',
+      new TextEncoder().encode(r.xml),
+    )
+  } catch (e) {
+    console.error('Cancelamento registrado mas XML não guardado', nota.id, e)
+  }
+  const { error } = await admin
+    .from('notas_fiscais')
+    .update({
+      status: 'cancelada',
+      cancelada_em: new Date().toISOString(),
+      motivo_cancelamento: texto,
+      arquivo_cancelamento_id: arquivoId,
+      atualizado_por: usuarioId,
+    })
+    .eq('id', nota.id)
+  if (error) {
+    console.error('Cancelamento registrado mas nota não atualizada', nota.id, error)
+    throw new Error(
+      `A NFS-e ${nota.numero} foi cancelada no governo, mas não consegui marcar no sistema: ${error.message}`,
+    )
+  }
+  if (nota.lancamento_id && nota.numero) {
+    await admin
+      .from('lancamentos')
+      .update({ numero_nota_fiscal: null })
+      .eq('id', nota.lancamento_id)
+      .eq('numero_nota_fiscal', nota.numero)
+  }
+  return { cancelada: true, numero: nota.numero }
 }
 
 /** Manda o rascunho ao ambiente de testes do governo. Nada na nota muda. */
@@ -531,7 +619,25 @@ Deno.serve(async (req) => {
       case 'emitir':
         return resposta(
           200,
-          await emitir(admin, pedido.notaId, quem.usuarioId, req.headers.get('origin')),
+          await emitir(
+            admin,
+            pedido.notaId,
+            quem.usuarioId,
+            req.headers.get('origin'),
+            pedido.enviar !== false,
+          ),
+        )
+      case 'cancelar':
+        return resposta(
+          200,
+          await cancelar(
+            admin,
+            pedido.notaId,
+            quem.usuarioId,
+            pedido.motivo,
+            pedido.justificativa,
+            req.headers.get('origin'),
+          ),
         )
       default:
         return resposta(400, { erro: 'Ação desconhecida.' })

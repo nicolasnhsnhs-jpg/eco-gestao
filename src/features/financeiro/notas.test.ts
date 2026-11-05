@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { filtrarCodigos, formatarCodigoNfse } from './codigosNfse'
+
 import {
   calcularPisCofins,
   notaDoContrato,
@@ -151,5 +153,24 @@ describe('notaDoContrato', () => {
       notaDoContrato({ descricao: 'X', valor_mensal: 100, forma_pagamento: 'pix' }, '2026-12-06')
         .descricao,
     ).toBe('X')
+  })
+})
+
+describe('códigos da NFS-e', () => {
+  const lista = [
+    { codigo: '071301', busca: '071301 07.13.01 dedetizacao, desinfeccao' },
+    { codigo: '071101', busca: '071101 07.11.01 limpeza e conservacao' },
+  ]
+  it('formata como no Anexo B', () => {
+    expect(formatarCodigoNfse('tributacao', '071301')).toBe('07.13.01')
+    expect(formatarCodigoNfse('nbs', '118032100')).toBe('1.1803.21.00')
+  })
+  it('acha pelo começo do código, com ou sem pontos', () => {
+    expect(filtrarCodigos(lista, '07.13').map((c) => c.codigo)).toEqual(['071301'])
+    expect(filtrarCodigos(lista, '0711').map((c) => c.codigo)).toEqual(['071101'])
+  })
+  it('acha pelas palavras, sem acento', () => {
+    expect(filtrarCodigos(lista, 'Dedetização').map((c) => c.codigo)).toEqual(['071301'])
+    expect(filtrarCodigos(lista, '')).toHaveLength(2)
   })
 })

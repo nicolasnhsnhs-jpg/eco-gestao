@@ -1,4 +1,4 @@
-import { FlaskConical, FileText, Send } from 'lucide-react'
+import { FileCheck, FlaskConical, FileText, Send } from 'lucide-react'
 import { useState } from 'react'
 
 import { Aviso } from '@/components/ui/Aviso'
@@ -11,8 +11,9 @@ import { useAmbienteNfse, useEmitirNota, useEnsaiarNota, type NotaFiscalCompleta
 import { textoEmissao } from './notas'
 
 /**
- * Rascunho → nota emitida, sem sair do sistema. "Confirmar e emitir" salva o que foi
- * conferido, emite no Sistema Nacional NFS-e, guarda o PDF e manda ao cliente.
+ * Rascunho → nota emitida, sem sair do sistema. "Emitir e enviar" salva o que foi
+ * conferido, emite no Sistema Nacional NFS-e, guarda o PDF e manda ao cliente; "Só
+ * emitir" para antes do e-mail (o financeiro anexa o boleto e envia depois).
  * No ambiente de testes, "Testar emissão" manda ao governo sem valer nada.
  */
 export function EmissaoNota({
@@ -36,17 +37,22 @@ export function EmissaoNota({
   if (ambiente.data !== 'producao' && ambiente.data !== 'homologacao') return null
   if (modelo && ambiente.data !== 'homologacao') return null
 
-  async function confirmarEEmitir() {
+  async function confirmarEEmitir(enviar: boolean) {
     if (
       !window.confirm(
-        'Emitir esta nota agora? Ela vai para o Sistema Nacional NFS-e e o PDF segue ao cliente.',
+        enviar
+          ? 'Emitir esta nota agora? Ela vai para o Sistema Nacional NFS-e e o PDF segue ao cliente.'
+          : 'Emitir esta nota agora, sem mandar ao cliente? Depois anexe o boleto e clique em Enviar.',
       )
     )
       return
     setMensagem(null)
     if (!(await salvarAntes())) return
     try {
-      setMensagem({ tipo: 'sucesso', texto: textoEmissao(await emitir.mutateAsync(nota.id)) })
+      setMensagem({
+        tipo: 'sucesso',
+        texto: textoEmissao(await emitir.mutateAsync({ notaId: nota.id, enviar })),
+      })
     } catch (erro) {
       setMensagem({ tipo: 'erro', texto: mensagemDeErro(erro) })
     }
@@ -86,8 +92,9 @@ export function EmissaoNota({
         </p>
       ) : (
         <p className="text-sm text-texto-suave">
-          Confira os dados acima e confirme: o sistema emite a nota no Sistema Nacional NFS-e,
-          guarda o PDF e o XML e manda o PDF ao e-mail do cliente.
+          Confira os dados acima. <strong>Emitir e enviar</strong>: o sistema emite a nota no
+          Sistema Nacional NFS-e, guarda o PDF e o XML e já manda ao e-mail do cliente.{' '}
+          <strong>Só emitir</strong>: emite e para aí; você anexa o boleto e clica em Enviar.
         </p>
       )}
       {!modelo && nota.erro_emissao && !mensagem && (
@@ -96,10 +103,19 @@ export function EmissaoNota({
       {mensagem && <Aviso tipo={mensagem.tipo}>{mensagem.texto}</Aviso>}
       <div className="flex flex-wrap gap-2">
         {ambiente.data === 'producao' ? (
-          <Button disabled={ocupado} onClick={() => void confirmarEEmitir()}>
-            <Send className="size-4" aria-hidden />
-            {emitir.isPending ? 'Emitindo…' : 'Confirmar e emitir'}
-          </Button>
+          <>
+            <Button disabled={ocupado} onClick={() => void confirmarEEmitir(true)}>
+              <Send className="size-4" aria-hidden />
+              {emitir.isPending ? 'Emitindo…' : 'Emitir e enviar ao cliente'}
+            </Button>
+            <Button
+              variante="secundario"
+              disabled={ocupado}
+              onClick={() => void confirmarEEmitir(false)}
+            >
+              <FileCheck className="size-4" aria-hidden /> Só emitir
+            </Button>
+          </>
         ) : (
           <Button disabled={ocupado} onClick={() => void testar()}>
             <FlaskConical className="size-4" aria-hidden />

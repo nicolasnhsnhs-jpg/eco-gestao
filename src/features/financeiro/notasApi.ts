@@ -3,6 +3,7 @@ import { FunctionsHttpError } from '@supabase/supabase-js'
 
 import { nomeSeguro, TAMANHO_MAXIMO } from '@/lib/arquivos'
 import type { Database, TablesInsert } from '@/lib/database.types'
+import { hojeISO } from '@/lib/datas'
 import { supabase } from '@/lib/supabase'
 
 /*
@@ -369,15 +370,95 @@ async function chamarNfse<T>(corpo: Record<string, unknown>): Promise<T> {
 export type ResultadoEmissao = {
   numero: string
   chave: string
-  envio: { enviada: true; para: string[] } | { enviada: false; motivo: string }
+  /** null quando foi "Só emitir": o e-mail sai depois, pelo botão Enviar. */
+  envio: { enviada: true; para: string[] } | { enviada: false; motivo: string } | null
 }
 
-/** Emite o rascunho na Sefin Nacional: a nota vira emitida, com PDF, e vai ao cliente. */
+/**
+ * Emite o rascunho na Sefin Nacional: a nota vira emitida, com PDF. Com `enviar` (o
+ * padrão), já vai ao cliente; sem, espera o financeiro anexar o boleto e clicar em Enviar.
+ */
 export function useEmitirNota() {
   const atualizar = useAtualizarNotas()
   return useMutation({
-    mutationFn: (notaId: string) => chamarNfse<ResultadoEmissao>({ acao: 'emitir', notaId }),
+    mutationFn: (p: string | { notaId: string; enviar: boolean }) =>
+      chamarNfse<ResultadoEmissao>(
+        typeof p === 'string' ? { acao: 'emitir', notaId: p } : { acao: 'emitir', ...p },
+      ),
     onSettled: atualizar,
+  })
+}
+
+export type MotivoCancelamento = '1' | '2' | '9'
+
+/** Cancela a NFS-e no Sistema Nacional; a nota fica como cancelada no sistema. */
+export function useCancelarNota() {
+  const atualizar = useAtualizarNotas()
+  return useMutation({
+    mutationFn: (p: { notaId: string; motivo: MotivoCancelamento; justificativa: string }) =>
+      chamarNfse<{ cancelada: true; numero: string | null }>({ acao: 'cancelar', ...p }),
+    onSettled: atualizar,
+  })
+}
+
+/**
+ * "Corrigir e emitir de novo": abre um rascunho com os dados da nota cancelada (e a conta
+ * a receber e o boleto dela), para acertar o que estava errado. Devolve o id do rascunho.
+ */
+export function useCorrigirNota() {
+  const atualizar = useAtualizarNotas()
+  return useMutation({
+    mutationFn: async (n: NotaFiscalCompleta) => {
+      const { data: existente } = await supabase
+        .from('notas_fiscais')
+        .select('id')
+        .eq('substitui_nota_id', n.id)
+        .neq('status', 'cancelada')
+        .limit(1)
+      if (existente?.[0]) return existente[0].id
+      const { data, error } = await supabase
+        .from('notas_fiscais')
+        .insert({
+          tipo: n.tipo,
+          status: 'rascunho',
+          cliente_id: n.cliente_id,
+          contrato_id: n.contrato_id,
+          lancamento_id: n.lancamento_id,
+          data_emissao: hojeISO(),
+          competencia: n.competencia,
+          vencimento: n.vencimento,
+          forma_pagamento: n.forma_pagamento,
+          valor_servico: n.valor_servico,
+          descricao: n.descricao,
+          codigo_tributacao: n.codigo_tributacao,
+          codigo_nbs: n.codigo_nbs,
+          iss_retido: n.iss_retido,
+          aliquota_iss: n.aliquota_iss,
+          pis_cofins_retidos: n.pis_cofins_retidos,
+          aliquota_pis: n.aliquota_pis,
+          aliquota_cofins: n.aliquota_cofins,
+          valor_pis: n.valor_pis,
+          valor_cofins: n.valor_cofins,
+          valor_csll: n.valor_csll,
+          valor_irrf: n.valor_irrf,
+          valor_inss: n.valor_inss,
+          municipio_prestacao: n.municipio_prestacao,
+          cst_piscofins: n.cst_piscofins,
+          trib_issqn: n.trib_issqn,
+          tp_imunidade: n.tp_imunidade,
+          tp_ret_piscofins: n.tp_ret_piscofins,
+          arquivo_boleto_id: n.arquivo_boleto_id,
+          observacoes: [n.observacoes, `Substitui a NF ${n.numero ?? ''} (cancelada).`]
+            .filter(Boolean)
+            .join(' '),
+          substitui_nota_id: n.id,
+        })
+        .select('id')
+        .single()
+      if (error) throw error
+      return data.id
+    },
+    onSuccess: atualizar,
   })
 }
 

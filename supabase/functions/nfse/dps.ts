@@ -142,6 +142,35 @@ function endereco(e: Endereco): string {
   ])
 }
 
+/**
+ * O vRetCSLL leva a soma das contribuições retidas que o tpRetPisCofins indica, não só a
+ * CSLL: "indica quais contribuições retidas na fonte compõem o campo vRetCSLL" (Anexo I).
+ * É ele que a Sefin desconta do líquido (vTotalRet = vRetCP + vRetIRRF + vRetCSLL + ISS).
+ * Com 0 ou 2 (nada retido) o campo não pode ir (E0720).
+ */
+export function valorRetCsll(
+  tipo: number | null,
+  pis: number | null | undefined,
+  cofins: number | null | undefined,
+  csll: number | null | undefined,
+): number {
+  // Tipo → [PIS, COFINS, CSLL] retidos.
+  const RETIDOS: Record<number, [boolean, boolean, boolean]> = {
+    1: [true, true, false],
+    3: [true, true, true],
+    4: [true, true, false],
+    5: [true, false, false],
+    6: [false, true, false],
+    7: [false, true, true],
+    8: [false, false, true],
+    9: [true, false, true],
+  }
+  const r = tipo == null ? undefined : RETIDOS[tipo]
+  if (!r) return 0
+  const soma = (r[0] ? (pis ?? 0) : 0) + (r[1] ? (cofins ?? 0) : 0) + (r[2] ? (csll ?? 0) : 0)
+  return Math.round(soma * 100) / 100
+}
+
 /** O conteúdo do infDPS (sem a tag dele), na ordem do XSD (TCInfDPS). */
 function corpoInfDps(d: DadosDps): string {
   const p = d.prestador
@@ -179,8 +208,9 @@ function corpoInfDps(d: DadosDps): string {
 
   const pc = v.pisCofins
   const tpRet = pc?.tipoRetencao ?? null
+  const contribuicoesRetidas = valorRetCsll(tpRet, pc?.valorPis, pc?.valorCofins, v.retencoes.csll)
   const temRetFederal =
-    (v.retencoes.inss ?? 0) > 0 || (v.retencoes.irrf ?? 0) > 0 || (v.retencoes.csll ?? 0) > 0
+    (v.retencoes.inss ?? 0) > 0 || (v.retencoes.irrf ?? 0) > 0 || contribuicoesRetidas > 0
   const tribFed =
     pc || temRetFederal
       ? el('tribFed', [
@@ -199,10 +229,7 @@ function corpoInfDps(d: DadosDps): string {
             ]),
           (v.retencoes.inss ?? 0) > 0 ? campo('vRetCP', dec(v.retencoes.inss!)) : null,
           (v.retencoes.irrf ?? 0) > 0 ? campo('vRetIRRF', dec(v.retencoes.irrf!)) : null,
-          // vRetCSLL não pode ir com "0 - PIS/COFINS/CSLL não retidos" (E0720).
-          (v.retencoes.csll ?? 0) > 0 && tpRet !== 0
-            ? campo('vRetCSLL', dec(v.retencoes.csll!))
-            : null,
+          contribuicoesRetidas > 0 ? campo('vRetCSLL', dec(contribuicoesRetidas)) : null,
         ])
       : null
 
@@ -318,4 +345,49 @@ export function montarDpsAssinada(d: DadosDps, cert: Certificado): { xml: string
 export function agoraBrasilia(): string {
   const d = new Date(Date.now() - 60_000 - 3 * 3600_000)
   return d.toISOString().slice(0, 19) + '-03:00'
+}
+
+// -----------------------------------------------------------------------------
+// Cancelamento (evento e101101), pelo pedRegEvento v1.01.
+// -----------------------------------------------------------------------------
+
+export type MotivoCancelamento = '1' | '2' | '9'
+
+/** O pedido de cancelamento da NFS-e, assinado: vai em POST /nfse/{chave}/eventos. */
+export function montarCancelamentoAssinado(
+  d: {
+    ambiente: 'producao' | 'homologacao'
+    cnpj: string
+    chave: string
+    /** 1 erro na emissão, 2 serviço não prestado, 9 outros */
+    motivo: MotivoCancelamento
+    /** 15 a 255 caracteres */
+    justificativa: string
+  },
+  cert: Certificado,
+): string {
+  const id = `PRE${d.chave}101101`
+  const corpo = [
+    campo('tpAmb', d.ambiente === 'producao' ? '1' : '2'),
+    campo('verAplic', VER_APLIC),
+    campo('dhEvento', agoraBrasilia()),
+    campo('CNPJAutor', digitos(d.cnpj)),
+    campo('chNFSe', d.chave),
+    el('e101101', [
+      campo('xDesc', 'Cancelamento de NFS-e'),
+      campo('cMotivo', d.motivo),
+      campo('xMotivo', corta(d.justificativa.replace(/\s+/g, ' ').trim(), 255)),
+    ]),
+  ].join('')
+  const digest = sha1Base64(`<infPedReg xmlns="${NS}" Id="${id}">${corpo}</infPedReg>`)
+  const valorAssinatura = assinarSha1(cert, signedInfo(id, digest, true))
+  const assinatura =
+    `<Signature xmlns="${NS_ASSINATURA}">${signedInfo(id, digest, false)}` +
+    `<SignatureValue>${valorAssinatura}</SignatureValue>` +
+    `<KeyInfo><X509Data><X509Certificate>${cert.certBase64}</X509Certificate></X509Data></KeyInfo>` +
+    `</Signature>`
+  return (
+    `<?xml version="1.0" encoding="UTF-8"?>` +
+    `<pedRegEvento xmlns="${NS}" versao="${VERSAO_DPS}"><infPedReg Id="${id}">${corpo}</infPedReg>${assinatura}</pedRegEvento>`
+  )
 }

@@ -9,6 +9,7 @@
 //   POST /nfse                → emite (síncrono): {chaveAcesso, nfseXmlGZipB64} ou {erros}
 //   GET  /dps/{id}            → chave da nota gerada por aquela DPS (se já foi gerada)
 //   GET  /nfse/{chave}        → o XML da nota
+//   POST /nfse/{chave}/eventos → registra um evento (cancelamento): {eventoXmlGZipB64} ou {erros}
 
 import { decodeBase64, encodeBase64 } from 'jsr:@std/encoding@1/base64'
 
@@ -156,6 +157,41 @@ export class Sefin {
     }
     const dados = (await r.json()) as { chaveAcesso?: string }
     return dados.chaveAcesso ?? null
+  }
+
+  /** Registra o pedido de cancelamento assinado. Devolve o XML do evento registrado. */
+  async cancelar(
+    chave: string,
+    xmlAssinado: string,
+  ): Promise<{ ok: true; xml: string } | { ok: false; erros: ErroSefin[] }> {
+    const r = await this.pedir('POST', `nfse/${chave}/eventos`, {
+      pedidoRegistroEventoXmlGZipB64: await comprimir(xmlAssinado),
+    })
+    const bruto = await r.text()
+    let dados: Record<string, unknown> = {}
+    try {
+      dados = JSON.parse(bruto)
+    } catch {
+      return {
+        ok: false,
+        erros: [
+          {
+            codigo: null,
+            descricao: `Resposta inesperada (HTTP ${r.status})${FALHAS[r.status] ? `: ${FALHAS[r.status]}` : ''}.`,
+          },
+        ],
+      }
+    }
+    const erros = lerErros(dados)
+    if (erros.length || !dados.eventoXmlGZipB64) {
+      return {
+        ok: false,
+        erros: erros.length
+          ? erros
+          : [{ codigo: null, descricao: `Sem o evento na resposta (HTTP ${r.status}).` }],
+      }
+    }
+    return { ok: true, xml: await descomprimir(String(dados.eventoXmlGZipB64)) }
   }
 
   async xmlDaNota(chave: string): Promise<string | null> {

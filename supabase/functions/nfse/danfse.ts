@@ -310,7 +310,7 @@ export async function gerarDanfse(xmlNfse: string): Promise<Uint8Array> {
     ['PIS', reais(tag(tribFed, 'vPis')), 0.2],
     ['COFINS', reais(tag(tribFed, 'vCofins')), 0.2],
     ['IRRF retido', reais(tag(tribFed, 'vRetIRRF')), 0.2],
-    ['CSLL retida', reais(tag(tribFed, 'vRetCSLL')), 0.2],
+    ['PIS/COFINS/CSLL retidos', reais(tag(tribFed, 'vRetCSLL')), 0.2],
     ['INSS (CP) retido', reais(tag(tribFed, 'vRetCP')), 0.2],
   ])
 

@@ -19,6 +19,8 @@ import { mensagemDeErro } from '@/lib/erros'
 import { ClienteSeletor, type ClienteEscolhido } from '../clientes/ClienteSeletor'
 import { useContratos } from '../contratos/api'
 import { BoletoNota } from './BoletoNota'
+import { CampoCodigoNfse } from './CampoCodigoNfse'
+import { CancelamentoNota } from './CancelamentoNota'
 import { EmissaoNota } from './EmissaoNota'
 import { EnvioNota } from './EnvioNota'
 import {
@@ -88,7 +90,8 @@ const esquema = z
   })
   .refine((d) => d.status !== 'emitida' || d.numero, {
     path: ['numero'],
-    message: 'Informe o número da nota emitida.',
+    message:
+      'Informe o número da nota emitida fora do sistema. Para emitir pelo sistema, deixe a situação como Rascunho: o número vem sozinho.',
   })
 type Dados = z.infer<typeof esquema>
 
@@ -147,7 +150,9 @@ function valoresIniciais(nota: NotaFiscalCompleta | undefined, p: URLSearchParam
   const hoje = hojeISO()
   return {
     tipo: p.get('tipo') === 'avulsa' ? 'avulsa' : 'contrato',
-    status: 'emitida',
+    // Nota nova é rascunho: salva e emite pelo sistema (o governo dá o número).
+    // "Emitida" é para registrar uma nota feita fora do sistema, com o número dela.
+    status: 'rascunho',
     cliente_id: p.get('cliente') ?? '',
     cliente_nome: p.get('cliente_nome') ?? '',
     contrato_id: p.get('contrato') ?? '',
@@ -513,6 +518,7 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
       {nota?.status === 'rascunho' && <EmissaoNota nota={nota} salvarAntes={salvarRascunho} />}
       {nota?.status === 'emitida' && <EmissaoNota nota={nota} modelo />}
       {nota?.status === 'emitida' && <EnvioNota nota={nota} />}
+      {nota && <CancelamentoNota nota={nota} />}
     </div>
   )
 }
@@ -637,16 +643,23 @@ function Impostos({ form }: { form: UseFormReturn<Dados> }) {
   return (
     <Card className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <h2 className="font-bold sm:col-span-2 lg:col-span-4">Tributação e retenções</h2>
-      <Campo rotulo="Código de tributação nacional" htmlFor="ctn">
-        <Input
+      <Campo rotulo="Código de tributação nacional" htmlFor="ctn" className="lg:col-span-2">
+        <CampoCodigoNfse
           id="ctn"
-          inputMode="numeric"
-          placeholder="071301"
-          {...form.register('codigo_tributacao')}
+          lista="tributacao"
+          placeholder="Clique para ver a lista ou digite (ex.: dedetização)"
+          valor={d.codigo_tributacao ?? ''}
+          aoMudar={(c) => form.setValue('codigo_tributacao', c, { shouldDirty: true })}
         />
       </Campo>
-      <Campo rotulo="Código NBS" htmlFor="nbs">
-        <Input id="nbs" inputMode="numeric" {...form.register('codigo_nbs')} />
+      <Campo rotulo="Código NBS" htmlFor="nbs" className="lg:col-span-2">
+        <CampoCodigoNfse
+          id="nbs"
+          lista="nbs"
+          placeholder="Clique para ver a lista ou digite (ex.: pragas)"
+          valor={d.codigo_nbs ?? ''}
+          aoMudar={(c) => form.setValue('codigo_nbs', c, { shouldDirty: true })}
+        />
       </Campo>
       <Caixa form={form} nome="iss_retido" rotulo="ISS retido pelo tomador" />
       <CampoPercentual form={form} nome="aliquota_iss" rotulo="Alíquota ISS (%)" />
