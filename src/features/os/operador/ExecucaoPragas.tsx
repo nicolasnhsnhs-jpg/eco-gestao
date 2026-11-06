@@ -393,7 +393,33 @@ function LinhaExcecao({
         )}
       </div>
       {erro && <p className="text-sm text-perigo">{erro}</p>}
+      <AplicadosPorArea pontos={pontos.filter((p) => p.situacao === codigo)} />
     </div>
+  )
+}
+
+/**
+ * O que já ficou gravado nesta situação, por setor, em letra pequena: para o
+ * técnico revisar antes de concluir. Ex.: "3 aplicados · Granja: 108-110".
+ */
+function AplicadosPorArea({ pontos }: { pontos: PontoOs[] }) {
+  if (pontos.length === 0) return null
+  const porArea = new Map<string, number[]>()
+  for (const p of [...pontos].sort((a, b) => a.numero - b.numero)) {
+    porArea.set(p.area, [...(porArea.get(p.area) ?? []), p.numero])
+  }
+  return (
+    <p className="text-xs text-texto-suave">
+      <strong>
+        {pontos.length} {pontos.length === 1 ? 'aplicado' : 'aplicados'}
+      </strong>
+      {[...porArea].map(([area, numeros]) => (
+        <span key={area}>
+          {' · '}
+          {area}: <strong>{escreverFaixas(numeros)}</strong>
+        </span>
+      ))}
+    </p>
   )
 }
 
