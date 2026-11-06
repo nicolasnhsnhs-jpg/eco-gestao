@@ -1,6 +1,6 @@
--- Catálogo de produtos dos certificados — unidade RS.
+-- Catálogo de produtos dos certificados (RS; copiado também para SC em 06/11/2026).
 -- Lista tirada do modelo "Certificado CICR com produtos" (lotes de 2026).
--- Não é migration: roda só no banco do RS, com o aval do usuário:
+-- Não é migration: roda à parte em cada banco, com o aval do usuário:
 --   npx supabase db query --linked -f supabase/dados/produtos_certificado_rs.sql
 -- Pode rodar de novo: produto que já existe (mesmo nome comercial e
 -- princípio ativo) é ignorado; lotes novos são trocados pela tela.
