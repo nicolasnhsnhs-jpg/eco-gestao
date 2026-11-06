@@ -40,6 +40,7 @@ import {
   type EscopoPragas,
   type Nivel,
 } from '../tipos/pragas'
+import { ConferenciaPortaIscas } from './ConferenciaPortaIscas'
 
 type Props = {
   os: OsCompleta
@@ -68,7 +69,10 @@ export function ExecucaoPragas({ os, campos, alterar, aberta, primeira }: Props)
         {pontos.isPending && <Carregando />}
         {pontos.isError && <Aviso tipo="erro">{mensagemDeErro(pontos.error)}</Aviso>}
         {portaIscas.length > 0 ? (
-          <ExcecoesPortaIscas osId={os.id} pontos={portaIscas} aberta={aberta} />
+          <>
+            <ConferenciaPortaIscas osId={os.id} pontos={portaIscas} aberta={aberta} />
+            <ExcecoesPortaIscas osId={os.id} pontos={portaIscas} aberta={aberta} />
+          </>
         ) : (
           <p className="text-texto-suave">Nenhum porta-isca neste local.</p>
         )}
