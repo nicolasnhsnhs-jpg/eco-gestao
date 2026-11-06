@@ -28,6 +28,8 @@ export const UNIDADES = {
       ],
       rodapeSuccao: null,
       responsavel: { nome: '', registro: '' },
+      /** Registro do responsável na limpeza de coifa, quando é outro. */
+      registroCoifa: null,
       responsavelSuccao: null,
     },
   },
@@ -59,6 +61,8 @@ export const UNIDADES = {
         'LO FEPAM n° 02663/25 - Val. 02/07/2030',
       ],
       responsavel: { nome: 'RESP. TÉCNICA: ANDRÉIA S. H. SEMENSATO', registro: 'AFT - CRQ 251319' },
+      // Na coifa a Andréia assina com outro CRQ (modelo "LC").
+      registroCoifa: 'AFT - CRQ 253325',
       responsavelSuccao: { nome: 'BARBARA EHLERS FRANKE DE OLIVEIRA', registro: 'L.O. 02663/25' },
     },
   },

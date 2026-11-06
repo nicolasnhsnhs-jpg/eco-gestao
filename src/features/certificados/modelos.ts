@@ -1,5 +1,6 @@
 import type { Tables } from '@/lib/database.types'
 import { formatarData, somarMeses } from '@/lib/datas'
+import { UNIDADE } from '@/lib/unidade'
 
 /*
  * Modelos de certificado, tirados dos certificados em PowerPoint que a empresa usa hoje.
@@ -95,6 +96,21 @@ export const MODELO: Record<ModeloCertificado, Modelo> = {
     responsavelSuccao: false,
     padrao: { titulo: '', servicoDescrito: '' },
   },
+}
+
+/**
+ * Responsável técnico que sai no certificado quando o campo fica vazio: a sucção tem
+ * outra responsável e, na coifa, a Andréia assina com outro CRQ.
+ */
+export function responsavelDoModelo(modelo: ModeloCertificado): {
+  nome: string
+  registro: string
+} {
+  const conf = UNIDADE.certificado
+  if (MODELO[modelo]?.responsavelSuccao && conf.responsavelSuccao) return conf.responsavelSuccao
+  if (modelo === 'coifa' && conf.registroCoifa)
+    return { nome: conf.responsavel.nome, registro: conf.registroCoifa }
+  return conf.responsavel
 }
 
 /** Título e frase padrão de um modelo; no "geral" vêm do nome do serviço. */

@@ -14,7 +14,6 @@ import { Carregando } from '@/components/ui/Carregando'
 import { SelectForm } from '@/components/ui/SelectForm'
 import { formatarData, hojeISO } from '@/lib/datas'
 import { mensagemDeErro } from '@/lib/erros'
-import { UNIDADE } from '@/lib/unidade'
 import { cn } from '@/lib/utils'
 
 import { useCliente } from '../clientes/api'
@@ -41,6 +40,7 @@ import {
   MODELOS,
   modeloDoTipo,
   padraoDoModelo,
+  responsavelDoModelo,
   PERIODICIDADES,
   textoValidadeMeses,
   textoValidoAte,
@@ -225,10 +225,7 @@ function Formulario({
   const tipo = tipos.find((t) => t.id === tipoId)
   const m = MODELO[modelo]
   const validade = calcularValidade(dataExecucao, meses ? Number(meses) : null, tipoValidade)
-  const responsavelPadrao =
-    m.responsavelSuccao && UNIDADE.certificado.responsavelSuccao
-      ? UNIDADE.certificado.responsavelSuccao
-      : UNIDADE.certificado.responsavel
+  const responsavelPadrao = responsavelDoModelo(modelo)
 
   // Certificado avulso, sem origem: quando escolhe cliente e serviço, sugere a
   // periodicidade combinada com aquele cliente.

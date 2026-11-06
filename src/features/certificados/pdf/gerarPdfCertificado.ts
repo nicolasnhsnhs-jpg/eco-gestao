@@ -15,6 +15,7 @@ import {
   linhasDoProduto,
   localEData,
   MODELO,
+  responsavelDoModelo,
   textoDias,
   type ModeloCertificado,
 } from '../modelos'
@@ -540,8 +541,7 @@ export async function gerarPdfCertificado(
   // Assinatura do responsável técnico, no pé da coluna
   const centroLateral = xLateral + LATERAL / 2
   const yLinha = BASE_CORPO + 34
-  const resp =
-    modelo.responsavelSuccao && conf.responsavelSuccao ? conf.responsavelSuccao : conf.responsavel
+  const resp = responsavelDoModelo(c.modelo as ModeloCertificado)
   const nome = c.responsavel_nome?.trim() || resp.nome
   const registro = c.responsavel_registro?.trim() || resp.registro
   const mesmaPessoa = !!resp.nome && nome.toUpperCase() === resp.nome.toUpperCase()

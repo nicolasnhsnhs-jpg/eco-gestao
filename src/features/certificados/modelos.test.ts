@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   calcularValidade,
@@ -107,5 +107,20 @@ describe('produtos', () => {
       lerProdutos([{ principio_ativo: 'Gel', quantidade: '10 g' }, { principio_ativo: ' ' }, null]),
     ).toHaveLength(1)
     expect(lerProdutos({})).toEqual([])
+  })
+})
+
+describe('responsavelDoModelo', () => {
+  it('no RS, a coifa usa o outro CRQ da Andréia e a sucção a outra responsável', async () => {
+    vi.stubEnv('VITE_UNIDADE', 'rs')
+    vi.resetModules()
+    const { responsavelDoModelo } = await import('./modelos')
+    expect(responsavelDoModelo('pragas').registro).toBe('AFT - CRQ 251319')
+    expect(responsavelDoModelo('coifa')).toEqual({
+      nome: 'RESP. TÉCNICA: ANDRÉIA S. H. SEMENSATO',
+      registro: 'AFT - CRQ 253325',
+    })
+    expect(responsavelDoModelo('succao').nome).toBe('BARBARA EHLERS FRANKE DE OLIVEIRA')
+    vi.unstubAllEnvs()
   })
 })
