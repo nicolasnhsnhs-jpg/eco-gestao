@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/Campo'
 import { formatarDocumento } from '@/lib/documentos'
 import { useValorAtrasado } from '@/lib/useValorAtrasado'
 
+import { usePerfil } from '../auth/useAuth'
 import { useBuscaClientes } from './api'
 
 export type ClienteEscolhido = {
@@ -25,7 +26,13 @@ export function ClienteSeletor({ id, valor, aoMudar }: Props) {
   const [termo, setTermo] = useState('')
   const [aberto, setAberto] = useState(false)
   const termoAtrasado = useValorAtrasado(termo.trim())
-  const busca = useBuscaClientes(termoAtrasado, false)
+  // O vendedor consulta todos os clientes, mas nos formulários só escolhe os da carteira dele.
+  const perfil = usePerfil()
+  const busca = useBuscaClientes(
+    termoAtrasado,
+    false,
+    perfil.papel === 'vendedor' ? perfil.id : undefined,
+  )
   const resultados = termoAtrasado.length >= 2 ? (busca.data ?? []).slice(0, 8) : []
 
   if (valor) {

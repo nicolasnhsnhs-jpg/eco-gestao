@@ -61,12 +61,20 @@ select pg_temp.como('00000000-0000-0000-0000-0000000000b1');
 set local role authenticated;
 
 do $$ begin
-  assert (select count(*) from public.clientes where nome like '%[teste]%') = 2,
-    'Vendedor A deveria ver só os 2 clientes dele';
-  assert not exists (select 1 from public.clientes where id = '00000000-0000-0000-0000-00000000c0b1'),
-    'Vendedor A não deveria ver cliente do Vendedor B';
-  assert (select count(*) from public.enderecos where logradouro in ('Rua A', 'Rua B')) = 1,
-    'Vendedor A deveria ver só o endereço do próprio cliente';
+  -- Consulta todos os clientes (para saber se alguém já atende antes de prospectar)...
+  assert (select count(*) from public.clientes where nome like '%[teste]%') = 4,
+    'Vendedor A deveria consultar todos os clientes';
+  assert exists (select 1 from public.clientes where id = '00000000-0000-0000-0000-00000000c0b1'),
+    'Vendedor A deveria consultar o cliente do Vendedor B';
+  assert (select count(*) from public.enderecos where logradouro in ('Rua A', 'Rua B')) = 2,
+    'Vendedor A deveria consultar os endereços de todos os clientes';
+  -- ...mas o resto (propostas, serviços, OS, arquivos) segue só da carteira dele.
+  assert privado.pode_ver_cliente('00000000-0000-0000-0000-00000000c0a1'),
+    'Cliente do Vendedor A deveria ser da carteira dele';
+  assert not privado.pode_ver_cliente('00000000-0000-0000-0000-00000000c0b1'),
+    'Cliente do Vendedor B não deveria ser da carteira do Vendedor A';
+  assert not privado.pode_ver_cliente('00000000-0000-0000-0000-00000000c0c1'),
+    'Cliente sem vendedor não deveria ser da carteira do Vendedor A';
   assert (select count(*) from public.auditoria) = 0,
     'Vendedor não deveria ver a auditoria';
 end $$;
@@ -113,8 +121,9 @@ do $$ begin
   assert (select usuario_id from public.atendimentos where resumo = 'Pediu orçamento')
        = '00000000-0000-0000-0000-0000000000b1',
     'Atendimento deveria ficar no nome do usuário logado';
-  assert (select count(*) from public.buscar_clientes('maria')) = 0,
-    'Busca do vendedor não deveria encontrar cliente de outro vendedor';
+  assert exists (select 1 from public.buscar_clientes('maria')
+                  where id = '00000000-0000-0000-0000-00000000c0b1'),
+    'Busca do vendedor deveria encontrar cliente de outro vendedor';
 end $$;
 
 reset role;

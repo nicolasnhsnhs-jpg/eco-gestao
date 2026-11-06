@@ -63,7 +63,10 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
   const gestao = PAPEIS_GESTAO.includes(perfil.papel)
   const ehAdmin = perfil.papel === 'admin'
   const anonimizado = !!cliente.anonimizado_em
-  const podeEditar = !anonimizado
+  // O vendedor consulta qualquer cliente (para saber se alguém já atende), mas
+  // propostas, serviços, histórico e alterações ficam só para os da carteira dele.
+  const daCarteira = perfil.papel !== 'vendedor' || cliente.vendedor_responsavel_id === perfil.id
+  const podeEditar = !anonimizado && daCarteira
 
   const atendimentos = useAtendimentos(cliente.id)
   const ultimo = atendimentos.data?.[0]
@@ -138,6 +141,14 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
 
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
 
+      {!daCarteira && (
+        <Aviso tipo="info">
+          {cliente.vendedor
+            ? `Este cliente já é atendido por ${cliente.vendedor.nome}. Fale com ele ou com o administrador antes de prospectar.`
+            : 'Este cliente ainda não tem vendedor responsável. Fale com o administrador para assumir o atendimento.'}
+        </Aviso>
+      )}
+
       <div className="grid gap-5 lg:grid-cols-3">
         {/* Coluna principal */}
         <div className="flex flex-col gap-5 lg:col-span-2">
@@ -191,7 +202,7 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
               clienteNome={cliente.nome_fantasia || cliente.nome}
             />
           )}
-          {perfil.papel !== 'recepcao' && (
+          {perfil.papel !== 'recepcao' && daCarteira && (
             <SecaoPropostas
               clienteId={cliente.id}
               clienteNome={cliente.nome_fantasia || cliente.nome}
@@ -200,21 +211,21 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
             />
           )}
           {perfil.papel === 'recepcao' && <SecaoServicosRecepcao clienteId={cliente.id} />}
-          {perfil.papel !== 'recepcao' && (
+          {perfil.papel !== 'recepcao' && daCarteira && (
             <SecaoServicos
               clienteId={cliente.id}
               clienteNome={cliente.nome_fantasia || cliente.nome}
               podeCriar={podeEditar}
             />
           )}
-          {perfil.papel !== 'recepcao' && (
+          {perfil.papel !== 'recepcao' && daCarteira && (
             <SecaoContratos
               clienteId={cliente.id}
               clienteNome={cliente.nome_fantasia || cliente.nome}
               podeCriar={podeEditar}
             />
           )}
-          <SecaoAtendimentos clienteId={cliente.id} />
+          {daCarteira && <SecaoAtendimentos clienteId={cliente.id} />}
           <SecaoEnderecos
             clienteId={cliente.id}
             enderecos={cliente.enderecos}
@@ -225,14 +236,16 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
             contatos={cliente.contatos_cliente}
             podeEditar={podeEditar}
           />
-          <Secao titulo="Documentos">
-            <ListaArquivos
-              clienteId={cliente.id}
-              categoria="outro"
-              podeEnviar={podeEditar}
-              textoVazio="Contratos, licenças, fotos do local… tudo o que não é de uma proposta."
-            />
-          </Secao>
+          {daCarteira && (
+            <Secao titulo="Documentos">
+              <ListaArquivos
+                clienteId={cliente.id}
+                categoria="outro"
+                podeEnviar={podeEditar}
+                textoVazio="Contratos, licenças, fotos do local… tudo o que não é de uma proposta."
+              />
+            </Secao>
+          )}
         </div>
 
         {/* Coluna lateral */}
@@ -243,14 +256,16 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
                 <dt className="text-texto-suave">Vendedor responsável</dt>
                 <dd className="font-semibold">{cliente.vendedor?.nome ?? 'Sem vendedor'}</dd>
               </div>
-              <div>
-                <dt className="text-texto-suave">Último atendimento</dt>
-                <dd className="font-semibold">
-                  {ultimo
-                    ? `${formatarDataHora(ultimo.data_hora)} · ${ultimo.usuario?.nome ?? ''}`
-                    : 'Nenhum ainda'}
-                </dd>
-              </div>
+              {daCarteira && (
+                <div>
+                  <dt className="text-texto-suave">Último atendimento</dt>
+                  <dd className="font-semibold">
+                    {ultimo
+                      ? `${formatarDataHora(ultimo.data_hora)} · ${ultimo.usuario?.nome ?? ''}`
+                      : 'Nenhum ainda'}
+                  </dd>
+                </div>
+              )}
               {cliente.origem && (
                 <div>
                   <dt className="text-texto-suave">Como conheceu</dt>

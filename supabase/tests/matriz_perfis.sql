@@ -7,8 +7,8 @@
 -- com a tabela esperada abaixo. Transação desfeita no final (rollback).
 --
 --                       admin  financeiro  ADM  vendedor A  recepção  desativado
---   clientes              2        2        2       1          2          0
---   endereços             2        2        2       1          2          0
+--   clientes              2        2        2       2*         2          0
+--   endereços             2        2        2       2*         2          0
 --   atendimentos          2        2        2       1          2          0
 --   propostas / itens     2        2        2       1          0          0
 --   serviços              2        2        2       1          0          0
@@ -21,6 +21,9 @@
 --   auditoria            >0       >0        0       0          0          0
 --   configurações         2        2        0       0          0          0
 --   contas bancárias      1        1        0       0          0          0
+--
+-- * O vendedor consulta o cadastro de todos os clientes (para saber se alguém já
+--   atende antes de prospectar), mas o resto continua só da carteira dele.
 --
 -- ADM ("administrativo") = tudo, menos o financeiro e a gestão de usuários.
 --
@@ -125,15 +128,15 @@ end $$;
 -- -----------------------------------------------------------------------------
 create function pg_temp.conferir_perfil(
   perfil text,
-  e_clientes bigint, e_propostas bigint, e_servicos bigint, e_sem_valor bigint,
+  e_cadastro bigint, e_clientes bigint, e_propostas bigint, e_servicos bigint, e_sem_valor bigint,
   e_vencimentos bigint, e_contratos bigint, e_lancamentos bigint, e_comissoes bigint,
   e_arquivos bigint, ve_auditoria boolean, e_config bigint, e_contas bigint
 ) returns void language plpgsql as $$
 begin
   perform pg_temp.conferir(perfil, 'clientes',
-    (select count(*) from public.clientes where pg_temp.do_teste(id)), e_clientes);
+    (select count(*) from public.clientes where pg_temp.do_teste(id)), e_cadastro);
   perform pg_temp.conferir(perfil, 'endereços',
-    (select count(*) from public.enderecos where pg_temp.do_teste(cliente_id)), e_clientes);
+    (select count(*) from public.enderecos where pg_temp.do_teste(cliente_id)), e_cadastro);
   perform pg_temp.conferir(perfil, 'atendimentos',
     (select count(*) from public.atendimentos where pg_temp.do_teste(cliente_id)), e_clientes);
   perform pg_temp.conferir(perfil, 'propostas',
@@ -167,35 +170,35 @@ begin
 end
 $$;
 
---                                       cli prop serv s/valor venc contr lanç comis arq audit conf contas
+--                                       cad cli prop serv s/valor venc contr lanç comis arq audit conf contas
 select pg_temp.como('00000000-0000-0000-0000-0000000000a1');
 set local role authenticated;
-select pg_temp.conferir_perfil('Admin',      2,  2,   2,   2,     2,   2,    6,   6,  6,  true,  2,  1);
+select pg_temp.conferir_perfil('Admin',      2, 2,  2,   2,   2,     2,   2,    6,   6,  6,  true,  2,  1);
 reset role;
 
 select pg_temp.como('00000000-0000-0000-0000-0000000000f1');
 set local role authenticated;
-select pg_temp.conferir_perfil('Financeiro', 2,  2,   2,   2,     2,   2,    6,   6,  6,  true,  2,  1);
+select pg_temp.conferir_perfil('Financeiro', 2, 2,  2,   2,   2,     2,   2,    6,   6,  6,  true,  2,  1);
 reset role;
 
 select pg_temp.como('00000000-0000-0000-0000-0000000000e1');
 set local role authenticated;
-select pg_temp.conferir_perfil('ADM',        2,  2,   2,   2,     2,   2,    0,   0,  6,  false, 0,  0);
+select pg_temp.conferir_perfil('ADM',        2, 2,  2,   2,   2,     2,   2,    0,   0,  6,  false, 0,  0);
 reset role;
 
 select pg_temp.como('00000000-0000-0000-0000-0000000000b1');
 set local role authenticated;
-select pg_temp.conferir_perfil('Vendedor A', 1,  1,   1,   1,     1,   1,    0,   3,  3,  false, 0,  0);
+select pg_temp.conferir_perfil('Vendedor A', 2, 1,  1,   1,   1,     1,   1,    0,   3,  3,  false, 0,  0);
 reset role;
 
 select pg_temp.como('00000000-0000-0000-0000-0000000000c1');
 set local role authenticated;
-select pg_temp.conferir_perfil('Recepção',   2,  0,   0,   2,     2,   0,    0,   0,  2,  false, 0,  0);
+select pg_temp.conferir_perfil('Recepção',   2, 2,  0,   0,   2,     2,   0,    0,   0,  2,  false, 0,  0);
 reset role;
 
 select pg_temp.como('00000000-0000-0000-0000-0000000000d1');
 set local role authenticated;
-select pg_temp.conferir_perfil('Desativado', 0,  0,   0,   0,     0,   0,    0,   0,  0,  false, 0,  0);
+select pg_temp.conferir_perfil('Desativado', 0, 0,  0,   0,   0,     0,   0,    0,   0,  0,  false, 0,  0);
 reset role;
 
 -- A recepção vê o histórico de serviços, mas a resposta não tem nenhuma coluna de valor.

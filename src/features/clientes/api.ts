@@ -14,7 +14,7 @@ import { supabase } from '@/lib/supabase'
  * Tudo o que a área de clientes lê e grava no banco fica neste arquivo.
  * As telas só chamam estes "hooks" e não precisam saber como o Supabase funciona.
  * Lembrete: o banco aplica as regras de permissão (RLS) em cada consulta;
- * um vendedor que chamar useBuscaClientes recebe só os clientes dele.
+ * o vendedor consulta todos os clientes, mas só altera os da própria carteira.
  */
 
 export type Cliente = Tables<'clientes'>
@@ -36,13 +36,18 @@ function consultaBuscaClientes(termo: string, incluirInativos: boolean) {
     .select(`*, ${VENDEDOR}, enderecos(cidade, uf, principal)`)
 }
 
-/** Os 50 clientes que mais combinam com o termo (para escolher um cliente num formulário). */
-export function useBuscaClientes(termo: string, incluirInativos: boolean) {
+/**
+ * Os 50 clientes que mais combinam com o termo (para escolher um cliente num formulário).
+ * Com `vendedorId`, só os clientes da carteira desse vendedor.
+ */
+export function useBuscaClientes(termo: string, incluirInativos: boolean, vendedorId?: string) {
   return useQuery({
-    queryKey: ['clientes', 'busca', termo, incluirInativos],
+    queryKey: ['clientes', 'busca', termo, incluirInativos, vendedorId ?? null],
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const { data, error } = await consultaBuscaClientes(termo, incluirInativos).limit(50)
+      let consulta = consultaBuscaClientes(termo, incluirInativos)
+      if (vendedorId) consulta = consulta.eq('vendedor_responsavel_id', vendedorId)
+      const { data, error } = await consulta.limit(50)
       if (error) throw error
       return data
     },

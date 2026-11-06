@@ -54,10 +54,15 @@ import {
 export function ClienteFormPage() {
   const { id } = useParams()
   const cliente = useCliente(id ?? '')
+  const perfil = usePerfil()
 
   if (!id) return <FormularioCliente />
   if (cliente.isPending) return <Carregando />
   if (!cliente.data) return <Aviso tipo="erro">Cliente não encontrado.</Aviso>
+  // O vendedor consulta qualquer cliente, mas só altera os da carteira dele.
+  if (perfil.papel === 'vendedor' && cliente.data.vendedor_responsavel_id !== perfil.id) {
+    return <Aviso tipo="erro">Só o vendedor responsável pode alterar este cliente.</Aviso>
+  }
   return <FormularioCliente cliente={cliente.data} />
 }
 
