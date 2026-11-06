@@ -545,7 +545,8 @@ export async function gerarPdfCertificado(
 
   // Assinatura do responsável técnico, no pé da coluna
   const centroLateral = xLateral + LATERAL / 2
-  const yLinha = BASE_CORPO + 34
+  // Com assinatura digital sobe um pouco, para o aviso embaixo do nome não encostar no rodapé.
+  const yLinha = BASE_CORPO + (c.assinatura_digital ? 44 : 34)
   const resp = responsavelDoModelo(c.modelo as ModeloCertificado)
   const nome = c.responsavel_nome?.trim() || resp.nome
   const registro = c.responsavel_registro?.trim() || resp.registro
