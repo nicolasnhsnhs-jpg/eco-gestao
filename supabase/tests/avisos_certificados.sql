@@ -1,7 +1,8 @@
 -- =============================================================================
 -- Aviso de certificado de contrato perto de vencer.
 --
---  1. Certificado de CONTRATO a 15 dias (ou menos) da validade → aviso para o ADM.
+--  1. Certificado de CONTRATO a 14 dias (ou menos) da validade → aviso para o ADM,
+--     dizendo para agendar o serviço e emitir o novo certificado.
 --  2. Certificado AVULSO não avisa (renovar é vender um novo serviço).
 --  3. ADM e Administrador veem; vendedor e financeiro não.
 --  4. O aviso some quando o próximo certificado é emitido, quando o certificado
@@ -65,6 +66,27 @@ do $$ begin
   assert pg_temp.avisos_abertos('00000000-0000-0000-0000-00000000cf01') = 0,
     'Certificado a 40 dias da validade não deveria avisar';
 end $$;
+
+-- A 15 dias ainda não avisa; a 14, sim (e o texto diz o que fazer).
+update public.certificados set validade = privado.hoje() + 15
+ where id = '00000000-0000-0000-0000-00000000cf01';
+select privado.gerar_avisos_certificados();
+do $$ begin
+  assert pg_temp.avisos_abertos('00000000-0000-0000-0000-00000000cf01') = 0,
+    'Certificado a 15 dias da validade não deveria avisar';
+end $$;
+update public.certificados set validade = privado.hoje() + 14
+ where id = '00000000-0000-0000-0000-00000000cf01';
+select privado.gerar_avisos_certificados();
+do $$ begin
+  assert (select count(*) from public.avisos
+           where certificado_id = '00000000-0000-0000-0000-00000000cf01' and resolvido_em is null
+             and titulo = 'Certificado de contrato vencendo: agendar controle de pragas'
+             and mensagem like '%agende o serviço e emita o novo certificado.') = 1,
+    'Certificado a 14 dias da validade deveria avisar o ADM para agendar e emitir o novo';
+end $$;
+-- Volta ao estado do resto do teste (sem aviso, vencendo em 10 dias).
+delete from public.avisos where certificado_id = '00000000-0000-0000-0000-00000000cf01';
 
 update public.certificados set validade = privado.hoje() + 10
  where id = '00000000-0000-0000-0000-00000000cf01';
