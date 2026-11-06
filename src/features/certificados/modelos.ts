@@ -3,7 +3,7 @@ import { formatarData, somarMeses } from '@/lib/datas'
 
 /*
  * Modelos de certificado, tirados dos certificados em PowerPoint que a empresa usa hoje.
- * Cada tipo de serviço tem o seu: cor do fundo, título, frase e quais blocos aparecem.
+ * Cada tipo de serviço tem o seu: cor de destaque, título, frase e quais blocos aparecem.
  * O desenho do PDF fica em pdf/gerarPdfCertificado.ts.
  */
 
@@ -17,14 +17,11 @@ export type Arranjo =
   | 'reservatorios' // tabela quantidade · local · m³ · produto (reservatório)
   | 'descricao' // descrição no centro, com MTR e volume (sucção)
 
-export type Fundo = 'verde' | 'azul' | 'cinza'
-
 export type Modelo = {
   /** Nome do modelo na tela. */
   nome: string
-  fundo: Fundo
-  /** Cor do título no PDF (r, g, b de 0 a 1). */
-  corTitulo: [number, number, number]
+  /** Cor de destaque do serviço no PDF (os demais tons são os da marca). */
+  destaque: { forte: string; claro: string }
   arranjo: Arranjo
   /** Mostra a linha "Pragas Alvo (...)". */
   temPragas: boolean
@@ -39,16 +36,14 @@ export type Modelo = {
   }
 }
 
-const VERDE_CLARO: [number, number, number] = [0.2, 0.8, 0.2]
-const AZUL_CLARO: [number, number, number] = [0.1, 0.85, 0.95]
-const CINZA: [number, number, number] = [0.45, 0.45, 0.45]
-const VERDE_ESCURO: [number, number, number] = [0.05, 0.4, 0.2]
+const VERDE = { forte: '#3E7B1F', claro: '#EEF7DF' }
+const AZUL = { forte: '#1D6FA5', claro: '#E7F1F8' }
+const GRAFITE = { forte: '#46555F', claro: '#EEF1F3' }
 
 export const MODELO: Record<ModeloCertificado, Modelo> = {
   pragas: {
     nome: 'Controle de pragas',
-    fundo: 'verde',
-    corTitulo: VERDE_CLARO,
+    destaque: VERDE,
     arranjo: 'areas_produtos',
     temPragas: true,
     responsavelSuccao: false,
@@ -60,8 +55,7 @@ export const MODELO: Record<ModeloCertificado, Modelo> = {
   },
   reservatorio: {
     nome: 'Limpeza de reservatório',
-    fundo: 'azul',
-    corTitulo: AZUL_CLARO,
+    destaque: AZUL,
     arranjo: 'reservatorios',
     temPragas: false,
     responsavelSuccao: false,
@@ -73,8 +67,7 @@ export const MODELO: Record<ModeloCertificado, Modelo> = {
   },
   coifa: {
     nome: 'Limpeza de coifa',
-    fundo: 'cinza',
-    corTitulo: CINZA,
+    destaque: GRAFITE,
     arranjo: 'produtos_areas',
     temPragas: false,
     responsavelSuccao: false,
@@ -85,8 +78,7 @@ export const MODELO: Record<ModeloCertificado, Modelo> = {
   },
   succao: {
     nome: 'Sucção e hidrojateamento',
-    fundo: 'cinza',
-    corTitulo: VERDE_ESCURO,
+    destaque: VERDE,
     arranjo: 'descricao',
     temPragas: false,
     responsavelSuccao: true,
@@ -97,8 +89,7 @@ export const MODELO: Record<ModeloCertificado, Modelo> = {
   },
   geral: {
     nome: 'Outros serviços',
-    fundo: 'cinza',
-    corTitulo: VERDE_ESCURO,
+    destaque: VERDE,
     arranjo: 'areas_produtos',
     temPragas: false,
     responsavelSuccao: false,

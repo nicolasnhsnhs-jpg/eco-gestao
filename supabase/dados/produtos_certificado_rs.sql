@@ -44,7 +44,9 @@ from (values
   ('RODILON SOFT BAIT ISCA FRESCA', 'Difetialona', 'MS 317.890.015', '10g', '458-89-5241', '2025-08-01', '2027-08-01'),
   ('RODILON BLOCO EXTRUSADO', 'Difetialona', 'MS 317.890.014', '15g', '4545-85-639', '2025-11-01', '2027-11-01'),
   -- Usado na limpeza de reservatórios.
-  (null, 'Clorin', null, null, '2405048', '2024-03-01', '2027-03-01')
+  (null, 'Clorin', null, null, '2405048', '2024-03-01', '2027-03-01'),
+  -- Usado na limpeza de coifas (o modelo não traz lote nem datas).
+  (null, 'Hidróxido de Sódio', 'MS 319660029', '3Lts', null, null, null)
 ) as v(nome, principio, registro, qtd, lote, fab, val)
 where not exists (
   select 1 from public.produtos_certificado p

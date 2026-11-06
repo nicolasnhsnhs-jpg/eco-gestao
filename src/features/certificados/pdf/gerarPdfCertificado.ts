@@ -1,15 +1,9 @@
-import {
-  degrees,
-  PDFDocument,
-  rgb,
-  StandardFonts,
-  type PDFFont,
-  type PDFPage,
-  type RGB,
-} from 'pdf-lib'
+import fontkit from '@pdf-lib/fontkit'
+import { degrees, PDFDocument, rgb, type PDFFont, type PDFPage, type RGB } from 'pdf-lib'
 
 import { enderecoDaFicha, fichaDaOs } from '@/features/os/api'
 import { quebrarLinhas, textoSeguro } from '@/features/os/pdf/gerarPdfOs'
+import { formatarData } from '@/lib/datas'
 import { formatarCnpj, formatarCpf } from '@/lib/documentos'
 import { UNIDADE } from '@/lib/unidade'
 
@@ -20,89 +14,157 @@ import {
   lerReservatorios,
   linhasDoProduto,
   localEData,
-  mesCurto,
   MODELO,
   textoDias,
-  textoValidadeMeses,
-  textoValidoAte,
   type ModeloCertificado,
 } from '../modelos'
 
 /*
  * PDF do certificado, no navegador com pdf-lib (como o PDF da OS).
- * Segue os certificados em PowerPoint usados hoje: o fundo é a mesma arte (logo,
- * "CERTIFICADO" e gotas) na cor de cada serviço, e o texto vai por cima.
+ * Folha A4 deitada (paisagem), fundo branco (o cliente imprime), com a identidade
+ * do site: fonte Plus Jakarta Sans, verde-escuro e lima, cartões arredondados.
  *
- *   título · pragas-alvo · "Certificamos para os devidos fins…"
- *   blocos do meio (áreas e produtos | reservatórios | descrição da sucção)
- *   assinatura do responsável técnico · validade · rodapé da empresa
+ *   logo · número
+ *   faixa verde: "CERTIFICADO" · título · pragas-alvo
+ *   "Certificamos para os devidos fins…"
+ *   à esquerda: blocos (áreas e produtos | reservatórios | sucção) e observação
+ *   à direita: data · válido até · validade e a assinatura
+ *   rodapé da empresa
  */
 
-const A4 = { largura: 595.28, altura: 841.89 }
-const MARGEM = 34
-const LARGURA_UTIL = A4.largura - MARGEM * 2
-const PRETO = rgb(0, 0, 0)
-const VERDE_EMAIL = rgb(0.15, 0.6, 0.2)
-const VERMELHO = rgb(0.8, 0.1, 0.1)
+// -----------------------------------------------------------------------------
+// Medidas e cores
+// -----------------------------------------------------------------------------
 
-// Faixas da página (em pontos, a partir de baixo)
-const TOPO_CONTEUDO = A4.altura - 190 // logo abaixo da faixa do cabeçalho
-const LIMITE_MEIO = 262 // os blocos do meio não descem daqui
-const Y_LINHA_ASSINATURA = 245
+const A4 = { largura: 841.89, altura: 595.28 }
+/** Margem do conteúdo (as impressoras não imprimem bem perto da borda). */
+const M = 38
+const LARGURA = A4.largura - M * 2
+/** Moldura fina em volta da folha. */
+const MOLDURA = 18
+/** Coluna da direita (datas e assinatura) e o vão até os blocos. */
+const LATERAL = 222
+const VAO_LATERAL = 18
+const LARGURA_BLOCOS = LARGURA - LATERAL - VAO_LATERAL
 
-type Fontes = { normal: PDFFont; negrito: PDFFont }
+const hex = (h: string) =>
+  rgb(
+    parseInt(h.slice(1, 3), 16) / 255,
+    parseInt(h.slice(3, 5), 16) / 255,
+    parseInt(h.slice(5, 7), 16) / 255,
+  )
 
-function documento(valor: string | null | undefined) {
-  if (!valor) return ''
-  return valor.length === 11 ? formatarCpf(valor) : formatarCnpj(valor)
+const COR = {
+  noite: hex('#0F2A0D'),
+  escuro: hex('#1F4D1A'),
+  verde: hex('#3E7B1F'),
+  lima: hex('#A4D65E'),
+  limaForte: hex('#B8E36F'),
+  limaClaro: hex('#EEF7DF'),
+  texto: hex('#13230F'),
+  suave: hex('#586553'),
+  borda: hex('#E2E8DC'),
+  fundoSuave: hex('#F4F7EF'),
+  branco: rgb(1, 1, 1),
+  vermelho: hex('#C62828'),
 }
 
-function centro(
+/** Onde terminam os blocos e a coluna da direita (acima do rodapé). */
+const BASE_CORPO = 96
+
+type Fontes = { normal: PDFFont; medio: PDFFont; negrito: PDFFont; extra: PDFFont }
+
+// -----------------------------------------------------------------------------
+// Desenho básico
+// -----------------------------------------------------------------------------
+
+function texto(
   p: PDFPage,
-  texto: string,
+  t: string,
+  x: number,
   y: number,
   tamanho: number,
   fonte: PDFFont,
-  cor: RGB = PRETO,
-  centroX = A4.largura / 2,
+  cor: RGB = COR.texto,
+  alinhar: 'esquerda' | 'centro' | 'direita' = 'esquerda',
+  espacamento = 0,
 ) {
-  const t = textoSeguro(texto)
-  p.drawText(t, {
-    x: centroX - fonte.widthOfTextAtSize(t, tamanho) / 2,
-    y,
-    size: tamanho,
-    font: fonte,
-    color: cor,
-  })
+  const s = textoSeguro(t)
+  const largura = larguraTexto(s, fonte, tamanho, espacamento)
+  const x0 = alinhar === 'centro' ? x - largura / 2 : alinhar === 'direita' ? x - largura : x
+  if (!espacamento) {
+    p.drawText(s, { x: x0, y, size: tamanho, font: fonte, color: cor })
+    return
+  }
+  // Letras espaçadas (títulos pequenos em maiúsculas, como no site).
+  let xi = x0
+  for (const letra of s) {
+    p.drawText(letra, { x: xi, y, size: tamanho, font: fonte, color: cor })
+    xi += fonte.widthOfTextAtSize(letra, tamanho) + espacamento
+  }
 }
 
-function direita(
+function larguraTexto(s: string, fonte: PDFFont, tamanho: number, espacamento = 0) {
+  return fonte.widthOfTextAtSize(s, tamanho) + Math.max(0, s.length - 1) * espacamento
+}
+
+/** Retângulo de cantos arredondados (x, y = canto de baixo à esquerda). */
+function cartao(
   p: PDFPage,
-  texto: string,
+  x: number,
   y: number,
-  tamanho: number,
-  fonte: PDFFont,
-  xFim: number,
-  cor: RGB = PRETO,
+  w: number,
+  h: number,
+  r: number,
+  opcoes: { cor?: RGB; borda?: RGB; espessura?: number },
 ) {
-  const t = textoSeguro(texto)
-  p.drawText(t, {
-    x: xFim - fonte.widthOfTextAtSize(t, tamanho),
-    y,
-    size: tamanho,
-    font: fonte,
-    color: cor,
+  r = Math.min(r, w / 2, h / 2)
+  const k = r * 0.5523 // aproximação do arco por curva de Bézier
+  // SVG: y cresce para baixo; o drawSvgPath recebe o canto de cima em (x, y + h).
+  const caminho = [
+    `M ${r} 0`,
+    `H ${w - r}`,
+    `C ${w - r + k} 0 ${w} ${r - k} ${w} ${r}`,
+    `V ${h - r}`,
+    `C ${w} ${h - r + k} ${w - r + k} ${h} ${w - r} ${h}`,
+    `H ${r}`,
+    `C ${r - k} ${h} 0 ${h - r + k} 0 ${h - r}`,
+    `V ${r}`,
+    `C 0 ${r - k} ${r - k} 0 ${r} 0`,
+    'Z',
+  ].join(' ')
+  p.drawSvgPath(caminho, {
+    x,
+    y: y + h,
+    color: opcoes.cor,
+    borderColor: opcoes.borda,
+    borderWidth: opcoes.borda ? (opcoes.espessura ?? 0.8) : 0,
   })
 }
 
-/** Parágrafo com trechos em negrito, quebrando as linhas; devolve o y seguinte. */
+/** Título pequeno, em maiúsculas e espaçado, na cor de destaque. */
+function rotulo(
+  p: PDFPage,
+  f: Fontes,
+  t: string,
+  x: number,
+  y: number,
+  cor: RGB,
+  alinhar: 'esquerda' | 'centro' = 'esquerda',
+) {
+  texto(p, t.toUpperCase(), x, y, 7, f.negrito, cor, alinhar, 1.1)
+}
+
+// -----------------------------------------------------------------------------
+// Parágrafo justificado com trechos em negrito
+// -----------------------------------------------------------------------------
+
 function paragrafo(
   p: PDFPage,
   f: Fontes,
   partes: { texto: string; negrito: boolean }[],
   y: number,
   tamanho: number,
-  recuo: number,
 ) {
   // Uma "palavra" pode juntar pedaços em negrito e normais sem espaço entre eles
   // (ex.: "LTDA" em negrito seguido de "," normal).
@@ -123,42 +185,39 @@ function paragrafo(
       colar = true
     }
   }
+  const fonteDe = (q: Pedaco) => (q.negrito ? f.negrito : f.normal)
   const largura = (w: Palavra) =>
-    w.reduce(
-      (s, q) => s + (q.negrito ? f.negrito : f.normal).widthOfTextAtSize(q.texto, tamanho),
-      0,
-    )
+    w.reduce((s, q) => s + fonteDe(q).widthOfTextAtSize(q.texto, tamanho), 0)
   const espaco = f.normal.widthOfTextAtSize(' ', tamanho)
-  const entrelinha = tamanho * 1.45
+  const entrelinha = tamanho * 1.6
 
   let linha: Palavra[] = []
   let ocupado = 0
-  let primeira = true
   const escrever = (ultima: boolean) => {
-    const inicio = MARGEM + (primeira ? recuo : 0)
-    const disponivel = LARGURA_UTIL - (primeira ? recuo : 0)
-    const somaPalavras = linha.reduce((s, w) => s + largura(w), 0)
-    // Justificado, menos a última linha (como no PowerPoint).
+    const soma = linha.reduce((s, w) => s + largura(w), 0)
     const vaos = linha.length - 1
-    const folga = !ultima && vaos > 0 ? (disponivel - somaPalavras) / vaos : espaco
-    let x = inicio
+    const folga = !ultima && vaos > 0 ? (LARGURA - soma) / vaos : espaco
+    let x = M
     for (const w of linha) {
       for (const q of w) {
-        const fonte = q.negrito ? f.negrito : f.normal
-        p.drawText(q.texto, { x, y, size: tamanho, font: fonte, color: PRETO })
-        x += fonte.widthOfTextAtSize(q.texto, tamanho)
+        p.drawText(q.texto, {
+          x,
+          y,
+          size: tamanho,
+          font: fonteDe(q),
+          color: q.negrito ? COR.noite : COR.texto,
+        })
+        x += fonteDe(q).widthOfTextAtSize(q.texto, tamanho)
       }
       x += folga
     }
     y -= entrelinha
-    primeira = false
     linha = []
     ocupado = 0
   }
   for (const w of palavras) {
-    const disponivel = LARGURA_UTIL - (primeira ? recuo : 0)
     const extra = (linha.length ? espaco : 0) + largura(w)
-    if (linha.length && ocupado + extra > disponivel) escrever(false)
+    if (linha.length && ocupado + extra > LARGURA) escrever(false)
     ocupado += (linha.length ? espaco : 0) + largura(w)
     linha.push(w)
   }
@@ -166,41 +225,163 @@ function paragrafo(
   return y
 }
 
-/** Uma coluna de texto: título em negrito e linhas, alinhadas ao centro ou à direita. */
-type Coluna = { titulos: string[]; linhas: string[] }
+// -----------------------------------------------------------------------------
+// Cartões do meio (áreas, produtos, descrição)
+// -----------------------------------------------------------------------------
 
-function alturaColuna(c: Coluna, f: Fontes, tamanho: number, largura: number) {
-  const linhas = c.linhas.flatMap((l) => quebrarLinhas(l, f.normal, tamanho, largura))
-  return (c.titulos.length + linhas.length) * tamanho * 1.4
+/** Item de um cartão: linha principal e, opcionalmente, uma linha menor embaixo. */
+type Item = { principal: string; detalhe?: string }
+type Bloco = { titulo: string; itens: Item[] }
+
+const PAD = 14
+const VAO_COLUNA = 16
+
+type Medido = { principal: string[]; detalhe: string[]; altura: number }
+
+function medir(b: Bloco, f: Fontes, t: number, largura: number): Medido[] {
+  return b.itens.map((i) => {
+    const principal = quebrarLinhas(i.principal, f.medio, t, largura)
+    const detalhe = i.detalhe ? quebrarLinhas(i.detalhe, f.normal, t - 1.2, largura) : []
+    return {
+      principal,
+      detalhe,
+      altura: principal.length * t * 1.35 + detalhe.length * (t - 1.2) * 1.35 + t * 0.55,
+    }
+  })
 }
 
-function desenharColuna(
+/** Divide os itens em colunas de altura parecida, mantendo a ordem. */
+function emColunas(itens: Medido[], n: number): Medido[][] {
+  const total = itens.reduce((s, i) => s + i.altura, 0)
+  const colunas: Medido[][] = [[]]
+  let soma = 0
+  for (const item of itens) {
+    const cheia = soma > 0 && soma + item.altura / 2 > total / n
+    if (cheia && colunas.length < n) {
+      colunas.push([])
+      soma = 0
+    }
+    colunas[colunas.length - 1].push(item)
+    soma += item.altura
+  }
+  return colunas
+}
+
+type Arrumacao = { t: number; colunas: Medido[][]; altura: number; larguraTexto: number }
+
+function arrumar(b: Bloco, f: Fontes, t: number, largura: number, n: number): Arrumacao {
+  const larguraTexto = (largura - PAD * 2 - VAO_COLUNA * (n - 1)) / n
+  const colunas = emColunas(medir(b, f, t, larguraTexto), n)
+  const corpo = Math.max(...colunas.map((c) => c.reduce((s, i) => s + i.altura, 0)))
+  return { t, colunas, altura: PAD + 18 + corpo + PAD - t * 0.55, larguraTexto }
+}
+
+function desenharBloco(
   p: PDFPage,
   f: Fontes,
-  c: Coluna,
-  y: number,
-  tamanho: number,
-  x0: number,
+  b: Bloco,
+  a: Arrumacao,
+  x: number,
+  yTopo: number,
   largura: number,
-  alinhamento: 'centro' | 'direita',
+  altura: number,
+  destaque: RGB,
 ) {
-  const entrelinha = tamanho * 1.4
-  const escrever = (t: string, fonte: PDFFont) => {
-    if (alinhamento === 'centro') centro(p, t, y, tamanho, fonte, PRETO, x0 + largura / 2)
-    else direita(p, t, y, tamanho, fonte, x0 + largura)
-    y -= entrelinha
-  }
-  for (const t of c.titulos) escrever(t, f.negrito)
-  for (const l of c.linhas)
-    for (const q of quebrarLinhas(l, f.normal, tamanho, largura)) escrever(q, f.normal)
+  cartao(p, x, yTopo - altura, largura, altura, 12, { cor: COR.fundoSuave, borda: COR.borda })
+  // Barrinha de destaque ao lado do título
+  cartao(p, x + PAD, yTopo - PAD - 8.5, 14, 3, 1.5, { cor: destaque })
+  rotulo(p, f, b.titulo, x + PAD + 20, yTopo - PAD - 8.5, destaque)
+  const t = a.t
+  a.colunas.forEach((coluna, n) => {
+    const xc = x + PAD + n * (a.larguraTexto + VAO_COLUNA)
+    let y = yTopo - PAD - 18 - t
+    for (const item of coluna) {
+      for (const s of item.principal) {
+        texto(p, s, xc, y, t, f.medio, COR.texto)
+        y -= t * 1.35
+      }
+      for (const s of item.detalhe) {
+        texto(p, s, xc, y, t - 1.2, f.normal, COR.suave)
+        y -= (t - 1.2) * 1.35
+      }
+      y -= t * 0.55
+    }
+  })
 }
 
-/** Maior letra (de 10 até 6) em que as colunas cabem no espaço. */
-function tamanhoQueCabe(colunas: Coluna[], f: Fontes, larguraColuna: number, altura: number) {
-  for (let t = 10; t > 6; t -= 0.5) {
-    if (colunas.every((c) => alturaColuna(c, f, t, larguraColuna) <= altura)) return t
+/**
+ * Blocos do meio. Primeiro tenta lado a lado (letra de 10 até 7,5); se não cabe,
+ * põe um embaixo do outro na largura toda, dividindo listas longas em até 3 colunas
+ * (letra de 9,5 até 6). Devolve o y de baixo.
+ */
+function blocosDoMeio(
+  p: PDFPage,
+  f: Fontes,
+  blocos: Bloco[],
+  x0: number,
+  larguraTotal: number,
+  yTopo: number,
+  yLimite: number,
+  destaque: RGB,
+) {
+  const visiveis = blocos.filter((b) => b.itens.length > 0)
+  if (visiveis.length === 0) return yTopo
+  const disponivel = yTopo - yLimite
+  const vao = 14
+
+  const larguraLado = visiveis.length === 1 ? larguraTotal : (larguraTotal - vao) / 2
+  for (let t = 10; t >= 7.5; t -= 0.25) {
+    const arr = visiveis.map((b) => arrumar(b, f, t, larguraLado, 1))
+    const altura = Math.max(...arr.map((a) => a.altura))
+    if (altura <= disponivel) {
+      visiveis.forEach((b, i) =>
+        desenharBloco(
+          p,
+          f,
+          b,
+          arr[i],
+          x0 + i * (larguraLado + vao),
+          yTopo,
+          larguraLado,
+          altura,
+          destaque,
+        ),
+      )
+      return yTopo - altura
+    }
   }
-  return 6
+
+  // Um embaixo do outro; cada bloco com o número de colunas que o deixa mais baixo.
+  let escolha: Arrumacao[] = []
+  for (let t = 9.5; t >= 6; t -= 0.25) {
+    escolha = visiveis.map((b) => {
+      const opcoes = [1, 2, 3].map((n) => arrumar(b, f, t, larguraTotal, n))
+      return opcoes.reduce((melhor, a) => (a.altura < melhor.altura - 1 ? a : melhor))
+    })
+    const total = escolha.reduce((s, a) => s + a.altura, 0) + vao * (escolha.length - 1)
+    if (total <= disponivel) break
+  }
+  let y = yTopo
+  visiveis.forEach((b, i) => {
+    desenharBloco(p, f, b, escolha[i], x0, y, larguraTotal, escolha[i].altura, destaque)
+    y -= escolha[i].altura + vao
+  })
+  return y + vao
+}
+
+// -----------------------------------------------------------------------------
+// Certificado
+// -----------------------------------------------------------------------------
+
+function documento(valor: string | null | undefined) {
+  if (!valor) return ''
+  return valor.length === 11 ? formatarCpf(valor) : formatarCnpj(valor)
+}
+
+const meses = (n: number) => `${String(n).padStart(2, '0')} ${n === 1 ? 'mês' : 'meses'}`
+
+async function carregar(caminho: string) {
+  return new Uint8Array(await (await fetch(caminho)).arrayBuffer())
 }
 
 /** Qual assinatura escaneada vai neste certificado. */
@@ -220,48 +401,96 @@ export async function gerarPdfCertificado(
   assinatura?: Uint8Array | null,
 ): Promise<Blob> {
   const modelo = MODELO[c.modelo as ModeloCertificado] ?? MODELO.geral
+  const destaque = hex(modelo.destaque.forte)
+  const destaqueClaro = hex(modelo.destaque.claro)
   const ficha = fichaDaOs(c.ficha_cliente)
   const conf = UNIDADE.certificado
   const deContrato = c.tipo_validade === 'contrato'
 
   const pdf = await PDFDocument.create()
+  pdf.registerFontkit(fontkit)
   pdf.setTitle(`${c.numero} - ${c.titulo}`)
   pdf.setAuthor(UNIDADE.nome)
+  const pasta = '/certificados/fontes/PlusJakartaSans_'
+  const [normal, medio, negrito, extra, logoBytes] = await Promise.all([
+    carregar(`${pasta}400Regular.ttf`),
+    carregar(`${pasta}600SemiBold.ttf`),
+    carregar(`${pasta}700Bold.ttf`),
+    carregar(`${pasta}800ExtraBold.ttf`),
+    carregar('/certificados/logo.png'),
+  ])
   const f: Fontes = {
-    normal: await pdf.embedFont(StandardFonts.Helvetica),
-    negrito: await pdf.embedFont(StandardFonts.HelveticaBold),
+    normal: await pdf.embedFont(normal, { subset: true }),
+    medio: await pdf.embedFont(medio, { subset: true }),
+    negrito: await pdf.embedFont(negrito, { subset: true }),
+    extra: await pdf.embedFont(extra, { subset: true }),
   }
-  const fundo = await pdf.embedJpg(
-    await (await fetch(`/certificados/fundo-${modelo.fundo}.jpg`)).arrayBuffer(),
-  )
+  const logo = await pdf.embedPng(logoBytes)
   const p = pdf.addPage([A4.largura, A4.altura])
-  p.drawImage(fundo, { x: 0, y: 0, width: A4.largura, height: A4.altura })
 
-  // Número do certificado, discreto no canto (para achar no sistema).
-  direita(p, c.numero, A4.altura - 182, 7, f.normal, A4.largura - MARGEM, rgb(0.45, 0.45, 0.45))
+  // Moldura fina e detalhe lima no alto
+  cartao(p, MOLDURA, MOLDURA, A4.largura - MOLDURA * 2, A4.altura - MOLDURA * 2, 18, {
+    borda: COR.borda,
+    espessura: 1,
+  })
+  cartao(p, A4.largura / 2 - 50, A4.altura - MOLDURA - 1.5, 100, 3, 1.5, { cor: COR.lima })
 
-  // Título e pragas-alvo
-  const corTitulo = rgb(...modelo.corTitulo)
-  let y = TOPO_CONTEUDO - 18
-  for (const linha of quebrarLinhas(c.titulo.toUpperCase(), f.negrito, 16, LARGURA_UTIL)) {
-    centro(p, linha, y, 16, f.negrito, corTitulo)
-    y -= 21
+  // Cabeçalho: logo à esquerda, número à direita
+  let y = A4.altura - 36
+  const alturaLogo = 46
+  const larguraLogo = (logo.width / logo.height) * alturaLogo
+  p.drawImage(logo, { x: M, y: y - alturaLogo, width: larguraLogo, height: alturaLogo })
+  texto(p, 'CERTIFICADO Nº', A4.largura - M, y - 12, 7, f.negrito, COR.suave, 'direita', 1.1)
+  texto(p, c.numero, A4.largura - M, y - 27, 12, f.extra, COR.noite, 'direita')
+  texto(p, UNIDADE.nome, A4.largura - M, y - 39, 7.5, f.normal, COR.suave, 'direita')
+  y -= alturaLogo + 12
+
+  // Faixa verde-escura: "CERTIFICADO", título e pragas-alvo
+  const larguraTitulo = LARGURA - 170
+  const tituloLinhas = quebrarLinhas(c.titulo.toUpperCase(), f.extra, 18, larguraTitulo)
+  const pragas =
+    modelo.temPragas && c.pragas_alvo?.trim()
+      ? quebrarLinhas(`Pragas-alvo: ${c.pragas_alvo.trim()}`, f.medio, 10, larguraTitulo)
+      : []
+  const alturaFaixa =
+    20 + 10 + tituloLinhas.length * 22 + (pragas.length ? 4 + pragas.length * 14 : 0) + 14
+  cartao(p, M, y - alturaFaixa, LARGURA, alturaFaixa, 16, { cor: COR.noite })
+  // Gotas do logo, em lima, no canto direito da faixa
+  const gota = 'M 50 0 C 62 22 100 52 100 80 A 50 50 0 0 1 0 80 C 0 52 38 22 50 0 Z'
+  const alturaGota = Math.min(alturaFaixa - 22, 60)
+  const escalaGota = alturaGota / 130
+  const xGota = M + LARGURA - 34 - 100 * escalaGota
+  p.drawSvgPath(gota, { x: xGota, y: y - 11, scale: escalaGota, color: COR.lima })
+  p.drawSvgPath(gota, {
+    x: xGota - 48 * escalaGota,
+    y: y - 11 - alturaGota * 0.55,
+    scale: escalaGota * 0.45,
+    color: COR.verde,
+  })
+  let yf = y - 20
+  texto(
+    p,
+    'CERTIFICADO DE EXECUÇÃO DE SERVIÇO',
+    M + 24,
+    yf - 2,
+    7,
+    f.negrito,
+    COR.lima,
+    'esquerda',
+    1.1,
+  )
+  yf -= 10 + 18
+  for (const l of tituloLinhas) {
+    texto(p, l, M + 24, yf, 18, f.extra, COR.branco)
+    yf -= 22
   }
-  if (modelo.temPragas && c.pragas_alvo?.trim()) {
-    for (const linha of quebrarLinhas(
-      `Pragas Alvo (${c.pragas_alvo.trim()})`,
-      f.negrito,
-      13.5,
-      LARGURA_UTIL,
-    )) {
-      centro(p, linha, y, 13.5, f.negrito, corTitulo)
-      y -= 19
-    }
+  for (const l of pragas) {
+    texto(p, l, M + 24, yf + 2, 10, f.medio, COR.limaForte)
+    yf -= 14
   }
-  y -= 14
+  y -= alturaFaixa + 22
 
   // "Certificamos para os devidos fins…"
-  const doc = documento(ficha.cpf_cnpj)
   y = paragrafo(
     p,
     f,
@@ -271,108 +500,46 @@ export async function gerarPdfCertificado(
       // Contrato: a data vai na frase. Avulso: a data exata vai embaixo.
       dias: deContrato ? textoDias([c.data_execucao, ...(c.outras_datas ?? [])]) : '',
       endereco: enderecoDaFicha(ficha).replace(/ · /g, ' - '),
-      documento: doc,
+      documento: documento(ficha.cpf_cnpj),
       ehCpf: (ficha.cpf_cnpj ?? '').length === 11,
       complemento: c.complemento,
     }),
     y,
-    10,
-    40,
+    10.5,
   )
-  y -= 28
+  const topoCorpo = y - 4
 
-  // Blocos do meio
-  const altura = y - LIMITE_MEIO
-  const produtos = lerProdutos(c.produtos)
-  const areas = (c.areas ?? '')
-    .split('\n')
-    .map((l) => l.trim())
-    .filter(Boolean)
-  const colProdutos: Coluna = {
-    titulos: ['PRODUTOS E QTDE', '(Princípio ativo químico/Reg.Anvisa)'],
-    linhas: produtos.flatMap((pr) => linhasDoProduto(pr).filter(Boolean)),
-  }
-  const colAreas: Coluna = { titulos: ['ÁREAS'], linhas: areas }
-  const metade = LARGURA_UTIL / 2 - 10
-
-  if (modelo.arranjo === 'areas_produtos' || modelo.arranjo === 'produtos_areas') {
-    const [esq, dir] =
-      modelo.arranjo === 'areas_produtos' ? [colAreas, colProdutos] : [colProdutos, colAreas]
-    const visiveis = [esq, dir].filter((col) => col.linhas.length > 0)
-    if (visiveis.length === 1) {
-      // Só um dos blocos tem conteúdo: vai no centro da página.
-      const larguraCentro = LARGURA_UTIL - 60
-      const t = tamanhoQueCabe(visiveis, f, larguraCentro, altura)
-      desenharColuna(p, f, visiveis[0], y, t, MARGEM + 30, larguraCentro, 'centro')
-    } else if (visiveis.length === 2) {
-      const t = tamanhoQueCabe(visiveis, f, metade, altura)
-      desenharColuna(p, f, esq, y, t, MARGEM, metade, 'centro')
-      desenharColuna(
-        p,
-        f,
-        dir,
-        y,
-        t,
-        MARGEM + LARGURA_UTIL - metade,
-        metade,
-        modelo.arranjo === 'areas_produtos' ? 'direita' : 'centro',
-      )
-    }
-  } else if (modelo.arranjo === 'reservatorios') {
-    const reservatorios = lerReservatorios(c.reservatorios)
-    const cabecalho = ['QUANTIDADE', 'LOCAL', 'METRAGEM CÚBICA', 'PRODUTOS UTILIZADOS']
-    const larguras = [0.2, 0.34, 0.22, 0.24].map((r) => r * LARGURA_UTIL)
-    const centros = larguras.map(
-      (w, i) => MARGEM + larguras.slice(0, i).reduce((s, v) => s + v, 0) + w / 2,
-    )
-    cabecalho.forEach((h, i) => {
-      centro(p, h, y, 9.5, f.negrito, PRETO, centros[i])
-      const w = f.negrito.widthOfTextAtSize(textoSeguro(h), 9.5)
-      p.drawLine({
-        start: { x: centros[i] - w / 2, y: y - 2 },
-        end: { x: centros[i] + w / 2, y: y - 2 },
-        thickness: 0.6,
-        color: PRETO,
-      })
+  // ---- Coluna da direita: data · válido até · validade, e a assinatura ----
+  const xLateral = M + LARGURA - LATERAL
+  const datas = [c.data_execucao, ...(c.outras_datas ?? [])]
+  const info = [
+    {
+      rotulo: datas.length > 1 ? 'Datas do serviço' : 'Data do serviço',
+      valor: textoDias(datas).replace(/^nos? dias? /, ''),
+    },
+    c.validade && { rotulo: 'Válido até', valor: formatarData(c.validade) },
+    c.validade_meses && {
+      rotulo: 'Validade',
+      valor: deContrato ? `${meses(c.validade_meses)} · contrato` : meses(c.validade_meses),
+    },
+  ].filter((i): i is { rotulo: string; valor: string } => !!i)
+  let yl = topoCorpo
+  for (const i of info) {
+    const destacado = i.rotulo === 'Válido até'
+    cartao(p, xLateral, yl - 40, LATERAL, 40, 12, {
+      cor: destacado ? destaqueClaro : COR.branco,
+      borda: destacado ? undefined : COR.borda,
     })
-    y -= 16
-    for (const r of reservatorios) {
-      const celulas = [r.quantidade, r.local, r.metragem, r.produto].map((v, i) =>
-        quebrarLinhas(v || '-', f.normal, 9.5, larguras[i] - 8),
-      )
-      const linhas = Math.max(...celulas.map((l) => l.length))
-      celulas.forEach((cel, i) =>
-        cel.forEach((l, j) => centro(p, l, y - j * 13, 9.5, f.normal, PRETO, centros[i])),
-      )
-      y -= linhas * 13 + 6
-      if (y < LIMITE_MEIO) break
-    }
-    if (areas.length) {
-      y -= 10
-      desenharColuna(p, f, colAreas, y, 9.5, MARGEM, LARGURA_UTIL, 'centro')
-    }
-  } else {
-    // Sucção: descrição no centro, com MTR e volume
-    const linhas = [
-      ...(c.descricao ?? '')
-        .split('\n')
-        .map((l) => l.trim())
-        .filter(Boolean),
-      c.mtr?.trim() && `MTR n° ${c.mtr.trim()}`,
-      c.volume?.trim() && `Quantidade: ${c.volume.trim()}`,
-    ].filter((l): l is string => !!l)
-    const col: Coluna = { titulos: ['DESCRIÇÃO'], linhas }
-    const t = tamanhoQueCabe([col], f, LARGURA_UTIL - 60, altura)
-    desenharColuna(p, f, col, y, t, MARGEM + 30, LARGURA_UTIL - 60, 'centro')
-    if (produtos.length) {
-      // Produtos, se houver, embaixo da descrição.
-      const yProdutos = y - alturaColuna(col, f, t, LARGURA_UTIL - 60) - 14
-      if (yProdutos - alturaColuna(colProdutos, f, t, LARGURA_UTIL - 60) > LIMITE_MEIO)
-        desenharColuna(p, f, colProdutos, yProdutos, t, MARGEM + 30, LARGURA_UTIL - 60, 'centro')
-    }
+    rotulo(p, f, i.rotulo, xLateral + 14, yl - 15, destacado ? destaque : COR.suave)
+    let t = 12.5
+    while (t > 8 && f.extra.widthOfTextAtSize(textoSeguro(i.valor), t) > LATERAL - 28) t -= 0.5
+    texto(p, i.valor, xLateral + 14, yl - 31, t, f.extra, COR.noite)
+    yl -= 40 + 8
   }
 
-  // Assinatura do responsável técnico
+  // Assinatura do responsável técnico, no pé da coluna
+  const centroLateral = xLateral + LATERAL / 2
+  const yLinha = BASE_CORPO + 34
   const resp =
     modelo.responsavelSuccao && conf.responsavelSuccao ? conf.responsavelSuccao : conf.responsavel
   const nome = c.responsavel_nome?.trim() || resp.nome
@@ -380,96 +547,187 @@ export async function gerarPdfCertificado(
   const mesmaPessoa = !!resp.nome && nome.toUpperCase() === resp.nome.toUpperCase()
   if (assinatura && mesmaPessoa) {
     const img = await pdf.embedPng(assinatura)
-    // Até 48pt de altura e 170pt de largura, um pouco por cima da linha.
-    const escala = Math.min(48 / img.height, 170 / img.width)
+    const escala = Math.min(44 / img.height, 160 / img.width)
     const w = img.width * escala
     p.drawImage(img, {
-      x: A4.largura / 2 - w / 2,
-      y: Y_LINHA_ASSINATURA - 6,
+      x: centroLateral - w / 2,
+      y: yLinha - 5,
       width: w,
       height: img.height * escala,
     })
   }
+  // Local e data (avulso: a data exata vai embaixo, junto da assinatura)
+  if (!deContrato)
+    texto(
+      p,
+      localEData(conf.cidade, c.data_execucao),
+      centroLateral,
+      yLinha + 52,
+      9,
+      f.normal,
+      COR.texto,
+      'centro',
+    )
   p.drawLine({
-    start: { x: A4.largura / 2 - 80, y: Y_LINHA_ASSINATURA },
-    end: { x: A4.largura / 2 + 80, y: Y_LINHA_ASSINATURA },
-    thickness: 0.7,
-    color: PRETO,
+    start: { x: xLateral + 10, y: yLinha },
+    end: { x: xLateral + LATERAL - 10, y: yLinha },
+    thickness: 0.8,
+    color: COR.noite,
   })
-  let ya = Y_LINHA_ASSINATURA - 13
-  const blocoAssinatura = [UNIDADE.certificado.rodape[0].toUpperCase(), nome, registro].filter(
-    Boolean,
-  )
-  for (const linha of blocoAssinatura) {
-    centro(p, linha, ya, 9, f.normal)
-    ya -= 12
+  let ya = yLinha - 13
+  const linhasAssinatura: [string, PDFFont, RGB, number][] = [
+    [nome, f.negrito, COR.noite, 9],
+    [registro, f.normal, COR.suave, 8],
+    [conf.rodape[0], f.normal, COR.suave, 6.8],
+  ]
+  for (const [t, fonte, cor, tamanho] of linhasAssinatura) {
+    if (!t) continue
+    const linha = quebrarLinhas(t, fonte, tamanho, LATERAL)[0] ?? ''
+    texto(p, linha, centroLateral, ya, tamanho, fonte, cor, 'centro')
+    ya -= tamanho + 3
   }
-  ya -= 4
 
-  // Validade: contrato → "válido até" (fim do mês); avulso → data exata embaixo e meses ao lado.
-  if (deContrato) {
-    if (c.validade) centro(p, textoValidoAte(c.validade), ya, 9.5, f.normal)
+  // ---- Blocos à esquerda ----
+  const obs = c.observacao_final?.trim()
+  const limite = BASE_CORPO + (obs ? 20 : 0)
+  const produtos = lerProdutos(c.produtos)
+  const itensProdutos: Item[] = produtos.map((pr) => {
+    const [principal, detalhe] = linhasDoProduto(pr)
+    return { principal, detalhe: detalhe || undefined }
+  })
+  const itensAreas: Item[] = (c.areas ?? '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => ({ principal: l }))
+  const blocoProdutos: Bloco = { titulo: 'Produtos e quantidades', itens: itensProdutos }
+  const blocoAreas: Bloco = { titulo: 'Áreas atendidas', itens: itensAreas }
+  const meio = (blocos: Bloco[], topo: number) =>
+    blocosDoMeio(p, f, blocos, M, LARGURA_BLOCOS, topo, limite, destaque)
+
+  if (modelo.arranjo === 'areas_produtos' || modelo.arranjo === 'produtos_areas') {
+    meio(
+      modelo.arranjo === 'areas_produtos'
+        ? [blocoAreas, blocoProdutos]
+        : [blocoProdutos, blocoAreas],
+      topoCorpo,
+    )
+  } else if (modelo.arranjo === 'reservatorios') {
+    const yTabela = tabelaReservatorios(p, f, c, topoCorpo, destaque)
+    meio([blocoProdutos, blocoAreas], yTabela - 12)
   } else {
-    centro(p, localEData(conf.cidade, c.data_execucao), ya, 9.5, f.normal)
-    if (c.validade_meses)
-      direita(p, textoValidadeMeses(c.validade_meses), ya - 14, 9.5, f.normal, A4.largura - MARGEM)
-  }
-  ya -= 17
-
-  if (c.observacao_final?.trim()) {
-    for (const l of quebrarLinhas(c.observacao_final.trim(), f.normal, 9.5, LARGURA_UTIL - 120)) {
-      centro(p, l, ya, 9.5, f.normal)
-      ya -= 12
-    }
-  }
-
-  // Reservatório: lote do produto ao lado da assinatura (como no modelo).
-  if (modelo.arranjo === 'reservatorios' && produtos.length) {
-    let yl = Y_LINHA_ASSINATURA - 13
-    for (const pr of produtos.slice(0, 3)) {
-      const nomeProduto = pr.nome_comercial || pr.principio_ativo
-      direita(
-        p,
-        [nomeProduto, pr.lote && `Lote ${pr.lote}`].filter(Boolean).join(' - '),
-        yl,
-        8.5,
-        f.normal,
-        A4.largura - MARGEM,
-      )
-      const datas = [
-        pr.fabricacao && `Fab. ${mesCurto(pr.fabricacao)}`,
-        pr.validade && `Val. ${mesCurto(pr.validade)}`,
-      ]
+    // Sucção: descrição, com MTR e volume
+    const itens: Item[] = [
+      ...(c.descricao ?? '')
+        .split('\n')
+        .map((l) => l.trim())
         .filter(Boolean)
-        .join(' - ')
-      if (datas) direita(p, datas, yl - 11, 8.5, f.normal, A4.largura - MARGEM)
-      yl -= 25
-    }
+        .map((l) => ({ principal: l })),
+      ...(c.mtr?.trim() ? [{ principal: `MTR nº ${c.mtr.trim()}` }] : []),
+      ...(c.volume?.trim() ? [{ principal: `Quantidade: ${c.volume.trim()}` }] : []),
+    ]
+    meio([{ titulo: 'Descrição do serviço', itens }, blocoProdutos], topoCorpo)
+  }
+
+  if (obs) {
+    const l = quebrarLinhas(obs, f.medio, 9, LARGURA_BLOCOS)[0] ?? ''
+    texto(p, l, M, BASE_CORPO + 4, 9, f.medio, COR.escuro)
   }
 
   // Rodapé da empresa
   const rodape = modelo.responsavelSuccao && conf.rodapeSuccao ? conf.rodapeSuccao : conf.rodape
-  let yr = 22 + (rodape.length - 1) * 10.5
-  centro(p, conf.email, yr + 13, 8.5, f.normal, VERDE_EMAIL)
-  for (const [i, linha] of rodape.entries()) {
-    centro(p, linha, yr, i === 0 ? 8.5 : 7.8, i === 0 ? f.negrito : f.normal)
-    yr -= 10.5
+  const linhasRodape = rodape.slice(1).flatMap((l) => quebrarLinhas(l, f.normal, 6.8, LARGURA))
+  let yr = MOLDURA + 12 + (linhasRodape.length - 1) * 9
+  p.drawLine({
+    start: { x: M, y: yr + 30 },
+    end: { x: A4.largura - M, y: yr + 30 },
+    thickness: 0.6,
+    color: COR.borda,
+  })
+  texto(
+    p,
+    `${rodape[0]}  ·  ${conf.email}`,
+    A4.largura / 2,
+    yr + 15,
+    7.5,
+    f.negrito,
+    COR.escuro,
+    'centro',
+  )
+  for (const l of linhasRodape) {
+    texto(p, l, A4.largura / 2, yr + 3, 6.8, f.normal, COR.suave, 'centro')
+    yr -= 9
   }
 
   if (c.cancelado_em) {
     p.drawText('CANCELADO', {
-      x: 120,
-      y: 280,
-      size: 90,
-      font: f.negrito,
-      color: VERMELHO,
-      opacity: 0.22,
-      rotate: degrees(40),
+      x: 210,
+      y: 150,
+      size: 110,
+      font: f.extra,
+      color: COR.vermelho,
+      opacity: 0.2,
+      rotate: degrees(25),
     })
   }
 
   const bytes = await pdf.save()
   return new Blob([bytes as BlobPart], { type: 'application/pdf' })
+}
+
+/** Tabela dos reservatórios: quantidade · local · m³ · produto. Devolve o y de baixo. */
+function tabelaReservatorios(
+  p: PDFPage,
+  f: Fontes,
+  c: CertificadoResumo,
+  y: number,
+  destaque: RGB,
+) {
+  const linhas = lerReservatorios(c.reservatorios)
+  const cabecalho = ['Quantidade', 'Local', 'Metragem cúbica', 'Produto utilizado']
+  const larguras = [0.17, 0.37, 0.2, 0.26].map((r) => r * LARGURA_BLOCOS)
+  const xs = larguras.map((_, i) => M + larguras.slice(0, i).reduce((s, v) => s + v, 0))
+  const t = 9
+  cartao(p, M, y - 26, LARGURA_BLOCOS, 26, 10, { cor: destaque })
+  cabecalho.forEach((h, i) =>
+    texto(p, h.toUpperCase(), xs[i] + 12, y - 16.5, 6.8, f.negrito, COR.branco, 'esquerda', 0.8),
+  )
+  y -= 26
+  linhas.forEach((r, n) => {
+    const celulas = [r.quantidade, r.local, r.metragem, r.produto].map((v, i) =>
+      quebrarLinhas(v || '-', f.normal, t, larguras[i] - 20),
+    )
+    const altura = Math.max(...celulas.map((l) => l.length)) * t * 1.35 + 12
+    if (n % 2 === 1)
+      p.drawRectangle({
+        x: M,
+        y: y - altura,
+        width: LARGURA_BLOCOS,
+        height: altura,
+        color: COR.fundoSuave,
+      })
+    celulas.forEach((cel, i) =>
+      cel.forEach((l, j) =>
+        texto(
+          p,
+          l,
+          xs[i] + 12,
+          y - 6 - t - j * t * 1.35,
+          t,
+          i === 0 ? f.medio : f.normal,
+          COR.texto,
+        ),
+      ),
+    )
+    y -= altura
+    p.drawLine({
+      start: { x: M, y },
+      end: { x: M + LARGURA_BLOCOS, y },
+      thickness: 0.5,
+      color: COR.borda,
+    })
+  })
+  return y
 }
 
 /** Abre o PDF numa aba nova (ou na mesma, se o navegador bloquear). */
