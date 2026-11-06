@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
+import { LoaderCircle, Search } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Link, useNavigate, useParams } from 'react-router'
 
@@ -9,7 +10,14 @@ import { Button } from '@/components/ui/Button'
 import { Campo, Input, Select, Textarea } from '@/components/ui/Campo'
 import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
-import { formatarCnpj, formatarCpf, formatarDocumento, formatarTelefone } from '@/lib/documentos'
+import {
+  cnpjValido,
+  formatarCnpj,
+  formatarCpf,
+  formatarDocumento,
+  formatarTelefone,
+  limparDocumento,
+} from '@/lib/documentos'
 import { mensagemDeErro } from '@/lib/erros'
 import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
 
@@ -22,6 +30,13 @@ import {
   useEquipe,
   type ClienteCompleto,
 } from './api'
+import {
+  consultarCnpj,
+  ErroConsultaCnpj,
+  planejarPreenchimento,
+  type Conflito,
+  type DadosCnpj,
+} from './consultaCnpj'
 import { EnderecoCampos } from './EnderecoCampos'
 import {
   CLIENTE_VAZIO,
@@ -70,6 +85,9 @@ function FormularioCliente({ cliente }: { cliente?: ClienteCompleto }) {
   const criar = useCriarCliente()
   const atualizar = useAtualizarCliente(cliente?.id ?? '')
   const [comEndereco, setComEndereco] = useState(true)
+  const [consulta, setConsulta] = useState<EstadoConsulta>({ etapa: 'parada' })
+  // Para não consultar duas vezes o mesmo CNPJ nem aplicar uma resposta atrasada.
+  const ultimaConsulta = useRef('')
 
   const form = useForm<FormCliente>({
     resolver: zodResolver(esquemaCliente),
@@ -116,6 +134,56 @@ function FormularioCliente({ cliente }: { cliente?: ClienteCompleto }) {
       form.setError('root', { message: mensagemDeErro(erro) })
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
+  }
+
+  async function consultar(valor: string) {
+    const cnpj = limparDocumento(valor)
+    if (!cnpjValido(cnpj)) {
+      form.setError('cpf_cnpj', { message: 'Digite um CNPJ válido para consultar.' })
+      return
+    }
+    form.clearErrors('cpf_cnpj')
+    ultimaConsulta.current = cnpj
+    setConsulta({ etapa: 'consultando' })
+    try {
+      const dados = await consultarCnpj(cnpj)
+      if (ultimaConsulta.current !== cnpj) return
+      const plano = planejarPreenchimento(
+        dados,
+        form.getValues(),
+        editando ? undefined : formEndereco.getValues(),
+        ENDERECO_VAZIO,
+      )
+      const opcoes = { shouldValidate: true, shouldDirty: true }
+      for (const [campo, valor] of Object.entries(plano.cliente))
+        form.setValue(campo as keyof FormCliente, valor, opcoes)
+      if (!editando && Object.keys(plano.endereco).length > 0) {
+        setComEndereco(true)
+        for (const [campo, valor] of Object.entries(plano.endereco))
+          formEndereco.setValue(campo as keyof FormEndereco, valor, opcoes)
+      }
+      setConsulta({ etapa: 'pronta', dados, conflitos: plano.conflitos })
+    } catch (erro) {
+      if (ultimaConsulta.current !== cnpj) return
+      setConsulta({
+        etapa: 'erro',
+        mensagem: erro instanceof ErroConsultaCnpj ? erro.message : mensagemDeErro(erro),
+      })
+    }
+  }
+
+  /** A pessoa escolheu trocar o que tinha digitado pelos dados da Receita. */
+  function usarDadosDaReceita(dados: DadosCnpj, conflitos: Conflito[]) {
+    const opcoes = { shouldValidate: true, shouldDirty: true }
+    for (const c of conflitos) {
+      if (c.form === 'cliente') form.setValue(c.campo, c.novo, opcoes)
+      else formEndereco.setValue(c.campo, c.novo, opcoes)
+      if (c.campo === 'cidade') {
+        formEndereco.setValue('uf', dados.endereco.uf, opcoes)
+        formEndereco.setValue('codigo_ibge', dados.endereco.codigo_ibge)
+      }
+    }
+    setConsulta({ etapa: 'pronta', dados, conflitos: [] })
   }
 
   const documento = form.register('cpf_cnpj')
@@ -181,9 +249,45 @@ function FormularioCliente({ cliente }: { cliente?: ClienteCompleto }) {
                 e.target.value =
                   tipo === 'PF' ? formatarCpf(e.target.value) : formatarCnpj(e.target.value)
                 void documento.onChange(e)
+                if (tipo !== 'PJ') return
+                // CNPJ completo e válido: consulta sozinho (uma vez por CNPJ).
+                const cnpj = limparDocumento(e.target.value)
+                if (cnpj === ultimaConsulta.current) return
+                // Outro CNPJ: o resultado anterior não vale mais.
+                ultimaConsulta.current = ''
+                setConsulta({ etapa: 'parada' })
+                if (cnpjValido(cnpj)) void consultar(cnpj)
               }}
             />
           </Campo>
+
+          {tipo === 'PJ' && (
+            <div className="flex items-end">
+              <Button
+                variante="secundario"
+                className="w-full sm:w-auto"
+                disabled={consulta.etapa === 'consultando'}
+                onClick={() => void consultar(form.getValues('cpf_cnpj'))}
+              >
+                {consulta.etapa === 'consultando' ? (
+                  <LoaderCircle className="size-4 animate-spin" aria-hidden />
+                ) : (
+                  <Search className="size-4" aria-hidden />
+                )}
+                {consulta.etapa === 'consultando' ? 'Consultando…' : 'Consultar CNPJ'}
+              </Button>
+            </div>
+          )}
+
+          {tipo === 'PJ' && (consulta.etapa === 'erro' || consulta.etapa === 'pronta') && (
+            <div className="flex flex-col gap-2 sm:col-span-2">
+              <ResultadoConsulta
+                consulta={consulta}
+                aoUsarReceita={usarDadosDaReceita}
+                aoManter={(dados) => setConsulta({ etapa: 'pronta', dados, conflitos: [] })}
+              />
+            </div>
+          )}
 
           {tipo === 'PJ' && (
             <Campo rotulo="Inscrição estadual" htmlFor="inscricao_estadual">
@@ -298,6 +402,61 @@ function FormularioCliente({ cliente }: { cliente?: ClienteCompleto }) {
           </Button>
         </div>
       </form>
+    </>
+  )
+}
+
+type EstadoConsulta =
+  | { etapa: 'parada' }
+  | { etapa: 'consultando' }
+  | { etapa: 'erro'; mensagem: string }
+  | { etapa: 'pronta'; dados: DadosCnpj; conflitos: Conflito[] }
+
+/** O que a consulta do CNPJ achou: confirmação, situação na Receita e campos em dúvida. */
+function ResultadoConsulta({
+  consulta,
+  aoUsarReceita,
+  aoManter,
+}: {
+  consulta: Extract<EstadoConsulta, { etapa: 'erro' | 'pronta' }>
+  aoUsarReceita: (dados: DadosCnpj, conflitos: Conflito[]) => void
+  aoManter: (dados: DadosCnpj) => void
+}) {
+  if (consulta.etapa === 'erro') return <Aviso tipo="erro">{consulta.mensagem}</Aviso>
+
+  const { dados, conflitos } = consulta
+  const inativa = dados.situacao !== '' && dados.situacao !== 'ATIVA'
+  return (
+    <>
+      <Aviso tipo="sucesso">Dados da Receita Federal preenchidos. Confira antes de salvar.</Aviso>
+      {inativa && (
+        <Aviso tipo="erro">
+          Atenção: na Receita Federal este CNPJ está com situação {dados.situacao}.
+        </Aviso>
+      )}
+      {conflitos.length > 0 && (
+        <Aviso tipo="info">
+          <p className="font-semibold">
+            Estes campos já estavam preenchidos e ficaram como você digitou:
+          </p>
+          <ul className="mt-1 mb-3 list-disc pl-5">
+            {conflitos.map((c) => (
+              <li key={`${c.form}-${c.campo}`}>
+                <span className="font-semibold">{c.rotulo}:</span> “{c.atual}” (na Receita: “
+                {c.novo}”)
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-wrap gap-2">
+            <Button variante="secundario" onClick={() => aoUsarReceita(dados, conflitos)}>
+              Usar os dados da Receita
+            </Button>
+            <Button variante="fantasma" onClick={() => aoManter(dados)}>
+              Manter o que digitei
+            </Button>
+          </div>
+        </Aviso>
+      )}
     </>
   )
 }
