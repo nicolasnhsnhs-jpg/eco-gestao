@@ -1,5 +1,5 @@
 import fontkit from '@pdf-lib/fontkit'
-import { degrees, PDFDocument, rgb, type PDFFont, type PDFPage, type RGB } from 'pdf-lib'
+import { degrees, PDFDocument, PDFName, rgb, type PDFFont, type PDFPage, type RGB } from 'pdf-lib'
 
 import { enderecoDaFicha, fichaDaOs } from '@/features/os/api'
 import { quebrarLinhas, textoSeguro } from '@/features/os/pdf/gerarPdfOs'
@@ -77,6 +77,10 @@ const COR = {
 
 /** Onde terminam os blocos e a coluna da direita (acima do rodapé). */
 const BASE_CORPO = 96
+/** Altura do carimbo da assinatura digital (desenhado pelo servidor, função "assinatura"). */
+const ALTURA_CARIMBO = 40
+/** Onde o PDF diz ao servidor o lugar do carimbo: [x, y, largura, altura]. Igual a _shared/assinarPdf.ts. */
+const CHAVE_CARIMBO = 'EcoCarimboAssinatura'
 
 type Fontes = { normal: PDFFont; medio: PDFFont; negrito: PDFFont; extra: PDFFont }
 
@@ -543,10 +547,20 @@ export async function gerarPdfCertificado(
     yl -= 40 + 8
   }
 
+  // Rodapé (a linha divisória limita o carimbo da assinatura digital)
+  const rodape = modelo.responsavelSuccao && conf.rodapeSuccao ? conf.rodapeSuccao : conf.rodape
+  const linhasRodape = rodape.slice(1).flatMap((l) => quebrarLinhas(l, f.normal, 6.8, LARGURA))
+  let yr = MOLDURA + 12 + (linhasRodape.length - 1) * 9
+  const yDivisa = yr + 30
+
   // Assinatura do responsável técnico, no pé da coluna
   const centroLateral = xLateral + LATERAL / 2
-  // Com assinatura digital sobe um pouco, para o aviso embaixo do nome não encostar no rodapé.
-  const yLinha = BASE_CORPO + (c.assinatura_digital ? 44 : 34)
+  // Com assinatura digital, a assinatura sobe para caber o carimbo embaixo (sem passar
+  // por cima dos cartões de data e validade).
+  const yNormal = BASE_CORPO + 34
+  const yLinha = c.assinatura_digital
+    ? Math.max(yNormal, Math.min(yNormal + ALTURA_CARIMBO + 6, yl - 64))
+    : yNormal
   const resp = responsavelDoModelo(c.modelo as ModeloCertificado)
   const nome = c.responsavel_nome?.trim() || resp.nome
   const registro = c.responsavel_registro?.trim() || resp.registro
@@ -592,20 +606,16 @@ export async function gerarPdfCertificado(
     texto(p, linha, centroLateral, ya, tamanho, fonte, cor, 'centro')
     ya -= tamanho + 3
   }
-  // Com assinatura digital, o aviso vai embaixo do nome (a assinatura em si é feita
-  // depois, no servidor, e aparece no painel "Assinaturas" do Adobe).
-  if (c.assinatura_digital)
-    texto(
-      p,
-      'ASSINADO DIGITALMENTE · ICP-BRASIL',
-      centroLateral,
-      ya - 3,
-      6.2,
-      f.negrito,
-      COR.verde,
-      'centro',
-      0.6,
+  // Com assinatura digital, fica reservado embaixo do nome o espaço do carimbo, que o
+  // servidor desenha na hora de assinar (nome do certificado, CNPJ/CPF, data e hora).
+  if (c.assinatura_digital) {
+    const topo = ya + 2
+    const base = Math.max(yDivisa + 5, topo - ALTURA_CARIMBO)
+    pdf.catalog.set(
+      PDFName.of(CHAVE_CARIMBO),
+      pdf.context.obj([xLateral + 6, base, LATERAL - 12, topo - base]),
     )
+  }
 
   // ---- Blocos à esquerda ----
   const obs = c.observacao_final?.trim()
@@ -655,12 +665,9 @@ export async function gerarPdfCertificado(
   }
 
   // Rodapé da empresa
-  const rodape = modelo.responsavelSuccao && conf.rodapeSuccao ? conf.rodapeSuccao : conf.rodape
-  const linhasRodape = rodape.slice(1).flatMap((l) => quebrarLinhas(l, f.normal, 6.8, LARGURA))
-  let yr = MOLDURA + 12 + (linhasRodape.length - 1) * 9
   p.drawLine({
-    start: { x: M, y: yr + 30 },
-    end: { x: A4.largura - M, y: yr + 30 },
+    start: { x: M, y: yDivisa },
+    end: { x: A4.largura - M, y: yDivisa },
     thickness: 0.6,
     color: COR.borda,
   })

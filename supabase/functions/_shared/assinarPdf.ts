@@ -17,6 +17,9 @@ import {
   PDFName,
   PDFNumber,
   PDFString,
+  rgb,
+  StandardFonts,
+  type PDFFont,
 } from 'npm:pdf-lib@1.17.1'
 
 import type { Certificado } from './certificadoA1.ts'
@@ -25,6 +28,13 @@ import type { Certificado } from './certificadoA1.ts'
 const ESPACO = 16384
 /** Marca do /ByteRange provisório (trocada pelos números depois de salvar). */
 const MARCA = '**********'
+/**
+ * Onde o PDF diz o lugar do carimbo visível: [x, y, largura, altura] no catálogo.
+ * Igual a src/features/certificados/pdf/gerarPdfCertificado.ts.
+ */
+const CHAVE_CARIMBO = 'EcoCarimboAssinatura'
+
+type Caixa = { x: number; y: number; largura: number; altura: number }
 
 export type InfoAssinatura = {
   /** Ex.: "Certificado CERT-2026-0001". */
@@ -62,6 +72,116 @@ function binario(bytes: Uint8Array): string {
   return s
 }
 
+/** Data e hora de Brasília como o Adobe mostra: "06/11/2026 16:28:41 -03:00". */
+export function dataHoraBrasilia(d: Date): string {
+  const partes = Object.fromEntries(
+    new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+      timeZoneName: 'longOffset',
+    })
+      .formatToParts(d)
+      .map((p) => [p.type, p.value]),
+  )
+  const fuso = String(partes.timeZoneName ?? '').replace('GMT', '') || '-03:00'
+  return `${partes.day}/${partes.month}/${partes.year} ${partes.hour}:${partes.minute}:${partes.second} ${fuso}`
+}
+
+/** Quebra o texto em linhas que cabem na largura. */
+function quebrar(texto: string, fonte: PDFFont, tamanho: number, largura: number): string[] {
+  const linhas: string[] = []
+  let atual = ''
+  for (const palavra of texto.split(/\s+/).filter(Boolean)) {
+    const tentativa = atual ? `${atual} ${palavra}` : palavra
+    if (!atual || fonte.widthOfTextAtSize(tentativa, tamanho) <= largura) atual = tentativa
+    else {
+      linhas.push(atual)
+      atual = palavra
+    }
+  }
+  if (atual) linhas.push(atual)
+  return linhas
+}
+
+/** Só o que a fonte padrão do PDF (WinAnsi) consegue escrever. */
+const winAnsi = (t: string) => t.normalize('NFC').replace(/[^\x20-\x7E\xA0-\xFF]/g, '')
+
+/** Lugar do carimbo que o PDF reservou (e tira a marca, que não faz parte do documento). */
+function caixaDoCarimbo(pdf: PDFDocument): Caixa | null {
+  const chave = PDFName.of(CHAVE_CARIMBO)
+  const arr = pdf.catalog.lookupMaybe(chave, PDFArray)
+  pdf.catalog.delete(chave)
+  if (!arr || arr.size() !== 4) return null
+  const [x, y, largura, altura] = arr
+    .asArray()
+    .map((n) => (n instanceof PDFNumber ? n.asNumber() : NaN))
+  if (![x, y, largura, altura].every(Number.isFinite) || largura < 60 || altura < 20) return null
+  return { x, y, largura, altura }
+}
+
+/**
+ * Carimbo visível, como o do Adobe: quem assinou (nome do certificado com CNPJ/CPF),
+ * data e hora, e onde conferir. Fica dentro da área assinada: qualquer mudança aparece.
+ */
+async function desenharCarimbo(pdf: PDFDocument, caixa: Caixa, cert: Certificado, quando: Date) {
+  const pagina = pdf.getPage(0)
+  const normal = await pdf.embedFont(StandardFonts.Helvetica)
+  const negrito = await pdf.embedFont(StandardFonts.HelveticaBold)
+  const verde = rgb(0.243, 0.482, 0.122)
+  const escuro = rgb(0.059, 0.165, 0.051)
+  const suave = rgb(0.345, 0.396, 0.325)
+  const largura = caixa.largura - 16
+
+  // Diminui a letra até tudo caber na caixa.
+  let k = 1
+  let linhas: { texto: string; fonte: PDFFont; tamanho: number; cor: typeof verde }[] = []
+  for (; k >= 0.6; k -= 0.05) {
+    const titular = quebrar(winAnsi(cert.titular), negrito, 6.6 * k, largura)
+    linhas = [
+      {
+        texto: 'Documento assinado digitalmente (ICP-Brasil) por',
+        fonte: normal,
+        tamanho: 5.6 * k,
+        cor: suave,
+      },
+      ...titular.map((t) => ({ texto: t, fonte: negrito, tamanho: 6.6 * k, cor: escuro })),
+      { texto: `Data: ${dataHoraBrasilia(quando)}`, fonte: normal, tamanho: 6 * k, cor: escuro },
+      { texto: 'Confira em validar.iti.gov.br', fonte: normal, tamanho: 5.4 * k, cor: verde },
+    ]
+    const altura = linhas.reduce((s, l) => s + l.tamanho * 1.3, 0) + 8
+    if (altura <= caixa.altura) break
+  }
+
+  pagina.drawRectangle({
+    x: caixa.x,
+    y: caixa.y,
+    width: caixa.largura,
+    height: caixa.altura,
+    color: rgb(0.957, 0.969, 0.937),
+    borderColor: verde,
+    borderWidth: 0.7,
+  })
+  pagina.drawRectangle({ x: caixa.x, y: caixa.y, width: 2.5, height: caixa.altura, color: verde })
+  const total = linhas.reduce((s, l) => s + l.tamanho * 1.3, 0)
+  let y = caixa.y + caixa.altura / 2 + total / 2
+  for (const l of linhas) {
+    y -= l.tamanho * 1.3
+    pagina.drawText(l.texto, {
+      x: caixa.x + 9,
+      y: y + l.tamanho * 0.25,
+      size: l.tamanho,
+      font: l.fonte,
+      color: l.cor,
+    })
+  }
+}
+
 /** Assina o PDF com o certificado. Devolve os bytes do PDF assinado. */
 export async function assinarPdf(
   pdf: PDFDocument,
@@ -70,6 +190,10 @@ export async function assinarPdf(
 ): Promise<Uint8Array> {
   const quando = info.quando ?? new Date()
   const ctx = pdf.context
+
+  // Carimbo visível, se o PDF reservou o lugar.
+  const caixa = caixaDoCarimbo(pdf)
+  if (caixa) await desenharCarimbo(pdf, caixa, cert, quando)
 
   // 1. Dicionário da assinatura, com os espaços provisórios.
   const byteRange = PDFArray.withContext(ctx)
@@ -88,13 +212,17 @@ export async function assinarPdf(
   if (info.local) assinatura.set(PDFName.of('Location'), PDFHexString.fromText(info.local))
   const refAssinatura = ctx.register(assinatura)
 
-  // Campo de assinatura invisível na 1ª página (o Adobe lista no painel "Assinaturas").
+  // Campo de assinatura na 1ª página, sobre o carimbo (no Adobe, clicar nele abre os
+  // detalhes da assinatura); sem carimbo, invisível. O Adobe lista no painel "Assinaturas".
   const pagina = pdf.getPage(0)
+  const rect = caixa
+    ? [caixa.x, caixa.y, caixa.x + caixa.largura, caixa.y + caixa.altura]
+    : [0, 0, 0, 0]
   const campo = ctx.obj({
     Type: 'Annot',
     Subtype: 'Widget',
     FT: 'Sig',
-    Rect: [0, 0, 0, 0],
+    Rect: rect,
     V: refAssinatura,
     T: PDFHexString.fromText('Assinatura digital'),
     F: 132, // imprimir + travado
