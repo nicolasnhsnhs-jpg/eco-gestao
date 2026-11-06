@@ -41,6 +41,7 @@ import { ExecucaoPage } from '@/features/os/operador/ExecucaoPage'
 import { OsFormPage } from '@/features/os/OsFormPage'
 import { OsListaPage } from '@/features/os/OsListaPage'
 import { OsPage } from '@/features/os/OsPage'
+import { ModeloNovoPage, ModeloOsPage, ModelosOsPage } from '@/features/os/ModelosOsPages'
 import { CalculadoraPage } from '@/features/orcamentos/CalculadoraPage'
 import { CustosPage } from '@/features/orcamentos/CustosPage'
 import { OrcamentosLayout } from '@/features/orcamentos/OrcamentosLayout'
@@ -97,6 +98,30 @@ export const router = createBrowserRouter([
             element: (
               <ExigePapel papeis={PAPEIS_ESCRITORIO_OS}>
                 <OsFormPage />
+              </ExigePapel>
+            ),
+          },
+          {
+            path: 'modelos',
+            element: (
+              <ExigePapel papeis={PAPEIS_ESCRITORIO_OS}>
+                <ModelosOsPage />
+              </ExigePapel>
+            ),
+          },
+          {
+            path: 'modelos/novo',
+            element: (
+              <ExigePapel papeis={PAPEIS_ESCRITORIO_OS}>
+                <ModeloNovoPage />
+              </ExigePapel>
+            ),
+          },
+          {
+            path: 'modelos/:id',
+            element: (
+              <ExigePapel papeis={PAPEIS_ESCRITORIO_OS}>
+                <ModeloOsPage />
               </ExigePapel>
             ),
           },

@@ -45,8 +45,21 @@ function useAtualizarTudo() {
   return () => queryClient.invalidateQueries({ queryKey: ['os'] })
 }
 
+/**
+ * Onde o escritório monta o escopo: sempre no modelo do local (vale para todas as
+ * visitas) e, quando a tela é de uma OS, também nela.
+ */
+export type AlvoEscopo = {
+  modeloId: string
+  escopo: Json
+  /** A OS aberta na tela (sem ela, só o modelo muda). */
+  osId?: string
+  /** A OS ainda não começou: a cópia dela acompanha o modelo. */
+  antesDeComecar: boolean
+}
+
 /** Grava pontos do modelo e, se a OS ainda não começou, atualiza a cópia dela. */
-export function useSalvarPontos(osId: string, podeAtualizarOs: boolean) {
+export function useSalvarPontos(osId: string | undefined, podeAtualizarOs: boolean) {
   const atualizar = useAtualizarTudo()
   return useMutation({
     mutationFn: async (acao: {
@@ -68,7 +81,7 @@ export function useSalvarPontos(osId: string, podeAtualizarOs: boolean) {
           .eq('id', acao.alterar.id)
         if (error) throw error
       }
-      if (podeAtualizarOs) {
+      if (osId && podeAtualizarOs) {
         const { error } = await supabase.rpc('atualizar_pontos_os', { os: osId })
         if (error) throw error
       }
@@ -77,17 +90,19 @@ export function useSalvarPontos(osId: string, podeAtualizarOs: boolean) {
   })
 }
 
-/** Grava o escopo de pragas na OS e no modelo (vale para as próximas visitas). */
-export function useSalvarEscopoPragas(osId: string, modeloId: string | null) {
+/** Grava o escopo na OS (se houver) e no modelo (vale para as próximas visitas). */
+export function useSalvarEscopo(osId: string | undefined, modeloId: string | null) {
   const atualizar = useAtualizarTudo()
   return useMutation({
-    mutationFn: async (escopo: EscopoPragas) => {
+    mutationFn: async (escopo: EscopoPragas | Json) => {
       const valor = escopo as Json
-      const { error } = await supabase
-        .from('ordens_servico')
-        .update({ escopo: valor })
-        .eq('id', osId)
-      if (error) throw error
+      if (osId) {
+        const { error } = await supabase
+          .from('ordens_servico')
+          .update({ escopo: valor })
+          .eq('id', osId)
+        if (error) throw error
+      }
       if (modeloId) {
         const r = await supabase.from('os_modelos').update({ escopo: valor }).eq('id', modeloId)
         if (r.error) throw r.error

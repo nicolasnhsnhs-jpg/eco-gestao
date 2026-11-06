@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 
 import { PageHeader } from '@/components/PageHeader'
 import { Aviso } from '@/components/ui/Aviso'
@@ -23,8 +23,8 @@ import { useAgendarOs, useModelo, useOperadores, useVeiculos } from './api'
 export function OsFormPage() {
   const [parametros] = useSearchParams()
   const [cliente, setCliente] = useState<ClienteEscolhido | null>(null)
-  const [enderecoId, setEnderecoId] = useState('')
-  const [tipoId, setTipoId] = useState('')
+  const [enderecoId, setEnderecoId] = useState(parametros.get('unidade') ?? '')
+  const [tipoId, setTipoId] = useState(parametros.get('tipo') ?? '')
   const tipos = useTiposServico()
 
   const clienteId = cliente?.id ?? parametros.get('cliente') ?? ''
@@ -164,10 +164,27 @@ function FormAgendamento({
       <Card className="flex flex-col gap-4">
         {modelo ? (
           <Aviso tipo="sucesso">
-            Este local já tem um modelo. A OS vem preenchida com o escopo da última visita.
+            Este local já tem a O.S de contrato: a visita sai com os pontos dela.{' '}
+            <Link className="font-semibold underline" to={`/os/modelos/${modelo.id}`}>
+              Ver a O.S de contrato
+            </Link>
           </Aviso>
         ) : (
-          <Aviso tipo="info">Primeira OS deste serviço neste local: o escopo vira o modelo.</Aviso>
+          <Aviso tipo="info">
+            Primeira OS deste serviço neste local. Se o cliente já tem a O.S pronta (porta-iscas,
+            armadilhas), você pode{' '}
+            <Link
+              className="font-semibold underline"
+              to={`/os/modelos/novo?${new URLSearchParams({
+                cliente: clienteId,
+                unidade: enderecoId ?? '',
+                tipo: tipoId,
+              })}`}
+            >
+              montar a O.S de contrato antes
+            </Link>
+            . Ou agende agora e cadastre os pontos na tela da OS.
+          </Aviso>
         )}
         {erro && <Aviso tipo="erro">{erro}</Aviso>}
 

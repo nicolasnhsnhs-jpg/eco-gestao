@@ -1,4 +1,4 @@
-import { Car, Plus } from 'lucide-react'
+import { Car, ClipboardList, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 
@@ -54,6 +54,11 @@ export function OsListaPage() {
                 <Car className="size-5" aria-hidden /> Veículos
               </Button>
             )}
+            <Link to="/os/modelos">
+              <Button variante="secundario">
+                <ClipboardList className="size-5" aria-hidden /> O.S de contrato
+              </Button>
+            </Link>
             <Link to="/os/nova">
               <Button>
                 <Plus className="size-5" aria-hidden /> Nova OS

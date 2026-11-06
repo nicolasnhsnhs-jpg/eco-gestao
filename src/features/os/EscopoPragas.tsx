@@ -7,11 +7,11 @@ import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
 import { mensagemDeErro } from '@/lib/erros'
 
-import type { OsCompleta } from './api'
 import {
   usePontosModelo,
-  useSalvarEscopoPragas,
+  useSalvarEscopo,
   useSalvarPontos,
+  type AlvoEscopo,
   type PontoControle,
 } from './pragasApi'
 import {
@@ -28,10 +28,10 @@ import {
  * pontos de controle do local. Os pontos ficam no modelo e valem para as próximas
  * visitas; enquanto a OS não começou, ela é atualizada junto.
  */
-export function EscopoPragas({ os }: { os: OsCompleta }) {
-  const pontos = usePontosModelo(os.modelo_id)
-  const antesDeComecar = os.status === 'rascunho' || os.status === 'agendada'
-  const salvarPontos = useSalvarPontos(os.id, antesDeComecar)
+export function EscopoPragas({ alvo }: { alvo: AlvoEscopo }) {
+  const { modeloId, antesDeComecar } = alvo
+  const pontos = usePontosModelo(modeloId)
+  const salvarPontos = useSalvarPontos(alvo.osId, antesDeComecar)
   const [erro, setErro] = useState<string | null>(null)
   const [sucesso, setSucesso] = useState<string | null>(null)
 
@@ -46,10 +46,6 @@ export function EscopoPragas({ os }: { os: OsCompleta }) {
     }
   }
 
-  if (!os.modelo_id) {
-    return <Aviso tipo="info">Esta OS não tem modelo, então não tem pontos de controle.</Aviso>
-  }
-
   const portaIscas = pontos.data?.filter((p) => p.tipo === 'porta_isca' && p.ativo) ?? []
   const armadilhas = pontos.data?.filter((p) => p.tipo === 'armadilha_luminosa' && p.ativo) ?? []
   const inativos = pontos.data?.filter((p) => !p.ativo) ?? []
@@ -59,7 +55,7 @@ export function EscopoPragas({ os }: { os: OsCompleta }) {
       <h2 className="font-titulo text-lg font-bold text-verde-escuro">
         Escopo do controle de pragas
       </h2>
-      {!antesDeComecar && (
+      {alvo.osId && !antesDeComecar && (
         <Aviso tipo="info">
           A execução já começou: mudanças nos pontos valem a partir da próxima visita.
         </Aviso>
@@ -67,7 +63,7 @@ export function EscopoPragas({ os }: { os: OsCompleta }) {
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       {sucesso && <Aviso tipo="sucesso">{sucesso}</Aviso>}
 
-      <FormEscopo key={os.id} os={os} aoSalvar={executar} />
+      <FormEscopo key={alvo.osId ?? modeloId} alvo={alvo} aoSalvar={executar} />
 
       <section className="flex flex-col gap-2 border-t border-borda pt-3">
         <h3 className="font-semibold text-verde-escuro">Porta-iscas ({portaIscas.length})</h3>
@@ -79,7 +75,7 @@ export function EscopoPragas({ os }: { os: OsCompleta }) {
             executar(
               () =>
                 salvarPontos.mutateAsync({
-                  novos: novos.map((n) => ({ ...n, modelo_id: os.modelo_id!, tipo: 'porta_isca' })),
+                  novos: novos.map((n) => ({ ...n, modelo_id: modeloId, tipo: 'porta_isca' })),
                 }),
               `${novos.length} porta-isca(s) cadastrado(s).`,
             )
@@ -101,7 +97,7 @@ export function EscopoPragas({ os }: { os: OsCompleta }) {
         <h3 className="font-semibold text-verde-escuro">
           Armadilhas luminosas ({armadilhas.length})
         </h3>
-        <ul className="flex flex-col gap-1">
+        <ul className="flex max-h-96 flex-col gap-1 overflow-y-auto">
           {armadilhas.map((a) => (
             <li key={a.id} className="flex items-center gap-2">
               <span className="flex-1">
@@ -125,15 +121,28 @@ export function EscopoPragas({ os }: { os: OsCompleta }) {
           ))}
         </ul>
         <FormArmadilha
-          proximoNumero={Math.max(0, ...armadilhas.map((a) => a.numero)) + 1}
+          proximoNumero={
+            Math.max(
+              0,
+              ...(pontos.data ?? [])
+                .filter((p) => p.tipo === 'armadilha_luminosa')
+                .map((a) => a.numero),
+            ) + 1
+          }
           ocupado={salvarPontos.isPending}
-          aoAdicionar={(nova) =>
+          aoAdicionar={(novas) =>
             executar(
               () =>
                 salvarPontos.mutateAsync({
-                  novos: [{ ...nova, modelo_id: os.modelo_id!, tipo: 'armadilha_luminosa' }],
+                  novos: novas.map((n) => ({
+                    ...n,
+                    modelo_id: modeloId,
+                    tipo: 'armadilha_luminosa',
+                  })),
                 }),
-              'Armadilha cadastrada.',
+              novas.length === 1
+                ? `Armadilha ${novas[0].numero} cadastrada.`
+                : `${novas.length} armadilhas cadastradas.`,
             )
           }
         />
@@ -149,14 +158,14 @@ export function EscopoPragas({ os }: { os: OsCompleta }) {
 }
 
 function FormEscopo({
-  os,
+  alvo,
   aoSalvar,
 }: {
-  os: OsCompleta
+  alvo: AlvoEscopo
   aoSalvar: (acao: () => Promise<unknown>, mensagem: string) => Promise<void>
 }) {
-  const salvar = useSalvarEscopoPragas(os.id, os.modelo_id)
-  const inicial = (os.escopo ?? {}) as Escopo
+  const salvar = useSalvarEscopo(alvo.osId, alvo.modeloId)
+  const inicial = (alvo.escopo ?? {}) as Escopo
   const [escopo, setEscopo] = useState<Escopo>({
     subtipo: inicial.subtipo ?? 'roedores',
     pragas_alvo: inicial.pragas_alvo ?? [],
@@ -355,6 +364,12 @@ function FormRemover({
   )
 }
 
+type NovaArmadilha = { numero: number; area: string; modelo_armadilha: string }
+
+/**
+ * Uma armadilha ou várias de uma vez com a mesma localização ("3-33" na
+ * "Granja"). Sem número, usa o próximo livre.
+ */
 function FormArmadilha({
   proximoNumero,
   ocupado,
@@ -362,14 +377,44 @@ function FormArmadilha({
 }: {
   proximoNumero: number
   ocupado: boolean
-  aoAdicionar: (nova: { numero: number; area: string; modelo_armadilha: string }) => Promise<void>
+  aoAdicionar: (novas: NovaArmadilha[]) => Promise<void>
 }) {
   const [area, setArea] = useState('')
+  const [numeros, setNumeros] = useState('')
   const [modelo, setModelo] = useState('P')
+  const [erro, setErro] = useState<string | null>(null)
+
+  async function adicionar() {
+    setErro(null)
+    if (!area.trim()) return setErro('Informe a localização.')
+    const { numeros: lista, invalidos } = numeros.trim()
+      ? lerFaixas(numeros)
+      : { numeros: [proximoNumero], invalidos: [] }
+    if (invalidos.length) return setErro(`Não entendi: ${invalidos.join(', ')}.`)
+    if (lista.length === 0) return setErro('Informe os números (ex.: 3-33).')
+    await aoAdicionar(
+      lista.map((numero) => ({ numero, area: area.trim(), modelo_armadilha: modelo })),
+    )
+    setNumeros('')
+  }
+
   return (
-    <div className="grid gap-2 rounded-xl bg-fundo-suave p-3 sm:grid-cols-[1fr_10rem_auto] sm:items-end">
-      <Campo rotulo={`Localização da armadilha ${proximoNumero}`} htmlFor="arm-area">
+    <div className="grid gap-2 rounded-xl bg-fundo-suave p-3 sm:grid-cols-[1fr_7rem_10rem_auto] sm:items-end">
+      {erro && (
+        <div className="sm:col-span-4">
+          <Aviso tipo="erro">{erro}</Aviso>
+        </div>
+      )}
+      <Campo rotulo="Localização" htmlFor="arm-area">
         <Input id="arm-area" value={area} onChange={(e) => setArea(e.target.value)} />
+      </Campo>
+      <Campo rotulo="Números" htmlFor="arm-numeros" dica="Ex.: 3-33">
+        <Input
+          id="arm-numeros"
+          value={numeros}
+          placeholder={String(proximoNumero)}
+          onChange={(e) => setNumeros(e.target.value)}
+        />
       </Campo>
       <Campo rotulo="Modelo" htmlFor="arm-modelo">
         <Select id="arm-modelo" value={modelo} onChange={(e) => setModelo(e.target.value)}>
@@ -377,16 +422,7 @@ function FormArmadilha({
           <option value="G">G · Inox</option>
         </Select>
       </Campo>
-      <Button
-        disabled={!area.trim() || ocupado}
-        onClick={() =>
-          void aoAdicionar({
-            numero: proximoNumero,
-            area: area.trim(),
-            modelo_armadilha: modelo,
-          }).then(() => setArea(''))
-        }
-      >
+      <Button disabled={ocupado} onClick={() => void adicionar()}>
         Adicionar
       </Button>
     </div>

@@ -29,6 +29,7 @@ import {
 import { ConferenciaOs } from './ConferenciaOs'
 import { EscopoCoifa } from './EscopoCoifa'
 import { EscopoPragas } from './EscopoPragas'
+import type { AlvoEscopo } from './pragasApi'
 
 const hora = (valor: string | null) =>
   valor
@@ -58,6 +59,14 @@ export function OsPage() {
   const ficha = fichaDaOs(o.ficha_cliente)
   const e = o.execucao
   const escritorio = PAPEIS_ESCRITORIO_OS.includes(perfil.papel)
+  const alvo: AlvoEscopo | null = o.modelo_id
+    ? {
+        modeloId: o.modelo_id,
+        escopo: o.escopo,
+        osId: o.id,
+        antesDeComecar: o.status === 'rascunho' || o.status === 'agendada',
+      }
+    : null
 
   async function baixarPdf() {
     setErro(null)
@@ -205,15 +214,22 @@ export function OsPage() {
         </Card>
       </div>
 
-      {escritorio && o.tipo?.formulario_os === 'pragas' && (
+      {escritorio && alvo && o.tipo?.formulario_os === 'pragas' && (
         <div className="mt-4">
-          <EscopoPragas os={o} />
+          <EscopoPragas alvo={alvo} />
         </div>
       )}
-      {escritorio && o.tipo?.formulario_os === 'coifa' && (
+      {escritorio && alvo && o.tipo?.formulario_os === 'coifa' && (
         <div className="mt-4">
-          <EscopoCoifa os={o} />
+          <EscopoCoifa alvo={alvo} />
         </div>
+      )}
+      {escritorio && alvo && (
+        <p className="mt-2 text-sm">
+          <Link className="font-semibold text-verde underline" to={`/os/modelos/${alvo.modeloId}`}>
+            Abrir a O.S de contrato deste local
+          </Link>
+        </p>
       )}
 
       {escritorio && (

@@ -504,3 +504,91 @@ export function useFaturarOs(osId: string) {
     },
   })
 }
+
+// -----------------------------------------------------------------------------
+// Escritório: O.S de contrato (o modelo montado antes da primeira visita)
+// -----------------------------------------------------------------------------
+
+const RELACOES_MODELO = `
+  cliente:clientes(id, nome, nome_fantasia),
+  endereco:enderecos(id, apelido, logradouro, numero, cidade, uf),
+  tipo:tipos_servico(id, nome, formulario_os)
+`
+
+export function useModelos() {
+  return useQuery({
+    queryKey: ['os', 'modelos'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('os_modelos')
+        .select(`id, ativo, descricao, ${RELACOES_MODELO}, pontos:pontos_controle(tipo, ativo)`)
+        .eq('ativo', true)
+      if (error) throw error
+      const nome = (m: (typeof data)[number]) =>
+        `${m.cliente?.nome_fantasia || m.cliente?.nome || ''} ${m.endereco?.apelido ?? ''}`
+      return [...data].sort((a, b) => nome(a).localeCompare(nome(b), 'pt-BR'))
+    },
+  })
+}
+
+export type ModeloResumo = NonNullable<ReturnType<typeof useModelos>['data']>[number]
+
+export function useModeloPorId(id: string) {
+  return useQuery({
+    queryKey: ['os', 'modelo', id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('os_modelos')
+        .select(`*, ${RELACOES_MODELO}`)
+        .eq('id', id)
+        .maybeSingle()
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export type ModeloCompleto = NonNullable<ReturnType<typeof useModeloPorId>['data']>
+
+/** Cria o modelo do local (sem agendar visita) e devolve o id. */
+export function useCriarModelo() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (m: {
+      clienteId: string
+      enderecoId: string | null
+      tipoId: string
+      descricao: string
+    }) => {
+      const { data, error } = await supabase
+        .from('os_modelos')
+        .insert({
+          cliente_id: m.clienteId,
+          endereco_id: m.enderecoId,
+          tipo_servico_id: m.tipoId,
+          descricao: m.descricao || null,
+        })
+        .select('id')
+        .single()
+      if (error) {
+        throw /um_modelo_por_local/.test(error.message)
+          ? new Error('Este local já tem uma O.S de contrato para este serviço.')
+          : error
+      }
+      return data.id
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
+  })
+}
+
+export function useSalvarModelo(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (dados: TablesUpdate<'os_modelos'>) => {
+      const { error } = await supabase.from('os_modelos').update(dados).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
+  })
+}

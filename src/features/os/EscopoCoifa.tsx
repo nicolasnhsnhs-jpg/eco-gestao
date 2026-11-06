@@ -1,4 +1,3 @@
-import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { Aviso } from '@/components/ui/Aviso'
@@ -8,20 +7,18 @@ import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
 import type { Json } from '@/lib/database.types'
 import { mensagemDeErro } from '@/lib/erros'
-import { supabase } from '@/lib/supabase'
 
-import type { OsCompleta } from './api'
-import { usePontosModelo, useSalvarPontos } from './pragasApi'
+import { usePontosModelo, useSalvarEscopo, useSalvarPontos, type AlvoEscopo } from './pragasApi'
 import { MATERIAIS, PRODUTO_PADRAO, type EscopoCoifa as Escopo } from './tipos/coifa'
 
 /**
  * Escopo da limpeza de coifa (escritório): as coifas do local e o produto padrão.
  * Como os porta-iscas, as coifas ficam no modelo e valem para as próximas visitas.
  */
-export function EscopoCoifa({ os }: { os: OsCompleta }) {
-  const pontos = usePontosModelo(os.modelo_id)
-  const antesDeComecar = os.status === 'rascunho' || os.status === 'agendada'
-  const salvarPontos = useSalvarPontos(os.id, antesDeComecar)
+export function EscopoCoifa({ alvo }: { alvo: AlvoEscopo }) {
+  const { modeloId, antesDeComecar } = alvo
+  const pontos = usePontosModelo(modeloId)
+  const salvarPontos = useSalvarPontos(alvo.osId, antesDeComecar)
   const [erro, setErro] = useState<string | null>(null)
   const [sucesso, setSucesso] = useState<string | null>(null)
   const coifas = pontos.data?.filter((p) => p.tipo === 'coifa' && p.ativo) ?? []
@@ -37,20 +34,18 @@ export function EscopoCoifa({ os }: { os: OsCompleta }) {
     }
   }
 
-  if (!os.modelo_id) return <Aviso tipo="info">Esta OS não tem modelo, então não tem coifas.</Aviso>
-
   return (
     <Card className="flex flex-col gap-4">
       <h2 className="font-titulo text-lg font-bold text-verde-escuro">
         Escopo da limpeza de coifa
       </h2>
-      {!antesDeComecar && (
+      {alvo.osId && !antesDeComecar && (
         <Aviso tipo="info">A execução já começou: mudanças valem a partir da próxima visita.</Aviso>
       )}
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       {sucesso && <Aviso tipo="sucesso">{sucesso}</Aviso>}
 
-      <Produto os={os} aoSalvar={executar} />
+      <Produto alvo={alvo} aoSalvar={executar} />
 
       <section className="flex flex-col gap-2 border-t border-borda pt-3">
         <h3 className="font-semibold text-verde-escuro">Coifas ({coifas.length})</h3>
@@ -94,7 +89,7 @@ export function EscopoCoifa({ os }: { os: OsCompleta }) {
             executar(
               () =>
                 salvarPontos.mutateAsync({
-                  novos: [{ ...nova, modelo_id: os.modelo_id!, tipo: 'coifa' }],
+                  novos: [{ ...nova, modelo_id: modeloId, tipo: 'coifa' }],
                 }),
               `${nova.area} cadastrada.`,
             )
@@ -106,24 +101,18 @@ export function EscopoCoifa({ os }: { os: OsCompleta }) {
 }
 
 function Produto({
-  os,
+  alvo,
   aoSalvar,
 }: {
-  os: OsCompleta
+  alvo: AlvoEscopo
   aoSalvar: (acao: () => Promise<unknown>, mensagem: string) => Promise<void>
 }) {
-  const queryClient = useQueryClient()
-  const [produto, setProduto] = useState(((os.escopo ?? {}) as Escopo).produto ?? PRODUTO_PADRAO)
+  const salvarEscopo = useSalvarEscopo(alvo.osId, alvo.modeloId)
+  const [produto, setProduto] = useState(((alvo.escopo ?? {}) as Escopo).produto ?? PRODUTO_PADRAO)
 
   async function salvar() {
-    const escopo = { ...((os.escopo ?? {}) as Escopo), produto: produto.trim() } as Json
-    const r = await supabase.from('ordens_servico').update({ escopo }).eq('id', os.id)
-    if (r.error) throw r.error
-    if (os.modelo_id) {
-      const m = await supabase.from('os_modelos').update({ escopo }).eq('id', os.modelo_id)
-      if (m.error) throw m.error
-    }
-    void queryClient.invalidateQueries({ queryKey: ['os'] })
+    const escopo = { ...((alvo.escopo ?? {}) as Escopo), produto: produto.trim() } as Json
+    await salvarEscopo.mutateAsync(escopo)
   }
 
   return (
