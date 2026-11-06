@@ -156,3 +156,31 @@ sozinho antes do e-mail. Se o boleto falhar, a nota continua emitida e o e-mail 
 
 > Se o Sicredi não responder a tempo, o sistema não tenta de novo sozinho: confira no Internet
 > Banking se o boleto não foi registrado antes de gerar outro, para não cobrar duas vezes.
+
+## 10. Assinatura digital do certificado 🤖 🟡 código pronto; falta publicar
+
+Para os clientes que pedem o certificado assinado digitalmente. Na tela do certificado, em
+**Responsável técnico**, marque **Assinatura digital (certificado ICP-Brasil)**. Ao clicar em
+**Salvar alterações** (ou **Emitir certificado**), o PDF já abre assinado. O botão
+**Baixar PDF** e a lista de certificados também passam a entregar o PDF assinado. No Adobe, a
+assinatura aparece no painel **Assinaturas** (quem assinou e quando). O PDF ainda leva a frase
+"Assinado digitalmente · ICP-Brasil" embaixo do nome da responsável. A opção não aparece nos
+certificados de sucção, que saem no nome da Barbara.
+
+A assinatura usa **o mesmo certificado A1 da nota fiscal** (e-CNPJ da empresa, segredos
+`NFSE_CERTIFICADO` e `NFSE_SENHA`), então no Adobe aparece como assinante a empresa. Nada novo a
+cadastrar. O certificado fica só nos segredos do Supabase e a assinatura é feita no servidor
+(função `assinatura`).
+
+1. 🤖 `npm run db:push:rs` e `npm run funcoes:rs` (migração `assinatura_digital_certificado` e
+   função `assinatura`). A migração vai também para o SC (`npm run db:push:prod`) **antes** do
+   site novo entrar no ar, senão salvar certificado dá erro.
+2. Abra um certificado: a opção deve dizer "o PDF já sai assinado por ECO AMBIENTAL…
+   (certificado válido até 03/07/2027)".
+
+> Se um dia a assinatura tiver de sair no nome da Andréia (e-CPF dela), basta cadastrar o .pfx
+> dela nos segredos `ASSINATURA_CERTIFICADO` (base64) e `ASSINATURA_SENHA`: eles passam a valer
+> no lugar do certificado da nota. Para tirar o .pfx em base64 no PowerShell:
+> `[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\caminho\arquivo.pfx")) | Set-Clipboard`
+>
+> Quando o certificado da nota for renovado, a assinatura passa a usar o novo sozinha.

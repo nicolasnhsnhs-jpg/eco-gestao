@@ -7,7 +7,12 @@ import { formatarData } from '@/lib/datas'
 import { formatarCnpj, formatarCpf } from '@/lib/documentos'
 import { UNIDADE } from '@/lib/unidade'
 
-import { baixarAssinatura, type CertificadoResumo, type QualAssinatura } from '../api'
+import {
+  assinarPdfCertificado,
+  baixarAssinatura,
+  type CertificadoResumo,
+  type QualAssinatura,
+} from '../api'
 import {
   declaracao,
   lerProdutos,
@@ -586,6 +591,20 @@ export async function gerarPdfCertificado(
     texto(p, linha, centroLateral, ya, tamanho, fonte, cor, 'centro')
     ya -= tamanho + 3
   }
+  // Com assinatura digital, o aviso vai embaixo do nome (a assinatura em si é feita
+  // depois, no servidor, e aparece no painel "Assinaturas" do Adobe).
+  if (c.assinatura_digital)
+    texto(
+      p,
+      'ASSINADO DIGITALMENTE · ICP-BRASIL',
+      centroLateral,
+      ya - 3,
+      6.2,
+      f.negrito,
+      COR.verde,
+      'centro',
+      0.6,
+    )
 
   // ---- Blocos à esquerda ----
   const obs = c.observacao_final?.trim()
@@ -730,10 +749,14 @@ function tabelaReservatorios(
   return y
 }
 
-/** Abre o PDF numa aba nova (ou na mesma, se o navegador bloquear). */
+/**
+ * Abre o PDF numa aba nova (ou na mesma, se o navegador bloquear). Certificado com
+ * assinatura digital vai antes ao servidor, que devolve o PDF assinado.
+ */
 export async function abrirPdfCertificado(c: CertificadoResumo, aba: Window | null) {
   const assinatura = await baixarAssinatura(assinaturaDoCertificado(c))
-  const blob = await gerarPdfCertificado(c, assinatura)
+  let blob = await gerarPdfCertificado(c, assinatura)
+  if (c.assinatura_digital) blob = await assinarPdfCertificado(c.id, blob)
   const link = URL.createObjectURL(blob)
   if (aba) aba.location.href = link
   else window.location.href = link

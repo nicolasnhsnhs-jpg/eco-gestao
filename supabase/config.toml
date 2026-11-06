@@ -432,3 +432,6 @@ verify_jwt = false
 
 [functions.boleto]
 verify_jwt = false
+
+[functions.assinatura]
+verify_jwt = false

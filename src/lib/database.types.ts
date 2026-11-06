@@ -536,6 +536,7 @@ export type Database = {
       certificados: {
         Row: {
           areas: string | null
+          assinatura_digital: boolean
           atualizado_em: string
           atualizado_por: string | null
           cancelado_em: string | null
@@ -572,6 +573,7 @@ export type Database = {
         }
         Insert: {
           areas?: string | null
+          assinatura_digital?: boolean
           atualizado_em?: string
           atualizado_por?: string | null
           cancelado_em?: string | null
@@ -608,6 +610,7 @@ export type Database = {
         }
         Update: {
           areas?: string | null
+          assinatura_digital?: boolean
           atualizado_em?: string
           atualizado_por?: string | null
           cancelado_em?: string | null

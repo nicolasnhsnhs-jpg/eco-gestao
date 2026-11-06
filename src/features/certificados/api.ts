@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { FunctionsHttpError } from '@supabase/supabase-js'
 
 import type { Tables, TablesInsert, TablesUpdate } from '@/lib/database.types'
 import { supabase } from '@/lib/supabase'
@@ -65,19 +66,22 @@ export function useUltimoCertificado(clienteId: string, tipoId: string, modelo: 
   })
 }
 
+/** Um certificado com cliente, endereço, serviço e OS (o que o PDF usa). */
+export async function buscarCertificado(id: string) {
+  const { data, error } = await supabase
+    .from('certificados')
+    .select(`*, ${RELACOES}`)
+    .eq('id', id)
+    .maybeSingle()
+  if (error) throw error
+  return data
+}
+
 export function useCertificado(id: string | undefined) {
   return useQuery({
     queryKey: ['certificados', 'um', id],
     enabled: !!id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('certificados')
-        .select(`*, ${RELACOES}`)
-        .eq('id', id!)
-        .maybeSingle()
-      if (error) throw error
-      return data
-    },
+    queryFn: () => buscarCertificado(id!),
   })
 }
 
@@ -380,4 +384,53 @@ export function usePeriodicidadeDoCliente(
     enabled: !!clienteId && !!tipoId,
     queryFn: () => periodicidadeDoCliente(clienteId, enderecoId, tipoId),
   })
+}
+
+// -----------------------------------------------------------------------------
+// Assinatura digital (certificado A1 da NFS-e, na Edge Function "assinatura";
+// o arquivo do certificado nunca vem para o navegador)
+// -----------------------------------------------------------------------------
+
+export type SituacaoAssinaturaDigital =
+  | { configurado: true; titular: string; validoAte: string; vencido: boolean }
+  | { configurado: false; erro: string }
+
+async function chamarAssinatura<T>(corpo: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke('assinatura', { body: corpo })
+  if (error) {
+    if (error instanceof FunctionsHttpError) {
+      const detalhe = (await error.context.json().catch(() => null)) as { erro?: string } | null
+      throw new Error(detalhe?.erro ?? 'A assinatura digital falhou.')
+    }
+    throw new Error('Não foi possível falar com o servidor da assinatura digital.')
+  }
+  return data as T
+}
+
+/** O certificado digital está cadastrado? De quem é e até quando vale. */
+export function useSituacaoAssinaturaDigital() {
+  return useQuery({
+    queryKey: ['certificados', 'assinatura-digital'],
+    queryFn: () => chamarAssinatura<SituacaoAssinaturaDigital>({ acao: 'situacao' }),
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
+function paraBase64(bytes: Uint8Array) {
+  let s = ''
+  for (let i = 0; i < bytes.length; i += 0x8000)
+    s += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  return btoa(s)
+}
+
+/** Manda o PDF montado na tela e recebe de volta o mesmo PDF assinado digitalmente. */
+export async function assinarPdfCertificado(certificadoId: string, pdf: Blob): Promise<Blob> {
+  const bytes = new Uint8Array(await pdf.arrayBuffer())
+  const { pdf: assinado } = await chamarAssinatura<{ pdf: string }>({
+    acao: 'assinar',
+    certificadoId,
+    pdf: paraBase64(bytes),
+  })
+  const volta = Uint8Array.from(atob(assinado), (c) => c.charCodeAt(0))
+  return new Blob([volta as BlobPart], { type: 'application/pdf' })
 }

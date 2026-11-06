@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, Copy, FileDown, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useFieldArray, useForm, useWatch } from 'react-hook-form'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { z } from 'zod'
 
 import { Aviso } from '@/components/ui/Aviso'
@@ -14,12 +14,14 @@ import { Carregando } from '@/components/ui/Carregando'
 import { SelectForm } from '@/components/ui/SelectForm'
 import { formatarData, hojeISO } from '@/lib/datas'
 import { mensagemDeErro } from '@/lib/erros'
+import { UNIDADE } from '@/lib/unidade'
 import { cn } from '@/lib/utils'
 
 import { useCliente } from '../clientes/api'
 import { ClienteSeletor, type ClienteEscolhido } from '../clientes/ClienteSeletor'
 import { useTiposServico } from '../servicos/api'
 import {
+  buscarCertificado,
   useCancelarCertificado,
   useCertificado,
   useOrigemOs,
@@ -27,6 +29,7 @@ import {
   usePeriodicidadeDoCliente,
   useProdutosCatalogo,
   useSalvarCertificado,
+  useSituacaoAssinaturaDigital,
   useUltimoCertificado,
   type Certificado,
   type CertificadoResumo,
@@ -92,6 +95,7 @@ const esquema = z.object({
   observacao_final: z.string().trim(),
   responsavel_nome: z.string().trim(),
   responsavel_registro: z.string().trim(),
+  assinatura_digital: z.boolean(),
 })
 type Dados = z.infer<typeof esquema>
 
@@ -150,6 +154,7 @@ function valoresIniciais(tipos: Tipo[], c?: CertificadoResumo, origem?: Origem):
       observacao_final: c.observacao_final ?? '',
       responsavel_nome: c.responsavel_nome ?? '',
       responsavel_registro: c.responsavel_registro ?? '',
+      assinatura_digital: c.assinatura_digital,
     }
   }
   const tipo = tipos.find((t) => t.id === origem?.tipoId)
@@ -180,6 +185,7 @@ function valoresIniciais(tipos: Tipo[], c?: CertificadoResumo, origem?: Origem):
     observacao_final: '',
     responsavel_nome: '',
     responsavel_registro: '',
+    assinatura_digital: false,
   }
 }
 
@@ -198,7 +204,10 @@ function Formulario({
   const salvar = useSalvarCertificado()
   const catalogo = useProdutosCatalogo()
   const [gerandoPdf, setGerandoPdf] = useState(false)
-  const [aviso, setAviso] = useState<string | null>(null)
+  // Aviso que veio da emissão (a tela é refeita ao trocar de /novo para /:id).
+  const vindoDaEmissao = (useLocation().state as { aviso?: string } | null)?.aviso ?? null
+  const [aviso, setAviso] = useState<string | null>(vindoDaEmissao)
+  const situacaoDigital = useSituacaoAssinaturaDigital()
 
   const form = useForm<Dados>({
     resolver: zodResolver(esquema),
@@ -228,6 +237,9 @@ function Formulario({
   const m = MODELO[modelo]
   const validade = calcularValidade(dataExecucao, meses ? Number(meses) : null, tipoValidade)
   const responsavelPadrao = responsavelDoModelo(modelo)
+  // Sucção sai no nome da responsável da sucção: sem a opção de assinatura digital.
+  const temAssinaturaDigital = !(m.responsavelSuccao && UNIDADE.certificado.responsavelSuccao)
+  const assinaturaDigital = useWatch({ control: form.control, name: 'assinatura_digital' })
 
   // Emissão nova: se o cliente já tem um certificado desse serviço e modelo, oferece copiar.
   const ultimo = useUltimoCertificado(editando ? '' : clienteId, tipoId, modelo)
@@ -275,6 +287,7 @@ function Formulario({
         observacao_final: c.observacao_final ?? '',
         responsavel_nome: c.responsavel_nome ?? '',
         responsavel_registro: c.responsavel_registro ?? '',
+        assinatura_digital: c.assinatura_digital,
       },
       // Os campos copiados contam como mexidos: trocar o modelo não apaga os textos.
       { keepDefaultValues: true },
@@ -338,6 +351,10 @@ function Formulario({
 
   async function enviar(d: Dados) {
     setAviso(null)
+    const digital = temAssinaturaDigital && d.assinatura_digital
+    // Com assinatura digital, salvar já abre o PDF assinado (a aba abre agora, no
+    // clique, para o navegador não bloquear).
+    const aba = digital ? window.open('', '_blank') : null
     try {
       const id = await salvar.mutateAsync({
         id: certificado?.id,
@@ -371,13 +388,32 @@ function Formulario({
           observacao_final: ouNulo(d.observacao_final),
           responsavel_nome: ouNulo(d.responsavel_nome),
           responsavel_registro: ouNulo(d.responsavel_registro),
+          assinatura_digital: digital,
         },
       })
+      let avisoPdf: string | null = null
+      if (digital) {
+        setGerandoPdf(true)
+        try {
+          const salvo = await buscarCertificado(id)
+          if (!salvo) throw new Error('Certificado não encontrado.')
+          const { abrirPdfCertificado } = await import('./pdf/gerarPdfCertificado')
+          await abrirPdfCertificado(salvo, aba)
+        } catch (e) {
+          aba?.close()
+          avisoPdf = `Certificado salvo, mas o PDF assinado não saiu: ${mensagemDeErro(e)}`
+        } finally {
+          setGerandoPdf(false)
+        }
+      }
       if (editando) {
-        form.reset(d)
-        setAviso('Alterações salvas.')
-      } else navegar(`/certificados/${id}`, { replace: true })
+        form.reset({ ...d, assinatura_digital: digital })
+        setAviso(
+          avisoPdf ?? (digital ? 'Alterações salvas. PDF assinado aberto.' : 'Alterações salvas.'),
+        )
+      } else navegar(`/certificados/${id}`, { replace: true, state: { aviso: avisoPdf } })
     } catch (erro) {
+      aba?.close()
       form.setError('root', { message: mensagemDeErro(erro) })
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
@@ -850,6 +886,13 @@ function Formulario({
             >
               <Input id="resp-registro" {...form.register('responsavel_registro')} />
             </Campo>
+            {temAssinaturaDigital && (
+              <AssinaturaDigital
+                situacao={situacaoDigital}
+                marcada={assinaturaDigital}
+                campo={form.register('assinatura_digital')}
+              />
+            )}
           </Card>
         </fieldset>
 
@@ -857,12 +900,62 @@ function Formulario({
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
             {editando ? <CancelarCertificado id={certificado.id} /> : <span />}
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Salvando…' : editando ? 'Salvar alterações' : 'Emitir certificado'}
+              {isSubmitting
+                ? gerandoPdf
+                  ? 'Assinando o PDF…'
+                  : 'Salvando…'
+                : editando
+                  ? 'Salvar alterações'
+                  : 'Emitir certificado'}
             </Button>
           </div>
         )}
       </form>
     </div>
+  )
+}
+
+/** Opção de sair com a assinatura digital (certificado A1 ICP-Brasil, o mesmo da NFS-e). */
+function AssinaturaDigital({
+  situacao,
+  marcada,
+  campo,
+}: {
+  situacao: ReturnType<typeof useSituacaoAssinaturaDigital>
+  marcada: boolean
+  campo: ReturnType<ReturnType<typeof useForm<Dados>>['register']>
+}) {
+  const s = situacao.data
+  const pronta = !!s?.configurado && !s.vencido
+  const explicacao = situacao.isPending
+    ? 'Conferindo o certificado digital…'
+    : situacao.error
+      ? mensagemDeErro(situacao.error)
+      : !s?.configurado
+        ? (s?.erro ?? 'O certificado digital ainda não foi cadastrado.')
+        : s.vencido
+          ? `O certificado digital de ${s.titular} venceu em ${formatarData(s.validoAte.slice(0, 10))}. Cadastre o novo para voltar a assinar.`
+          : `Para o cliente que pede o certificado assinado. Ao salvar, o PDF já sai assinado por ${s.titular} (certificado válido até ${formatarData(s.validoAte.slice(0, 10))}).`
+  return (
+    <label
+      className={cn(
+        'flex gap-3 rounded-xl border border-borda p-3 sm:col-span-2',
+        'has-checked:border-verde has-checked:bg-lima-claro',
+        pronta || marcada ? 'cursor-pointer' : 'opacity-70',
+      )}
+    >
+      <input
+        type="checkbox"
+        className="mt-1 size-4 shrink-0"
+        // Desmarcar sempre pode; marcar, só com o certificado em dia.
+        disabled={!pronta && !marcada}
+        {...campo}
+      />
+      <span className="flex flex-col gap-0.5">
+        <span className="font-semibold">Assinatura digital (certificado ICP-Brasil)</span>
+        <span className="text-sm text-texto-suave">{explicacao}</span>
+      </span>
+    </label>
   )
 }
 
