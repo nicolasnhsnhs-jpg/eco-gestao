@@ -87,7 +87,7 @@ export const UNIDADES = {
       email: 'atendimento@ecoambientalrs.com.br',
       site: 'ecoambientalrs.com.br',
       instagram: '@ecoambientalrs',
-      rodape1: 'Há mais de 20 anos atuando com',
+      rodape1: 'Há mais de 22 anos atuando com',
       servicos: [
         { icone: 'inseto', texto: 'Desinsetização' },
         { icone: 'rato', texto: 'Desratização' },
