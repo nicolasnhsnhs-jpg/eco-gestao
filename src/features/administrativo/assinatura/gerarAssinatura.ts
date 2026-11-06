@@ -1,3 +1,5 @@
+import { UNIDADE, type UNIDADES } from '@/lib/unidade'
+
 /**
  * Assinatura de e-mail no padrão Eco Ambiental, para o Outlook clássico.
  * Só usa <table> e CSS inline (o Outlook ignora <style>, flexbox e grid).
@@ -38,27 +40,26 @@ export type DadosAssinatura = {
   servicos: ServicoAssinatura[]
 }
 
-export const PADRAO_ASSINATURA: DadosAssinatura = {
-  nome: '',
-  cargo: '',
-  telefone: '',
-  whatsapp: '',
-  email: 'adm@ecoambientalsc.com.br',
-  site: 'ecoambientalsc.com.br',
-  instagram: '@ecoambientalsc',
-  rodape1: 'Há mais de 22 anos atuando com',
-  rodape2: 'prevenção e responsabilidade.',
-  servicos: [
-    { icone: 'inseto', texto: 'Desinsetização' },
-    { icone: 'rato', texto: 'Desratização' },
-    { icone: 'caixa', texto: "Limpeza e Desinfecção de Caixas d'Água" },
-    { icone: 'succao', texto: 'Sucção de Fossa e Caixa de Gordura' },
-    { icone: 'desentupimento', texto: 'Desentupimento' },
-    { icone: 'jato', texto: 'Hidrojateamento' },
-    { icone: 'coifa', texto: 'Limpeza de Coifas' },
-    { icone: 'placa', texto: 'Limpeza de Placas' },
-  ],
+type Unidade = (typeof UNIDADES)[keyof typeof UNIDADES]
+
+/** Dados que já vêm preenchidos: os da unidade deste site (src/lib/unidade.ts). */
+export function padraoDaUnidade(u: Unidade): DadosAssinatura {
+  const a = u.assinatura
+  return {
+    nome: '',
+    cargo: '',
+    telefone: '',
+    whatsapp: '',
+    email: a.email,
+    site: a.site,
+    instagram: a.instagram,
+    rodape1: a.rodape1,
+    rodape2: 'prevenção e responsabilidade.',
+    servicos: a.servicos.map((s) => ({ ...s })),
+  }
 }
+
+export const PADRAO_ASSINATURA = padraoDaUnidade(UNIDADE)
 
 // ---------- utilidades ----------
 const ESCAPES: Record<string, string> = {
@@ -185,7 +186,7 @@ export function gerarAssinatura(d: DadosAssinatura, base = IMG_ASSINATURA) {
     `<tr><td style="padding:12px 0 6px 0;"><table ${TABELA} width="650" style="width:650px;border-collapse:collapse;"><tr>` +
     // logo
     `<td width="205" align="center" valign="middle" style="width:205px;padding:20px 0 0 0;">` +
-    `<a href="${esc(urlSite(site || 'ecoambientalsc.com.br'))}" style="text-decoration:none;">` +
+    `<a href="${esc(urlSite(site || UNIDADE.assinatura.site))}" style="text-decoration:none;">` +
     img(base + 'logo.png', 196, 76, 'Eco-Ambiental Serviços Ambientais') +
     `</a></td>` +
     divisoria +
@@ -238,5 +239,5 @@ export function arquivoHtm(d: DadosAssinatura) {
 /** Nome do arquivo baixado, sem caracteres que o Windows não aceita. */
 export function nomeArquivoHtm(nome: string) {
   const limpo = nome.replace(/[\\/:*?"<>|]+/g, '').trim() || 'Assinatura'
-  return `Eco Ambiental SC - ${limpo}.htm`
+  return `${UNIDADE.nome} - ${limpo}.htm`
 }

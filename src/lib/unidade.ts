@@ -32,6 +32,23 @@ export const UNIDADES = {
       registroCoifa: null,
       responsavelSuccao: null,
     },
+    /** Dados que já vêm preenchidos no gerador de assinatura de e-mail (Administrativo). */
+    assinatura: {
+      email: 'adm@ecoambientalsc.com.br',
+      site: 'ecoambientalsc.com.br',
+      instagram: '@ecoambientalsc',
+      rodape1: 'Há mais de 22 anos atuando com',
+      servicos: [
+        { icone: 'inseto', texto: 'Desinsetização' },
+        { icone: 'rato', texto: 'Desratização' },
+        { icone: 'caixa', texto: "Limpeza e Desinfecção de Caixas d'Água" },
+        { icone: 'succao', texto: 'Sucção de Fossa e Caixa de Gordura' },
+        { icone: 'desentupimento', texto: 'Desentupimento' },
+        { icone: 'jato', texto: 'Hidrojateamento' },
+        { icone: 'coifa', texto: 'Limpeza de Coifas' },
+        { icone: 'placa', texto: 'Limpeza de Placas' },
+      ],
+    },
   },
   rs: {
     nome: 'Eco Ambiental RS',
@@ -64,6 +81,22 @@ export const UNIDADES = {
       // Na coifa a Andréia assina com outro CRQ (modelo "LC").
       registroCoifa: 'AFT - CRQ 253325',
       responsavelSuccao: { nome: 'BARBARA EHLERS FRANKE DE OLIVEIRA', registro: 'L.O. 02663/25' },
+    },
+    /** Assinatura de e-mail (dados e serviços da assinatura que o RS já usa). */
+    assinatura: {
+      email: 'atendimento@ecoambientalrs.com.br',
+      site: 'ecoambientalrs.com.br',
+      instagram: '@ecoambientalrs',
+      rodape1: 'Há mais de 20 anos atuando com',
+      servicos: [
+        { icone: 'inseto', texto: 'Desinsetização' },
+        { icone: 'rato', texto: 'Desratização' },
+        { icone: 'caixa', texto: "Limpeza e Desinfecção de Caixas d'Água" },
+        { icone: 'succao', texto: 'Sucção de Resíduos' },
+        { icone: 'jato', texto: 'Hidrojateamento' },
+        { icone: 'desentupimento', texto: 'Limpeza de Fossa e Desentupimento' },
+        { icone: 'coifa', texto: 'Limpeza de Coifas' },
+      ],
     },
   },
 } as const

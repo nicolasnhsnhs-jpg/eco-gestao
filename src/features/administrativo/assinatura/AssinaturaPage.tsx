@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Campo, Input, Select } from '@/components/ui/Campo'
 import { usePerfil } from '@/features/auth/useAuth'
+import { UNIDADE } from '@/lib/unidade'
 
 import {
   arquivoHtm,
@@ -19,7 +20,11 @@ import {
   type IconeServico,
 } from './gerarAssinatura'
 
-const CHAVE = 'eco-assinatura-email-v1'
+// Cada unidade guarda o rascunho na sua chave (SC mantém a de antes, para não perder o que já foi digitado).
+const CHAVE =
+  UNIDADE.uf === 'SC'
+    ? 'eco-assinatura-email-v1'
+    : `eco-assinatura-email-${UNIDADE.uf.toLowerCase()}-v1`
 
 type CampoTexto = Exclude<keyof DadosAssinatura, 'servicos'>
 

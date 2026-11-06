@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
+import { UNIDADES } from '@/lib/unidade'
+
 import {
   arquivoHtm,
   comDDI,
   gerarAssinatura,
   nomeArquivoHtm,
   PADRAO_ASSINATURA,
+  padraoDaUnidade,
   urlInstagram,
 } from './gerarAssinatura'
 
@@ -61,6 +64,30 @@ describe('gerarAssinatura', () => {
   it('só usa tabelas e CSS inline', () => {
     const html = gerarAssinatura(dados)
     expect(html).not.toMatch(/<style|<div|display:\s*(flex|grid)/i)
+  })
+})
+
+describe('padraoDaUnidade', () => {
+  it('SC e RS vêm com o site, o Instagram e o e-mail de cada unidade', () => {
+    const sc = padraoDaUnidade(UNIDADES.sc)
+    const rs = padraoDaUnidade(UNIDADES.rs)
+    expect([sc.site, sc.instagram, sc.email]).toEqual([
+      'ecoambientalsc.com.br',
+      '@ecoambientalsc',
+      'adm@ecoambientalsc.com.br',
+    ])
+    expect([rs.site, rs.instagram, rs.email]).toEqual([
+      'ecoambientalrs.com.br',
+      '@ecoambientalrs',
+      'atendimento@ecoambientalrs.com.br',
+    ])
+    expect(JSON.stringify(rs)).not.toMatch(/ecoambientalsc/)
+  })
+
+  it('cada chamada devolve uma lista nova (editar não muda o padrão)', () => {
+    const a = padraoDaUnidade(UNIDADES.rs)
+    a.servicos[0].texto = 'x'
+    expect(padraoDaUnidade(UNIDADES.rs).servicos[0].texto).toBe('Desinsetização')
   })
 })
 
