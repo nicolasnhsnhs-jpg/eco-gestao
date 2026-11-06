@@ -169,6 +169,16 @@ async function executar(item: ItemFila) {
   }
 }
 
+/**
+ * Ordem de envio: a de chegada, mas a conclusão de cada OS vai por último. Se a
+ * conclusão falhou e o operador anotou mais coisas depois, elas entram antes
+ * dela; senão a OS fecharia primeiro e as anotações seriam recusadas.
+ */
+export function ordemDeEnvio<T extends { tipo: string; osId: string }>(lista: T[]): T[] {
+  const conclusoes = lista.filter((i) => i.tipo === 'concluir')
+  return [...lista.filter((i) => i.tipo !== 'concluir'), ...conclusoes]
+}
+
 /** Envia o que está na fila, em ordem. Seguro chamar várias vezes. */
 export async function processarFila() {
   await carregar()
@@ -178,7 +188,7 @@ export async function processarFila() {
   clearTimeout(temporizador)
   try {
     const travadas = new Set(itens.filter((i) => i.erro).map((i) => i.osId))
-    for (const item of [...itens]) {
+    for (const item of ordemDeEnvio(itens)) {
       if (item.erro || travadas.has(item.osId)) continue
       try {
         await executar(item)
