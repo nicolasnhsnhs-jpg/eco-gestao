@@ -36,6 +36,10 @@ describe('sugerirNivelRoedores', () => {
     expect(sugerirNivelRoedores(situacoes)).toEqual({ nivel: 'B', percentual: 10 })
   })
 
+  it('captura na mecânica conta como atividade; quebrado só como visitado', () => {
+    expect(sugerirNivelRoedores(['CAP', 'Q', 'MS', 'MS']).percentual).toBe(25)
+  })
+
   it('sem acesso e não encontrado não contam como visitados', () => {
     expect(sugerirNivelRoedores(['MS', 'MC', 'SA', 'NE']).nivel).toBe('A')
   })

@@ -14,6 +14,7 @@ export const TIPOS_ISCA = {
   IP: 'Isca parafinada',
   IG: 'Isca granulada',
   PO: 'Pó de contato',
+  MEC: 'Mecânica',
   CO: 'Cola (placa adesiva)',
   S: 'Semente',
 } as const
@@ -24,6 +25,8 @@ export const SITUACOES_ISCA = {
   MC: 'Mantido com consumo',
   CT: 'Consumido e trocado',
   IN: 'Isca nova',
+  CAP: 'Capturado',
+  Q: 'Quebrado',
   DT: 'Degradado e trocado',
   SA: 'Sem acesso',
   NE: 'Não encontrado',
@@ -131,12 +134,13 @@ export function escreverFaixas(numeros: number[]): string {
   return partes.join(', ')
 }
 
-const COM_CONSUMO = new Set(['MC', 'CT', 'DT'])
+// Captura na mecânica também é sinal de roedor.
+const COM_CONSUMO = new Set(['MC', 'CT', 'DT', 'CAP'])
 const NAO_VISITADO = new Set(['SA', 'NE'])
 
 /**
  * Nível de infestação de roedores sugerido pela ficha: % das iscas visitadas que
- * tiveram consumo (MC, CT, DT). Sem acesso e não encontrado não contam.
+ * tiveram consumo ou captura (MC, CT, DT, CAP). Sem acesso e não encontrado não contam.
  * Até 10% baixo, até 30% médio, acima de 30% alto.
  */
 export function sugerirNivelRoedores(situacoes: (string | null)[]): {
