@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, FileDown, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Copy, FileDown, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
@@ -27,6 +27,8 @@ import {
   usePeriodicidadeDoCliente,
   useProdutosCatalogo,
   useSalvarCertificado,
+  useUltimoCertificado,
+  type Certificado,
   type CertificadoResumo,
   type Origem,
   type ProdutoCatalogo,
@@ -226,6 +228,59 @@ function Formulario({
   const m = MODELO[modelo]
   const validade = calcularValidade(dataExecucao, meses ? Number(meses) : null, tipoValidade)
   const responsavelPadrao = responsavelDoModelo(modelo)
+
+  // Emissão nova: se o cliente já tem um certificado desse serviço e modelo, oferece copiar.
+  const ultimo = useUltimoCertificado(editando ? '' : clienteId, tipoId, modelo)
+  const anterior = ultimo.data
+  const [copiadoDe, setCopiadoDe] = useState<string | null>(null)
+
+  /** Copia o último certificado; só a data (a de hoje ou a da OS) fica como está. */
+  function copiarUltimo(c: Certificado) {
+    const atual = form.getValues()
+    const doCadastro = (pr: ReturnType<typeof lerProdutos>[number]) => {
+      // Lote atual do cadastro, se o produto ainda está nele.
+      const item = catalogo.data?.find(
+        (x) =>
+          x.ativo &&
+          x.principio_ativo === pr.principio_ativo &&
+          (x.nome_comercial ?? '') === (pr.nome_comercial ?? ''),
+      )
+      return item
+        ? {
+            ...pr,
+            registro: item.registro ?? pr.registro,
+            lote: item.lote ?? '',
+            fabricacao: item.fabricacao ?? '',
+            validade: item.validade ?? '',
+          }
+        : pr
+    }
+    form.reset(
+      {
+        ...atual,
+        endereco_id: atual.endereco_id || (c.endereco_id ?? ''),
+        titulo: c.titulo,
+        pragas_alvo: c.pragas_alvo ?? '',
+        servico_descrito: c.servico_descrito,
+        complemento: c.complemento ?? '',
+        outras_datas: [],
+        tipo_validade: c.tipo_validade as 'contrato' | 'avulso',
+        validade_meses: c.validade_meses?.toString() ?? '',
+        areas: c.areas ?? '',
+        produtos: lerProdutos(c.produtos).map(doCadastro),
+        reservatorios: lerReservatorios(c.reservatorios),
+        descricao: c.descricao ?? '',
+        mtr: '', // o MTR muda a cada transporte
+        volume: c.volume ?? '',
+        observacao_final: c.observacao_final ?? '',
+        responsavel_nome: c.responsavel_nome ?? '',
+        responsavel_registro: c.responsavel_registro ?? '',
+      },
+      // Os campos copiados contam como mexidos: trocar o modelo não apaga os textos.
+      { keepDefaultValues: true },
+    )
+    setCopiadoDe(c.numero)
+  }
 
   // Certificado avulso, sem origem: quando escolhe cliente e serviço, sugere a
   // periodicidade combinada com aquele cliente.
@@ -461,6 +516,22 @@ function Formulario({
                 ))}
               </Select>
             </Campo>
+            {!editando && anterior && copiadoDe !== anterior.numero && (
+              <div className="flex flex-wrap items-center gap-3 rounded-xl bg-lima-claro p-3 sm:col-span-2">
+                <p className="min-w-0 flex-1 text-sm">
+                  Este cliente já tem um certificado de <strong>{m.nome}</strong>: {anterior.numero}
+                  , do dia {formatarData(anterior.data_execucao)}.
+                </p>
+                <Button variante="secundario" onClick={() => copiarUltimo(anterior)}>
+                  <Copy className="size-5" aria-hidden /> Copiar o último certificado
+                </Button>
+              </div>
+            )}
+            {copiadoDe && (
+              <div className="sm:col-span-2">
+                <Aviso>Copiado do {copiadoDe}. Confira a data do serviço antes de emitir.</Aviso>
+              </div>
+            )}
           </Card>
 
           <Card className="grid gap-4 sm:grid-cols-2">

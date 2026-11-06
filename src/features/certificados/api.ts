@@ -39,6 +39,32 @@ export function useCertificados() {
 
 export type CertificadoResumo = NonNullable<ReturnType<typeof useCertificados>['data']>[number]
 
+/**
+ * Último certificado (não cancelado) do cliente com o mesmo serviço e o mesmo modelo,
+ * para copiar na emissão. Só busca quando os três estão escolhidos.
+ */
+export function useUltimoCertificado(clienteId: string, tipoId: string, modelo: string) {
+  return useQuery({
+    queryKey: ['certificados', 'ultimo', clienteId, tipoId, modelo],
+    enabled: !!clienteId && !!tipoId && !!modelo,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('certificados')
+        .select('*')
+        .eq('cliente_id', clienteId)
+        .eq('tipo_servico_id', tipoId)
+        .eq('modelo', modelo)
+        .is('cancelado_em', null)
+        .order('data_execucao', { ascending: false })
+        .order('numero', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (error) throw error
+      return data
+    },
+  })
+}
+
 export function useCertificado(id: string | undefined) {
   return useQuery({
     queryKey: ['certificados', 'um', id],
