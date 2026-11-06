@@ -111,11 +111,7 @@ export function valorPorAliquota(base: number, aliquota: number | null): number 
   return aliquota != null && base > 0 ? Math.round(base * aliquota) / 100 : null
 }
 
-/**
- * Total retido pelo tomador (o que sai do valor do serviço), na conta do Sistema
- * Nacional: CP + IRRF + os PIS/COFINS/CSLL que o tipo de retenção diz retidos + ISS retido.
- */
-export function totalRetido(n: {
+type DadosRetencao = {
   iss_retido: boolean
   aliquota_iss: number | null
   valor_servico: number
@@ -126,15 +122,42 @@ export function totalRetido(n: {
   valor_csll: number | null
   valor_irrf: number | null
   valor_inss: number | null
-}): number {
-  const iss = n.iss_retido ? (valorPorAliquota(Number(n.valor_servico), n.aliquota_iss) ?? 0) : 0
+}
+
+export type Retencoes = {
+  iss: number
+  pis: number
+  cofins: number
+  csll: number
+  irrf: number
+  inss: number
+}
+
+/**
+ * Quanto sai do valor em cada tributo (0 = não retido), na conta do Sistema Nacional:
+ * CP + IRRF + os PIS/COFINS/CSLL que o tipo de retenção diz retidos + ISS retido.
+ */
+export function retencoes(n: DadosRetencao): Retencoes {
   const [pis, cofins, csll] = RETENCOES_PISCOFINS[tipoRetencaoPisCofins(n)]?.retidos ?? []
-  const federais =
-    (pis ? Number(n.valor_pis ?? 0) : 0) +
-    (cofins ? Number(n.valor_cofins ?? 0) : 0) +
-    (csll ? Number(n.valor_csll ?? 0) : 0)
-  const total = iss + federais + Number(n.valor_irrf ?? 0) + Number(n.valor_inss ?? 0)
+  return {
+    iss: n.iss_retido ? (valorPorAliquota(Number(n.valor_servico), n.aliquota_iss) ?? 0) : 0,
+    pis: pis ? Number(n.valor_pis ?? 0) : 0,
+    cofins: cofins ? Number(n.valor_cofins ?? 0) : 0,
+    csll: csll ? Number(n.valor_csll ?? 0) : 0,
+    irrf: Number(n.valor_irrf ?? 0),
+    inss: Number(n.valor_inss ?? 0),
+  }
+}
+
+/** Soma das retenções, nos centavos. */
+export function somaRetencoes(r: Retencoes): number {
+  const total = r.iss + r.pis + r.cofins + r.csll + r.irrf + r.inss
   return Math.round(total * 100) / 100
+}
+
+/** Total retido pelo tomador (o que sai do valor do serviço). */
+export function totalRetido(n: DadosRetencao): number {
+  return somaRetencoes(retencoes(n))
 }
 
 /** O texto do resultado da emissão, também usado na emissão em lote. */

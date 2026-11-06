@@ -5,7 +5,8 @@
 //   modelo   baixa o XML de uma nota já emitida (só leitura), para comparar com a nossa DPS
 //   ensaiar  manda o rascunho ao ambiente de testes do governo (nada vale, a nota não muda)
 //   emitir   emite de verdade: número da DPS, envio, XML e PDF no Storage, nota emitida e
-//            o PDF por e-mail ao cliente
+//            o PDF por e-mail ao cliente. Rascunho com motivo_substituicao substitui a
+//            nota de substitui_nota_id (grupo subst; a antiga fica substituída no portal)
 //
 // A configuração fica em configuracoes (nfse_*); nfse_ambiente diz se a emissão está
 // desligada, em testes (homologacao) ou valendo (producao).
@@ -115,8 +116,12 @@ async function enderecoDoTomador(
 
 type NotaMontada = {
   nota: Record<string, any>
-  dados: Omit<DadosDps, 'ambiente' | 'serie' | 'numero' | 'dhEmi' | 'leiaute'>
+  dados: Omit<DadosDps, 'ambiente' | 'serie' | 'numero' | 'dhEmi' | 'leiaute' | 'competencia'>
+  /** A nota emitida que este rascunho substitui (grupo subst da DPS). */
+  substituida: { id: string; numero: string | null; chave: string } | null
 }
+
+const MOTIVOS_SUBSTITUICAO = ['01', '02', '03', '04', '05', '99']
 
 /** Junta tudo o que a DPS precisa a partir do rascunho, do cliente e da configuração. */
 async function montarDados(
@@ -149,6 +154,35 @@ async function montarDados(
   if (nota.competencia > hoje)
     throw new Falha('A competência ainda não começou: emita a partir do dia 1.')
 
+  // Substituição: a nota antiga tem de estar emitida e ter a chave no sistema.
+  let substituida: NotaMontada['substituida'] = null
+  let substituicao: DadosDps['substituicao'] = null
+  if (nota.status === 'rascunho' && nota.motivo_substituicao && nota.substitui_nota_id) {
+    if (!MOTIVOS_SUBSTITUICAO.includes(nota.motivo_substituicao))
+      throw new Falha('Motivo da substituição inválido.')
+    const justificativa = (nota.justificativa_substituicao ?? '').replace(/\s+/g, ' ').trim()
+    if (justificativa.length < 15)
+      throw new Falha('Explique o motivo da substituição com pelo menos 15 letras.')
+    const { data: antiga } = await admin
+      .from('notas_fiscais')
+      .select('id, numero, status, chave_acesso')
+      .eq('id', nota.substitui_nota_id)
+      .single()
+    if (!antiga) throw new Falha('A nota que seria substituída não foi encontrada.')
+    if (antiga.status !== 'emitida')
+      throw new Falha(`A NF ${antiga.numero ?? ''} não está mais emitida: não dá para substituir.`)
+    if (!antiga.chave_acesso)
+      throw new Falha(
+        `A NF ${antiga.numero ?? ''} não tem a chave de acesso no sistema: substitua no emissor onde ela foi feita.`,
+      )
+    substituida = { id: antiga.id, numero: antiga.numero, chave: antiga.chave_acesso }
+    substituicao = {
+      chave: antiga.chave_acesso,
+      motivo: nota.motivo_substituicao,
+      justificativa: justificativa.slice(0, 255),
+    }
+  }
+
   const endereco = await enderecoDoTomador(
     admin,
     nota.cliente_id,
@@ -167,8 +201,9 @@ async function montarDados(
 
   return {
     nota,
+    substituida,
     dados: {
-      competencia: nota.competencia,
+      substituicao,
       prestador: {
         cnpj: cert.cnpj,
         inscricaoMunicipal: cfg.nfse_inscricao_municipal || null,
@@ -326,6 +361,9 @@ async function concluir(
     )
   }
 
+  if (montada.substituida)
+    await marcarSubstituida(admin, montada.substituida, numero, nota, usuarioId)
+
   if (!enviar) return { numero, chave, envio: null }
 
   // Nota paga por boleto: o boleto sai agora (pelo banco escolhido na nota, ou pela regra
@@ -349,6 +387,32 @@ async function concluir(
 }
 
 /**
+ * A Sefin já cancelou a nota antiga por substituição (evento e105102) ao autorizar a nova;
+ * aqui ela fica cancelada no sistema também, com o número da que a substitui.
+ */
+async function marcarSubstituida(
+  admin: SupabaseClient,
+  antiga: NonNullable<NotaMontada['substituida']>,
+  numeroNova: string,
+  nova: Record<string, any>,
+  usuarioId: string,
+) {
+  const { error } = await admin
+    .from('notas_fiscais')
+    .update({
+      status: 'cancelada',
+      cancelada_em: new Date().toISOString(),
+      motivo_cancelamento:
+        `Substituída pela NF ${numeroNova}: ${nova.justificativa_substituicao ?? ''}`.trim(),
+      atualizado_por: usuarioId,
+    })
+    .eq('id', antiga.id)
+    .eq('status', 'emitida')
+  // A nova já vale: não falha por isso, só registra para acertar à mão.
+  if (error) console.error('Nota substituída mas a antiga não foi marcada', antiga.id, error)
+}
+
+/**
  * Manda a DPS e se ajusta às recusas que dependem do cadastro do governo, não da nota:
  *  - E1235 (esquema): leiaute errado — o novo (NT 009) vale nos testes e, a partir de
  *    01/12/2026, na produção; se a data da virada mudar, tenta o outro.
@@ -358,15 +422,22 @@ async function concluir(
  */
 async function enviarDps(
   sefin: Sefin,
-  dados: Omit<DadosDps, 'leiaute' | 'dhEmi'>,
+  dados: Omit<DadosDps, 'leiaute' | 'dhEmi' | 'competencia'>,
   cert: Certificado,
+  /** Substituição: a competência tem de ser a mesma da nota substituída. */
+  competenciaFixa: string | null = null,
 ) {
   let leiaute: Leiaute =
     sefin.ambiente === 'homologacao' || agoraBrasilia() >= '2026-12-01' ? 'nt009' : 'anterior'
   let atual = dados
   let trocouLeiaute = false
-  const enviar = () =>
-    sefin.emitir(montarDpsAssinada({ ...atual, leiaute, dhEmi: agoraBrasilia() }, cert).xml)
+  // A competência da NFS-e é o dia da emissão (não o dia 1 do mês da mensalidade); na
+  // substituição, a da nota substituída (o fisco não deixa mudar).
+  const enviar = () => {
+    const dhEmi = agoraBrasilia()
+    const competencia = competenciaFixa ?? dhEmi.slice(0, 10)
+    return sefin.emitir(montarDpsAssinada({ ...atual, leiaute, dhEmi, competencia }, cert).xml)
+  }
   const tem = (r: Awaited<ReturnType<Sefin['emitir']>>, codigo: string) =>
     !r.ok && r.erros.some((e) => e.codigo === codigo)
 
@@ -446,9 +517,24 @@ async function emitir(
       }
     }
 
+    let competenciaFixa: string | null = null
+    if (montada.substituida) {
+      const xmlAntiga = await sefin.xmlDaNota(montada.substituida.chave)
+      competenciaFixa = xmlAntiga ? tag(xmlAntiga, 'dCompet') : null
+      if (!competenciaFixa)
+        throw new Falha(
+          `Não achei a NF ${montada.substituida.numero ?? ''} no Sistema Nacional para substituir.`,
+        )
+    }
+
     let r
     try {
-      r = await enviarDps(sefin, { ...montada.dados, ambiente: 'producao', serie, numero }, cert)
+      r = await enviarDps(
+        sefin,
+        { ...montada.dados, ambiente: 'producao', serie, numero },
+        cert,
+        competenciaFixa,
+      )
     } catch (e) {
       // Sem resposta (queda, tempo esgotado): confere se a nota saiu mesmo assim.
       const chave = await sefin.chaveDaDps(id).catch(() => null)
@@ -618,7 +704,8 @@ async function ensaiar(admin: SupabaseClient, notaId: string, origem: string | n
   const { serie, numero } = reserva[0] as { serie: string; numero: string }
   const r = await enviarDps(
     new Sefin('homologacao', cert, origem),
-    { ...montada.dados, ambiente: 'homologacao', serie, numero },
+    // A chave da nota substituída é da produção: nos testes do governo ela não existe.
+    { ...montada.dados, substituicao: null, ambiente: 'homologacao', serie, numero },
     cert,
   )
   if (!r.ok) return { ok: false, erro: textoDosErros(r.erros) }

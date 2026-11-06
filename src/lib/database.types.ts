@@ -1825,8 +1825,10 @@ export type Database = {
           id: string
           importada_de: string | null
           iss_retido: boolean
+          justificativa_substituicao: string | null
           lancamento_id: string | null
           motivo_cancelamento: string | null
+          motivo_substituicao: string | null
           municipio_prestacao: string | null
           numero: string | null
           numero_dps: string | null
@@ -1898,8 +1900,10 @@ export type Database = {
           id?: string
           importada_de?: string | null
           iss_retido?: boolean
+          justificativa_substituicao?: string | null
           lancamento_id?: string | null
           motivo_cancelamento?: string | null
+          motivo_substituicao?: string | null
           municipio_prestacao?: string | null
           numero?: string | null
           numero_dps?: string | null
@@ -1971,8 +1975,10 @@ export type Database = {
           id?: string
           importada_de?: string | null
           iss_retido?: boolean
+          justificativa_substituicao?: string | null
           lancamento_id?: string | null
           motivo_cancelamento?: string | null
+          motivo_substituicao?: string | null
           municipio_prestacao?: string | null
           numero?: string | null
           numero_dps?: string | null

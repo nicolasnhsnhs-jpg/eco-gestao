@@ -37,6 +37,8 @@ export type DadosDps = {
   numero: string
   /** "2026-11-01" */
   competencia: string
+  /** Substitui a NFS-e desta chave (grupo subst); a Sefin cancela a antiga por substituição. */
+  substituicao?: { chave: string; motivo: string; justificativa: string | null } | null
   prestador: {
     cnpj: string
     inscricaoMunicipal: string | null
@@ -297,6 +299,13 @@ function corpoInfDps(d: DadosDps): string {
     campo('tpEmit', '1'), // o prestador é o emitente
     nt009 ? campo('finNFSe', '0') : null, // NFS-e regular
     campo('cLocEmi', p.municipioIbge),
+    d.substituicao
+      ? el('subst', [
+          campo('chSubstda', d.substituicao.chave),
+          campo('cMotivo', d.substituicao.motivo),
+          d.substituicao.justificativa ? campo('xMotivo', d.substituicao.justificativa) : null,
+        ])
+      : null,
     // Prestador emitente: CNPJ, IM e regime — sem nome nem endereço (E0121/E0128).
     el('prest', [
       campo('CNPJ', digitos(p.cnpj)),

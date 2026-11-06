@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, Copy, MapPin, Trash2 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { useForm, useWatch, type UseFormReturn } from 'react-hook-form'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { z } from 'zod'
@@ -20,7 +20,7 @@ import { ClienteSeletor, type ClienteEscolhido } from '../clientes/ClienteSeleto
 import { useContratos } from '../contratos/api'
 import { BoletoNota } from './BoletoNota'
 import { CampoCodigoNfse } from './CampoCodigoNfse'
-import { CancelamentoNota } from './CancelamentoNota'
+import { AvisoSubstituicao, CancelamentoNota } from './CancelamentoNota'
 import { EmissaoNota } from './EmissaoNota'
 import { EnvioNota } from './EnvioNota'
 import {
@@ -30,7 +30,8 @@ import {
   RETENCOES_PISCOFINS,
   retemPisCofins,
   tipoRetencaoPisCofins,
-  totalRetido,
+  retencoes,
+  somaRetencoes,
   valorPorAliquota,
   vencimentoDoContrato,
 } from './notas'
@@ -537,6 +538,7 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
       </form>
 
       {nota && nota.status !== 'cancelada' && <BoletoNota nota={nota} />}
+      {nota && <AvisoSubstituicao nota={nota} />}
       {nota?.status === 'rascunho' && <EmissaoNota nota={nota} salvarAntes={salvarRascunho} />}
       {nota?.status === 'emitida' && <EmissaoNota nota={nota} modelo />}
       {nota?.status === 'emitida' && <EnvioNota nota={nota} />}
@@ -692,8 +694,20 @@ function Impostos({ form }: { form: UseFormReturn<Dados> }) {
     valor_irrf: lerValor(d.valor_irrf ?? ''),
     valor_inss: lerValor(d.valor_inss ?? ''),
   }
-  const federais = totalRetido({ ...contas, iss_retido: false })
-  const retido = totalRetido({ ...contas, iss_retido: !!d.iss_retido })
+  // Uma conta só: cada tributo retido, o total federal (sem ISS) e o total com o ISS.
+  const porTributo = retencoes({ ...contas, iss_retido: !!d.iss_retido })
+  const federais = somaRetencoes({ ...porTributo, iss: 0 })
+  const retido = somaRetencoes(porTributo)
+  const [pisRetido, cofinsRetido] = RETENCOES_PISCOFINS[tipo]?.retidos ?? []
+  const linhasFederais = (
+    [
+      ['PIS', porTributo.pis],
+      ['COFINS', porTributo.cofins],
+      ['CSLL', porTributo.csll],
+      ['IRRF', porTributo.irrf],
+      ['INSS (CP)', porTributo.inss],
+    ] as const
+  ).filter(([, v]) => v > 0)
 
   return (
     <>
@@ -794,6 +808,22 @@ function Impostos({ form }: { form: UseFormReturn<Dados> }) {
         <CampoValor form={form} nome="valor_pis" rotulo="Valor PIS (R$)" />
         <CampoPercentual form={form} nome="aliquota_cofins" rotulo="Alíquota COFINS (%)" />
         <CampoValor form={form} nome="valor_cofins" rotulo="Valor COFINS (R$)" />
+        {pisRetido && (
+          <Campo rotulo="Valor PIS retido (R$)" htmlFor="pisret">
+            <Input id="pisret" readOnly tabIndex={-1} value={valorParaCampo(porTributo.pis)} />
+          </Campo>
+        )}
+        {cofinsRetido && (
+          <Campo rotulo="Valor COFINS retido (R$)" htmlFor="cofinsret">
+            <Input
+              id="cofinsret"
+              readOnly
+              tabIndex={-1}
+              value={valorParaCampo(porTributo.cofins)}
+            />
+          </Campo>
+        )}
+        {(pisRetido || cofinsRetido) && <div className="hidden lg:col-span-2 lg:block" />}
         {retemCsll && (
           <>
             <CampoPercentual form={form} nome="aliquota_csll" rotulo="Alíquota CSLL (%)" />
@@ -801,7 +831,17 @@ function Impostos({ form }: { form: UseFormReturn<Dados> }) {
           </>
         )}
         <div className="flex flex-col justify-end gap-1 text-sm sm:col-span-2 lg:col-span-4 lg:items-end">
-          <span>
+          {linhasFederais.length > 0 && (
+            <dl className="grid grid-cols-[auto_auto] gap-x-4 text-right">
+              {linhasFederais.map(([nome, v]) => (
+                <Fragment key={nome}>
+                  <dt>{nome} retido:</dt>
+                  <dd>{formatarReais(v)}</dd>
+                </Fragment>
+              ))}
+            </dl>
+          )}
+          <span className={linhasFederais.length > 0 ? 'border-t border-borda pt-1' : undefined}>
             Total tributos federais retidos: <strong>{formatarReais(federais)}</strong>
           </span>
           {d.iss_retido && (

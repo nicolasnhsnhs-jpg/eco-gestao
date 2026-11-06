@@ -6,6 +6,8 @@ import {
   calcularPisCofins,
   notaDoContrato,
   proximaNota,
+  retencoes,
+  somaRetencoes,
   totalRetido,
   valorPorAliquota,
   vencimentoDoContrato,
@@ -103,6 +105,36 @@ describe('totalRetido', () => {
         valor_irrf: 22.8,
       }),
     ).toBe(128.82)
+  })
+
+  it('discrimina cada tributo retido, e a soma bate com o total', () => {
+    const nota = {
+      ...base,
+      valor_servico: 2280,
+      pis_cofins_retidos: true,
+      tp_ret_piscofins: 3,
+      valor_pis: 14.82,
+      valor_cofins: 68.4,
+      valor_csll: 22.8,
+      valor_irrf: 22.8,
+      iss_retido: true,
+      aliquota_iss: 5,
+    }
+    const r = retencoes(nota)
+    expect(r).toEqual({ iss: 114, pis: 14.82, cofins: 68.4, csll: 22.8, irrf: 22.8, inss: 0 })
+    expect(somaRetencoes(r)).toBe(totalRetido(nota))
+    expect(somaRetencoes({ ...r, iss: 0 })).toBe(totalRetido({ ...nota, iss_retido: false }))
+  })
+
+  it('o que o tipo não retém fica zerado (7 = COFINS e CSLL, PIS não)', () => {
+    expect(retencoes({ ...base, pis_cofins_retidos: true, tp_ret_piscofins: 7 })).toEqual({
+      iss: 0,
+      pis: 0,
+      cofins: 30,
+      csll: 10,
+      irrf: 0,
+      inss: 0,
+    })
   })
 })
 

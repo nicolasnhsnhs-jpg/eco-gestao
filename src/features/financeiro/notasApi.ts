@@ -439,65 +439,113 @@ export function useCancelarNota() {
 }
 
 /**
- * "Corrigir e emitir de novo": abre um rascunho com os dados da nota cancelada (e a conta
- * a receber e o boleto dela), para acertar o que estava errado. Devolve o id do rascunho.
+ * Rascunho com os dados de uma nota (e a conta a receber e o boleto dela), para acertar o
+ * que estava errado. Se já existe um rascunho ou nota que a corrige, devolve esse.
+ * Com substituição, a emissão do rascunho substitui a nota no Sistema Nacional.
  */
+async function abrirCopiaDaNota(
+  n: NotaFiscalCompleta,
+  substituicao: { motivo: MotivoSubstituicao; justificativa: string } | null,
+): Promise<string> {
+  const { data: existente } = await supabase
+    .from('notas_fiscais')
+    .select('id, status')
+    .eq('substitui_nota_id', n.id)
+    .neq('status', 'cancelada')
+    .limit(1)
+  const atual = existente?.[0]
+  if (atual) {
+    if (substituicao && atual.status === 'rascunho') {
+      const { error } = await supabase
+        .from('notas_fiscais')
+        .update({
+          motivo_substituicao: substituicao.motivo,
+          justificativa_substituicao: substituicao.justificativa,
+        })
+        .eq('id', atual.id)
+      if (error) throw error
+    }
+    return atual.id
+  }
+  const { data, error } = await supabase
+    .from('notas_fiscais')
+    .insert({
+      tipo: n.tipo,
+      status: 'rascunho',
+      cliente_id: n.cliente_id,
+      contrato_id: n.contrato_id,
+      lancamento_id: n.lancamento_id,
+      data_emissao: hojeISO(),
+      competencia: n.competencia,
+      vencimento: n.vencimento,
+      forma_pagamento: n.forma_pagamento,
+      valor_servico: n.valor_servico,
+      descricao: n.descricao,
+      codigo_tributacao: n.codigo_tributacao,
+      codigo_nbs: n.codigo_nbs,
+      iss_retido: n.iss_retido,
+      aliquota_iss: n.aliquota_iss,
+      pis_cofins_retidos: n.pis_cofins_retidos,
+      aliquota_pis: n.aliquota_pis,
+      aliquota_cofins: n.aliquota_cofins,
+      valor_pis: n.valor_pis,
+      valor_cofins: n.valor_cofins,
+      valor_csll: n.valor_csll,
+      aliquota_irrf: n.aliquota_irrf,
+      aliquota_csll: n.aliquota_csll,
+      aliquota_inss: n.aliquota_inss,
+      valor_irrf: n.valor_irrf,
+      valor_inss: n.valor_inss,
+      municipio_prestacao: n.municipio_prestacao,
+      cst_piscofins: n.cst_piscofins,
+      trib_issqn: n.trib_issqn,
+      tp_imunidade: n.tp_imunidade,
+      tp_ret_piscofins: n.tp_ret_piscofins,
+      arquivo_boleto_id: n.arquivo_boleto_id,
+      observacoes: [
+        n.observacoes,
+        `Substitui a NF ${n.numero ?? ''}${substituicao ? '' : ' (cancelada)'}.`,
+      ]
+        .filter(Boolean)
+        .join(' '),
+      substitui_nota_id: n.id,
+      motivo_substituicao: substituicao?.motivo ?? null,
+      justificativa_substituicao: substituicao?.justificativa ?? null,
+    })
+    .select('id')
+    .single()
+  if (error) throw error
+  return data.id
+}
+
+/** "Corrigir e emitir de novo": rascunho com os dados da nota cancelada. */
 export function useCorrigirNota() {
   const atualizar = useAtualizarNotas()
   return useMutation({
-    mutationFn: async (n: NotaFiscalCompleta) => {
-      const { data: existente } = await supabase
-        .from('notas_fiscais')
-        .select('id')
-        .eq('substitui_nota_id', n.id)
-        .neq('status', 'cancelada')
-        .limit(1)
-      if (existente?.[0]) return existente[0].id
-      const { data, error } = await supabase
-        .from('notas_fiscais')
-        .insert({
-          tipo: n.tipo,
-          status: 'rascunho',
-          cliente_id: n.cliente_id,
-          contrato_id: n.contrato_id,
-          lancamento_id: n.lancamento_id,
-          data_emissao: hojeISO(),
-          competencia: n.competencia,
-          vencimento: n.vencimento,
-          forma_pagamento: n.forma_pagamento,
-          valor_servico: n.valor_servico,
-          descricao: n.descricao,
-          codigo_tributacao: n.codigo_tributacao,
-          codigo_nbs: n.codigo_nbs,
-          iss_retido: n.iss_retido,
-          aliquota_iss: n.aliquota_iss,
-          pis_cofins_retidos: n.pis_cofins_retidos,
-          aliquota_pis: n.aliquota_pis,
-          aliquota_cofins: n.aliquota_cofins,
-          valor_pis: n.valor_pis,
-          valor_cofins: n.valor_cofins,
-          valor_csll: n.valor_csll,
-          aliquota_irrf: n.aliquota_irrf,
-          aliquota_csll: n.aliquota_csll,
-          aliquota_inss: n.aliquota_inss,
-          valor_irrf: n.valor_irrf,
-          valor_inss: n.valor_inss,
-          municipio_prestacao: n.municipio_prestacao,
-          cst_piscofins: n.cst_piscofins,
-          trib_issqn: n.trib_issqn,
-          tp_imunidade: n.tp_imunidade,
-          tp_ret_piscofins: n.tp_ret_piscofins,
-          arquivo_boleto_id: n.arquivo_boleto_id,
-          observacoes: [n.observacoes, `Substitui a NF ${n.numero ?? ''} (cancelada).`]
-            .filter(Boolean)
-            .join(' '),
-          substitui_nota_id: n.id,
-        })
-        .select('id')
-        .single()
-      if (error) throw error
-      return data.id
-    },
+    mutationFn: (n: NotaFiscalCompleta) => abrirCopiaDaNota(n, null),
+    onSuccess: atualizar,
+  })
+}
+
+/** cMotivo da substituição no Sistema Nacional. */
+export type MotivoSubstituicao = '01' | '02' | '03' | '04' | '05' | '99'
+
+/**
+ * "Substituir NFS-e": rascunho com os dados da nota emitida; ao emitir, a nova substitui a
+ * antiga no Sistema Nacional (que fica substituída lá) e a antiga fica cancelada aqui.
+ */
+export function useSubstituirNota() {
+  const atualizar = useAtualizarNotas()
+  return useMutation({
+    mutationFn: (p: {
+      nota: NotaFiscalCompleta
+      motivo: MotivoSubstituicao
+      justificativa: string
+    }) =>
+      abrirCopiaDaNota(p.nota, {
+        motivo: p.motivo,
+        justificativa: p.justificativa.replace(/\s+/g, ' ').trim(),
+      }),
     onSuccess: atualizar,
   })
 }
