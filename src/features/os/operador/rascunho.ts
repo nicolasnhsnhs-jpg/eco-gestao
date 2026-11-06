@@ -63,7 +63,13 @@ export function useRascunhoExecucao(osId: string, doBanco: CamposExecucao, podeE
   const [estado, setEstado] = useState<EstadoEnvio>(() =>
     lerRascunho(osId)?.pendente ? 'salvo_no_celular' : 'enviado',
   )
-  const pendentes = useRef<CamposExecucao>(lerRascunho(osId)?.pendente ? campos : {})
+  // Só o que o operador mudou e ainda não foi enviado (não a linha inteira do banco).
+  const pendentes = useRef<CamposExecucao>(
+    (() => {
+      const guardado = lerRascunho(osId)
+      return guardado?.pendente ? guardado.campos : {}
+    })(),
+  )
   const temporizador = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const enviar = useCallback(async () => {

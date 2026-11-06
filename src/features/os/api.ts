@@ -345,8 +345,42 @@ export type CamposExecucao = Omit<
   'os_id' | 'criado_em' | 'criado_por' | 'atualizado_em' | 'atualizado_por'
 >
 
+/**
+ * O que o operador pode gravar na execução: a mesma lista do "grant update" do
+ * banco (migration 20261103120200_ordens_servico.sql). Um campo fora dela faz o
+ * banco recusar a gravação inteira ("permission denied for table os_execucao").
+ */
+export const CAMPOS_EDITAVEIS_EXECUCAO = [
+  'data',
+  'km_chegada',
+  'veiculo_id',
+  'hora_chegada',
+  'hora_inicio',
+  'hora_termino',
+  'hora_saida',
+  'resultado',
+  'observacoes',
+  'operador_nome',
+  'responsavel_nome',
+  'responsavel_setor',
+  'assinatura_cliente_id',
+  'assinatura_operador_id',
+  'checklist',
+] as const satisfies readonly (keyof CamposExecucao)[]
+
+/** Deixa só os campos que o operador pode gravar (o rascunho pode ter outros). */
+export function somenteEditaveis(campos: CamposExecucao): CamposExecucao {
+  const limpo: Record<string, unknown> = {}
+  for (const nome of CAMPOS_EDITAVEIS_EXECUCAO) {
+    if (nome in campos) limpo[nome] = campos[nome]
+  }
+  return limpo as CamposExecucao
+}
+
 export async function gravarExecucao(osId: string, campos: CamposExecucao) {
-  const { error } = await supabase.from('os_execucao').update(campos).eq('os_id', osId)
+  const dados = somenteEditaveis(campos)
+  if (Object.keys(dados).length === 0) return
+  const { error } = await supabase.from('os_execucao').update(dados).eq('os_id', osId)
   if (error) throw error
 }
 
