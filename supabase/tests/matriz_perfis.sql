@@ -6,21 +6,23 @@
 -- comissões e arquivos. Depois "entra" como cada perfil e confere as contagens
 -- com a tabela esperada abaixo. Transação desfeita no final (rollback).
 --
---                       admin  financeiro  vendedor A  recepção  desativado
---   clientes              2        2           1          2          0
---   endereços             2        2           1          2          0
---   atendimentos          2        2           1          2          0
---   propostas / itens     2        2           1          0          0
---   serviços              2        2           1          0          0
---   serviços sem valor    2        2           1          2          0
---   vencimentos           2        2           1          2          0
---   contratos             2        2           1          0          0
---   lançamentos           6        6           0          0          0
---   comissões             6        6           3          0          0
---   arquivos              6        6           3          2          0
---   auditoria            >0       >0           0          0          0
---   configurações         2        2           0          0          0
---   contas bancárias      1        1           0          0          0
+--                       admin  financeiro  ADM  vendedor A  recepção  desativado
+--   clientes              2        2        2       1          2          0
+--   endereços             2        2        2       1          2          0
+--   atendimentos          2        2        2       1          2          0
+--   propostas / itens     2        2        2       1          0          0
+--   serviços              2        2        2       1          0          0
+--   serviços sem valor    2        2        2       1          2          0
+--   vencimentos           2        2        2       1          2          0
+--   contratos             2        2        2       1          0          0
+--   lançamentos           6        6        0       0          0          0
+--   comissões             6        6        0       3          0          0
+--   arquivos              6        6        6       3          2          0
+--   auditoria            >0       >0        0       0          0          0
+--   configurações         2        2        0       0          0          0
+--   contas bancárias      1        1        0       0          0          0
+--
+-- ADM ("administrativo") = tudo, menos o financeiro e a gestão de usuários.
 --
 -- Rodar:  npm run test:db
 -- =============================================================================
@@ -30,12 +32,14 @@ begin;
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-0000000000a1', 'admin@teste.local',      '{"nome":"Admin Teste"}'),
   ('00000000-0000-0000-0000-0000000000f1', 'financeiro@teste.local', '{"nome":"Financeiro Teste"}'),
+  ('00000000-0000-0000-0000-0000000000e1', 'adm@teste.local',        '{"nome":"ADM Teste"}'),
   ('00000000-0000-0000-0000-0000000000b1', 'vend.a@teste.local',     '{"nome":"Vendedor A"}'),
   ('00000000-0000-0000-0000-0000000000b2', 'vend.b@teste.local',     '{"nome":"Vendedor B"}'),
   ('00000000-0000-0000-0000-0000000000c1', 'recepcao@teste.local',   '{"nome":"Recepção Teste"}'),
   ('00000000-0000-0000-0000-0000000000d1', 'desativado@teste.local', '{"nome":"Desativado"}');
 update public.perfis set papel = 'admin'      where id = '00000000-0000-0000-0000-0000000000a1';
 update public.perfis set papel = 'financeiro' where id = '00000000-0000-0000-0000-0000000000f1';
+update public.perfis set papel = 'administrativo' where id = '00000000-0000-0000-0000-0000000000e1';
 update public.perfis set papel = 'vendedor'   where id in ('00000000-0000-0000-0000-0000000000b1',
                                                            '00000000-0000-0000-0000-0000000000b2');
 update public.perfis set papel = 'recepcao'   where id = '00000000-0000-0000-0000-0000000000c1';
@@ -172,6 +176,11 @@ reset role;
 select pg_temp.como('00000000-0000-0000-0000-0000000000f1');
 set local role authenticated;
 select pg_temp.conferir_perfil('Financeiro', 2,  2,   2,   2,     2,   2,    6,   6,  6,  true,  2,  1);
+reset role;
+
+select pg_temp.como('00000000-0000-0000-0000-0000000000e1');
+set local role authenticated;
+select pg_temp.conferir_perfil('ADM',        2,  2,   2,   2,     2,   2,    0,   0,  6,  false, 0,  0);
 reset role;
 
 select pg_temp.como('00000000-0000-0000-0000-0000000000b1');

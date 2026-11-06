@@ -46,11 +46,23 @@ import { CalculadoraPage } from '@/features/orcamentos/CalculadoraPage'
 import { CustosPage } from '@/features/orcamentos/CustosPage'
 import { OrcamentosLayout } from '@/features/orcamentos/OrcamentosLayout'
 import { UsuariosPage } from '@/features/usuarios/UsuariosPage'
-import { PAPEIS, PAPEIS_ACESSO_TOTAL, PAPEIS_ESCRITORIO_OS } from '@/lib/papeis'
+import { CertificadoFormPage } from '@/features/certificados/CertificadoFormPage'
+import { CertificadosPage } from '@/features/certificados/CertificadosPage'
+import { ProdutosCertificadoPage } from '@/features/certificados/ProdutosCertificadoPage'
+import {
+  PAPEIS,
+  PAPEIS_ACESSO_TOTAL,
+  PAPEIS_CERTIFICADOS,
+  PAPEIS_ESCRITORIO_OS,
+  PAPEIS_GESTAO,
+} from '@/lib/papeis'
 
 import { AppLayout } from './AppLayout'
 import { ErroPage } from './ErroPage'
 import { NaoEncontradaPage } from './NaoEncontradaPage'
+
+/** Quem trabalha com propostas, serviços e contratos. */
+const COMERCIAL = [...PAPEIS_GESTAO, 'vendedor' as const]
 
 export const router = createBrowserRouter([
   // Telas sem login
@@ -177,7 +189,7 @@ export const router = createBrowserRouter([
       {
         path: 'propostas',
         element: (
-          <ExigePapel papeis={['admin', 'financeiro', 'vendedor']}>
+          <ExigePapel papeis={COMERCIAL}>
             <Outlet />
           </ExigePapel>
         ),
@@ -191,7 +203,7 @@ export const router = createBrowserRouter([
       {
         path: 'servicos',
         element: (
-          <ExigePapel papeis={['admin', 'financeiro', 'vendedor']}>
+          <ExigePapel papeis={COMERCIAL}>
             <Outlet />
           </ExigePapel>
         ),
@@ -204,7 +216,7 @@ export const router = createBrowserRouter([
               {
                 path: 'tipos',
                 element: (
-                  <ExigePapel papeis={PAPEIS_ACESSO_TOTAL}>
+                  <ExigePapel papeis={PAPEIS_GESTAO}>
                     <TiposServicoPage />
                   </ExigePapel>
                 ),
@@ -219,7 +231,7 @@ export const router = createBrowserRouter([
       {
         path: 'contratos',
         element: (
-          <ExigePapel papeis={['admin', 'financeiro', 'vendedor']}>
+          <ExigePapel papeis={COMERCIAL}>
             <Outlet />
           </ExigePapel>
         ),
@@ -233,7 +245,7 @@ export const router = createBrowserRouter([
       {
         path: 'orcamentos',
         element: (
-          <ExigePapel papeis={['admin', 'vendedor']}>
+          <ExigePapel papeis={['admin', 'administrativo', 'vendedor']}>
             <OrcamentosLayout />
           </ExigePapel>
         ),
@@ -260,13 +272,27 @@ export const router = createBrowserRouter([
       {
         path: 'administrativo',
         element: (
-          <ExigePapel papeis={PAPEIS_ACESSO_TOTAL}>
+          <ExigePapel papeis={PAPEIS_GESTAO}>
             <AdministrativoLayout />
           </ExigePapel>
         ),
         children: [
           { index: true, element: <Navigate to="assinatura" replace /> },
           { path: 'assinatura', element: <AssinaturaPage /> },
+        ],
+      },
+      {
+        path: 'certificados',
+        element: (
+          <ExigePapel papeis={PAPEIS_CERTIFICADOS}>
+            <Outlet />
+          </ExigePapel>
+        ),
+        children: [
+          { index: true, element: <CertificadosPage /> },
+          { path: 'novo', element: <CertificadoFormPage /> },
+          { path: 'produtos', element: <ProdutosCertificadoPage /> },
+          { path: ':id', element: <CertificadoFormPage /> },
         ],
       },
       { path: 'avisos', element: <AvisosPage /> },

@@ -15,6 +15,21 @@ export const UNIDADES = {
       'Eco Ambiental Serviços Ambientais LTDA · CNPJ 69.636.469/0001-18',
       'Rua Albino Dias, 51 - Caminho Novo, Palhoça/SC - CEP 88132-592 · adm@ecoambientalsc.com.br',
     ],
+    /**
+     * Certificados de serviço. PROVISÓRIO: ainda não recebemos o modelo de SC;
+     * usa o rodapé do PDF da OS e o responsável técnico fica para preencher em cada um.
+     */
+    certificado: {
+      cidade: 'Palhoça',
+      email: 'adm@ecoambientalsc.com.br',
+      rodape: [
+        'Eco Ambiental Serviços Ambientais LTDA',
+        'Inscrita sob CNPJ nº 69.636.469/0001-18, com sede na Rua Albino Dias, 51 - Caminho Novo, Palhoça/SC',
+      ],
+      rodapeSuccao: null,
+      responsavel: { nome: '', registro: '' },
+      responsavelSuccao: null,
+    },
   },
   rs: {
     nome: 'Eco Ambiental RS',
@@ -26,6 +41,26 @@ export const UNIDADES = {
       'Rua Santo Ângelo, 136 - Olímpica, Esteio/RS · Fone/Fax (51) 3458-4133 · atendimento@ecoambientalrs.com.br',
       'Resp. Técnica: Andréia S. H. Semensato - CRQ Nº 05407339 - 5ª Região · Centro de Informações Toxicológicas (CIT/24 horas): 0800 721 3000',
     ],
+    /** Certificados de serviço (dados tirados dos modelos em PowerPoint usados hoje). */
+    certificado: {
+      cidade: 'Esteio',
+      email: 'atendimento@ecoambientalrs.com.br',
+      rodape: [
+        'Eco-Ambiental Controle de Pragas e Higienização Ltda',
+        'Inscrita sob CNPJ nº 07.125.516/0001-01, com sede na Rua Santo Ângelo, 136 - Olímpica, Esteio/RS',
+        'Fone: (51)3458-4133 - LO FEPAM n° 02481/2022 - Val. 01/08/2027 - Vigilância Sanitária n° 0008 B3',
+        'Centro de Informações Toxicológicas - 0800.721.3000',
+      ],
+      // A sucção tem outra responsável e outra licença.
+      rodapeSuccao: [
+        'Eco-Ambiental Controle de Pragas e Higienização Ltda',
+        'Inscrita sob CNPJ nº 07.125.516/0001-01, com sede na Rua Santo Ângelo, 136 - Olímpica, Esteio/RS',
+        'Fone: (51)3458-4133 - Engenheira Química Bárbara Ehlers Franke de Oliveira - CREA-RS: 155822',
+        'LO FEPAM n° 02663/25 - Val. 02/07/2030',
+      ],
+      responsavel: { nome: 'RESP. TÉCNICA: ANDRÉIA S. H. SEMENSATO', registro: 'AFT - CRQ 251319' },
+      responsavelSuccao: { nome: 'BARBARA EHLERS FRANKE DE OLIVEIRA', registro: 'L.O. 02663/25' },
+    },
   },
 } as const
 

@@ -12,7 +12,7 @@ import { Etiqueta } from '@/components/ui/Etiqueta'
 import { Modal } from '@/components/ui/Modal'
 import { formatarDataHora, paraCampoDataHora } from '@/lib/datas'
 import { mensagemDeErro } from '@/lib/erros'
-import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
+import { PAPEIS_GESTAO } from '@/lib/papeis'
 
 import { usePerfil } from '../../auth/useAuth'
 import { useAtendimentos, useRegistrarAtendimento, useRemoverAtendimento } from '../api'
@@ -54,8 +54,7 @@ export function SecaoAtendimentos({ clienteId }: { clienteId: string }) {
 
       <ol className="flex flex-col gap-4 border-l-2 border-lima-claro pl-4">
         {atendimentos.data?.map((a) => {
-          const podeApagar =
-            a.usuario_id === perfil.id || PAPEIS_ACESSO_TOTAL.includes(perfil.papel)
+          const podeApagar = a.usuario_id === perfil.id || PAPEIS_GESTAO.includes(perfil.papel)
           return (
             <li key={a.id} className="relative">
               <span className="absolute top-1.5 -left-[23px] size-3 rounded-full bg-verde" />

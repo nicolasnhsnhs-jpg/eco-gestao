@@ -11,7 +11,7 @@ import { Etiqueta } from '@/components/ui/Etiqueta'
 import { Modal } from '@/components/ui/Modal'
 import { formatarData, hojeISO, somarDias } from '@/lib/datas'
 import { mensagemDeErro } from '@/lib/erros'
-import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
+import { PAPEIS_GESTAO } from '@/lib/papeis'
 
 import { usePerfil } from '../auth/useAuth'
 import {
@@ -49,7 +49,7 @@ export function OsListaPage() {
         descricao="Agende as visitas e acompanhe o que os operadores fizeram em campo."
         acoes={
           <>
-            {PAPEIS_ACESSO_TOTAL.includes(perfil.papel) && (
+            {PAPEIS_GESTAO.includes(perfil.papel) && (
               <Button variante="secundario" onClick={() => setVeiculosAberto(true)}>
                 <Car className="size-5" aria-hidden /> Veículos
               </Button>

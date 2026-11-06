@@ -13,7 +13,13 @@ import { Carregando } from '@/components/ui/Carregando'
 import { Etiqueta } from '@/components/ui/Etiqueta'
 import { Modal } from '@/components/ui/Modal'
 import { mensagemDeErro } from '@/lib/erros'
-import { DOMINIO_OPERADOR, NOME_DO_PAPEL, PAPEIS, type Papel } from '@/lib/papeis'
+import {
+  DOMINIO_OPERADOR,
+  NOME_DO_PAPEL,
+  PAPEIS,
+  PAPEIS_FORA_DO_COMERCIAL,
+  type Papel,
+} from '@/lib/papeis'
 
 import { usePerfil } from '../auth/useAuth'
 import {
@@ -33,6 +39,8 @@ import {
 const DESCRICAO_PAPEL: Record<Papel, string> = {
   admin: 'Acesso total, inclusive usuários',
   financeiro: 'Acesso total, menos usuários',
+  administrativo:
+    'Clientes, propostas, contratos, serviços, OS e certificados. Sem financeiro e sem usuários',
   vendedor: 'Só os próprios clientes, sem financeiro',
   recepcao: 'Pesquisa e cadastra clientes, sem financeiro',
   operador: 'Só as ordens de serviço atribuídas a ele',
@@ -122,7 +130,7 @@ export function UsuariosPage() {
                     {clientes} {clientes === 1 ? 'cliente' : 'clientes'} na carteira
                   </p>
                 )}
-                {u.papel !== 'recepcao' && u.papel !== 'operador' && (
+                {!PAPEIS_FORA_DO_COMERCIAL.includes(u.papel) && (
                   <button
                     type="button"
                     className="text-sm text-texto-suave underline"
@@ -443,7 +451,7 @@ function FormTransferencia({
   const [para, setPara] = useState('')
   const [motivo, setMotivo] = useState('')
   const opcoes = usuarios.filter(
-    (u) => u.id !== de.id && u.ativo && u.papel !== 'recepcao' && u.papel !== 'operador',
+    (u) => u.id !== de.id && u.ativo && !PAPEIS_FORA_DO_COMERCIAL.includes(u.papel),
   )
 
   async function confirmar() {

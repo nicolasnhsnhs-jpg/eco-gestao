@@ -12,7 +12,7 @@ import { Etiqueta } from '@/components/ui/Etiqueta'
 import { formatarData, formatarDataHora } from '@/lib/datas'
 import { formatarDocumento } from '@/lib/documentos'
 import { mensagemDeErro } from '@/lib/erros'
-import { PAPEIS_ESCRITORIO_OS } from '@/lib/papeis'
+import { PAPEIS_CERTIFICADOS, PAPEIS_ESCRITORIO_OS } from '@/lib/papeis'
 
 import { ListaArquivos } from '../arquivos/ListaArquivos'
 import { usePerfil } from '../auth/useAuth'
@@ -110,6 +110,12 @@ export function OsPage() {
                 {gerandoPdf ? 'Gerando PDF…' : 'PDF da OS'}
               </Button>
             )}
+            {PAPEIS_CERTIFICADOS.includes(perfil.papel) &&
+              (o.status === 'concluida' || o.status === 'conferida') && (
+                <Link to={`/certificados/novo?os=${o.id}`}>
+                  <Button variante="secundario">Emitir certificado</Button>
+                </Link>
+              )}
             {escritorio && (
               <Link to={`/os/nova?cliente=${o.cliente_id}`}>
                 <Button variante="secundario">Agendar próxima visita</Button>

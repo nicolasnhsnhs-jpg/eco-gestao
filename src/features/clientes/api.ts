@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import type { Tables, TablesInsert, TablesUpdate } from '@/lib/database.types'
+import { PAPEIS_FORA_DO_COMERCIAL } from '@/lib/papeis'
 import { supabase } from '@/lib/supabase'
 
 /*
@@ -104,9 +105,9 @@ export function useEquipe() {
   })
 }
 
-/** Quem pode ser vendedor responsável: usuários ativos que não são da recepção nem operadores. */
+/** Quem pode ser vendedor responsável: usuários ativos fora da recepção, do ADM e dos operadores. */
 export function equipeComercial(equipe: MembroEquipe[] | undefined): MembroEquipe[] {
-  return (equipe ?? []).filter((p) => p.ativo && p.papel !== 'recepcao' && p.papel !== 'operador')
+  return (equipe ?? []).filter((p) => p.ativo && !PAPEIS_FORA_DO_COMERCIAL.includes(p.papel))
 }
 
 // -----------------------------------------------------------------------------

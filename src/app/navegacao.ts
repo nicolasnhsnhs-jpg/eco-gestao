@@ -1,4 +1,5 @@
 import {
+  Award,
   Bell,
   BriefcaseBusiness,
   Building2,
@@ -14,7 +15,14 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-import { PAPEIS, PAPEIS_ACESSO_TOTAL, PAPEIS_ESCRITORIO_OS, type Papel } from '@/lib/papeis'
+import {
+  PAPEIS,
+  PAPEIS_ACESSO_TOTAL,
+  PAPEIS_CERTIFICADOS,
+  PAPEIS_ESCRITORIO_OS,
+  PAPEIS_GESTAO,
+  type Papel,
+} from '@/lib/papeis'
 
 export type ItemMenu = {
   rotulo: string
@@ -29,6 +37,8 @@ export type ItemMenu = {
 const TODOS = PAPEIS
 /** O operador só trabalha com as OS dele: não vê clientes. */
 const SEM_OPERADOR = PAPEIS.filter((p) => p !== 'operador')
+/** Quem trabalha com propostas, serviços e contratos. */
+const COMERCIAL: readonly Papel[] = [...PAPEIS_GESTAO, 'vendedor']
 
 export const MENU: readonly ItemMenu[] = [
   { rotulo: 'Início', caminho: '/', icone: House, papeis: TODOS, barraInferior: TODOS },
@@ -44,7 +54,7 @@ export const MENU: readonly ItemMenu[] = [
     caminho: '/os',
     icone: ClipboardList,
     papeis: PAPEIS_ESCRITORIO_OS,
-    barraInferior: ['recepcao'],
+    barraInferior: ['recepcao', 'administrativo'],
   },
   {
     rotulo: 'Financeiro',
@@ -57,33 +67,39 @@ export const MENU: readonly ItemMenu[] = [
     rotulo: 'Propostas',
     caminho: '/propostas',
     icone: FileText,
-    papeis: ['admin', 'financeiro', 'vendedor'],
+    papeis: COMERCIAL,
   },
   {
     rotulo: 'Serviços',
     caminho: '/servicos',
     icone: Wrench,
-    papeis: ['admin', 'financeiro', 'vendedor'],
+    papeis: COMERCIAL,
     barraInferior: ['vendedor'],
   },
   {
     rotulo: 'Calculadora de orçamentos',
     caminho: '/orcamentos',
     icone: Calculator,
-    // O financeiro não usa: só quem vende (e o admin).
-    papeis: ['admin', 'vendedor'],
+    // O financeiro não usa: só quem vende, o admin e o ADM.
+    papeis: ['admin', 'administrativo', 'vendedor'],
   },
   {
     rotulo: 'Contratos',
     caminho: '/contratos',
     icone: BriefcaseBusiness,
-    papeis: ['admin', 'financeiro', 'vendedor'],
+    papeis: COMERCIAL,
+  },
+  {
+    rotulo: 'Certificados',
+    caminho: '/certificados',
+    icone: Award,
+    papeis: PAPEIS_CERTIFICADOS,
   },
   {
     rotulo: 'Administrativo',
     caminho: '/administrativo',
     icone: Building2,
-    papeis: PAPEIS_ACESSO_TOTAL,
+    papeis: PAPEIS_GESTAO,
   },
   { rotulo: 'Minhas comissões', caminho: '/comissoes', icone: HandCoins, papeis: ['vendedor'] },
   { rotulo: 'Avisos', caminho: '/avisos', icone: Bell, papeis: TODOS, barraInferior: TODOS },

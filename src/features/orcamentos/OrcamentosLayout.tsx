@@ -6,7 +6,11 @@ import type { Papel } from '@/lib/papeis'
 import { cn } from '@/lib/utils'
 
 const ABAS: { rotulo: string; caminho: string; papeis: readonly Papel[] }[] = [
-  { rotulo: 'Calculadora', caminho: '/orcamentos', papeis: ['admin', 'vendedor'] },
+  {
+    rotulo: 'Calculadora',
+    caminho: '/orcamentos',
+    papeis: ['admin', 'administrativo', 'vendedor'],
+  },
   { rotulo: 'Custos e margens', caminho: '/orcamentos/custos', papeis: ['admin'] },
 ]
 

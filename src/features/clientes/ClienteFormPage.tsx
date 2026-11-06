@@ -19,7 +19,7 @@ import {
   limparDocumento,
 } from '@/lib/documentos'
 import { mensagemDeErro } from '@/lib/erros'
-import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
+import { PAPEIS_GESTAO } from '@/lib/papeis'
 
 import { usePerfil } from '../auth/useAuth'
 import {
@@ -110,7 +110,7 @@ function FormularioCliente({ cliente }: { cliente?: ClienteCompleto }) {
   // na edição, só quando o cliente ainda não tem vendedor (trocar é pela "Transferência").
   const podeEscolherVendedor = editando
     ? !cliente.vendedor_responsavel_id &&
-      (PAPEIS_ACESSO_TOTAL.includes(perfil.papel) || perfil.papel === 'recepcao')
+      (PAPEIS_GESTAO.includes(perfil.papel) || perfil.papel === 'recepcao')
     : perfil.papel !== 'vendedor'
 
   async function salvar(dados: FormCliente) {

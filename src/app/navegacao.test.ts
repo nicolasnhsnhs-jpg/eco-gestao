@@ -7,6 +7,11 @@ import { barraDoPapel, menuDoPapel } from './navegacao'
 const caminhos = (papel: Papel) => menuDoPapel(papel).map((item) => item.caminho)
 
 describe('menuDoPapel', () => {
+  it('só o admin gerencia usuários', () => {
+    for (const papel of PAPEIS.filter((p) => p !== 'admin'))
+      expect(caminhos(papel)).not.toContain('/usuarios')
+  })
+
   it('admin vê tudo, inclusive usuários', () => {
     expect(caminhos('admin')).toContain('/usuarios')
     expect(caminhos('admin')).toContain('/financeiro')
@@ -17,14 +22,37 @@ describe('menuDoPapel', () => {
     expect(caminhos('financeiro')).not.toContain('/usuarios')
   })
 
-  it('vendedor e recepção não veem o financeiro', () => {
+  it('vendedor, recepção e ADM não veem o financeiro', () => {
     expect(caminhos('vendedor')).not.toContain('/financeiro')
     expect(caminhos('recepcao')).not.toContain('/financeiro')
+    expect(caminhos('administrativo')).not.toContain('/financeiro')
   })
 
-  it('só admin e financeiro veem o administrativo', () => {
-    expect(caminhos('admin')).toContain('/administrativo')
-    expect(caminhos('financeiro')).toContain('/administrativo')
+  it('ADM vê tudo, menos o financeiro e os usuários', () => {
+    expect(caminhos('administrativo')).toEqual([
+      '/',
+      '/clientes',
+      '/os',
+      '/propostas',
+      '/servicos',
+      '/orcamentos',
+      '/contratos',
+      '/certificados',
+      '/administrativo',
+      '/avisos',
+    ])
+  })
+
+  it('só admin e ADM emitem certificados', () => {
+    expect(caminhos('admin')).toContain('/certificados')
+    expect(caminhos('administrativo')).toContain('/certificados')
+    for (const papel of ['financeiro', 'vendedor', 'recepcao', 'operador'] as const)
+      expect(caminhos(papel)).not.toContain('/certificados')
+  })
+
+  it('admin, financeiro e ADM veem o administrativo', () => {
+    for (const papel of ['admin', 'financeiro', 'administrativo'] as const)
+      expect(caminhos(papel)).toContain('/administrativo')
     for (const papel of ['vendedor', 'recepcao', 'operador'] as const)
       expect(caminhos(papel)).not.toContain('/administrativo')
   })
@@ -35,8 +63,9 @@ describe('menuDoPapel', () => {
     expect(caminhos('recepcao')).not.toContain('/comissoes')
   })
 
-  it('só admin e vendedor veem a calculadora de orçamentos', () => {
+  it('só admin, ADM e vendedor veem a calculadora de orçamentos', () => {
     expect(caminhos('admin')).toContain('/orcamentos')
+    expect(caminhos('administrativo')).toContain('/orcamentos')
     expect(caminhos('vendedor')).toContain('/orcamentos')
     for (const papel of ['financeiro', 'recepcao', 'operador'] as const)
       expect(caminhos(papel)).not.toContain('/orcamentos')
@@ -60,8 +89,9 @@ describe('barraDoPapel', () => {
     }
   })
 
-  it('vendedor tem atalho para serviços; admin, para o financeiro', () => {
+  it('vendedor tem atalho para serviços; admin, para o financeiro; ADM, para as OS', () => {
     expect(barraDoPapel('vendedor').map((i) => i.caminho)).toContain('/servicos')
     expect(barraDoPapel('admin').map((i) => i.caminho)).toContain('/financeiro')
+    expect(barraDoPapel('administrativo').map((i) => i.caminho)).toContain('/os')
   })
 })

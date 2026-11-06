@@ -13,7 +13,7 @@ import { Modal } from '@/components/ui/Modal'
 import { formatarData, hojeISO, somarDias } from '@/lib/datas'
 import { formatarReais } from '@/lib/dinheiro'
 import { mensagemDeErro } from '@/lib/erros'
-import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
+import { PAPEIS_GESTAO } from '@/lib/papeis'
 import { cn } from '@/lib/utils'
 
 import { usePerfil } from '../auth/useAuth'
@@ -35,7 +35,7 @@ export function ServicosLayout() {
   const abas = [
     { rotulo: 'Agenda', caminho: '/servicos', fim: true },
     { rotulo: 'Vencimentos', caminho: '/servicos/vencimentos', fim: false },
-    ...(PAPEIS_ACESSO_TOTAL.includes(perfil.papel)
+    ...(PAPEIS_GESTAO.includes(perfil.papel)
       ? [{ rotulo: 'Tipos de serviço', caminho: '/servicos/tipos', fim: false }]
       : []),
   ]

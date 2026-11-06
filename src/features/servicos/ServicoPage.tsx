@@ -1,4 +1,4 @@
-import { ArrowLeft, Ban, CheckCircle2, Pencil, Receipt } from 'lucide-react'
+import { ArrowLeft, Award, Ban, CheckCircle2, Pencil, Receipt } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 
@@ -12,7 +12,7 @@ import { Modal } from '@/components/ui/Modal'
 import { formatarData, hojeISO, somarDias } from '@/lib/datas'
 import { formatarReais } from '@/lib/dinheiro'
 import { mensagemDeErro } from '@/lib/erros'
-import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
+import { PAPEIS_ACESSO_TOTAL, PAPEIS_CERTIFICADOS } from '@/lib/papeis'
 
 import { ListaArquivos } from '../arquivos/ListaArquivos'
 import { usePerfil } from '../auth/useAuth'
@@ -78,6 +78,13 @@ function Detalhe({ s }: { s: ServicoResumo }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {s.status === 'realizado' && PAPEIS_CERTIFICADOS.includes(perfil.papel) && (
+            <Link to={`/certificados/novo?servico=${s.id}`}>
+              <Button>
+                <Award className="size-5" aria-hidden /> Emitir certificado
+              </Button>
+            </Link>
+          )}
           {s.status === 'agendado' && (
             <Button onClick={() => setConcluindo(true)}>
               <CheckCircle2 className="size-5" aria-hidden /> Marcar como feito

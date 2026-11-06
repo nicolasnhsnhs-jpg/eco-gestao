@@ -43,6 +43,7 @@ export type Database = {
           instituicao: string
           observacoes?: string | null
           valor_bruto: number
+          valor_liquido?: number | null
         }
         Update: {
           atualizado_em?: string
@@ -57,6 +58,7 @@ export type Database = {
           instituicao?: string
           observacoes?: string | null
           valor_bruto?: number
+          valor_liquido?: number | null
         }
         Relationships: [
           {
@@ -527,6 +529,174 @@ export type Database = {
             columns: ["criado_por"]
             isOneToOne: false
             referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      certificados: {
+        Row: {
+          areas: string | null
+          atualizado_em: string
+          atualizado_por: string | null
+          cancelado_em: string | null
+          cancelado_por: string | null
+          cliente_id: string
+          complemento: string | null
+          criado_em: string
+          criado_por: string | null
+          data_execucao: string
+          descricao: string | null
+          endereco_id: string | null
+          ficha_cliente: Json
+          id: string
+          modelo: string
+          motivo_cancelamento: string | null
+          mtr: string | null
+          numero: string
+          observacao_final: string | null
+          os_id: string | null
+          outras_datas: string[]
+          pragas_alvo: string | null
+          produtos: Json
+          reservatorios: Json
+          responsavel_nome: string | null
+          responsavel_registro: string | null
+          servico_descrito: string
+          servico_id: string | null
+          tipo_servico_id: string
+          tipo_validade: string
+          titulo: string
+          validade: string | null
+          validade_meses: number | null
+          volume: string | null
+        }
+        Insert: {
+          areas?: string | null
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cancelado_em?: string | null
+          cancelado_por?: string | null
+          cliente_id: string
+          complemento?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_execucao: string
+          descricao?: string | null
+          endereco_id?: string | null
+          ficha_cliente?: Json
+          id?: string
+          modelo?: string
+          motivo_cancelamento?: string | null
+          mtr?: string | null
+          numero: string
+          observacao_final?: string | null
+          os_id?: string | null
+          outras_datas?: string[]
+          pragas_alvo?: string | null
+          produtos?: Json
+          reservatorios?: Json
+          responsavel_nome?: string | null
+          responsavel_registro?: string | null
+          servico_descrito: string
+          servico_id?: string | null
+          tipo_servico_id: string
+          tipo_validade?: string
+          titulo: string
+          validade?: string | null
+          validade_meses?: number | null
+          volume?: string | null
+        }
+        Update: {
+          areas?: string | null
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cancelado_em?: string | null
+          cancelado_por?: string | null
+          cliente_id?: string
+          complemento?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_execucao?: string
+          descricao?: string | null
+          endereco_id?: string | null
+          ficha_cliente?: Json
+          id?: string
+          modelo?: string
+          motivo_cancelamento?: string | null
+          mtr?: string | null
+          numero?: string
+          observacao_final?: string | null
+          os_id?: string | null
+          outras_datas?: string[]
+          pragas_alvo?: string | null
+          produtos?: Json
+          reservatorios?: Json
+          responsavel_nome?: string | null
+          responsavel_registro?: string | null
+          servico_descrito?: string
+          servico_id?: string | null
+          tipo_servico_id?: string
+          tipo_validade?: string
+          titulo?: string
+          validade?: string | null
+          validade_meses?: number | null
+          volume?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificados_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificados_cancelado_por_fkey"
+            columns: ["cancelado_por"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificados_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificados_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificados_endereco_id_fkey"
+            columns: ["endereco_id"]
+            isOneToOne: false
+            referencedRelation: "enderecos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificados_os_id_fkey"
+            columns: ["os_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_servico"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificados_servico_id_fkey"
+            columns: ["servico_id"]
+            isOneToOne: false
+            referencedRelation: "servicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificados_tipo_servico_id_fkey"
+            columns: ["tipo_servico_id"]
+            isOneToOne: false
+            referencedRelation: "tipos_servico"
             referencedColumns: ["id"]
           },
         ]
@@ -2963,6 +3133,69 @@ export type Database = {
           },
         ]
       }
+      produtos_certificado: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          criado_em: string
+          criado_por: string | null
+          fabricacao: string | null
+          id: string
+          lote: string | null
+          nome_comercial: string | null
+          principio_ativo: string
+          quantidade_padrao: string | null
+          registro: string | null
+          validade: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          fabricacao?: string | null
+          id?: string
+          lote?: string | null
+          nome_comercial?: string | null
+          principio_ativo: string
+          quantidade_padrao?: string | null
+          registro?: string | null
+          validade?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          fabricacao?: string | null
+          id?: string
+          lote?: string | null
+          nome_comercial?: string | null
+          principio_ativo?: string
+          quantidade_padrao?: string | null
+          registro?: string | null
+          validade?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "produtos_certificado_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produtos_certificado_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proposta_itens: {
         Row: {
           descricao: string
@@ -3500,8 +3733,8 @@ export type Database = {
     Views: {
       v_lancamentos: {
         Row: {
-          atrasado: boolean | null
           antecipacao_id: string | null
+          atrasado: boolean | null
           atualizado_em: string | null
           atualizado_por: string | null
           cartao_credito_id: string | null
@@ -3535,6 +3768,7 @@ export type Database = {
           vencimento: string | null
         }
         Insert: {
+          antecipacao_id?: string | null
           atrasado?: never
           atualizado_em?: string | null
           atualizado_por?: string | null
@@ -3571,6 +3805,7 @@ export type Database = {
           vencimento?: string | null
         }
         Update: {
+          antecipacao_id?: string | null
           atrasado?: never
           atualizado_em?: string | null
           atualizado_por?: string | null
@@ -3607,6 +3842,13 @@ export type Database = {
           vencimento?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "lancamentos_antecipacao_id_fkey"
+            columns: ["antecipacao_id"]
+            isOneToOne: false
+            referencedRelation: "antecipacoes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lancamentos_atualizado_por_fkey"
             columns: ["atualizado_por"]
@@ -3989,10 +4231,6 @@ export type Database = {
       }
       atualizar_avisos: { Args: never; Returns: number }
       atualizar_pontos_os: { Args: { os: string }; Returns: undefined }
-      desfazer_antecipacao: {
-        Args: { p_antecipacao: string }
-        Returns: undefined
-      }
       buscar_clientes: {
         Args: { incluir_inativos?: boolean; termo?: string }
         Returns: {
@@ -4025,6 +4263,10 @@ export type Database = {
       }
       concluir_os: { Args: { os: string }; Returns: undefined }
       conferir_os: { Args: { os: string }; Returns: undefined }
+      desfazer_antecipacao: {
+        Args: { p_antecipacao: string }
+        Returns: undefined
+      }
       dia_util: {
         Args: { ano: number; mes: number; n?: number }
         Returns: string
@@ -4148,7 +4390,13 @@ export type Database = {
         | "debito_automatico"
         | "outro"
       formulario_os: "generico" | "pragas" | "coifa"
-      papel: "admin" | "financeiro" | "vendedor" | "recepcao" | "operador"
+      papel:
+        | "admin"
+        | "financeiro"
+        | "vendedor"
+        | "recepcao"
+        | "operador"
+        | "administrativo"
       status_comissao: "prevista" | "paga" | "cancelada"
       status_contrato: "ativo" | "suspenso" | "encerrado"
       status_fechamento: "aberto" | "pago"
@@ -4330,7 +4578,14 @@ export const Constants = {
         "outro",
       ],
       formulario_os: ["generico", "pragas", "coifa"],
-      papel: ["admin", "financeiro", "vendedor", "recepcao", "operador"],
+      papel: [
+        "admin",
+        "financeiro",
+        "vendedor",
+        "recepcao",
+        "operador",
+        "administrativo",
+      ],
       status_comissao: ["prevista", "paga", "cancelada"],
       status_contrato: ["ativo", "suspenso", "encerrado"],
       status_fechamento: ["aberto", "pago"],

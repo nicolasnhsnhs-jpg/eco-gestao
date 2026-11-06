@@ -9,7 +9,15 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
-const PAPEIS = ['admin', 'financeiro', 'vendedor', 'recepcao', 'operador'] as const
+// "administrativo" é o perfil ADM (não confundir com "admin", o Administrador).
+const PAPEIS = [
+  'admin',
+  'financeiro',
+  'administrativo',
+  'vendedor',
+  'recepcao',
+  'operador',
+] as const
 
 // Endereço só para identificar o login; ninguém recebe e-mail nele. Cada unidade tem o
 // seu (segredo DOMINIO_OPERADOR do projeto; sem ele, vale o de SC). Igual a src/lib/unidade.ts.

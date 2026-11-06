@@ -20,7 +20,7 @@ import { Etiqueta } from '@/components/ui/Etiqueta'
 import { formatarDataHora } from '@/lib/datas'
 import { formatarDocumento, formatarTelefone, linkWhatsapp } from '@/lib/documentos'
 import { mensagemDeErro } from '@/lib/erros'
-import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
+import { PAPEIS_ACESSO_TOTAL, PAPEIS_GESTAO } from '@/lib/papeis'
 
 import { usePerfil } from '../auth/useAuth'
 import {
@@ -59,6 +59,8 @@ export function ClienteFichaPage() {
 function Ficha({ cliente }: { cliente: ClienteCompleto }) {
   const perfil = usePerfil()
   const acessoTotal = PAPEIS_ACESSO_TOTAL.includes(perfil.papel)
+  // O ADM também cuida do cadastro (desativar/reativar), mas não vê o financeiro.
+  const gestao = PAPEIS_GESTAO.includes(perfil.papel)
   const ehAdmin = perfil.papel === 'admin'
   const anonimizado = !!cliente.anonimizado_em
   const podeEditar = !anonimizado
@@ -267,7 +269,7 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
             )}
           </Secao>
 
-          {acessoTotal && (
+          {gestao && (
             <Secao titulo="Administração">
               <div className="flex flex-col gap-2">
                 {!anonimizado && (
