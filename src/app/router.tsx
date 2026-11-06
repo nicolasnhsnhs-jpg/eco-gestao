@@ -46,6 +46,7 @@ import { CalculadoraPage } from '@/features/orcamentos/CalculadoraPage'
 import { CustosPage } from '@/features/orcamentos/CustosPage'
 import { OrcamentosLayout } from '@/features/orcamentos/OrcamentosLayout'
 import { UsuariosPage } from '@/features/usuarios/UsuariosPage'
+import { AssinaturasCertificadoPage } from '@/features/certificados/AssinaturasCertificadoPage'
 import { CertificadoFormPage } from '@/features/certificados/CertificadoFormPage'
 import { CertificadosPage } from '@/features/certificados/CertificadosPage'
 import { ProdutosCertificadoPage } from '@/features/certificados/ProdutosCertificadoPage'
@@ -292,6 +293,7 @@ export const router = createBrowserRouter([
           { index: true, element: <CertificadosPage /> },
           { path: 'novo', element: <CertificadoFormPage /> },
           { path: 'produtos', element: <ProdutosCertificadoPage /> },
+          { path: 'assinaturas', element: <AssinaturasCertificadoPage /> },
           { path: ':id', element: <CertificadoFormPage /> },
         ],
       },

@@ -138,6 +138,56 @@ export function useSalvarProdutoCatalogo() {
 }
 
 // -----------------------------------------------------------------------------
+// Assinaturas escaneadas (bucket privado "assinaturas"; só o Admin troca)
+// -----------------------------------------------------------------------------
+
+export const ARQUIVO_ASSINATURA = {
+  responsavel: 'responsavel.png',
+  succao: 'responsavel-succao.png',
+} as const
+export type QualAssinatura = keyof typeof ARQUIVO_ASSINATURA
+
+/** Bytes da assinatura, ou null se ainda não foi enviada. */
+export async function baixarAssinatura(qual: QualAssinatura): Promise<Uint8Array | null> {
+  const { data, error } = await supabase.storage
+    .from('assinaturas')
+    .download(ARQUIVO_ASSINATURA[qual])
+  if (error || !data) return null
+  return new Uint8Array(await data.arrayBuffer())
+}
+
+export function useAssinatura(qual: QualAssinatura) {
+  return useQuery({
+    queryKey: ['certificados', 'assinatura', qual],
+    queryFn: async () => {
+      const bytes = await baixarAssinatura(qual)
+      return bytes
+        ? URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'image/png' }))
+        : null
+    },
+  })
+}
+
+export function useEnviarAssinatura() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ qual, png }: { qual: QualAssinatura; png: Blob }) => {
+      const { error } = await supabase.storage
+        .from('assinaturas')
+        .upload(ARQUIVO_ASSINATURA[qual], png, {
+          upsert: true,
+          contentType: 'image/png',
+          // Troca vale logo (sem guardar a antiga no cache do navegador).
+          cacheControl: '0',
+        })
+      if (error) throw error
+    },
+    onSuccess: (_, { qual }) =>
+      void queryClient.invalidateQueries({ queryKey: ['certificados', 'assinatura', qual] }),
+  })
+}
+
+// -----------------------------------------------------------------------------
 // De onde vem o certificado (para já começar preenchido)
 // -----------------------------------------------------------------------------
 

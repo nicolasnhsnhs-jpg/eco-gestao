@@ -21,6 +21,7 @@ export function AbasCertificados() {
   const abas = [
     { rotulo: 'Certificados', caminho: '/certificados', fim: true },
     { rotulo: 'Produtos', caminho: '/certificados/produtos', fim: false },
+    { rotulo: 'Assinaturas', caminho: '/certificados/assinaturas', fim: false },
   ]
   return (
     <nav

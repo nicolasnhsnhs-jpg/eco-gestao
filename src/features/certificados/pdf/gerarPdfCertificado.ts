@@ -13,7 +13,7 @@ import { quebrarLinhas, textoSeguro } from '@/features/os/pdf/gerarPdfOs'
 import { formatarCnpj, formatarCpf } from '@/lib/documentos'
 import { UNIDADE } from '@/lib/unidade'
 
-import type { CertificadoResumo } from '../api'
+import { baixarAssinatura, type CertificadoResumo, type QualAssinatura } from '../api'
 import {
   declaracao,
   lerProdutos,
@@ -203,7 +203,22 @@ function tamanhoQueCabe(colunas: Coluna[], f: Fontes, larguraColuna: number, alt
   return 6
 }
 
-export async function gerarPdfCertificado(c: CertificadoResumo): Promise<Blob> {
+/** Qual assinatura escaneada vai neste certificado. */
+export function assinaturaDoCertificado(c: CertificadoResumo): QualAssinatura {
+  const modelo = MODELO[c.modelo as ModeloCertificado] ?? MODELO.geral
+  return modelo.responsavelSuccao && UNIDADE.certificado.responsavelSuccao
+    ? 'succao'
+    : 'responsavel'
+}
+
+/**
+ * @param assinatura PNG da assinatura escaneada do responsável padrão. Só entra se
+ *   o certificado estiver no nome dele (outro nome digitado → sem assinatura).
+ */
+export async function gerarPdfCertificado(
+  c: CertificadoResumo,
+  assinatura?: Uint8Array | null,
+): Promise<Blob> {
   const modelo = MODELO[c.modelo as ModeloCertificado] ?? MODELO.geral
   const ficha = fichaDaOs(c.ficha_cliente)
   const conf = UNIDADE.certificado
@@ -362,6 +377,19 @@ export async function gerarPdfCertificado(c: CertificadoResumo): Promise<Blob> {
     modelo.responsavelSuccao && conf.responsavelSuccao ? conf.responsavelSuccao : conf.responsavel
   const nome = c.responsavel_nome?.trim() || resp.nome
   const registro = c.responsavel_registro?.trim() || resp.registro
+  const mesmaPessoa = !!resp.nome && nome.toUpperCase() === resp.nome.toUpperCase()
+  if (assinatura && mesmaPessoa) {
+    const img = await pdf.embedPng(assinatura)
+    // Até 48pt de altura e 170pt de largura, um pouco por cima da linha.
+    const escala = Math.min(48 / img.height, 170 / img.width)
+    const w = img.width * escala
+    p.drawImage(img, {
+      x: A4.largura / 2 - w / 2,
+      y: Y_LINHA_ASSINATURA - 6,
+      width: w,
+      height: img.height * escala,
+    })
+  }
   p.drawLine({
     start: { x: A4.largura / 2 - 80, y: Y_LINHA_ASSINATURA },
     end: { x: A4.largura / 2 + 80, y: Y_LINHA_ASSINATURA },
@@ -446,7 +474,8 @@ export async function gerarPdfCertificado(c: CertificadoResumo): Promise<Blob> {
 
 /** Abre o PDF numa aba nova (ou na mesma, se o navegador bloquear). */
 export async function abrirPdfCertificado(c: CertificadoResumo, aba: Window | null) {
-  const blob = await gerarPdfCertificado(c)
+  const assinatura = await baixarAssinatura(assinaturaDoCertificado(c))
+  const blob = await gerarPdfCertificado(c, assinatura)
   const link = URL.createObjectURL(blob)
   if (aba) aba.location.href = link
   else window.location.href = link

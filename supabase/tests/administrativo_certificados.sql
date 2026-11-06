@@ -161,7 +161,7 @@ select pg_temp.como('00000000-0000-0000-0000-0000000007e1');
 set local role authenticated;
 
 insert into public.produtos_certificado (principio_ativo, registro, lote, fabricacao, validade, quantidade_padrao)
-values ('Alfa-Cipermetrina', 'MS 304040031', '004-24-15600', '2024-07-01', '2027-07-01', '100ml');
+values ('Alfa-Cipermetrina', 'MS 304040031', 'LOTE-DE-TESTE', '2024-07-01', '2027-07-01', '100ml');
 
 insert into public.certificados (id, numero, modelo, cliente_id, endereco_id, tipo_servico_id, servico_id,
   titulo, pragas_alvo, servico_descrito, data_execucao, outras_datas, areas, produtos,
@@ -180,7 +180,7 @@ do $$ declare c public.certificados; begin
   assert c.ficha_cliente ->> 'cpf_cnpj' = '73015042000170', 'A ficha do cliente deveria ser congelada';
   assert c.ficha_cliente -> 'unidade' ->> 'cidade' = 'Porto Alegre', 'A ficha deveria ter a unidade';
   assert not (c.ficha_cliente ? 'contatos'), 'O certificado não guarda os contatos';
-  assert (select count(*) from public.produtos_certificado where lote = '004-24-15600') = 1,
+  assert (select count(*) from public.produtos_certificado where lote = 'LOTE-DE-TESTE') = 1,
     'ADM deveria cadastrar produtos';
 end $$;
 
@@ -267,6 +267,50 @@ reset role;
 select pg_temp.como('00000000-0000-0000-0000-0000000007c1');
 set local role authenticated;
 select pg_temp.sem_certificados('Recepção');
+reset role;
+
+-- =============================================================================
+-- 3. Assinaturas escaneadas (bucket privado): Admin e ADM leem, só o Admin troca
+-- =============================================================================
+-- (o arquivo de verdade pode já existir no banco de testes)
+insert into storage.objects (bucket_id, name)
+select 'assinaturas', 'responsavel.png'
+where not exists (select 1 from storage.objects where bucket_id = 'assinaturas' and name = 'responsavel.png');
+
+select pg_temp.como('00000000-0000-0000-0000-0000000007e1');
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from storage.objects where bucket_id = 'assinaturas') >= 1,
+    'ADM deveria ler a assinatura (para o PDF)';
+  begin
+    insert into storage.objects (bucket_id, name) values ('assinaturas', 'responsavel-succao.png');
+    raise exception 'ADM não deveria enviar assinatura';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
+select pg_temp.como('00000000-0000-0000-0000-0000000007a1');
+set local role authenticated;
+do $$ begin
+  if not exists (select 1 from storage.objects
+                 where bucket_id = 'assinaturas' and name = 'responsavel-succao.png') then
+    insert into storage.objects (bucket_id, name) values ('assinaturas', 'responsavel-succao.png');
+  end if;
+  begin
+    insert into storage.objects (bucket_id, name) values ('assinaturas', 'qualquer.png');
+    raise exception 'Só os dois arquivos de assinatura deveriam ser aceitos';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
+select pg_temp.como('00000000-0000-0000-0000-0000000007f1');
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from storage.objects where bucket_id = 'assinaturas') = 0,
+    'Financeiro não deveria ver as assinaturas';
+end $$;
 reset role;
 
 select 'ADM e certificados conferidos.' as resultado;
