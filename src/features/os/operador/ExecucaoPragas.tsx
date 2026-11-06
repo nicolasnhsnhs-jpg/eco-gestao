@@ -11,7 +11,9 @@ import { mensagemDeErro } from '@/lib/erros'
 
 import type { CamposExecucao, OsCompleta } from '../api'
 import {
+  nomeDoProduto,
   useAnotarPontos,
+  useCatalogoProdutos,
   useGravarInseto,
   useGravarProduto,
   useInsetos,
@@ -514,7 +516,9 @@ function Armadilha({ osId, ponto, aberta }: { osId: string; ponto: PontoOs; aber
 function Produtos({ osId, aberta }: { osId: string; aberta: boolean }) {
   const produtos = useProdutos(osId)
   const gravar = useGravarProduto(osId)
-  const [principio, setPrincipio] = useState('')
+  const catalogo = useCatalogoProdutos()
+  const [produtoId, setProdutoId] = useState('')
+  const escolhido = catalogo.data?.find((c) => c.id === produtoId)
   const [forma, setForma] = useState('bloco')
   const [unidades, setUnidades] = useState('')
   const [gramas, setGramas] = useState('')
@@ -527,7 +531,7 @@ function Produtos({ osId, aberta }: { osId: string; aberta: boolean }) {
         {produtos.data?.map((p) => (
           <li key={p.id} className="flex items-center gap-2">
             <span className="flex-1">
-              <strong>{p.principio_ativo}</strong> ·{' '}
+              <strong>{nomeDoProduto(p)}</strong> ·{' '}
               {FORMAS_PRODUTO[p.forma as keyof typeof FORMAS_PRODUTO]}
               {p.unidades != null && ` · ${p.unidades} un`}
               {p.gramas != null && ` · ${p.gramas} g`}
@@ -546,13 +550,31 @@ function Produtos({ osId, aberta }: { osId: string; aberta: boolean }) {
       {aberta && (
         <div className="grid grid-cols-2 gap-2 rounded-xl bg-fundo-suave p-3">
           <div className="col-span-2">
-            <Campo rotulo="Princípio ativo" htmlFor="prod-principio">
-              <Input
-                id="prod-principio"
-                value={principio}
-                onChange={(e) => setPrincipio(e.target.value)}
-              />
+            <Campo
+              rotulo="Produto"
+              htmlFor="prod-produto"
+              dica="Não achou o produto? Peça ao escritório para cadastrar."
+            >
+              <Select
+                id="prod-produto"
+                value={produtoId}
+                onChange={(e) => setProdutoId(e.target.value)}
+              >
+                <option value="">
+                  {catalogo.isPending ? 'Carregando produtos…' : 'Escolha o produto…'}
+                </option>
+                {catalogo.data?.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {nomeDoProduto(c)}
+                  </option>
+                ))}
+              </Select>
             </Campo>
+            {catalogo.isError && (
+              <Aviso tipo="erro">
+                Não foi possível carregar a lista de produtos. Abra a OS com sinal uma vez.
+              </Aviso>
+            )}
           </div>
           <div className="col-span-2">
             <Campo rotulo="Forma" htmlFor="prod-forma">
@@ -583,13 +605,16 @@ function Produtos({ osId, aberta }: { osId: string; aberta: boolean }) {
           </Campo>
           <Button
             className="col-span-2"
-            disabled={principio.trim().length < 2 || gravar.isPending}
+            disabled={!escolhido || gravar.isPending}
             onClick={() =>
+              escolhido &&
               gravar.mutate(
                 {
                   adicionar: {
                     os_id: osId,
-                    principio_ativo: principio.trim(),
+                    produto_id: escolhido.id,
+                    nome_comercial: escolhido.nome_comercial,
+                    principio_ativo: escolhido.principio_ativo,
                     forma,
                     unidades: numero(unidades),
                     gramas: numero(gramas),
@@ -597,7 +622,7 @@ function Produtos({ osId, aberta }: { osId: string; aberta: boolean }) {
                 },
                 {
                   onSuccess: () => {
-                    setPrincipio('')
+                    setProdutoId('')
                     setUnidades('')
                     setGramas('')
                   },

@@ -180,6 +180,31 @@ export function useProdutos(osId: string) {
   return useQuery(consultaProdutos(osId))
 }
 
+/** Produtos em uso do catálogo (o mesmo dos certificados), para o técnico escolher. */
+export const consultaCatalogoProdutos = () =>
+  queryOptions({
+    // Começa com 'os' para ficar guardado no celular (uso sem sinal).
+    queryKey: ['os', 'catalogo-produtos'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('produtos_certificado')
+        .select('id, nome_comercial, principio_ativo')
+        .eq('ativo', true)
+        .order('nome_comercial', { nullsFirst: false })
+        .order('principio_ativo')
+      if (error) throw error
+      return data
+    },
+  })
+
+export function useCatalogoProdutos() {
+  return useQuery(consultaCatalogoProdutos())
+}
+
+/** "FENDONA (Alfa-Cipermetrina)" ou só o princípio ativo. */
+export const nomeDoProduto = (p: { nome_comercial: string | null; principio_ativo: string }) =>
+  p.nome_comercial ? `${p.nome_comercial} (${p.principio_ativo})` : p.principio_ativo
+
 export function useGravarProduto(osId: string) {
   const queryClient = useQueryClient()
   const chave = ['os', osId, 'os_produtos']

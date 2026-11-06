@@ -5,7 +5,12 @@ import { hojeISO } from '@/lib/datas'
 import { estaOnline } from '@/lib/offline'
 
 import { consultaOs, consultaVeiculos, osAberta, type OsResumo } from '../api'
-import { consultaInsetos, consultaPontosOs, consultaProdutos } from '../pragasApi'
+import {
+  consultaCatalogoProdutos,
+  consultaInsetos,
+  consultaPontosOs,
+  consultaProdutos,
+} from '../pragasApi'
 
 /*
  * Baixa para o celular tudo o que o operador precisa das OS do dia (e das que
@@ -50,6 +55,7 @@ export function useBaixarOsDoDia(lista: OsResumo[] | undefined) {
       const abertas = lista.filter((os) => osAberta(os.status) && os.data_agendada <= hoje)
       await Promise.all([
         queryClient.prefetchQuery(consultaVeiculos()),
+        queryClient.prefetchQuery(consultaCatalogoProdutos()),
         ...abertas.flatMap((os) => [
           queryClient.prefetchQuery(consultaOs(os.id)),
           queryClient.prefetchQuery(consultaPontosOs(os.id)),

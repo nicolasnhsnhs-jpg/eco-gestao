@@ -169,7 +169,7 @@ function valoresIniciais(tipos: Tipo[], c?: CertificadoResumo, origem?: Origem):
     tipo_validade: origem?.deContrato ? 'contrato' : 'avulso',
     validade_meses: meses?.toString() ?? '',
     areas: origem?.areas ?? '',
-    produtos: [],
+    produtos: origem?.produtos ?? [],
     reservatorios:
       modelo === 'reservatorio' ? [{ quantidade: '', local: '', metragem: '', produto: '' }] : [],
     descricao: '',

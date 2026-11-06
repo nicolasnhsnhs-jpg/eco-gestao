@@ -17,12 +17,14 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-0000000007f1', 'financeiro@adm.local', '{"nome":"Financeiro [adm]"}'),
   ('00000000-0000-0000-0000-0000000007e1', 'adm@adm.local',        '{"nome":"ADM [adm]"}'),
   ('00000000-0000-0000-0000-0000000007b1', 'vendedor@adm.local',   '{"nome":"Vendedor [adm]"}'),
-  ('00000000-0000-0000-0000-0000000007c1', 'recepcao@adm.local',   '{"nome":"Recepção [adm]"}');
+  ('00000000-0000-0000-0000-0000000007c1', 'recepcao@adm.local',   '{"nome":"Recepção [adm]"}'),
+  ('00000000-0000-0000-0000-0000000007d1', 'operador@adm.local',   '{"nome":"Operador [adm]"}');
 update public.perfis set papel = 'admin'          where id = '00000000-0000-0000-0000-0000000007a1';
 update public.perfis set papel = 'financeiro'     where id = '00000000-0000-0000-0000-0000000007f1';
 update public.perfis set papel = 'administrativo' where id = '00000000-0000-0000-0000-0000000007e1';
 update public.perfis set papel = 'vendedor'       where id = '00000000-0000-0000-0000-0000000007b1';
 update public.perfis set papel = 'recepcao'       where id = '00000000-0000-0000-0000-0000000007c1';
+update public.perfis set papel = 'operador'       where id = '00000000-0000-0000-0000-0000000007d1';
 
 create function pg_temp.como(usuario text) returns void language sql as $$
   select set_config('request.jwt.claims',
@@ -310,6 +312,28 @@ set local role authenticated;
 do $$ begin
   assert (select count(*) from storage.objects where bucket_id = 'assinaturas') = 0,
     'Financeiro não deveria ver as assinaturas';
+end $$;
+reset role;
+
+-- =============================================================================
+-- 4. Operador escolhe o produto da OS no catálogo: vê só os em uso, não cadastra
+-- =============================================================================
+insert into public.produtos_certificado (principio_ativo, lote, ativo)
+values ('Produto Desativado de Teste', 'LOTE-VELHO', false);
+
+select pg_temp.como('00000000-0000-0000-0000-0000000007d1');
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from public.produtos_certificado where lote = 'LOTE-DE-TESTE') = 1,
+    'Operador deveria ver os produtos em uso';
+  assert (select count(*) from public.produtos_certificado where not ativo) = 0,
+    'Operador não deveria ver produtos desativados';
+  begin
+    insert into public.produtos_certificado (principio_ativo) values ('Invasão');
+    raise exception 'Operador não deveria cadastrar produto';
+  exception when insufficient_privilege then null;
+  end;
+  assert (select count(*) from public.certificados) = 0, 'Operador não deveria ver certificados';
 end $$;
 reset role;
 

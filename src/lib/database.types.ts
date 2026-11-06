@@ -2955,8 +2955,10 @@ export type Database = {
           forma: string
           gramas: number | null
           id: string
+          nome_comercial: string | null
           os_id: string
           principio_ativo: string
+          produto_id: string | null
           unidades: number | null
         }
         Insert: {
@@ -2967,8 +2969,10 @@ export type Database = {
           forma: string
           gramas?: number | null
           id?: string
+          nome_comercial?: string | null
           os_id: string
           principio_ativo: string
+          produto_id?: string | null
           unidades?: number | null
         }
         Update: {
@@ -2979,8 +2983,10 @@ export type Database = {
           forma?: string
           gramas?: number | null
           id?: string
+          nome_comercial?: string | null
           os_id?: string
           principio_ativo?: string
+          produto_id?: string | null
           unidades?: number | null
         }
         Relationships: [
@@ -3003,6 +3009,13 @@ export type Database = {
             columns: ["os_id"]
             isOneToOne: false
             referencedRelation: "ordens_servico"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "os_produtos_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos_certificado"
             referencedColumns: ["id"]
           },
         ]

@@ -4,7 +4,7 @@ import { formatarData } from '@/lib/datas'
 import { supabase } from '@/lib/supabase'
 
 import type { OsCompleta } from '../api'
-import type { InsetoOs, PontoOs, ProdutoOs } from '../pragasApi'
+import { nomeDoProduto, type InsetoOs, type PontoOs, type ProdutoOs } from '../pragasApi'
 import {
   escreverFaixas,
   ESPECIES,
@@ -157,7 +157,7 @@ export function escreverPragas(w: EscritorPdf, fonte: PDFFont, os: OsCompleta, d
     w.secao('Produtos utilizados')
     for (const p of dados.produtos) {
       w.campo(
-        p.principio_ativo,
+        nomeDoProduto(p),
         [
           FORMAS_PRODUTO[p.forma as keyof typeof FORMAS_PRODUTO],
           p.unidades != null && `${p.unidades.toLocaleString('pt-BR')} un`,

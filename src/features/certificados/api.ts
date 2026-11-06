@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Tables, TablesInsert, TablesUpdate } from '@/lib/database.types'
 import { supabase } from '@/lib/supabase'
 
+import type { ProdutoCertificado } from './modelos'
+
 /*
  * Certificados de serviço e catálogo de produtos.
  * Quem vê e emite: Administrador e ADM (o banco garante).
@@ -222,7 +224,52 @@ export type Origem = {
   deContrato: boolean
   periodicidade: number | null
   areas: string
+  /** Produtos do catálogo que o técnico marcou na OS (com o lote atual). */
+  produtos: ProdutoCertificado[]
 }
+
+/** Produtos da OS que vieram do catálogo, um por produto, com a quantidade somada. */
+async function produtosDaOs(osId: string): Promise<ProdutoCertificado[]> {
+  const { data, error } = await supabase
+    .from('os_produtos')
+    .select(
+      'unidades, gramas, produto:produtos_certificado(id, nome_comercial, principio_ativo, registro, lote, fabricacao, validade, quantidade_padrao)',
+    )
+    .eq('os_id', osId)
+    .not('produto_id', 'is', null)
+    .order('criado_em')
+  if (error) throw error
+  const porProduto = new Map<string, { item: ProdutoCatalogoResumo; un: number; g: number }>()
+  for (const linha of data) {
+    if (!linha.produto) continue
+    const atual = porProduto.get(linha.produto.id) ?? { item: linha.produto, un: 0, g: 0 }
+    atual.un += linha.unidades ?? 0
+    atual.g += linha.gramas ?? 0
+    porProduto.set(linha.produto.id, atual)
+  }
+  const num = (n: number) => n.toLocaleString('pt-BR')
+  return [...porProduto.values()].map(({ item, un, g }) => ({
+    nome_comercial: item.nome_comercial ?? '',
+    principio_ativo: item.principio_ativo,
+    registro: item.registro ?? '',
+    quantidade: g ? `${num(g)}g` : un ? `${num(un)} un` : (item.quantidade_padrao ?? ''),
+    lote: item.lote ?? '',
+    fabricacao: item.fabricacao ?? '',
+    validade: item.validade ?? '',
+  }))
+}
+
+type ProdutoCatalogoResumo = Pick<
+  ProdutoCatalogo,
+  | 'id'
+  | 'nome_comercial'
+  | 'principio_ativo'
+  | 'registro'
+  | 'lote'
+  | 'fabricacao'
+  | 'validade'
+  | 'quantidade_padrao'
+>
 
 export function useOrigemOs(osId: string | null) {
   return useQuery({
@@ -255,6 +302,7 @@ export function useOrigemOs(osId: string | null) {
           data.tipo_servico_id,
         ),
         areas: data.descricao ?? '',
+        produtos: await produtosDaOs(data.id),
       }
     },
   })
@@ -289,6 +337,7 @@ export function useOrigemServico(servicoId: string | null) {
           data.periodicidade_meses ??
           (await periodicidadeDoCliente(data.cliente_id, data.endereco_id, data.tipo_servico_id)),
         areas: '',
+        produtos: [],
       }
     },
   })
