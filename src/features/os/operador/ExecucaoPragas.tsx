@@ -265,7 +265,8 @@ function ExcecoesPortaIscas({
       </p>
       <p className="text-sm text-texto-suave">
         Todos começam como <strong>MS</strong> (placas de cola: <strong>M</strong>). Digite só os
-        números das exceções, ex.: <strong>12, 15, 40-45</strong>.
+        números das exceções, ex.: <strong>12, 15, 40-45</strong> (ou com espaço:{' '}
+        <strong>12 15 40-45</strong>).
       </p>
       {temIsca &&
         Object.entries(SITUACOES_ISCA)
@@ -372,11 +373,24 @@ function LinhaExcecao({
       <div className="flex gap-2">
         <Input
           id={id}
-          inputMode="numeric"
+          // Teclado normal: o numérico do iPhone não tem vírgula nem hífen ("12, 40-45").
+          inputMode="text"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          enterKeyHint="done"
           placeholder="nenhum"
           disabled={!aberta}
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
+          onKeyDown={(e) => {
+            // "OK" do teclado: fecha o teclado e o onBlur aplica.
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              e.currentTarget.blur()
+            }
+          }}
           onBlur={() => {
             if (texto !== escreverFaixas(atuais)) void aplicar()
           }}
