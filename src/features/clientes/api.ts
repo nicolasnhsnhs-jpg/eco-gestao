@@ -1,4 +1,10 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 
 import type { Tables, TablesInsert, TablesUpdate } from '@/lib/database.types'
 import { PAPEIS_FORA_DO_COMERCIAL } from '@/lib/papeis'
@@ -24,17 +30,45 @@ const VENDEDOR = 'vendedor:perfis!clientes_vendedor_responsavel_id_fkey(id, nome
 // Consultas
 // -----------------------------------------------------------------------------
 
+function consultaBuscaClientes(termo: string, incluirInativos: boolean) {
+  return supabase
+    .rpc('buscar_clientes', { termo, incluir_inativos: incluirInativos })
+    .select(`*, ${VENDEDOR}, enderecos(cidade, uf, principal)`)
+}
+
+/** Os 50 clientes que mais combinam com o termo (para escolher um cliente num formulário). */
 export function useBuscaClientes(termo: string, incluirInativos: boolean) {
   return useQuery({
     queryKey: ['clientes', 'busca', termo, incluirInativos],
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .rpc('buscar_clientes', { termo, incluir_inativos: incluirInativos })
-        .select(`*, ${VENDEDOR}, enderecos(cidade, uf, principal)`)
+      const { data, error } = await consultaBuscaClientes(termo, incluirInativos).limit(50)
       if (error) throw error
       return data
     },
+  })
+}
+
+/** Quantos clientes a lista carrega de cada vez enquanto a pessoa rola a tela. */
+export const CLIENTES_POR_PAGINA = 50
+
+/** Lista completa de clientes, carregada aos pedaços (rolagem infinita). */
+export function useListaClientes(termo: string, incluirInativos: boolean) {
+  return useInfiniteQuery({
+    queryKey: ['clientes', 'lista', termo, incluirInativos],
+    placeholderData: keepPreviousData,
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const { data, error } = await consultaBuscaClientes(termo, incluirInativos).range(
+        pageParam,
+        pageParam + CLIENTES_POR_PAGINA - 1,
+      )
+      if (error) throw error
+      return data
+    },
+    // Veio um pedaço cheio: pode haver mais. Veio menos: chegou no fim.
+    getNextPageParam: (ultima, paginas) =>
+      ultima.length < CLIENTES_POR_PAGINA ? undefined : paginas.length * CLIENTES_POR_PAGINA,
   })
 }
 

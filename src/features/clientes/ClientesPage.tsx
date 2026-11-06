@@ -1,5 +1,5 @@
 import { Building2, ChevronRight, Plus, Search, User } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 
 import { PageHeader } from '@/components/PageHeader'
@@ -12,7 +12,7 @@ import { formatarDocumento, formatarTelefone } from '@/lib/documentos'
 import { mensagemDeErro } from '@/lib/erros'
 import { useValorAtrasado } from '@/lib/useValorAtrasado'
 
-import { useBuscaClientes } from './api'
+import { useListaClientes } from './api'
 
 export function ClientesPage() {
   // O termo fica no endereço da página (?q=...), então "voltar" mantém a busca.
@@ -22,7 +22,25 @@ export function ClientesPage() {
 
   // Espera a pessoa parar de digitar um instante antes de buscar.
   const termoAtrasado = useValorAtrasado(termo.trim())
-  const busca = useBuscaClientes(termoAtrasado, incluirInativos)
+  const busca = useListaClientes(termoAtrasado, incluirInativos)
+  const clientes = busca.data?.pages.flat()
+
+  // Quando o fim da lista aparece na tela, já pede os próximos clientes.
+  const fimDaLista = useRef<HTMLDivElement>(null)
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = busca
+  useEffect(() => {
+    const alvo = fimDaLista.current
+    if (!alvo || !hasNextPage) return
+    const observador = new IntersectionObserver(
+      ([entrada]) => {
+        if (entrada?.isIntersecting && !isFetchingNextPage) void fetchNextPage()
+      },
+      // Começa a carregar um pouco antes de chegar no fim, para a rolagem não travar.
+      { rootMargin: '600px' },
+    )
+    observador.observe(alvo)
+    return () => observador.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   return (
     <>
@@ -71,7 +89,7 @@ export function ClientesPage() {
       {busca.isError && <Aviso tipo="erro">{mensagemDeErro(busca.error)}</Aviso>}
       {busca.isPending && <Carregando />}
 
-      {busca.data && busca.data.length === 0 && (
+      {clientes && clientes.length === 0 && (
         <Card className="py-10 text-center text-texto-suave">
           {termo ? (
             <>
@@ -86,9 +104,9 @@ export function ClientesPage() {
         </Card>
       )}
 
-      {busca.data && busca.data.length > 0 && (
+      {clientes && clientes.length > 0 && (
         <ul className="divide-y divide-borda overflow-hidden rounded-2xl border border-borda bg-white">
-          {busca.data.map((cliente) => {
+          {clientes.map((cliente) => {
             const endereco =
               cliente.enderecos.find((e) => e.principal) ?? cliente.enderecos[0] ?? null
             const Icone = cliente.tipo_pessoa === 'PJ' ? Building2 : User
@@ -126,6 +144,14 @@ export function ClientesPage() {
             )
           })}
         </ul>
+      )}
+
+      <div ref={fimDaLista} />
+      {isFetchingNextPage && <Carregando />}
+      {clientes && clientes.length > 0 && !hasNextPage && (
+        <p className="py-6 text-center text-sm text-texto-suave">
+          {clientes.length === 1 ? '1 cliente' : `${clientes.length} clientes`} · fim da lista
+        </p>
       )}
     </>
   )
