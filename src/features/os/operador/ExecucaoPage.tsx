@@ -15,7 +15,7 @@ import { mensagemDeErro } from '@/lib/erros'
 
 import { pendenteDaOs, useFila } from '../offline/fila'
 import { FotosOs } from '../offline/FotosOs'
-import { pendenciasLocais } from '../offline/pendencias'
+import { horariosForaDeOrdem, pendenciasLocais } from '../offline/pendencias'
 import {
   enderecoDaFicha,
   enviarAssinatura,
@@ -100,7 +100,11 @@ function Execucao({ os }: { os: OsCompleta }) {
         return
       }
     }
-    alterar({ [campo]: new Date().toISOString(), data: campos.data ?? hojeISO() })
+    // Só hora e minuto, como aparece na tela: assim, ajustar à mão um horário do
+    // mesmo minuto não o deixa "antes" do anterior por causa dos segundos.
+    const agora = new Date()
+    agora.setSeconds(0, 0)
+    alterar({ [campo]: agora.toISOString(), data: campos.data ?? hojeISO() })
   }
 
   async function assinar(quem: 'cliente' | 'operador', imagem: Blob) {
@@ -128,6 +132,10 @@ function Execucao({ os }: { os: OsCompleta }) {
       setErro(`Falta preencher: ${falta.join(', ')}.`)
       return
     }
+    if (foraDeOrdem) {
+      setErro(`Confira os horários: ${foraDeOrdem}.`)
+      return
+    }
     // Tenta mandar agora o que foi digitado; sem sinal, vai junto com a conclusão.
     void enviarAgora()
     try {
@@ -138,6 +146,7 @@ function Execucao({ os }: { os: OsCompleta }) {
     }
   }
 
+  const foraDeOrdem = horariosForaDeOrdem(campos)
   const campo = (nome: keyof CamposExecucao) => (campos[nome] as string | null | undefined) ?? ''
 
   return (
@@ -271,6 +280,11 @@ function Execucao({ os }: { os: OsCompleta }) {
             </div>
           ))}
         </div>
+        {foraDeOrdem && (
+          <Aviso tipo="erro">
+            Confira os horários: {foraDeOrdem}. A ordem é chegada, início, término e saída.
+          </Aviso>
+        )}
       </Etapa>
 
       {pragas ? (

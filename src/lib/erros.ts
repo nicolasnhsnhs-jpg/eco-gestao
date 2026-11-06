@@ -37,6 +37,12 @@ export function mensagemDeErro(erro: unknown): string {
   if (e.code === '23514' && e.message && !e.message.includes('violates check constraint')) {
     return e.message
   }
+  if (e.message?.includes('horarios_em_ordem')) {
+    return 'Os horários estão fora de ordem (chegada, início, término e saída). Corrija na OS e toque em "Tentar de novo".'
+  }
+  if (e.message === 'No content provided') {
+    return 'A foto ou assinatura ficou vazia no celular. Descarte este item e faça de novo.'
+  }
   if (e.code === '23514') return 'Algum campo está com um valor inválido. Confira os dados.'
   if (e.code && MENSAGENS_POR_CODIGO[e.code]) return MENSAGENS_POR_CODIGO[e.code]
   if (e.code === 'P0002' || e.code === '22023') return e.message ?? 'Dados inválidos.'

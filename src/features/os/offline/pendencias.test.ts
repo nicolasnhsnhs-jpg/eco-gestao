@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { pendenciasLocais } from './pendencias'
+import { horariosForaDeOrdem, pendenciasLocais } from './pendencias'
 
 // Os mesmos casos de supabase/tests/os*.sql, para a regra do celular não se
 // afastar da regra do banco.
@@ -89,5 +89,41 @@ describe('pendenciasLocais', () => {
         coifas.map((c) => ({ ...c, sujidade: 'B' })),
       ),
     ).toEqual([])
+  })
+})
+
+describe('horariosForaDeOrdem', () => {
+  it('em ordem (ou no mesmo minuto) está certo', () => {
+    expect(horariosForaDeOrdem(comum)).toBeNull()
+    expect(
+      horariosForaDeOrdem({
+        hora_chegada: '2026-11-05T08:00:00-03:00',
+        hora_inicio: '2026-11-05T08:00:00-03:00',
+      }),
+    ).toBeNull()
+  })
+
+  it('aponta o horário que ficou antes do anterior', () => {
+    expect(horariosForaDeOrdem({ ...comum, hora_inicio: '2026-11-05T07:50:00-03:00' })).toBe(
+      'o início (07:50) está antes da chegada (08:00)',
+    )
+  })
+
+  it('segundos a mais na chegada também contam (como no banco)', () => {
+    expect(
+      horariosForaDeOrdem({
+        hora_chegada: '2026-11-05T11:00:35Z',
+        hora_inicio: '2026-11-05T08:00:00-03:00',
+      }),
+    ).not.toBeNull()
+  })
+
+  it('compara com o último horário preenchido, pulando os vazios', () => {
+    expect(
+      horariosForaDeOrdem({
+        hora_chegada: '2026-11-05T08:00:00-03:00',
+        hora_saida: '2026-11-05T07:00:00-03:00',
+      }),
+    ).toBe('a saída (07:00) está antes da chegada (08:00)')
   })
 })

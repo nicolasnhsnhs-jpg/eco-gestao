@@ -2,6 +2,7 @@ import { del, get, set } from 'idb-keyval'
 import { useSyncExternalStore } from 'react'
 
 import type { TablesInsert, TablesUpdate } from '@/lib/database.types'
+import { mensagemDeErro } from '@/lib/erros'
 import { estaOnline } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
 
@@ -59,17 +60,35 @@ async function salvar() {
   avisar()
 }
 
+/**
+ * O arquivo fica no celular como bytes (ArrayBuffer), não como Blob: o Safari do
+ * iPhone às vezes devolve vazio um Blob guardado no IndexedDB, e o envio é recusado.
+ */
+type ArquivoGuardado = { dados: ArrayBuffer; tipo: string }
+
 /** Coloca uma operação na fila (e o arquivo da foto/assinatura, se houver). */
 export async function enfileirar(operacao: Operacao, arquivo?: Blob) {
   await carregar()
-  if (arquivo && operacao.tipo === 'arquivo') await set(chaveArquivo(operacao.registro.id), arquivo)
+  if (arquivo && operacao.tipo === 'arquivo') {
+    const guardado: ArquivoGuardado = { dados: await arquivo.arrayBuffer(), tipo: arquivo.type }
+    if (guardado.dados.byteLength === 0) {
+      throw new Error('A foto ou assinatura saiu vazia. Tente de novo.')
+    }
+    await set(chaveArquivo(operacao.registro.id), guardado)
+  }
   itens.push({ ...operacao, chave: crypto.randomUUID(), criadoEm: new Date().toISOString() })
   await salvar()
   void processarFila()
 }
 
 /** Foto ou assinatura ainda no celular (para mostrar a miniatura sem internet). */
-export const arquivoGuardado = (id: string) => get<Blob>(chaveArquivo(id))
+export async function arquivoGuardado(id: string): Promise<Blob | undefined> {
+  const valor = await get<Blob | ArquivoGuardado>(chaveArquivo(id))
+  if (!valor) return undefined
+  // Guardados antes desta versão ainda são Blob.
+  if (valor instanceof Blob) return valor
+  return new Blob([valor.dados], { type: valor.tipo })
+}
 
 export function ehErroDeRede(erro: unknown) {
   if (!estaOnline()) return true
@@ -83,7 +102,7 @@ class RecusaDoBanco extends Error {}
 
 async function executar(item: ItemFila) {
   const falhou = (erro: { message: string } | null) => {
-    if (erro) throw ehErroDeRede(erro) ? erro : new RecusaDoBanco(erro.message)
+    if (erro) throw ehErroDeRede(erro) ? erro : new RecusaDoBanco(mensagemDeErro(erro))
   }
 
   switch (item.tipo) {
@@ -117,6 +136,11 @@ async function executar(item: ItemFila) {
       return falhou((await supabase.rpc('iniciar_os', { os: item.osId })).error)
     case 'arquivo': {
       const blob = await arquivoGuardado(item.registro.id)
+      if (blob && blob.size === 0) {
+        throw new RecusaDoBanco(
+          'A foto ou assinatura ficou vazia no celular. Descarte este item e faça de novo.',
+        )
+      }
       if (blob) {
         const envio = await supabase.storage
           .from('arquivos')
@@ -138,9 +162,7 @@ async function executar(item: ItemFila) {
         await enviarRascunhoGuardado(item.osId)
       } catch (erro) {
         if (ehErroDeRede(erro)) throw erro
-        throw new RecusaDoBanco(
-          (erro as { message?: string }).message ?? 'Erro ao enviar a execução.',
-        )
+        throw new RecusaDoBanco(mensagemDeErro(erro))
       }
       return falhou((await supabase.rpc('concluir_os', { os: item.osId })).error)
     }

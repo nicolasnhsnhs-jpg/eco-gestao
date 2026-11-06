@@ -19,6 +19,38 @@ type Ponto = {
 
 const vazio = (texto: unknown) => typeof texto !== 'string' || texto.trim() === ''
 
+const ORDEM_HORARIOS = [
+  ['hora_chegada', 'a chegada', 'da chegada'],
+  ['hora_inicio', 'o início', 'do início'],
+  ['hora_termino', 'o término', 'do término'],
+  ['hora_saida', 'a saída', 'da saída'],
+] as const
+
+const hhmm = (valor: string) =>
+  new Date(valor).toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/Sao_Paulo',
+  })
+
+/**
+ * A mesma regra de os_execucao.horarios_em_ordem: chegada ≤ início ≤ término ≤
+ * saída. Devolve o primeiro problema, em português, ou null.
+ */
+export function horariosForaDeOrdem(e: CamposExecucao): string | null {
+  const preenchidos = ORDEM_HORARIOS.filter(([campo]) => !!e[campo])
+  for (let i = 1; i < preenchidos.length; i++) {
+    const [campoAntes, , nomeAntes] = preenchidos[i - 1]
+    const [campo, nome] = preenchidos[i]
+    const antes = e[campoAntes]!
+    const depois = e[campo]!
+    if (new Date(depois).getTime() < new Date(antes).getTime()) {
+      return `${nome} (${hhmm(depois)}) está antes ${nomeAntes} (${hhmm(antes)})`
+    }
+  }
+  return null
+}
+
 export function pendenciasLocais(
   formulario: 'generico' | 'pragas' | 'coifa' | string | undefined,
   e: CamposExecucao,
