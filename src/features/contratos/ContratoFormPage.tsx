@@ -13,7 +13,7 @@ import { SelectForm } from '@/components/ui/SelectForm'
 import { hojeISO } from '@/lib/datas'
 import { lerValor, mascaraValor, valorParaCampo } from '@/lib/dinheiro'
 import { mensagemDeErro } from '@/lib/erros'
-import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
+import { PAPEIS_ACESSO_TOTAL, veValorDeContrato } from '@/lib/papeis'
 
 import { usePerfil } from '../auth/useAuth'
 import { equipeComercial, useCliente, useEquipe } from '../clientes/api'
@@ -69,6 +69,8 @@ function Formulario({ contrato }: { contrato?: ContratoResumo }) {
   const editando = !!contrato
   const perfil = usePerfil()
   const acessoTotal = PAPEIS_ACESSO_TOTAL.includes(perfil.papel)
+  // O ADM não vê o valor: ao editar, o campo some e o valor fica como está.
+  const mostrarValor = !editando || veValorDeContrato(perfil.papel)
   const navegar = useNavigate()
   const [p] = useSearchParams()
   const equipe = useEquipe()
@@ -226,23 +228,25 @@ function Formulario({ contrato }: { contrato?: ContratoResumo }) {
               </SelectForm>
             </Campo>
           )}
-          <Campo
-            rotulo="Valor mensal (R$)"
-            htmlFor="valor"
-            obrigatorio
-            erro={errors.valor_mensal?.message}
-          >
-            <Input
-              id="valor"
-              inputMode="numeric"
-              placeholder="0,00"
-              {...valorCampo}
-              onChange={(e) => {
-                e.target.value = mascaraValor(e.target.value)
-                void valorCampo.onChange(e)
-              }}
-            />
-          </Campo>
+          {mostrarValor && (
+            <Campo
+              rotulo="Valor mensal (R$)"
+              htmlFor="valor"
+              obrigatorio
+              erro={errors.valor_mensal?.message}
+            >
+              <Input
+                id="valor"
+                inputMode="numeric"
+                placeholder="0,00"
+                {...valorCampo}
+                onChange={(e) => {
+                  e.target.value = mascaraValor(e.target.value)
+                  void valorCampo.onChange(e)
+                }}
+              />
+            </Campo>
+          )}
           <Campo
             rotulo="Vence todo dia"
             htmlFor="dia_vencimento"

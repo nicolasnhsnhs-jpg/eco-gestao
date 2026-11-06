@@ -20,7 +20,7 @@ import { Etiqueta } from '@/components/ui/Etiqueta'
 import { formatarData, formatarMes } from '@/lib/datas'
 import { formatarReais } from '@/lib/dinheiro'
 import { mensagemDeErro } from '@/lib/erros'
-import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
+import { PAPEIS_ACESSO_TOTAL, veValorDeContrato } from '@/lib/papeis'
 import { cn } from '@/lib/utils'
 
 import { usePerfil } from '../auth/useAuth'
@@ -48,6 +48,7 @@ export function ContratosPage() {
   const acessoTotal = PAPEIS_ACESSO_TOTAL.includes(perfil.papel)
   const contratos = useContratos()
   const gerar = useGerarCobrancas()
+  const verValor = veValorDeContrato(perfil.papel)
   const [mensagem, setMensagem] = useState<string | null>(null)
 
   const ativos = (contratos.data ?? []).filter((c) => c.status === 'ativo')
@@ -90,7 +91,7 @@ export function ContratosPage() {
       </div>
 
       {mensagem && <Aviso>{mensagem}</Aviso>}
-      {contratos.isSuccess && ativos.length > 0 && (
+      {verValor && contratos.isSuccess && ativos.length > 0 && (
         <p className="text-sm text-texto-suave">
           {ativos.length} contrato(s) ativo(s) somando{' '}
           <strong className="text-texto">{formatarReais(totalMensal)}</strong> por mês. As
@@ -117,6 +118,7 @@ export function ListaContratos({
   mostrarCliente?: boolean
   semBorda?: boolean
 }) {
+  const verValor = veValorDeContrato(usePerfil().papel)
   return (
     <ul
       className={cn(
@@ -147,7 +149,7 @@ export function ListaContratos({
               </p>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1">
-              <strong className="text-sm">{formatarReais(c.valor_mensal)}/mês</strong>
+              {verValor && <strong className="text-sm">{formatarReais(c.valor_mensal)}/mês</strong>}
               <Etiqueta cor={COR_STATUS_CONTRATO[c.status]}>
                 {NOME_STATUS_CONTRATO[c.status]}
               </Etiqueta>
@@ -206,7 +208,9 @@ function Detalhe({ c }: { c: ContratoResumo }) {
             <Etiqueta cor={COR_STATUS_CONTRATO[c.status]}>
               {NOME_STATUS_CONTRATO[c.status]}
             </Etiqueta>
-            <strong>{formatarReais(c.valor_mensal)}/mês</strong>
+            {veValorDeContrato(perfil.papel) && (
+              <strong>{formatarReais(c.valor_mensal)}/mês</strong>
+            )}
             <Link to={`/clientes/${c.cliente_id}`} className="font-semibold text-verde underline">
               {c.cliente?.nome_fantasia || c.cliente?.nome}
             </Link>

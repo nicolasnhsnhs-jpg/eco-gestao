@@ -54,3 +54,8 @@ export const PAPEIS_FORA_DO_COMERCIAL: readonly Papel[] = ['recepcao', 'operador
  * Ninguém recebe e-mail nesse endereço: ele só identifica a conta. Cada unidade tem o seu.
  */
 export const DOMINIO_OPERADOR = UNIDADE.dominioOperador
+
+/** O ADM cuida dos contratos, mas não vê quanto cada cliente paga. */
+export function veValorDeContrato(papel: Papel): boolean {
+  return papel !== 'administrativo'
+}
