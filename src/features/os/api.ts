@@ -75,7 +75,7 @@ export function enderecoDaFicha(ficha: FichaCliente) {
 }
 
 const RELACOES = `
-  tipo:tipos_servico(id, nome, formulario_os),
+  tipo:tipos_servico(id, nome, formulario_os, fotos_antes_depois),
   veiculo:veiculos(id, placa, descricao),
   operadores:os_operadores(operador:perfis(id, nome))
 `
@@ -440,12 +440,15 @@ export async function enviarAssinatura(
   })
 }
 
+/** Fotos da OS: gerais, ou de antes e depois (serviços de limpeza). */
+export type CategoriaFotoOs = 'foto_os' | 'foto_antes' | 'foto_depois'
+
 /** Foto ou assinatura da OS: fica no celular e sobe pela fila. Devolve o id. */
 export async function guardarArquivoDaOs(
   clienteId: string,
   osId: string,
   arquivo: Blob,
-  info: { nome: string; tipo: string; categoria: 'assinatura' | 'foto_os' },
+  info: { nome: string; tipo: string; categoria: 'assinatura' | CategoriaFotoOs },
 ) {
   const id = crypto.randomUUID()
   const nomeLimpo = info.nome.replace(/[^\w.-]+/g, '-').slice(-80)
@@ -546,7 +549,7 @@ export function useFaturarOs(osId: string) {
 const RELACOES_MODELO = `
   cliente:clientes(id, nome, nome_fantasia),
   endereco:enderecos(id, apelido, logradouro, numero, cidade, uf),
-  tipo:tipos_servico(id, nome, formulario_os)
+  tipo:tipos_servico(id, nome, formulario_os, fotos_antes_depois)
 `
 
 export function useModelos() {

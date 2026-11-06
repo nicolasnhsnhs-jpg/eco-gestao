@@ -258,11 +258,18 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
 
   const assinaturaCliente = arquivos.find((a) => a.id === e?.assinatura_cliente_id)
   const assinaturaOperador = arquivos.find((a) => a.id === e?.assinatura_operador_id)
-  const fotos = arquivos.filter(
-    (a) => a.categoria === 'foto_os' && a.tipo_mime?.startsWith('image/'),
-  )
+  // Na ordem em que foram tiradas: "Antes 1" e "Depois 1" costumam ser o mesmo lugar.
+  const fotosDe = (categoria: Arquivo['categoria']) =>
+    arquivos
+      .filter((a) => a.categoria === categoria && a.tipo_mime?.startsWith('image/'))
+      .sort((x, y) => x.criado_em.localeCompare(y.criado_em))
+  const fotosAntes = fotosDe('foto_antes')
+  const fotosDepois = fotosDe('foto_depois')
+  const fotos = fotosDe('foto_os')
   const imagens = await baixarImagens(
-    [assinaturaCliente, assinaturaOperador, ...fotos].filter((a): a is Arquivo => !!a),
+    [assinaturaCliente, assinaturaOperador, ...fotosAntes, ...fotosDepois, ...fotos].filter(
+      (a): a is Arquivo => !!a,
+    ),
   )
   const logo = await pdf.embedJpg(await (await fetch('/logo-pdf.jpg')).arrayBuffer())
 
@@ -339,21 +346,37 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
   if (pragas && os.tipo?.formulario_os === 'pragas') escreverPragas(w, normal, os, pragas)
   if (pragas && os.tipo?.formulario_os === 'coifa') escreverCoifa(w, os, pragas.pontos)
 
-  const fotosComImagem = fotos.filter((f) => imagens.has(f.id))
-  if (fotosComImagem.length > 0) {
-    w.secao('Fotos')
+  /** Grade de fotos, 3 por linha; com legenda, cada uma leva "<legenda> 1, 2…" embaixo. */
+  async function grade(titulo: string, lista: Arquivo[], legenda?: string) {
+    const comImagem = lista.filter((f) => imagens.has(f.id))
+    if (comImagem.length === 0) return
     const colunas = 3
     const espaco = 8
     const lado = (LARGURA_UTIL - espaco * (colunas - 1)) / colunas
-    for (let i = 0; i < fotosComImagem.length; i += colunas) {
-      w.garantir(lado + espaco)
-      for (const [j, foto] of fotosComImagem.slice(i, i + colunas).entries()) {
+    const alturaLegenda = legenda ? 14 : 0
+    // O título não fica sozinho no pé da página: vai junto com a primeira linha de fotos.
+    w.garantir(64 + lado + alturaLegenda + espaco)
+    w.secao(titulo)
+    for (let i = 0; i < comImagem.length; i += colunas) {
+      w.garantir(lado + alturaLegenda + espaco)
+      for (const [j, foto] of comImagem.slice(i, i + colunas).entries()) {
         const imagem = await pdf.embedJpg(imagens.get(foto.id)!)
         w.imagem(imagem, MARGEM + j * (lado + espaco), lado, lado)
       }
-      w.y -= lado + espaco
+      if (legenda) {
+        w.y -= lado + 3
+        for (const j of comImagem.slice(i, i + colunas).keys()) {
+          w.texto(`${legenda} ${i + j + 1}`, MARGEM + j * (lado + espaco), 8.5, true)
+        }
+        w.y -= alturaLegenda - 3 + espaco
+      } else {
+        w.y -= lado + espaco
+      }
     }
   }
+  await grade('Relatório fotográfico — antes do serviço', fotosAntes, 'Antes')
+  await grade('Relatório fotográfico — após o serviço', fotosDepois, 'Depois')
+  await grade(fotosAntes.length || fotosDepois.length ? 'Outras fotos' : 'Fotos', fotos)
 
   w.secao('Assinaturas')
   w.garantir(110)

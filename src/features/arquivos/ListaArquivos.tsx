@@ -32,6 +32,8 @@ type Props = Vinculo & {
   filtrarPorCategoria?: boolean
   /** Mostra as imagens como miniaturas (fotos de antes e depois). */
   miniaturas?: boolean
+  /** Esconde estas categorias (ex.: quando antes e depois já aparecem à parte). */
+  semCategorias?: CategoriaArquivo[]
 }
 
 function IconeArquivo({ tipo }: { tipo: string | null }) {
@@ -54,13 +56,17 @@ export function ListaArquivos({
   textoVazio = 'Nenhum arquivo.',
   filtrarPorCategoria,
   miniaturas,
+  semCategorias,
 }: Props) {
   const perfil = usePerfil()
   const equipe = useEquipe()
   const vinculo = { clienteId, propostaId, servicoId, osId }
   const arquivos = useArquivos(vinculo, filtrarPorCategoria ? categoria : undefined)
+  const visiveis = semCategorias
+    ? arquivos.data?.filter((a) => !semCategorias.includes(a.categoria))
+    : arquivos.data
   const enviar = useEnviarArquivos(vinculo)
-  const links = useLinksDasImagens(miniaturas ? arquivos.data : undefined)
+  const links = useLinksDasImagens(miniaturas ? visiveis : undefined)
   const remover = useRemoverArquivo(clienteId)
   const campo = useRef<HTMLInputElement>(null)
   const [erro, setErro] = useState<string | null>(null)
@@ -106,11 +112,11 @@ export function ListaArquivos({
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
 
       {arquivos.isPending && <Carregando />}
-      {arquivos.data?.length === 0 && <p className="text-sm text-texto-suave">{textoVazio}</p>}
+      {visiveis?.length === 0 && <p className="text-sm text-texto-suave">{textoVazio}</p>}
 
-      {miniaturas && !!arquivos.data?.length && (
+      {miniaturas && !!visiveis?.length && (
         <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {arquivos.data.map((a) => {
+          {visiveis.map((a) => {
             const link = links.data?.get(a.caminho_storage)
             return (
               <li key={a.id} className="relative overflow-hidden rounded-xl border border-borda">
@@ -147,9 +153,9 @@ export function ListaArquivos({
         </ul>
       )}
 
-      {!miniaturas && !!arquivos.data?.length && (
+      {!miniaturas && !!visiveis?.length && (
         <ul className="flex flex-col gap-2">
-          {arquivos.data.map((a) => (
+          {visiveis.map((a) => (
             <li key={a.id} className="flex items-center gap-3 rounded-xl border border-borda p-3">
               <IconeArquivo tipo={a.tipo_mime} />
               <button

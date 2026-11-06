@@ -147,7 +147,7 @@ export function ExecucaoCoifa({ os, campos, alterar, aberta, primeira }: Props) 
             ))}
           </div>
           <p className="text-sm text-texto-suave">
-            As fotos em si vão na etapa “Fotos”, mais abaixo.
+            As fotos em si vão no “Relatório fotográfico”, mais abaixo.
           </p>
         </Pergunta>
       </Etapa>

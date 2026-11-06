@@ -136,7 +136,31 @@ update public.os_execucao
        resultado = 'Pia desentupida', operador_nome = 'Operador A da Silva',
        responsavel_nome = 'Fulana', responsavel_setor = 'Cozinha'
  where os_id = (select id from ids where nome = 'os_a');
+
+-- Relatório fotográfico: o operador manda várias fotos de antes e de depois…
+insert into public.arquivos (cliente_id, os_id, caminho_storage, nome_original, categoria)
+select '00000000-0000-0000-0000-000000005c01', ids.id,
+       'clientes/00000000-0000-0000-0000-000000005c01/os/' || ids.id || '/' || c || n || '.jpg',
+       c || n || '.jpg', c::public.categoria_arquivo
+  from ids, unnest(array['foto_antes', 'foto_depois']) c, generate_series(1, 3) n
+ where ids.nome = 'os_a';
+-- …mas não arquivos de outras categorias.
+do $$ begin
+  begin
+    insert into public.arquivos (cliente_id, os_id, caminho_storage, nome_original, categoria)
+    select '00000000-0000-0000-0000-000000005c01', id,
+           'clientes/00000000-0000-0000-0000-000000005c01/os/' || id || '/x.pdf', 'x.pdf', 'outro'
+      from ids where nome = 'os_a';
+    raise exception 'FALHOU: operador enviou arquivo de categoria proibida';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
 reset role;
+
+select pg_temp.conferir('fotos de antes e depois enviadas pelo operador',
+  (select count(*) from public.arquivos
+    where os_id = (select id from ids where nome = 'os_a')
+      and categoria in ('foto_antes', 'foto_depois')), 6);
 
 -- Assinaturas (o envio pela tela passa pelo Storage; aqui basta o registro)
 insert into public.arquivos (id, cliente_id, os_id, caminho_storage, nome_original, categoria, enviado_por)

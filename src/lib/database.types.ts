@@ -305,6 +305,7 @@ export type Database = {
       }
       avisos: {
         Row: {
+          certificado_id: string | null
           chave_unica: string
           criado_em: string
           destinatario_id: string | null
@@ -322,6 +323,7 @@ export type Database = {
           vencimento_id: string | null
         }
         Insert: {
+          certificado_id?: string | null
           chave_unica: string
           criado_em?: string
           destinatario_id?: string | null
@@ -339,6 +341,7 @@ export type Database = {
           vencimento_id?: string | null
         }
         Update: {
+          certificado_id?: string | null
           chave_unica?: string
           criado_em?: string
           destinatario_id?: string | null
@@ -356,6 +359,13 @@ export type Database = {
           vencimento_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "avisos_certificado_id_fkey"
+            columns: ["certificado_id"]
+            isOneToOne: false
+            referencedRelation: "certificados"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "avisos_destinatario_id_fkey"
             columns: ["destinatario_id"]
@@ -3492,6 +3502,7 @@ export type Database = {
           criado_em: string
           criado_por: string | null
           formulario_os: Database["public"]["Enums"]["formulario_os"]
+          fotos_antes_depois: boolean
           id: string
           nome: string
           periodicidade_meses_padrao: number | null
@@ -3505,6 +3516,7 @@ export type Database = {
           criado_em?: string
           criado_por?: string | null
           formulario_os?: Database["public"]["Enums"]["formulario_os"]
+          fotos_antes_depois?: boolean
           id?: string
           nome: string
           periodicidade_meses_padrao?: number | null
@@ -3520,6 +3532,7 @@ export type Database = {
           criado_em?: string
           criado_por?: string | null
           formulario_os?: Database["public"]["Enums"]["formulario_os"]
+          fotos_antes_depois?: boolean
           id?: string
           nome?: string
           periodicidade_meses_padrao?: number | null

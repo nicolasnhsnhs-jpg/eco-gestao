@@ -287,6 +287,7 @@ function FormTipo({ tipo, aoTerminar }: { tipo: TipoServico | null; aoTerminar: 
     String(tipo?.antecedencia_aviso_dias_padrao ?? 30),
   )
   const [ativo, setAtivo] = useState(tipo?.ativo ?? true)
+  const [fotosAntesDepois, setFotosAntesDepois] = useState(tipo?.fotos_antes_depois ?? false)
   const repete = periodicidade.trim() !== ''
   const valido =
     nome.trim().length >= 2 &&
@@ -303,6 +304,7 @@ function FormTipo({ tipo, aoTerminar }: { tipo: TipoServico | null; aoTerminar: 
           tipo_vencimento: repete ? tipoVencimento : null,
           antecedencia_aviso_dias_padrao: Number(antecedencia),
           ativo,
+          fotos_antes_depois: fotosAntesDepois,
         },
       })
       aoTerminar()
@@ -355,6 +357,15 @@ function FormTipo({ tipo, aoTerminar }: { tipo: TipoServico | null; aoTerminar: 
           onChange={(e) => setAtivo(e.target.checked)}
         />
         Ativo
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          className="size-4 accent-verde"
+          checked={fotosAntesDepois}
+          onChange={(e) => setFotosAntesDepois(e.target.checked)}
+        />
+        Na OS, pedir fotos de antes e depois do serviço
       </label>
       <Button disabled={!valido || salvar.isPending} onClick={() => void enviar()}>
         {salvar.isPending ? 'Salvando…' : 'Salvar'}

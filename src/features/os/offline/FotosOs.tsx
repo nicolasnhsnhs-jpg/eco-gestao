@@ -1,5 +1,6 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { Camera } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { Aviso } from '@/components/ui/Aviso'
 import { comprimirSeForFoto } from '@/lib/arquivos'
@@ -7,37 +8,54 @@ import { mensagemDeErro } from '@/lib/erros'
 import { estaOnline } from '@/lib/offline'
 
 import { ListaArquivos } from '../../arquivos/ListaArquivos'
-import { guardarArquivoDaOs } from '../api'
+import { guardarArquivoDaOs, type CategoriaFotoOs } from '../api'
 import { arquivoGuardado, useFila } from './fila'
 
 /**
  * Fotos da OS na tela do operador. A foto fica no celular na hora (com ou sem
  * sinal) e sobe pela fila. As que já subiram aparecem logo abaixo.
+ * A categoria separa as fotos gerais das de antes e depois do serviço.
  */
 export function FotosOs({
   clienteId,
   osId,
   aberta,
+  categoria = 'foto_os',
+  rotuloBotao = 'Tirar foto',
+  textoVazio = 'Nenhuma foto enviada ainda.',
 }: {
   clienteId: string
   osId: string
   aberta: boolean
+  categoria?: CategoriaFotoOs
+  rotuloBotao?: string
+  textoVazio?: string
 }) {
   const fila = useFila()
   const [erro, setErro] = useState<string | null>(null)
   const pendentes = fila.itens.filter(
-    (i) => i.tipo === 'arquivo' && i.osId === osId && i.registro.categoria === 'foto_os',
+    (i) => i.tipo === 'arquivo' && i.osId === osId && i.registro.categoria === categoria,
   )
 
-  async function adicionar(arquivos: FileList | null) {
+  // Quando uma foto sai da fila (subiu), a lista das já enviadas precisa se atualizar.
+  const queryClient = useQueryClient()
+  const antes = useRef(pendentes.length)
+  useEffect(() => {
+    if (pendentes.length < antes.current) {
+      void queryClient.invalidateQueries({ queryKey: ['arquivos', clienteId, osId] })
+    }
+    antes.current = pendentes.length
+  }, [pendentes.length, queryClient, clienteId, osId])
+
+  async function adicionar(arquivos: File[]) {
     setErro(null)
     try {
-      for (const original of arquivos ?? []) {
+      for (const original of arquivos) {
         const foto = await comprimirSeForFoto(original)
         await guardarArquivoDaOs(clienteId, osId, foto, {
           nome: foto.name || original.name,
           tipo: foto.type || original.type || 'image/jpeg',
-          categoria: 'foto_os',
+          categoria,
         })
       }
     } catch (e) {
@@ -50,7 +68,7 @@ export function FotosOs({
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       {aberta && (
         <label className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl bg-verde px-4 font-semibold text-white">
-          <Camera className="size-5" aria-hidden /> Tirar foto
+          <Camera className="size-5" aria-hidden /> {rotuloBotao}
           <input
             type="file"
             accept="image/*"
@@ -58,7 +76,8 @@ export function FotosOs({
             multiple
             className="sr-only"
             onChange={(e) => {
-              void adicionar(e.target.files)
+              // Copia antes de limpar o campo: limpar esvazia a lista de arquivos escolhidos.
+              void adicionar([...(e.target.files ?? [])])
               e.target.value = ''
             }}
           />
@@ -80,11 +99,11 @@ export function FotosOs({
         <ListaArquivos
           clienteId={clienteId}
           osId={osId}
-          categoria="foto_os"
+          categoria={categoria}
           filtrarPorCategoria
           miniaturas
           podeEnviar={false}
-          textoVazio={pendentes.length ? '' : 'Nenhuma foto enviada ainda.'}
+          textoVazio={pendentes.length ? '' : textoVazio}
         />
       )}
     </div>

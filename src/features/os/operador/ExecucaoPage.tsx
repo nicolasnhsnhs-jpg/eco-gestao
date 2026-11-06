@@ -314,9 +314,43 @@ function Execucao({ os }: { os: OsCompleta }) {
         </Etapa>
       )}
 
-      <Etapa numero={depois} titulo="Fotos">
-        <FotosOs clienteId={os.cliente_id} osId={os.id} aberta={aberta} />
-      </Etapa>
+      {os.tipo?.fotos_antes_depois ? (
+        <Etapa numero={depois} titulo="Relatório fotográfico">
+          <p className="text-sm text-texto-suave">
+            Pode mandar várias fotos em cada parte (ex.: uma de cada reservatório ou coifa).
+          </p>
+          <h3 className="font-semibold text-verde-escuro">Foto antes do serviço</h3>
+          <FotosOs
+            clienteId={os.cliente_id}
+            osId={os.id}
+            aberta={aberta}
+            categoria="foto_antes"
+            rotuloBotao="Tirar foto de antes"
+            textoVazio="Nenhuma foto de antes ainda."
+          />
+          <h3 className="mt-2 font-semibold text-verde-escuro">Foto após o serviço</h3>
+          <FotosOs
+            clienteId={os.cliente_id}
+            osId={os.id}
+            aberta={aberta}
+            categoria="foto_depois"
+            rotuloBotao="Tirar foto de depois"
+            textoVazio="Nenhuma foto de depois ainda."
+          />
+          <h3 className="mt-2 font-semibold text-verde-escuro">Outras fotos (opcional)</h3>
+          <FotosOs
+            clienteId={os.cliente_id}
+            osId={os.id}
+            aberta={aberta}
+            rotuloBotao="Tirar outra foto"
+            textoVazio="Nenhuma outra foto."
+          />
+        </Etapa>
+      ) : (
+        <Etapa numero={depois} titulo="Fotos">
+          <FotosOs clienteId={os.cliente_id} osId={os.id} aberta={aberta} />
+        </Etapa>
+      )}
 
       <Etapa numero={depois + 1} titulo="Quem acompanhou (cliente)">
         <div className="grid grid-cols-2 gap-3">

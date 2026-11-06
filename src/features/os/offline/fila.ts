@@ -40,6 +40,8 @@ const ESPERA_NOVA_TENTATIVA_MS = 30_000
 let itens: ItemFila[] = []
 let carregada = false
 let enviando = false
+// Chegou algo novo enquanto a fila enviava: ela roda de novo ao terminar.
+let chegouDuranteEnvio = false
 let temporizador: ReturnType<typeof setTimeout> | undefined
 const ouvintes = new Set<() => void>()
 
@@ -182,8 +184,13 @@ export function ordemDeEnvio<T extends { tipo: string; osId: string }>(lista: T[
 /** Envia o que está na fila, em ordem. Seguro chamar várias vezes. */
 export async function processarFila() {
   await carregar()
-  if (enviando || !estaOnline()) return
+  if (!estaOnline()) return
+  if (enviando) {
+    chegouDuranteEnvio = true
+    return
+  }
   enviando = true
+  chegouDuranteEnvio = false
   avisar()
   clearTimeout(temporizador)
   try {
@@ -210,6 +217,7 @@ export async function processarFila() {
     enviando = false
     avisar()
   }
+  if (chegouDuranteEnvio) void processarFila()
 }
 
 /** O operador decide tentar de novo um item com problema (ex.: depois de falar com o escritório). */

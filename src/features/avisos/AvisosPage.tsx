@@ -1,4 +1,4 @@
-import { AlertTriangle, BellOff, CalendarClock, Check, CheckCheck } from 'lucide-react'
+import { AlertTriangle, BellOff, CalendarClock, Check, CheckCheck, FileBadge } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 
@@ -64,7 +64,11 @@ export function AvisosPage() {
       <ul className="flex flex-col gap-3">
         {avisos.data?.map((a) => {
           const urgente = URGENTES.has(a.tipo)
-          const Icone = urgente ? AlertTriangle : CalendarClock
+          const Icone = urgente
+            ? AlertTriangle
+            : a.tipo === 'certificado_contrato_vencendo'
+              ? FileBadge
+              : CalendarClock
           const resolvido = !!a.resolvido_em
           return (
             <li

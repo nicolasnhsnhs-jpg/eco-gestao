@@ -248,13 +248,41 @@ export function OsPage() {
         <h2 className="mb-3 font-titulo text-lg font-bold text-verde-escuro">
           Fotos, assinaturas e PDF
         </h2>
+        {o.tipo?.fotos_antes_depois && (
+          <>
+            <h3 className="mb-2 font-semibold text-verde-escuro">Foto antes do serviço</h3>
+            <ListaArquivos
+              clienteId={o.cliente_id}
+              osId={o.id}
+              categoria="foto_antes"
+              filtrarPorCategoria
+              miniaturas
+              podeEnviar={false}
+              textoVazio="Nenhuma foto de antes."
+            />
+            <h3 className="mt-4 mb-2 font-semibold text-verde-escuro">Foto após o serviço</h3>
+            <ListaArquivos
+              clienteId={o.cliente_id}
+              osId={o.id}
+              categoria="foto_depois"
+              filtrarPorCategoria
+              miniaturas
+              podeEnviar={false}
+              textoVazio="Nenhuma foto de depois."
+            />
+            <h3 className="mt-4 mb-2 font-semibold text-verde-escuro">
+              Outras fotos, assinaturas e PDF
+            </h3>
+          </>
+        )}
         <ListaArquivos
           clienteId={o.cliente_id}
           osId={o.id}
           categoria="foto_os"
           miniaturas
           podeEnviar={false}
-          textoVazio="Nenhuma foto ainda."
+          semCategorias={o.tipo?.fotos_antes_depois ? ['foto_antes', 'foto_depois'] : undefined}
+          textoVazio={o.tipo?.fotos_antes_depois ? 'Nenhum outro arquivo.' : 'Nenhuma foto ainda.'}
         />
       </Card>
     </>
