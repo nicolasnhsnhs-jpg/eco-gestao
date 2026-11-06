@@ -1,6 +1,6 @@
-import { LogOut, Menu, RefreshCw, X } from 'lucide-react'
+import { ChevronDown, LogOut, Menu, RefreshCw, X } from 'lucide-react'
 import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router'
+import { NavLink, Outlet, useLocation } from 'react-router'
 
 import { Button } from '@/components/ui/Button'
 import { useAuth, usePerfil } from '@/features/auth/useAuth'
@@ -9,7 +9,7 @@ import { TarjaEnvio } from '@/features/os/offline/TarjaEnvio'
 import { NOME_DO_PAPEL } from '@/lib/papeis'
 import { cn } from '@/lib/utils'
 
-import { barraDoPapel, menuDoPapel, type ItemMenu } from './navegacao'
+import { barraDoPapel, entradasDoPapel, type EntradaMenu, type ItemMenu } from './navegacao'
 import { useNovaVersao } from './novaVersao'
 
 /**
@@ -20,7 +20,7 @@ import { useNovaVersao } from './novaVersao'
 export function AppLayout() {
   const [menuAberto, setMenuAberto] = useState(false)
   const papel = usePerfil().papel
-  const itens = menuDoPapel(papel)
+  const entradas = entradasDoPapel(papel)
   const atalhos = barraDoPapel(papel)
 
   return (
@@ -29,8 +29,8 @@ export function AppLayout() {
       <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-borda bg-white lg:flex">
         <Logo className="px-6 pt-6 pb-4" />
         <nav aria-label="Menu principal" className="flex-1 space-y-1 overflow-y-auto px-3">
-          {itens.map((item) => (
-            <ItemLateral key={item.caminho} item={item} />
+          {entradas.map((entrada) => (
+            <EntradaLateral key={entrada.rotulo} entrada={entrada} />
           ))}
         </nav>
         <Usuario />
@@ -76,8 +76,12 @@ export function AppLayout() {
               </button>
             </div>
             <nav className="flex-1 space-y-1 overflow-y-auto px-3">
-              {itens.map((item) => (
-                <ItemLateral key={item.caminho} item={item} aoClicar={() => setMenuAberto(false)} />
+              {entradas.map((entrada) => (
+                <EntradaLateral
+                  key={entrada.rotulo}
+                  entrada={entrada}
+                  aoClicar={() => setMenuAberto(false)}
+                />
               ))}
             </nav>
             <Usuario />
@@ -140,7 +144,67 @@ function TarjaNovaVersao() {
   )
 }
 
-function ItemLateral({ item, aoClicar }: { item: ItemMenu; aoClicar?: () => void }) {
+function EntradaLateral({ entrada, aoClicar }: { entrada: EntradaMenu; aoClicar?: () => void }) {
+  if (entrada.tipo === 'item') return <ItemLateral item={entrada} aoClicar={aoClicar} />
+  return <GrupoLateral grupo={entrada} aoClicar={aoClicar} />
+}
+
+/** Grupo do menu: abre e fecha; começa aberto quando a tela atual é de um dos itens dele. */
+function GrupoLateral({
+  grupo,
+  aoClicar,
+}: {
+  grupo: Extract<EntradaMenu, { tipo: 'grupo' }>
+  aoClicar?: () => void
+}) {
+  const { pathname } = useLocation()
+  const ativo = grupo.itens.some(
+    (item) => pathname === item.caminho || pathname.startsWith(`${item.caminho}/`),
+  )
+  // null: segue a tela atual; depois de um clique, vale o que a pessoa escolheu.
+  const [aberto, setAberto] = useState<boolean | null>(null)
+  const mostrar = aberto ?? ativo
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setAberto(!mostrar)}
+        aria-expanded={mostrar}
+        className={cn(
+          'flex min-h-11 w-full items-center gap-3 rounded-xl px-3 font-semibold transition-colors',
+          ativo
+            ? 'text-verde-escuro'
+            : 'text-texto-suave hover:bg-fundo-suave hover:text-verde-escuro',
+        )}
+      >
+        <grupo.icone className="size-5" aria-hidden />
+        <span className="flex-1 text-left">{grupo.rotulo}</span>
+        <ChevronDown
+          className={cn('size-4 transition-transform', mostrar && 'rotate-180')}
+          aria-hidden
+        />
+      </button>
+      {mostrar && (
+        <div className="mt-1 ml-5 space-y-1 border-l border-borda pl-1">
+          {grupo.itens.map((item) => (
+            <ItemLateral key={item.caminho} item={item} aoClicar={aoClicar} subitem />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ItemLateral({
+  item,
+  aoClicar,
+  subitem,
+}: {
+  item: ItemMenu
+  aoClicar?: () => void
+  /** Dentro de um grupo: letra e espaços menores, para o rótulo caber numa linha. */
+  subitem?: boolean
+}) {
   return (
     <NavLink
       to={item.caminho}
@@ -148,7 +212,8 @@ function ItemLateral({ item, aoClicar }: { item: ItemMenu; aoClicar?: () => void
       onClick={aoClicar}
       className={({ isActive }) =>
         cn(
-          'flex min-h-11 items-center gap-3 rounded-xl px-3 font-semibold transition-colors',
+          'flex min-h-11 items-center rounded-xl font-semibold transition-colors',
+          subitem ? 'gap-2.5 px-2.5 text-sm' : 'gap-3 px-3',
           isActive
             ? 'bg-lima-claro text-verde-escuro'
             : 'text-texto-suave hover:bg-fundo-suave hover:text-verde-escuro',

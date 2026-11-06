@@ -4,14 +4,15 @@ import {
   BriefcaseBusiness,
   Building2,
   Calculator,
+  CalendarDays,
   ClipboardList,
   FileText,
   HandCoins,
   House,
+  Mail,
   UserCog,
   Users,
   Wallet,
-  Wrench,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -32,6 +33,29 @@ export type ItemMenu = {
   papeis: readonly Papel[]
   /** Para quem este item aparece na barra de atalhos do celular (no máximo 4 por perfil). */
   barraInferior?: readonly Papel[]
+  /** Grupo do menu lateral onde o item fica (ver GRUPOS). */
+  grupo?: NomeGrupo
+}
+
+type NomeGrupo = 'administrativo' | 'propostas'
+
+export type GrupoMenu = {
+  tipo: 'grupo'
+  rotulo: string
+  icone: LucideIcon
+  itens: ItemMenu[]
+}
+
+/** O que aparece no menu lateral: um item solto ou um grupo que abre e fecha. */
+export type EntradaMenu = ({ tipo: 'item' } & ItemMenu) | GrupoMenu
+
+/**
+ * Grupos do menu lateral. Quem não está em `papeis` vê os itens do grupo soltos
+ * (o vendedor, por exemplo, não tem um "Administrativo").
+ */
+const GRUPOS: Record<NomeGrupo, { rotulo: string; icone: LucideIcon; papeis: readonly Papel[] }> = {
+  administrativo: { rotulo: 'Administrativo', icone: Building2, papeis: PAPEIS_GESTAO },
+  propostas: { rotulo: 'Propostas', icone: FileText, papeis: PAPEIS },
 }
 
 const TODOS = PAPEIS
@@ -50,13 +74,6 @@ export const MENU: readonly ItemMenu[] = [
     barraInferior: SEM_OPERADOR,
   },
   {
-    rotulo: 'Ordens de serviço',
-    caminho: '/os',
-    icone: ClipboardList,
-    papeis: PAPEIS_ESCRITORIO_OS,
-    barraInferior: ['recepcao', 'administrativo'],
-  },
-  {
     rotulo: 'Financeiro',
     caminho: '/financeiro',
     icone: Wallet,
@@ -68,38 +85,53 @@ export const MENU: readonly ItemMenu[] = [
     caminho: '/propostas',
     icone: FileText,
     papeis: COMERCIAL,
+    grupo: 'propostas',
   },
   {
-    rotulo: 'Serviços',
-    caminho: '/servicos',
-    icone: Wrench,
-    papeis: COMERCIAL,
-    barraInferior: ['vendedor'],
-  },
-  {
-    rotulo: 'Calculadora de orçamentos',
+    rotulo: 'Calculadora',
     caminho: '/orcamentos',
     icone: Calculator,
     // O financeiro não usa: só quem vende, o admin e o ADM.
     papeis: ['admin', 'administrativo', 'vendedor'],
+    grupo: 'propostas',
   },
   {
-    rotulo: 'Contratos',
-    caminho: '/contratos',
-    icone: BriefcaseBusiness,
+    // Serviços agendados e feitos: é onde o ADM confere a agenda e vê o que já pode virar certificado.
+    rotulo: 'Agenda',
+    caminho: '/servicos',
+    icone: CalendarDays,
     papeis: COMERCIAL,
+    barraInferior: ['vendedor'],
+    grupo: 'administrativo',
+  },
+  {
+    rotulo: 'Ordens de serviço',
+    caminho: '/os',
+    icone: ClipboardList,
+    papeis: PAPEIS_ESCRITORIO_OS,
+    barraInferior: ['recepcao', 'administrativo'],
+    grupo: 'administrativo',
   },
   {
     rotulo: 'Certificados',
     caminho: '/certificados',
     icone: Award,
     papeis: PAPEIS_CERTIFICADOS,
+    grupo: 'administrativo',
   },
   {
-    rotulo: 'Administrativo',
+    rotulo: 'Contratos',
+    caminho: '/contratos',
+    icone: BriefcaseBusiness,
+    papeis: COMERCIAL,
+    grupo: 'administrativo',
+  },
+  {
+    rotulo: 'Assinatura de e-mail',
     caminho: '/administrativo',
-    icone: Building2,
+    icone: Mail,
     papeis: PAPEIS_GESTAO,
+    grupo: 'administrativo',
   },
   { rotulo: 'Minhas comissões', caminho: '/comissoes', icone: HandCoins, papeis: ['vendedor'] },
   { rotulo: 'Avisos', caminho: '/avisos', icone: Bell, papeis: TODOS, barraInferior: TODOS },
@@ -114,4 +146,30 @@ export function menuDoPapel(papel: Papel): ItemMenu[] {
 /** Atalhos da barra de baixo (celular) de um perfil. */
 export function barraDoPapel(papel: Papel): ItemMenu[] {
   return menuDoPapel(papel).filter((item) => item.barraInferior?.includes(papel))
+}
+
+/**
+ * Menu lateral de um perfil, já agrupado. O grupo fica onde aparece o primeiro
+ * item dele; um grupo com um item só vira item solto.
+ */
+export function entradasDoPapel(papel: Papel): EntradaMenu[] {
+  const entradas: EntradaMenu[] = []
+  const grupos = new Map<NomeGrupo, GrupoMenu>()
+  for (const item of menuDoPapel(papel)) {
+    const nome = item.grupo
+    if (!nome || !GRUPOS[nome].papeis.includes(papel)) {
+      entradas.push({ tipo: 'item', ...item })
+      continue
+    }
+    let grupo = grupos.get(nome)
+    if (!grupo) {
+      grupo = { tipo: 'grupo', rotulo: GRUPOS[nome].rotulo, icone: GRUPOS[nome].icone, itens: [] }
+      grupos.set(nome, grupo)
+      entradas.push(grupo)
+    }
+    grupo.itens.push(item)
+  }
+  return entradas.map((e) =>
+    e.tipo === 'grupo' && e.itens.length === 1 ? { tipo: 'item', ...e.itens[0] } : e,
+  )
 }

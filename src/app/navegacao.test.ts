@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { PAPEIS, type Papel } from '@/lib/papeis'
 
-import { barraDoPapel, menuDoPapel } from './navegacao'
+import { barraDoPapel, entradasDoPapel, menuDoPapel } from './navegacao'
 
 const caminhos = (papel: Papel) => menuDoPapel(papel).map((item) => item.caminho)
 
@@ -32,12 +32,12 @@ describe('menuDoPapel', () => {
     expect(caminhos('administrativo')).toEqual([
       '/',
       '/clientes',
-      '/os',
       '/propostas',
-      '/servicos',
       '/orcamentos',
-      '/contratos',
+      '/servicos',
+      '/os',
       '/certificados',
+      '/contratos',
       '/administrativo',
       '/avisos',
     ])
@@ -77,6 +77,40 @@ describe('menuDoPapel', () => {
 
   it('operador só tem as OS dele (no início) e os avisos', () => {
     expect(caminhos('operador')).toEqual(['/', '/avisos'])
+  })
+})
+
+describe('entradasDoPapel', () => {
+  const resumo = (papel: Papel) =>
+    entradasDoPapel(papel).map((e) =>
+      e.tipo === 'grupo' ? `${e.rotulo}: ${e.itens.map((i) => i.caminho).join(' ')}` : e.caminho,
+    )
+
+  it('ADM: agenda, OS, certificados, contratos e assinatura dentro do Administrativo', () => {
+    expect(resumo('administrativo')).toEqual([
+      '/',
+      '/clientes',
+      'Propostas: /propostas /orcamentos',
+      'Administrativo: /servicos /os /certificados /contratos /administrativo',
+      '/avisos',
+    ])
+  })
+
+  it('vendedor não tem grupo Administrativo: agenda e contratos ficam soltos', () => {
+    expect(resumo('vendedor')).toEqual([
+      '/',
+      '/clientes',
+      'Propostas: /propostas /orcamentos',
+      '/servicos',
+      '/contratos',
+      '/comissoes',
+      '/avisos',
+    ])
+  })
+
+  it('grupo com um item só vira item solto', () => {
+    expect(resumo('recepcao')).toEqual(['/', '/clientes', '/os', '/avisos'])
+    expect(resumo('financeiro')).toContain('/propostas')
   })
 })
 
