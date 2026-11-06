@@ -14,6 +14,12 @@ import { useValorAtrasado } from '@/lib/useValorAtrasado'
 
 import { useListaClientes } from './api'
 
+/** O selo só aparece quando o nome fantasia existe e não é a própria razão social. */
+function temFantasia(c: { nome: string; nome_fantasia: string | null }) {
+  const fantasia = c.nome_fantasia?.trim()
+  return !!fantasia && fantasia.toLowerCase() !== c.nome.trim().toLowerCase()
+}
+
 export function ClientesPage() {
   // O termo fica no endereço da página (?q=...), então "voltar" mantém a busca.
   const [parametros, setParametros] = useSearchParams()
@@ -121,12 +127,14 @@ export function ClientesPage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-center gap-2 font-semibold">
-                      <span className="truncate">{cliente.nome_fantasia || cliente.nome}</span>
+                      <span className="truncate">{cliente.nome}</span>
+                      {temFantasia(cliente) && (
+                        <Etiqueta cor="verde">{cliente.nome_fantasia}</Etiqueta>
+                      )}
                       {!cliente.ativo && <Etiqueta>Inativo</Etiqueta>}
                     </p>
                     <p className="truncate text-sm text-texto-suave">
                       {[
-                        cliente.nome_fantasia ? cliente.nome : null,
                         formatarDocumento(cliente.cpf_cnpj, cliente.tipo_pessoa),
                         formatarTelefone(cliente.whatsapp || cliente.telefone),
                         endereco && `${endereco.cidade}/${endereco.uf}`,
