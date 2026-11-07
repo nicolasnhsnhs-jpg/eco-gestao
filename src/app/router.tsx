@@ -32,6 +32,7 @@ import {
   TiposServicoPage,
   VencimentosPage,
 } from '@/features/servicos/ServicosPages'
+import { DescricaoContratoFormPage } from '@/features/clientes/DescricaoContratoFormPage'
 import { ContratoFormPage } from '@/features/contratos/ContratoFormPage'
 import { ContratoPage, ContratosPage } from '@/features/contratos/ContratosPages'
 import { ComissoesPage } from '@/features/financeiro/ComissoesPage'
@@ -93,6 +94,7 @@ export const router = createBrowserRouter([
           { path: 'novo', element: <ClienteFormPage /> },
           { path: ':id', element: <ClienteFichaPage /> },
           { path: ':id/editar', element: <ClienteFormPage /> },
+          { path: ':id/descricao-contrato', element: <DescricaoContratoFormPage /> },
         ],
       },
       {

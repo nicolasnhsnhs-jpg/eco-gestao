@@ -1228,6 +1228,97 @@ export type Database = {
           },
         ]
       }
+      descricoes_contrato: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          cliente_id: string
+          condicoes: string | null
+          conferido_em: string | null
+          criado_em: string
+          criado_por: string | null
+          data_assinatura: string | null
+          documentos: string[]
+          horario_atendimento: string | null
+          id: string
+          itens: Json
+          numero_contrato: string | null
+          pendencias: string | null
+          reajuste: string | null
+          renovacao: string | null
+          servicos_extras: string | null
+          taxa_fora_horario: string | null
+          vigencia_fim: string | null
+          vigencia_inicio: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cliente_id: string
+          condicoes?: string | null
+          conferido_em?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_assinatura?: string | null
+          documentos?: string[]
+          horario_atendimento?: string | null
+          id?: string
+          itens?: Json
+          numero_contrato?: string | null
+          pendencias?: string | null
+          reajuste?: string | null
+          renovacao?: string | null
+          servicos_extras?: string | null
+          taxa_fora_horario?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cliente_id?: string
+          condicoes?: string | null
+          conferido_em?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_assinatura?: string | null
+          documentos?: string[]
+          horario_atendimento?: string | null
+          id?: string
+          itens?: Json
+          numero_contrato?: string | null
+          pendencias?: string | null
+          reajuste?: string | null
+          renovacao?: string | null
+          servicos_extras?: string | null
+          taxa_fora_horario?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "descricoes_contrato_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "descricoes_contrato_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: true
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "descricoes_contrato_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enderecos: {
         Row: {
           apelido: string | null

@@ -39,6 +39,7 @@ import { SecaoPropostas } from './ficha/SecaoPropostas'
 import { SecaoServicos } from './ficha/SecaoServicos'
 import { SecaoServicosRecepcao } from './ficha/SecaoServicosRecepcao'
 import { SecaoContratos } from './ficha/SecaoContratos'
+import { SecaoDescricaoContrato } from './ficha/SecaoDescricaoContrato'
 import { ListaArquivos } from '../arquivos/ListaArquivos'
 import { SecaoHistorico } from './ficha/SecaoHistorico'
 import { TransferirModal } from './ficha/TransferirModal'
@@ -196,6 +197,9 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
             </div>
           </Secao>
 
+          {daCarteira && (
+            <SecaoDescricaoContrato clienteId={cliente.id} podeEditar={gestao && !anonimizado} />
+          )}
           {acessoTotal && (
             <SecaoFinanceira
               clienteId={cliente.id}
