@@ -15,7 +15,7 @@ import { mensagemDeErro } from '@/lib/erros'
 
 import { pendenteDaOs, useFila } from '../offline/fila'
 import { FotosOs } from '../offline/FotosOs'
-import { horariosForaDeOrdem, pendenciasLocais } from '../offline/pendencias'
+import { etapaDaPendencia, horariosForaDeOrdem, pendenciasLocais } from '../offline/pendencias'
 import {
   enderecoDaFicha,
   enviarAssinatura,
@@ -60,6 +60,14 @@ function comporHora(data: string, hora: string) {
   return `${data}T${hora}:00-03:00`
 }
 
+/** Rola a tela até a etapa (pelo título) onde falta preencher algo. */
+function irParaEtapa(titulo: string) {
+  const etapa = [...document.querySelectorAll<HTMLElement>('[data-etapa]')].find(
+    (el) => el.dataset.etapa === titulo,
+  )
+  etapa?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
 export function ExecucaoPage() {
   const { id = '' } = useParams()
   const os = useOrdemServico(id)
@@ -80,6 +88,11 @@ function Execucao({ os }: { os: OsCompleta }) {
   const concluir = useConcluirOs(os.id)
   const { campos, alterar, estado, enviarAgora } = useRascunhoExecucao(os.id, execucao, aberta)
   const [erro, setErro] = useState<string | null>(null)
+  // Tocou em "Concluir" faltando algo: a lista do que falta aparece (e encolhe
+  // conforme o operador preenche). Cada item leva à etapa dele.
+  const [mostrarFalta, setMostrarFalta] = useState(false)
+  // Cada toque em "Concluir" que não deu certo volta a tela até o aviso.
+  const [tentativa, setTentativa] = useState(0)
   const [assinando, setAssinando] = useState<'cliente' | 'operador' | null>(null)
   const dataServico = campos.data ?? hojeISO()
   const pragas = os.tipo?.formulario_os === 'pragas'
@@ -126,12 +139,11 @@ function Execucao({ os }: { os: OsCompleta }) {
 
   async function finalizar() {
     setErro(null)
+    setTentativa((t) => t + 1)
     // Confere no próprio celular (funciona sem sinal); o banco confere de novo ao receber.
-    const falta = pendenciasLocais(os.tipo?.formulario_os, campos, pontos.data ?? [])
-    if (falta.length > 0) {
-      setErro(`Falta preencher: ${falta.join(', ')}.`)
-      return
-    }
+    const pendencias = pendenciasLocais(os.tipo?.formulario_os, campos, pontos.data ?? [])
+    setMostrarFalta(pendencias.length > 0)
+    if (pendencias.length > 0) return
     if (foraDeOrdem) {
       setErro(`Confira os horários: ${foraDeOrdem}.`)
       return
@@ -147,6 +159,11 @@ function Execucao({ os }: { os: OsCompleta }) {
   }
 
   const foraDeOrdem = horariosForaDeOrdem(campos)
+  const falta = mostrarFalta
+    ? pendenciasLocais(os.tipo?.formulario_os, campos, pontos.data ?? [])
+    : []
+  // Preencheu tudo: a lista some de vez (até o próximo toque em "Concluir").
+  if (mostrarFalta && falta.length === 0) setMostrarFalta(false)
   const campo = (nome: keyof CamposExecucao) => (campos[nome] as string | null | undefined) ?? ''
 
   return (
@@ -161,7 +178,36 @@ function Execucao({ os }: { os: OsCompleta }) {
         {os.hora_agendada && ` às ${os.hora_agendada.slice(0, 5)}`}
       </p>
 
-      {erro && <Aviso tipo="erro">{erro}</Aviso>}
+      {falta.length > 0 && (
+        <Aviso tipo="erro" tentativa={tentativa}>
+          <p className="font-semibold">Para concluir a OS, falta preencher:</p>
+          <ul className="mt-1 flex flex-col">
+            {falta.map((p) => {
+              const etapa = etapaDaPendencia(p)
+              return (
+                <li key={p}>
+                  {etapa ? (
+                    <button
+                      type="button"
+                      className="min-h-9 text-left underline"
+                      onClick={() => irParaEtapa(etapa)}
+                    >
+                      • {p} <span className="text-xs">(etapa “{etapa}”)</span>
+                    </button>
+                  ) : (
+                    <span className="block min-h-9 py-1">• {p}</span>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </Aviso>
+      )}
+      {erro && (
+        <Aviso tipo="erro" tentativa={tentativa}>
+          {erro}
+        </Aviso>
+      )}
       {!aberta &&
         (aguardandoEnvio ? (
           <Aviso tipo="info">
@@ -428,7 +474,7 @@ function Etapa({
   children: ReactNode
 }) {
   return (
-    <Card className="flex flex-col gap-3">
+    <Card className="flex scroll-mt-20 flex-col gap-3" data-etapa={titulo}>
       <h2 className="flex items-center gap-2 font-titulo text-lg font-bold text-verde-escuro">
         <span className="grid size-8 place-items-center rounded-full bg-lima text-verde-noite">
           {numero}

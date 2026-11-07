@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { horariosForaDeOrdem, pendenciasLocais } from './pendencias'
+import { etapaDaPendencia, horariosForaDeOrdem, pendenciasLocais } from './pendencias'
 
 // Os mesmos casos de supabase/tests/os*.sql, para a regra do celular não se
 // afastar da regra do banco.
@@ -125,5 +125,27 @@ describe('horariosForaDeOrdem', () => {
         hora_saida: '2026-11-05T07:00:00-03:00',
       }),
     ).toBe('a saída (07:00) está antes da chegada (08:00)')
+  })
+})
+
+describe('etapaDaPendencia', () => {
+  it('toda pendência leva a uma etapa da tela', () => {
+    const pontos = [
+      { tipo: 'armadilha_luminosa', numero: 1, area: 'Depósito' },
+      { tipo: 'coifa', numero: 1, area: 'Cozinha' },
+    ]
+    const todas = (['generico', 'pragas', 'coifa'] as const).flatMap((f) =>
+      pendenciasLocais(f, {}, pontos),
+    )
+    expect(todas.length).toBeGreaterThan(15)
+    for (const p of todas) expect(etapaDaPendencia(p), p).not.toBeNull()
+  })
+
+  it('aponta a etapa certa', () => {
+    expect(etapaDaPendencia('horário de saída')).toBe('Chegada e horários')
+    expect(etapaDaPendencia('assinatura de quem acompanhou')).toBe('Quem acompanhou (cliente)')
+    expect(etapaDaPendencia('visto do operador')).toBe('Operador')
+    expect(etapaDaPendencia('sujidade de: Cozinha')).toBe('Coifas')
+    expect(etapaDaPendencia('situação das armadilhas 1, 2')).toBe('Armadilhas luminosas')
   })
 })

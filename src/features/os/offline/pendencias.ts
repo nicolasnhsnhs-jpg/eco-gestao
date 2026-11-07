@@ -111,3 +111,27 @@ export function pendenciasLocais(
   }
   return falta
 }
+
+/**
+ * Em que etapa da tela do operador se preenche cada pendência de pendenciasLocais
+ * (o título da etapa, como aparece na tela). Serve para levar o operador até lá.
+ */
+export function etapaDaPendencia(pendencia: string): string | null {
+  if (pendencia === 'data' || pendencia.startsWith('horário de')) return 'Chegada e horários'
+  if (pendencia === 'resultado do serviço') return 'Serviço realizado'
+  if (pendencia === 'nome do operador' || pendencia === 'visto do operador') return 'Operador'
+  if (pendencia.includes('quem acompanhou')) return 'Quem acompanhou (cliente)'
+  if (pendencia === 'nível de infestação de roedores') return 'Porta-iscas'
+  if (pendencia.startsWith('situação das armadilhas')) return 'Armadilhas luminosas'
+  if (
+    pendencia === 'liberação para trabalho' ||
+    pendencia === 'condições do ambiente' ||
+    pendencia === 'escoamento do piso'
+  ) {
+    return 'Liberação para trabalho'
+  }
+  if (pendencia.startsWith('sujidade de')) return 'Coifas'
+  if (pendencia === 'quantidade de produto') return 'Produto utilizado'
+  if (pendencia === 'conferência final com o cliente') return 'Conferência com o cliente'
+  return null
+}

@@ -797,7 +797,7 @@ function Etapa({
   children: ReactNode
 }) {
   return (
-    <Card className="flex flex-col gap-3">
+    <Card className="flex scroll-mt-20 flex-col gap-3" data-etapa={titulo}>
       <h2 className="flex items-center gap-2 font-titulo text-lg font-bold text-verde-escuro">
         <span className="grid size-8 place-items-center rounded-full bg-lima text-verde-noite">
           {numero}
