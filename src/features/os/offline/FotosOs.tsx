@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Camera } from 'lucide-react'
+import { Camera, Images } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { Aviso } from '@/components/ui/Aviso'
@@ -67,21 +67,10 @@ export function FotosOs({
     <div className="flex flex-col gap-3">
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       {aberta && (
-        <label className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl bg-verde px-4 font-semibold text-white">
-          <Camera className="size-5" aria-hidden /> {rotuloBotao}
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            multiple
-            className="sr-only"
-            onChange={(e) => {
-              // Copia antes de limpar o campo: limpar esvazia a lista de arquivos escolhidos.
-              void adicionar([...(e.target.files ?? [])])
-              e.target.value = ''
-            }}
-          />
-        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <BotaoFoto camera rotulo={rotuloBotao} aoEscolher={adicionar} />
+          <BotaoFoto rotulo="Galeria" aoEscolher={adicionar} />
+        </div>
       )}
       {pendentes.length > 0 && (
         <>
@@ -107,6 +96,45 @@ export function FotosOs({
         />
       )}
     </div>
+  )
+}
+
+/**
+ * Botão que abre a câmera (camera) ou a galeria do celular. Na galeria dá para
+ * escolher várias fotos de uma vez.
+ */
+function BotaoFoto({
+  camera,
+  rotulo,
+  aoEscolher,
+}: {
+  camera?: boolean
+  rotulo: string
+  aoEscolher: (arquivos: File[]) => Promise<void>
+}) {
+  const Icone = camera ? Camera : Images
+  return (
+    <label
+      className={
+        camera
+          ? 'flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl bg-verde px-4 font-semibold text-white'
+          : 'flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-verde px-4 font-semibold text-verde'
+      }
+    >
+      <Icone className="size-5" aria-hidden /> {rotulo}
+      <input
+        type="file"
+        accept="image/*"
+        capture={camera ? 'environment' : undefined}
+        multiple
+        className="sr-only"
+        onChange={(e) => {
+          // Copia antes de limpar o campo: limpar esvazia a lista de arquivos escolhidos.
+          void aoEscolher([...(e.target.files ?? [])])
+          e.target.value = ''
+        }}
+      />
+    </label>
   )
 }
 

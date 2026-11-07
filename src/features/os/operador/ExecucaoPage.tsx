@@ -371,7 +371,6 @@ function Execucao({ os }: { os: OsCompleta }) {
             osId={os.id}
             aberta={aberta}
             categoria="foto_antes"
-            rotuloBotao="Tirar foto de antes"
             textoVazio="Nenhuma foto de antes ainda."
           />
           <h3 className="mt-2 font-semibold text-verde-escuro">Foto após o serviço</h3>
@@ -380,7 +379,6 @@ function Execucao({ os }: { os: OsCompleta }) {
             osId={os.id}
             aberta={aberta}
             categoria="foto_depois"
-            rotuloBotao="Tirar foto de depois"
             textoVazio="Nenhuma foto de depois ainda."
           />
           <h3 className="mt-2 font-semibold text-verde-escuro">Outras fotos (opcional)</h3>
@@ -388,7 +386,6 @@ function Execucao({ os }: { os: OsCompleta }) {
             clienteId={os.cliente_id}
             osId={os.id}
             aberta={aberta}
-            rotuloBotao="Tirar outra foto"
             textoVazio="Nenhuma outra foto."
           />
         </Etapa>
