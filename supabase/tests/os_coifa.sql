@@ -123,6 +123,33 @@ update public.os_execucao set checklist = '{
 }' where os_id = (select id from ids where nome = 'os');
 update public.os_pontos set sujidade = 'B', foto_antes = true
  where os_id = (select id from ids where nome = 'os');
+
+-- Limpeza: sem foto de antes e de depois, não conclui.
+do $$
+declare v_msg text;
+begin
+  begin
+    perform public.concluir_os((select id from ids where nome = 'os'));
+    raise exception 'FALHOU: concluiu a limpeza sem fotos de antes e depois';
+  exception when check_violation then
+    get stacked diagnostics v_msg = message_text;
+    if v_msg not like '%foto antes do serviço%' or v_msg not like '%foto após o serviço%' then
+      raise exception 'FALHOU: faltou pedir as fotos: %', v_msg;
+    end if;
+  end;
+end $$;
+-- Só a de antes ainda não basta.
+insert into public.arquivos (cliente_id, os_id, caminho_storage, nome_original, categoria)
+select '00000000-0000-0000-0000-000000007c01', id,
+       'clientes/00000000-0000-0000-0000-000000007c01/os/' || id || '/antes.jpg', 'antes.jpg', 'foto_antes'
+  from ids where nome = 'os';
+select pg_temp.conferir('pendência só da foto de depois',
+  (select count(*) from unnest(public.pendencias_os((select id from ids where nome = 'os'))) p
+    where p in ('foto antes do serviço', 'foto após o serviço')), 1);
+insert into public.arquivos (cliente_id, os_id, caminho_storage, nome_original, categoria)
+select '00000000-0000-0000-0000-000000007c01', id,
+       'clientes/00000000-0000-0000-0000-000000007c01/os/' || id || '/depois.jpg', 'depois.jpg', 'foto_depois'
+  from ids where nome = 'os';
 select public.concluir_os((select id from ids where nome = 'os'));
 reset role;
 

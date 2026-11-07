@@ -51,10 +51,14 @@ export function horariosForaDeOrdem(e: CamposExecucao): string | null {
   return null
 }
 
+/** Fotos de antes e depois da OS (as que já subiram e as que estão no celular). */
+export type FotosDaOs = { exigidas: boolean; antes: number; depois: number }
+
 export function pendenciasLocais(
   formulario: 'generico' | 'pragas' | 'coifa' | string | undefined,
   e: CamposExecucao,
   pontos: Ponto[],
+  fotos?: FotosDaOs,
 ): string[] {
   const falta: string[] = []
   if (!e.data) falta.push('data')
@@ -109,6 +113,12 @@ export function pendenciasLocais(
       falta.push('conferência final com o cliente')
     }
   }
+
+  // Serviços de limpeza: pelo menos uma foto de antes e uma de depois.
+  if (fotos?.exigidas) {
+    if (fotos.antes === 0) falta.push('foto antes do serviço')
+    if (fotos.depois === 0) falta.push('foto após o serviço')
+  }
   return falta
 }
 
@@ -133,5 +143,8 @@ export function etapaDaPendencia(pendencia: string): string | null {
   if (pendencia.startsWith('sujidade de')) return 'Coifas'
   if (pendencia === 'quantidade de produto') return 'Produto utilizado'
   if (pendencia === 'conferência final com o cliente') return 'Conferência com o cliente'
+  if (pendencia === 'foto antes do serviço' || pendencia === 'foto após o serviço') {
+    return 'Relatório fotográfico'
+  }
   return null
 }

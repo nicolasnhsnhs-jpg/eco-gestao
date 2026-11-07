@@ -134,8 +134,9 @@ describe('etapaDaPendencia', () => {
       { tipo: 'armadilha_luminosa', numero: 1, area: 'Depósito' },
       { tipo: 'coifa', numero: 1, area: 'Cozinha' },
     ]
+    const semFotos = { exigidas: true, antes: 0, depois: 0 }
     const todas = (['generico', 'pragas', 'coifa'] as const).flatMap((f) =>
-      pendenciasLocais(f, {}, pontos),
+      pendenciasLocais(f, {}, pontos, semFotos),
     )
     expect(todas.length).toBeGreaterThan(15)
     for (const p of todas) expect(etapaDaPendencia(p), p).not.toBeNull()
@@ -147,5 +148,37 @@ describe('etapaDaPendencia', () => {
     expect(etapaDaPendencia('visto do operador')).toBe('Operador')
     expect(etapaDaPendencia('sujidade de: Cozinha')).toBe('Coifas')
     expect(etapaDaPendencia('situação das armadilhas 1, 2')).toBe('Armadilhas luminosas')
+  })
+})
+
+describe('fotos de antes e depois', () => {
+  it('limpeza só conclui com foto de antes e de depois', () => {
+    expect(pendenciasLocais('coifa', comum, [], { exigidas: true, antes: 0, depois: 0 })).toEqual(
+      expect.arrayContaining(['foto antes do serviço', 'foto após o serviço']),
+    )
+    expect(
+      pendenciasLocais('generico', { ...comum, resultado: 'ok' }, [], {
+        exigidas: true,
+        antes: 3,
+        depois: 0,
+      }),
+    ).toEqual(['foto após o serviço'])
+    expect(
+      pendenciasLocais('generico', { ...comum, resultado: 'ok' }, [], {
+        exigidas: true,
+        antes: 1,
+        depois: 2,
+      }),
+    ).toEqual([])
+  })
+
+  it('controle de pragas (sem a opção) não exige foto', () => {
+    const falta = pendenciasLocais(
+      'pragas',
+      { ...comum, checklist: { nivel_infestacao: 'B' } },
+      [],
+      { exigidas: false, antes: 0, depois: 0 },
+    )
+    expect(falta).toEqual([])
   })
 })

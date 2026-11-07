@@ -13,9 +13,15 @@ import { formatarData, hojeISO } from '@/lib/datas'
 import { formatarTelefone } from '@/lib/documentos'
 import { mensagemDeErro } from '@/lib/erros'
 
+import { useArquivos } from '../../arquivos/api'
 import { pendenteDaOs, useFila } from '../offline/fila'
 import { FotosOs } from '../offline/FotosOs'
-import { etapaDaPendencia, horariosForaDeOrdem, pendenciasLocais } from '../offline/pendencias'
+import {
+  etapaDaPendencia,
+  horariosForaDeOrdem,
+  pendenciasLocais,
+  type FotosDaOs,
+} from '../offline/pendencias'
 import {
   enderecoDaFicha,
   enviarAssinatura,
@@ -60,6 +66,27 @@ function comporHora(data: string, hora: string) {
   return `${data}T${hora}:00-03:00`
 }
 
+/**
+ * Quantas fotos de antes e de depois a OS tem: as que já subiram e as que ainda
+ * estão no celular. Sem a lista do servidor (sem sinal e nada guardado), não
+ * confere aqui: o banco confere ao receber a conclusão.
+ */
+function useFotosAntesDepois(os: OsCompleta, fila: ReturnType<typeof useFila>): FotosDaOs {
+  const exigidas = !!os.tipo?.fotos_antes_depois
+  const enviadas = useArquivos({ clienteId: os.cliente_id, osId: os.id })
+  if (!exigidas || !enviadas.data) return { exigidas: false, antes: 0, depois: 0 }
+  const ids = { foto_antes: new Set<string>(), foto_depois: new Set<string>() }
+  for (const a of enviadas.data) {
+    if (a.categoria === 'foto_antes' || a.categoria === 'foto_depois') ids[a.categoria].add(a.id)
+  }
+  for (const i of pendenteDaOs(fila, os.id)) {
+    if (i.tipo !== 'arquivo') continue
+    const c = i.registro.categoria
+    if (c === 'foto_antes' || c === 'foto_depois') ids[c].add(i.registro.id)
+  }
+  return { exigidas, antes: ids.foto_antes.size, depois: ids.foto_depois.size }
+}
+
 /** Rola a tela até a etapa (pelo título) onde falta preencher algo. */
 function irParaEtapa(titulo: string) {
   const etapa = [...document.querySelectorAll<HTMLElement>('[data-etapa]')].find(
@@ -101,6 +128,7 @@ function Execucao({ os }: { os: OsCompleta }) {
   const coifa = os.tipo?.formulario_os === 'coifa'
   const fila = useFila()
   const aguardandoEnvio = pendenteDaOs(fila, os.id).length > 0
+  const fotos = useFotosAntesDepois(os, fila)
   const depois = 2 + (pragas ? quantasEtapasPragas(os, pontos.data) : coifa ? ETAPAS_COIFA : 1)
 
   async function registrarAgora(campo: CampoHora) {
@@ -141,7 +169,7 @@ function Execucao({ os }: { os: OsCompleta }) {
     setErro(null)
     setTentativa((t) => t + 1)
     // Confere no próprio celular (funciona sem sinal); o banco confere de novo ao receber.
-    const pendencias = pendenciasLocais(os.tipo?.formulario_os, campos, pontos.data ?? [])
+    const pendencias = pendenciasLocais(os.tipo?.formulario_os, campos, pontos.data ?? [], fotos)
     setMostrarFalta(pendencias.length > 0)
     if (pendencias.length > 0) return
     if (foraDeOrdem) {
@@ -160,7 +188,7 @@ function Execucao({ os }: { os: OsCompleta }) {
 
   const foraDeOrdem = horariosForaDeOrdem(campos)
   const falta = mostrarFalta
-    ? pendenciasLocais(os.tipo?.formulario_os, campos, pontos.data ?? [])
+    ? pendenciasLocais(os.tipo?.formulario_os, campos, pontos.data ?? [], fotos)
     : []
   // Preencheu tudo: a lista some de vez (até o próximo toque em "Concluir").
   if (mostrarFalta && falta.length === 0) setMostrarFalta(false)
@@ -365,7 +393,9 @@ function Execucao({ os }: { os: OsCompleta }) {
           <p className="text-sm text-texto-suave">
             Pode mandar várias fotos em cada parte (ex.: uma de cada reservatório ou coifa).
           </p>
-          <h3 className="font-semibold text-verde-escuro">Foto antes do serviço</h3>
+          <h3 className="font-semibold text-verde-escuro">
+            Foto antes do serviço <span className="text-perigo">*</span>
+          </h3>
           <FotosOs
             clienteId={os.cliente_id}
             osId={os.id}
@@ -373,7 +403,9 @@ function Execucao({ os }: { os: OsCompleta }) {
             categoria="foto_antes"
             textoVazio="Nenhuma foto de antes ainda."
           />
-          <h3 className="mt-2 font-semibold text-verde-escuro">Foto após o serviço</h3>
+          <h3 className="mt-2 font-semibold text-verde-escuro">
+            Foto após o serviço <span className="text-perigo">*</span>
+          </h3>
           <FotosOs
             clienteId={os.cliente_id}
             osId={os.id}
