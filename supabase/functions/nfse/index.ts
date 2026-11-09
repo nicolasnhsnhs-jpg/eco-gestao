@@ -7,6 +7,7 @@
 //   emitir   emite de verdade: número da DPS, envio, XML e PDF no Storage, nota emitida e
 //            o PDF por e-mail ao cliente. Rascunho com motivo_substituicao substitui a
 //            nota de substitui_nota_id (grupo subst; a antiga fica substituída no portal)
+//   ultimasNotas  as últimas NFS-e emitidas para o cliente (do ADN, de qualquer emissor)
 //
 // A configuração fica em configuracoes (nfse_*); nfse_ambiente diz se a emissão está
 // desligada, em testes (homologacao) ou valendo (producao).
@@ -28,7 +29,7 @@ import {
   type Endereco,
   type Leiaute,
 } from './dps.ts'
-import { Sefin, tag, textoDosErros, type Ambiente } from './sefin.ts'
+import { grupo, Sefin, tag, textoDosErros, type Ambiente } from './sefin.ts'
 
 type Pedido =
   | { acao: 'testar' }
@@ -43,6 +44,7 @@ type Pedido =
       codigoTributacao: string
     }
   | { acao: 'cancelar'; notaId: string; motivo: MotivoCancelamento; justificativa: string }
+  | { acao: 'ultimasNotas'; clienteId: string }
 
 class Falha extends Error {}
 
@@ -788,6 +790,134 @@ async function ensaiar(admin: SupabaseClient, notaId: string, origem: string | n
   }
 }
 
+const numeroOuNulo = (t: string | null) => {
+  if (t == null || t === '') return null
+  const n = Number(t)
+  return Number.isFinite(n) ? n : null
+}
+
+/** O resumo de uma NFS-e do ADN para nfse_adn_notas, ou null se não foi a empresa que emitiu. */
+function resumoDaNota(xml: string, chave: string, nsu: number, raizCnpj: string) {
+  const inf = grupo(xml, 'infNFSe')
+  if (!inf) return null
+  const emitente = tag(grupo(inf, 'emit'), 'CNPJ') ?? ''
+  if (emitente.slice(0, 8) !== raizCnpj) return null
+  const dps = grupo(inf, 'infDPS')
+  const toma = grupo(dps, 'toma')
+  const cServ = grupo(dps, 'cServ')
+  const valoresDps = grupo(dps, 'valores')
+  const tribMun = grupo(valoresDps, 'tribMun')
+  const tribFed = grupo(valoresDps, 'tribFed')
+  const pc = grupo(tribFed, 'piscofins')
+  const tpRetIss = tag(tribMun, 'tpRetISSQN')
+  return {
+    chave,
+    nsu,
+    numero: tag(inf, 'nNFSe'),
+    emitida_em: tag(inf, 'dhProc') ?? tag(dps, 'dhEmi'),
+    tomador_doc: tag(toma, 'CNPJ') ?? tag(toma, 'CPF'),
+    tomador_nome: tag(toma, 'xNome'),
+    valor: numeroOuNulo(tag(grupo(valoresDps, 'vServPrest'), 'vServ')),
+    descricao: tag(cServ, 'xDescServ'),
+    codigo_tributacao: tag(cServ, 'cTribNac'),
+    codigo_municipal: tag(cServ, 'cTribMun'),
+    codigo_nbs: tag(cServ, 'cNBS'),
+    municipio_prestacao: tag(grupo(dps, 'locPrest'), 'cLocPrestacao'),
+    // tpRetISSQN: 1 não retido, 2 retido pelo tomador, 3 pelo intermediário.
+    iss_retido: tpRetIss === '2' || tpRetIss === '3',
+    aliquota_iss: numeroOuNulo(tag(tribMun, 'pAliq') ?? tag(grupo(inf, 'valores'), 'pAliqAplic')),
+    tp_ret_piscofins: numeroOuNulo(tag(pc, 'tpRetPisCofins')),
+    aliquota_pis: numeroOuNulo(tag(pc, 'pAliqPis')),
+    aliquota_cofins: numeroOuNulo(tag(pc, 'pAliqCofins')),
+    valor_pis: numeroOuNulo(tag(pc, 'vPis')),
+    valor_cofins: numeroOuNulo(tag(pc, 'vCofins')),
+    valor_ret_csll: numeroOuNulo(tag(tribFed, 'vRetCSLL')),
+    valor_irrf: numeroOuNulo(tag(tribFed, 'vRetIRRF')),
+    valor_inss: numeroOuNulo(tag(tribFed, 'vRetCP')),
+  }
+}
+
+/**
+ * As últimas NFS-e que a empresa emitiu para o cliente, de qualquer emissor (este
+ * sistema, Safe Nota, portal), para a nota avulsa copiar. O ADN não busca por cliente:
+ * antes, lê o que chegou depois do último NSU lido e guarda em nfse_adn_notas. A
+ * primeira leitura traz o histórico todo e pode não caber num pedido só (completo=false:
+ * é só buscar de novo para continuar).
+ */
+async function ultimasNotas(admin: SupabaseClient, clienteId: string, origem: string | null) {
+  const { data: cliente } = await admin
+    .from('clientes')
+    .select('cpf_cnpj')
+    .eq('id', clienteId)
+    .maybeSingle()
+  const documento = (cliente?.cpf_cnpj ?? '').replace(/\D/g, '')
+  if (!documento) throw new Falha('O cliente não tem CPF/CNPJ cadastrado.')
+
+  const cert = certificadoDaEmpresa()
+  if (!cert.cnpj) throw new Falha('O certificado não é de pessoa jurídica (e-CNPJ).')
+  const raiz = cert.cnpj.slice(0, 8)
+  const cfg = await configuracao(admin)
+  const ambiente: Ambiente = cfg.nfse_ambiente === 'producao' ? 'producao' : 'homologacao'
+  const sefin = new Sefin(ambiente, cert, origem)
+
+  const { data: leitura } = await admin
+    .from('nfse_adn_leitura')
+    .select('ultimo_nsu')
+    .eq('id', 1)
+    .maybeSingle()
+  let nsu = Number(leitura?.ultimo_nsu ?? 0)
+  const inicio = Date.now()
+  let completo = false
+  // Cabe no tempo da função com folga; o resto fica para o próximo pedido.
+  while (Date.now() - inicio < 90_000) {
+    const docs = await sefin.documentosDesde(nsu)
+    const novos = docs.filter((d) => d.nsu > nsu)
+    if (!novos.length) {
+      completo = true
+      break
+    }
+    const notas = []
+    const canceladas: string[] = []
+    for (const d of novos) {
+      if (!d.xml) continue
+      if (/<infNFSe[\s>]/.test(d.xml) && d.chave) {
+        const r = resumoDaNota(d.xml, d.chave, d.nsu, raiz)
+        if (r) notas.push(r)
+      } else if (/e101101|e105102|<e101101|<e105102/.test(d.xml)) {
+        // Cancelamento (ou cancelamento por substituição) de uma nota.
+        const ch = tag(d.xml, 'chNFSe')
+        if (ch) canceladas.push(ch)
+      }
+    }
+    if (notas.length) {
+      const { error } = await admin.from('nfse_adn_notas').upsert(notas, { onConflict: 'chave' })
+      if (error)
+        throw new Error(`Não consegui guardar as notas do Sistema Nacional: ${error.message}`)
+    }
+    if (canceladas.length)
+      await admin.from('nfse_adn_notas').update({ cancelada: true }).in('chave', canceladas)
+    nsu = Math.max(...novos.map((d) => d.nsu))
+    await admin
+      .from('nfse_adn_leitura')
+      .update({ ultimo_nsu: nsu, atualizado_em: new Date().toISOString() })
+      .eq('id', 1)
+    if (docs.length < 50) {
+      completo = true
+      break
+    }
+  }
+
+  const { data: notas, error } = await admin
+    .from('nfse_adn_notas')
+    .select('*')
+    .eq('tomador_doc', documento)
+    .eq('cancelada', false)
+    .order('emitida_em', { ascending: false })
+    .limit(5)
+  if (error) throw error
+  return { notas: notas ?? [], completo }
+}
+
 async function testar(admin: SupabaseClient, origem: string | null) {
   const cfg = await configuracao(admin)
   const cert = certificadoDaEmpresa()
@@ -869,6 +999,8 @@ Deno.serve(async (req) => {
         )
       case 'aliquotaIss':
         return resposta(200, await aliquotaIss(admin, pedido, req.headers.get('origin')))
+      case 'ultimasNotas':
+        return resposta(200, await ultimasNotas(admin, pedido.clienteId, req.headers.get('origin')))
       case 'cancelar':
         return resposta(
           200,

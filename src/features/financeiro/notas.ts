@@ -102,6 +102,30 @@ export function tipoRetencaoPisCofins(n: {
   return Number(n.valor_csll ?? 0) > 0 ? 3 : 1
 }
 
+/**
+ * Tipo de retenção e CSLL de uma nota do Sistema Nacional. No leiaute antigo (tipos 1 e 2)
+ * o vRetCSLL é só a CSLL; no novo (3 a 9) é a soma das contribuições que o tipo retém,
+ * então a CSLL é o que sobra tirando PIS e COFINS.
+ */
+export function retencaoDaNotaDoAdn(n: {
+  tp_ret_piscofins: number | null
+  valor_pis: number | null
+  valor_cofins: number | null
+  valor_ret_csll: number | null
+}): { tipo: number; csll: number } {
+  const tipo = n.tp_ret_piscofins ?? 0
+  const ret = Number(n.valor_ret_csll ?? 0)
+  if (tipo === 1 || tipo === 2) {
+    if (ret <= 0) return { tipo, csll: 0 }
+    return { tipo: tipo === 1 ? 3 : 8, csll: ret }
+  }
+  const [pis, cofins, csll] = RETENCOES_PISCOFINS[tipo]?.retidos ?? []
+  if (!csll) return { tipo, csll: 0 }
+  const resto =
+    ret - (pis ? Number(n.valor_pis ?? 0) : 0) - (cofins ? Number(n.valor_cofins ?? 0) : 0)
+  return { tipo, csll: Math.max(0, Math.round(resto * 100) / 100) }
+}
+
 /** Retido = algum dos três sai do valor (tipos 0 e 2 não retêm nada). */
 export const retemPisCofins = (tipo: number) =>
   RETENCOES_PISCOFINS[tipo]?.retidos.some(Boolean) ?? false

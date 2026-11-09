@@ -230,6 +230,46 @@ export class Sefin {
     return { dados, mensagem }
   }
 
+  /**
+   * Os documentos em que a empresa aparece (emitente, tomador ou intermediário), em
+   * sequência, depois do NSU informado: até 50 por vez. Lista vazia = não há mais.
+   */
+  async documentosDesde(
+    nsu: number,
+  ): Promise<{ nsu: number; chave: string | null; tipo: string; xml: string }[]> {
+    const r = await this.pedir('GET', `contribuintes/DFe/${nsu}?lote=true`)
+    const bruto = await r.text()
+    if (r.status === 404 || r.status === 204) return []
+    let dados: Record<string, unknown> = {}
+    try {
+      dados = JSON.parse(bruto)
+    } catch {
+      throw new Error(
+        `Consulta das notas no Sistema Nacional falhou (HTTP ${r.status})${FALHAS[r.status] ? `: ${FALHAS[r.status]}` : ''}.`,
+      )
+    }
+    const lote = (dados.LoteDFe ?? dados.loteDFe ?? []) as Record<string, unknown>[]
+    if (!r.ok && !lote.length) {
+      const status = String(dados.StatusProcessamento ?? dados.statusProcessamento ?? '')
+      if (/NENHUM/i.test(status)) return []
+      const erros = lerErros(dados)
+      throw new Error(
+        `Consulta das notas no Sistema Nacional falhou (HTTP ${r.status})${erros.length ? `: ${textoDosErros(erros)}` : FALHAS[r.status] ? `: ${FALHAS[r.status]}` : status ? `: ${status}` : ''}.`,
+      )
+    }
+    const docs = []
+    for (const d of lote) {
+      const arquivo = String(d.ArquivoXml ?? d.arquivoXml ?? '')
+      docs.push({
+        nsu: Number(d.NSU ?? d.nsu ?? 0),
+        chave: (d.ChaveAcesso ?? d.chaveAcesso ?? null) as string | null,
+        tipo: String(d.TipoDocumento ?? d.tipoDocumento ?? ''),
+        xml: arquivo ? await descomprimir(arquivo) : '',
+      })
+    }
+    return docs
+  }
+
   async xmlDaNota(chave: string): Promise<string | null> {
     const r = await this.pedir('GET', `nfse/${chave}`)
     if (r.status === 404) {

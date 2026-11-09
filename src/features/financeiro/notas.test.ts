@@ -4,6 +4,7 @@ import { filtrarCodigos, formatarCodigoNfse } from './codigosNfse'
 
 import {
   calcularPisCofins,
+  retencaoDaNotaDoAdn,
   notaDoContrato,
   proximaNota,
   retencoes,
@@ -233,5 +234,37 @@ describe('códigos da NFS-e', () => {
   it('acha pelas palavras, sem acento', () => {
     expect(filtrarCodigos(lista, 'Dedetização').map((c) => c.codigo)).toEqual(['071301'])
     expect(filtrarCodigos(lista, '')).toHaveLength(2)
+  })
+})
+
+describe('retencaoDaNotaDoAdn', () => {
+  const nota = { valor_pis: 6.5, valor_cofins: 30 }
+  it('leiaute novo: a CSLL é o vRetCSLL menos PIS e COFINS retidos', () => {
+    expect(retencaoDaNotaDoAdn({ ...nota, tp_ret_piscofins: 3, valor_ret_csll: 46.5 })).toEqual({
+      tipo: 3,
+      csll: 10,
+    })
+  })
+  it('leiaute novo sem CSLL retida: zero', () => {
+    expect(retencaoDaNotaDoAdn({ ...nota, tp_ret_piscofins: 4, valor_ret_csll: 36.5 })).toEqual({
+      tipo: 4,
+      csll: 0,
+    })
+  })
+  it('leiaute antigo: vRetCSLL é só a CSLL e o tipo passa a reter os três', () => {
+    expect(retencaoDaNotaDoAdn({ ...nota, tp_ret_piscofins: 1, valor_ret_csll: 10 })).toEqual({
+      tipo: 3,
+      csll: 10,
+    })
+    expect(retencaoDaNotaDoAdn({ ...nota, tp_ret_piscofins: 1, valor_ret_csll: null })).toEqual({
+      tipo: 1,
+      csll: 0,
+    })
+  })
+  it('sem tipo: nada retido', () => {
+    expect(retencaoDaNotaDoAdn({ ...nota, tp_ret_piscofins: null, valor_ret_csll: null })).toEqual({
+      tipo: 0,
+      csll: 0,
+    })
   })
 })

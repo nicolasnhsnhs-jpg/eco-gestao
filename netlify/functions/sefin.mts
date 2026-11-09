@@ -20,9 +20,10 @@ const HOSTS_ADN = {
 
 // Só os caminhos que a função usa: emitir, consultar DPS, consultar nota e cancelar.
 const CAMINHO = /^(nfse|dps\/DPS\d{42}|nfse\/\d{50}|nfse\/\d{50}\/eventos)$/
-// A alíquota do serviço na cidade: {município}/{01.07.01.000}/{AAAA-MM-DD}/aliquota.
+// A alíquota do serviço na cidade ({município}/{01.07.01.000}/{AAAA-MM-DD}/aliquota) e
+// as notas em que a empresa aparece, em sequência (contribuintes/DFe/{NSU}).
 const CAMINHO_ADN =
-  /^parametrizacao\/\d{7}\/\d{2}\.\d{2}\.\d{2}\.\d{3}\/\d{4}-\d{2}-\d{2}\/aliquota$/
+  /^(parametrizacao\/\d{7}\/\d{2}\.\d{2}\.\d{2}\.\d{3}\/\d{4}-\d{2}-\d{2}\/aliquota|contribuintes\/DFe\/\d{1,20}\?lote=true)$/
 
 type Pedido = {
   ambiente: keyof typeof HOSTS

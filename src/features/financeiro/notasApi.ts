@@ -394,6 +394,39 @@ export function useAliquotaIssDaCidade() {
   })
 }
 
+/** Uma NFS-e que a empresa emitiu, como veio do Sistema Nacional (de qualquer emissor). */
+export type NotaDoAdn = {
+  chave: string
+  numero: string | null
+  emitida_em: string | null
+  valor: number | null
+  descricao: string | null
+  codigo_tributacao: string | null
+  codigo_nbs: string | null
+  municipio_prestacao: string | null
+  iss_retido: boolean
+  aliquota_iss: number | null
+  tp_ret_piscofins: number | null
+  aliquota_pis: number | null
+  aliquota_cofins: number | null
+  valor_pis: number | null
+  valor_cofins: number | null
+  valor_ret_csll: number | null
+  valor_irrf: number | null
+  valor_inss: number | null
+}
+
+/**
+ * As últimas 5 notas emitidas para o cliente, do Sistema Nacional (também as feitas
+ * fora do sistema). completo=false: a primeira leitura do histórico ainda não acabou.
+ */
+export function useUltimasNotasDoCliente() {
+  return useMutation({
+    mutationFn: (clienteId: string) =>
+      chamarNfse<{ notas: NotaDoAdn[]; completo: boolean }>({ acao: 'ultimasNotas', clienteId }),
+  })
+}
+
 async function chamarNfse<T>(corpo: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke('nfse', { body: corpo })
   if (error) {

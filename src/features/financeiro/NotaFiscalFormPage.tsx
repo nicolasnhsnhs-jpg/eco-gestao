@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, Copy, MapPin, Trash2 } from 'lucide-react'
+import { ArrowLeft, Copy, MapPin, Search, Trash2 } from 'lucide-react'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { useForm, useWatch, type UseFormReturn } from 'react-hook-form'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
@@ -29,6 +29,7 @@ import {
   proximaNota,
   RETENCOES_PISCOFINS,
   retemPisCofins,
+  retencaoDaNotaDoAdn,
   tipoRetencaoPisCofins,
   retencoes,
   somaRetencoes,
@@ -44,6 +45,8 @@ import {
   useNotaFiscal,
   useSalvarNotaFiscal,
   useUltimaNotaDoContrato,
+  useUltimasNotasDoCliente,
+  type NotaDoAdn,
   type NotaFiscalCompleta,
   type StatusNota,
 } from './notasApi'
@@ -186,7 +189,9 @@ function valoresIniciais(nota: NotaFiscalCompleta | undefined, p: URLSearchParam
     codigo_nbs: '',
     iss_retido: false,
     aliquota_iss: '',
-    pis_cofins_retidos: false,
+    // A maioria dos tomadores retém PIS/COFINS: nota nova já vem assim; quem não retém
+    // troca o tipo de retenção.
+    pis_cofins_retidos: true,
     // Padrão da empresa (lucro presumido, cumulativo): PIS 0,65% e COFINS 3%.
     aliquota_pis: '0,65',
     aliquota_cofins: '3,00',
@@ -202,7 +207,7 @@ function valoresIniciais(nota: NotaFiscalCompleta | undefined, p: URLSearchParam
     cst_piscofins: '',
     trib_issqn: '1',
     tp_imunidade: '',
-    tp_ret_piscofins: '0',
+    tp_ret_piscofins: '1',
     observacoes: '',
   }
 }
@@ -435,6 +440,9 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
               mensalidades={mensalidades.data ?? []}
             />
           )}
+          {!editando && tipo === 'avulsa' && clienteId && (
+            <CopiarDoSistemaNacional key={clienteId} form={form} clienteId={clienteId} />
+          )}
         </Card>
 
         <Card className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -543,6 +551,116 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
       {nota?.status === 'emitida' && <EmissaoNota nota={nota} modelo />}
       {nota?.status === 'emitida' && <EnvioNota nota={nota} />}
       {nota && <CancelamentoNota nota={nota} />}
+    </div>
+  )
+}
+
+/**
+ * Nota avulsa: as últimas notas emitidas para o cliente, do Sistema Nacional (também as
+ * do Safe Nota e do portal), para o financeiro achar a que bate e copiar.
+ */
+function CopiarDoSistemaNacional({
+  form,
+  clienteId,
+}: {
+  form: UseFormReturn<Dados>
+  clienteId: string
+}) {
+  const buscar = useUltimasNotasDoCliente()
+  const [copiada, setCopiada] = useState<string | null>(null)
+  const r = buscar.data
+
+  function copiar(n: NotaDoAdn) {
+    const valor = Number(n.valor ?? 0)
+    const { tipo, csll } = retencaoDaNotaDoAdn(n)
+    const opcoes = { shouldDirty: true }
+    form.setValue('valor_servico', valorParaCampo(n.valor), opcoes)
+    form.setValue('descricao', n.descricao ?? '', opcoes)
+    form.setValue('codigo_tributacao', n.codigo_tributacao ?? '', opcoes)
+    form.setValue('codigo_nbs', n.codigo_nbs ?? '', opcoes)
+    form.setValue('municipio_prestacao', n.municipio_prestacao ?? '', opcoes)
+    form.setValue('iss_retido', n.iss_retido, opcoes)
+    form.setValue('aliquota_iss', percentualParaCampo(n.aliquota_iss), opcoes)
+    form.setValue('tp_ret_piscofins', String(tipo), opcoes)
+    form.setValue('pis_cofins_retidos', retemPisCofins(tipo), opcoes)
+    if (n.aliquota_pis != null) form.setValue('aliquota_pis', percentualParaCampo(n.aliquota_pis))
+    if (n.aliquota_cofins != null)
+      form.setValue('aliquota_cofins', percentualParaCampo(n.aliquota_cofins))
+    form.setValue('valor_pis', valorParaCampo(n.valor_pis))
+    form.setValue('valor_cofins', valorParaCampo(n.valor_cofins))
+    form.setValue('aliquota_csll', aliquotaDaNota(null, csll || null, valor))
+    form.setValue('valor_csll', csll ? valorParaCampo(csll) : '')
+    form.setValue('aliquota_irrf', aliquotaDaNota(null, n.valor_irrf, valor))
+    form.setValue('valor_irrf', valorParaCampo(n.valor_irrf))
+    form.setValue('aliquota_inss', aliquotaDaNota(null, n.valor_inss, valor))
+    form.setValue('valor_inss', valorParaCampo(n.valor_inss))
+    setCopiada(n.chave)
+  }
+
+  return (
+    <div className="grid gap-3 rounded-xl bg-lima-claro p-3 text-sm sm:col-span-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="flex-1">
+          Já fez nota para este cliente? Busque as últimas no Sistema Nacional (também as feitas
+          fora do sistema) e copie a que bate.
+        </p>
+        <Button
+          variante="secundario"
+          disabled={buscar.isPending}
+          onClick={() => buscar.mutate(clienteId)}
+        >
+          <Search className="size-4" aria-hidden />
+          {buscar.isPending ? 'Buscando…' : r ? 'Buscar de novo' : 'Buscar últimas notas'}
+        </Button>
+      </div>
+      {buscar.isPending && !r && (
+        <p className="text-texto-suave">
+          Na primeira vez o sistema lê todo o histórico de notas do Sistema Nacional: pode levar um
+          ou dois minutos.
+        </p>
+      )}
+      {buscar.error && <Aviso tipo="erro">{mensagemDeErro(buscar.error)}</Aviso>}
+      {r && !r.completo && (
+        <p>
+          Ainda estou lendo o histórico do Sistema Nacional: clique em{' '}
+          <strong>Buscar de novo</strong> para continuar.
+        </p>
+      )}
+      {r && r.completo && r.notas.length === 0 && (
+        <p>Nenhuma nota emitida para este CPF/CNPJ no Sistema Nacional.</p>
+      )}
+      {r && r.notas.length > 0 && (
+        <ul className="grid gap-2">
+          {r.notas.map((n) => (
+            <li
+              key={n.chave}
+              className="bg-superficie flex flex-wrap items-center gap-3 rounded-lg p-2"
+            >
+              <div className="min-w-0 flex-1">
+                <p>
+                  <strong>NF {n.numero ?? '—'}</strong>
+                  {n.emitida_em && <> · {formatarData(n.emitida_em.slice(0, 10))}</>} ·{' '}
+                  <strong>{formatarReais(n.valor ?? 0)}</strong>
+                  {n.iss_retido && <> · ISS retido</>}
+                </p>
+                <p className="truncate text-texto-suave" title={n.descricao ?? ''}>
+                  {n.descricao}
+                </p>
+              </div>
+              <Button variante="secundario" onClick={() => copiar(n)}>
+                <Copy className="size-4" aria-hidden />
+                {copiada === n.chave ? 'Copiada' : 'Copiar'}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {copiada && (
+        <p>
+          Copiei valor, descrição, códigos e retenções. Confira as datas da descrição e o vencimento
+          antes de salvar.
+        </p>
+      )}
     </div>
   )
 }
