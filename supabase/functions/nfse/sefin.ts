@@ -236,8 +236,10 @@ export class Sefin {
    */
   async documentosDesde(
     nsu: number,
+    cnpj: string,
   ): Promise<{ nsu: number; chave: string | null; tipo: string; xml: string }[]> {
-    const r = await this.pedir('GET', `contribuintes/DFe/${nsu}?lote=true`)
+    // Desde 03/11/2026 o ADN exige o CNPJ consultado (o do certificado: consulta pela raiz).
+    const r = await this.pedir('GET', `contribuintes/DFe/${nsu}?lote=true&cnpjConsulta=${cnpj}`)
     const bruto = await r.text()
     if (r.status === 404 || r.status === 204) return []
     let dados: Record<string, unknown> = {}

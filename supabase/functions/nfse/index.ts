@@ -870,7 +870,7 @@ async function ultimasNotas(admin: SupabaseClient, clienteId: string, origem: st
   let completo = false
   // Cabe no tempo da função com folga; o resto fica para o próximo pedido.
   while (Date.now() - inicio < 90_000) {
-    const docs = await sefin.documentosDesde(nsu)
+    const docs = await sefin.documentosDesde(nsu, cert.cnpj)
     const novos = docs.filter((d) => d.nsu > nsu)
     if (!novos.length) {
       completo = true

@@ -23,7 +23,7 @@ const CAMINHO = /^(nfse|dps\/DPS\d{42}|nfse\/\d{50}|nfse\/\d{50}\/eventos)$/
 // A alíquota do serviço na cidade ({município}/{01.07.01.000}/{AAAA-MM-DD}/aliquota) e
 // as notas em que a empresa aparece, em sequência (contribuintes/DFe/{NSU}).
 const CAMINHO_ADN =
-  /^(parametrizacao\/\d{7}\/\d{2}\.\d{2}\.\d{2}\.\d{3}\/\d{4}-\d{2}-\d{2}\/aliquota|contribuintes\/DFe\/\d{1,20}\?lote=true)$/
+  /^(parametrizacao\/\d{7}\/\d{2}\.\d{2}\.\d{2}\.\d{3}\/\d{4}-\d{2}-\d{2}\/aliquota|contribuintes\/DFe\/\d{1,20}\?lote=true&cnpjConsulta=\d{14})$/
 
 type Pedido = {
   ambiente: keyof typeof HOSTS
@@ -62,8 +62,8 @@ export default async (req: Request) => {
   }
 
   const corpo = p.corpo === undefined ? undefined : JSON.stringify(p.corpo)
-  try {
-    const r = await new Promise<{ status: number; corpo: string }>((resolver, falhar) => {
+  const pedir = () =>
+    new Promise<{ status: number; corpo: string }>((resolver, falhar) => {
       const pedido = https.request(
         {
           host,
@@ -88,12 +88,26 @@ export default async (req: Request) => {
           )
         },
       )
-      pedido.on('timeout', () => pedido.destroy(new Error('a Sefin não respondeu a tempo')))
+      pedido.on('timeout', () =>
+        pedido.destroy(new Error('o Sistema Nacional não respondeu a tempo')),
+      )
       pedido.on('error', falhar)
       pedido.end(corpo)
     })
+  try {
+    let r
+    try {
+      r = await pedir()
+    } catch (e) {
+      // Consulta (GET) que caiu no meio: tenta mais uma vez. A emissão (POST) não repete,
+      // para não mandar a mesma nota duas vezes.
+      if (p.metodo !== 'GET' || (e as NodeJS.ErrnoException).code !== 'ECONNRESET') throw e
+      await new Promise((ok) => setTimeout(ok, 1_000))
+      r = await pedir()
+    }
     return json(200, r)
   } catch (e) {
-    return json(502, { erro: `Falha na conexão com a Sefin: ${(e as Error).message}` })
+    const onde = adn ? 'o Sistema Nacional (ADN)' : 'a Sefin'
+    return json(502, { erro: `Falha na conexão com ${onde}: ${(e as Error).message}` })
   }
 }
