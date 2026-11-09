@@ -47,9 +47,10 @@ export function NotasFiscaisPage() {
   // Na lista de rascunhos, com a emissão ligada: marcar várias e emitir de uma vez.
   const emLote = filtro.status === 'rascunho' && ambiente.data === 'producao'
   // Na lista de emitidas, com um banco ligado: marcar as sem boleto e gerar de uma vez.
-  const boletoEmLote =
-    filtro.status === 'emitida' &&
-    BANCOS_DA_UNIDADE.some((b) => configBoleto.data?.ambiente[b] === 'producao')
+  // Só com o mês escolhido no filtro, para não pegar as notas antigas que nunca tiveram boleto.
+  const bancoLigado = BANCOS_DA_UNIDADE.some((b) => configBoleto.data?.ambiente[b] === 'producao')
+  const boletoEmLote = filtro.status === 'emitida' && bancoLigado && !!filtro.mes
+  const pedirMes = filtro.status === 'emitida' && bancoLigado && !filtro.mes
   // Cada barra só conta as marcadas que estão na lista dela (rascunhos e emitidas são outras notas).
   const [marcadas, setMarcadas] = useState<Set<string>>(new Set())
 
@@ -145,6 +146,11 @@ export function NotasFiscaisPage() {
           {emLote && <EmitirMarcadas lista={lista} marcadas={marcadas} aoMarcar={setMarcadas} />}
           {boletoEmLote && (
             <BoletoDasMarcadas lista={lista} marcadas={marcadas} aoMarcar={setMarcadas} />
+          )}
+          {pedirMes && (
+            <p className="mb-3 text-sm text-texto-suave">
+              Para gerar boleto de várias notas de uma vez, escolha o mês de competência no filtro.
+            </p>
           )}
           <ul className="divide-y divide-borda overflow-hidden rounded-2xl border border-borda bg-white">
             {lista.map((n) => (
