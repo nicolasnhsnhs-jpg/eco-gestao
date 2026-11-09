@@ -699,15 +699,32 @@ function Impostos({ form }: { form: UseFormReturn<Dados> }) {
   const federais = somaRetencoes({ ...porTributo, iss: 0 })
   const retido = somaRetencoes(porTributo)
   const [pisRetido, cofinsRetido] = RETENCOES_PISCOFINS[tipo]?.retidos ?? []
-  const linhasFederais = (
+  // PIS, COFINS e CSLL: primeiro a soma dos três, depois cada um.
+  const contribuicoes = (
     [
       ['PIS', porTributo.pis],
       ['COFINS', porTributo.cofins],
       ['CSLL', porTributo.csll],
-      ['IRRF', porTributo.irrf],
-      ['INSS (CP)', porTributo.inss],
     ] as const
   ).filter(([, v]) => v > 0)
+  const somaContribuicoes =
+    Math.round((porTributo.pis + porTributo.cofins + porTributo.csll) * 100) / 100
+  const linhasFederais: { nome: string; valor: number; detalhe?: boolean }[] = [
+    ...(contribuicoes.length > 1
+      ? [
+          { nome: contribuicoes.map(([n]) => n).join(' + '), valor: somaContribuicoes },
+          ...contribuicoes.map(([nome, valor]) => ({ nome, valor, detalhe: true })),
+        ]
+      : contribuicoes.map(([nome, valor]) => ({ nome, valor }))),
+    ...(
+      [
+        ['IRRF', porTributo.irrf],
+        ['INSS (CP)', porTributo.inss],
+      ] as const
+    )
+      .filter(([, v]) => v > 0)
+      .map(([nome, valor]) => ({ nome, valor })),
+  ]
 
   return (
     <>
@@ -833,10 +850,14 @@ function Impostos({ form }: { form: UseFormReturn<Dados> }) {
         <div className="flex flex-col justify-end gap-1 text-sm sm:col-span-2 lg:col-span-4 lg:items-end">
           {linhasFederais.length > 0 && (
             <dl className="grid grid-cols-[auto_auto] gap-x-4 text-right">
-              {linhasFederais.map(([nome, v]) => (
+              {linhasFederais.map(({ nome, valor: v, detalhe }) => (
                 <Fragment key={nome}>
-                  <dt>{nome} retido:</dt>
-                  <dd>{formatarReais(v)}</dd>
+                  <dt className={detalhe ? 'text-texto-suave' : undefined}>
+                    {detalhe ? `↳ ${nome}` : `${nome} retido${nome.includes('+') ? 's' : ''}`}:
+                  </dt>
+                  <dd className={detalhe ? 'text-texto-suave' : 'font-semibold'}>
+                    {formatarReais(v)}
+                  </dd>
                 </Fragment>
               ))}
             </dl>
