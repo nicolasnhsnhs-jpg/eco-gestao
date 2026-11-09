@@ -618,21 +618,32 @@ async function aliquotaIss(
   const ambiente: Ambiente = cfg.nfse_ambiente === 'producao' ? 'producao' : 'homologacao'
   // Hoje, no horário de Brasília: a nota sai com a competência no dia da emissão.
   const hoje = new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10)
-  const { dados, mensagem } = await new Sefin(
-    ambiente,
-    certificadoDaEmpresa(),
-    origem,
-  ).aliquotaMunicipal(municipio, servico, hoje)
-  const aliquota = acharAliquota(dados, hoje)
-  return {
-    municipio,
-    aliquota,
-    // O motivo do ADN (ex.: cidade sem convênio), ou a resposta crua para conferir.
-    detalhe:
-      aliquota == null
-        ? (mensagem ?? (dados != null ? JSON.stringify(dados).slice(0, 400) : null))
-        : null,
+  // O serviço vai como cTribNac + o código municipal. A maioria das cidades usa 000, mas
+  // algumas (São Paulo, BH, Rio) só têm alíquota nos códigos próprios
+  // (.001, .002…): sem achar no 000, tenta os seguintes.
+  const sefin = new Sefin(ambiente, certificadoDaEmpresa(), origem)
+  let motivo: string | null = null
+  for (let n = 0; n <= 10; n++) {
+    const sufixo = String(n).padStart(3, '0')
+    const { dados, mensagem } = await sefin.aliquotaMunicipal(municipio, servico + sufixo, hoje)
+    const aliquota = acharAliquota(dados, hoje)
+    if (aliquota != null) {
+      const s = servico + sufixo
+      return {
+        municipio,
+        aliquota,
+        codigoServico: `${s.slice(0, 2)}.${s.slice(2, 4)}.${s.slice(4, 6)}.${s.slice(6)}`,
+        detalhe: null,
+      }
+    }
+    if (n === 0) motivo = mensagem ?? (dados != null ? JSON.stringify(dados).slice(0, 400) : null)
+    // Cidade sem convênio ou pedido recusado: os outros códigos dariam o mesmo.
+    if (mensagem && !/n[aã]o encontrad/i.test(mensagem)) {
+      motivo = mensagem
+      break
+    }
   }
+  return { municipio, aliquota: null, codigoServico: null, detalhe: motivo }
 }
 
 /**

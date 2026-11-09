@@ -377,6 +377,8 @@ export function useIbsCbs() {
 export type AliquotaDaCidade = {
   municipio: string
   aliquota: number | null
+  /** O código do serviço em que a cidade tem a alíquota (ex.: 07.10.01.001). */
+  codigoServico?: string | null
   detalhe: string | null
 }
 

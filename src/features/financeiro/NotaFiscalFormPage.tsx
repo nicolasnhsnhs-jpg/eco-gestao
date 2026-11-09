@@ -915,7 +915,7 @@ function AliquotaDaCidade({ form }: { form: UseFormReturn<Dados> }) {
       if (r.aliquota != null) {
         form.setValue('aliquota_iss', percentualParaCampo(r.aliquota), { shouldDirty: true })
         setAviso(
-          `Alíquota do município ${r.municipio} no Sistema Nacional: ${percentualParaCampo(r.aliquota)}%.`,
+          `Alíquota do município ${r.municipio} no Sistema Nacional: ${percentualParaCampo(r.aliquota)}%${r.codigoServico ? ` (serviço ${r.codigoServico})` : ''}.`,
         )
       } else
         setAviso(
