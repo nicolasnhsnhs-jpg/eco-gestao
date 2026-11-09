@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { filtrarCodigos, formatarCodigoNfse } from './codigosNfse'
 
 import {
+  aceitaBoletoEmLote,
   calcularPisCofins,
   retencaoDaNotaDoAdn,
   notaDoContrato,
@@ -266,5 +267,18 @@ describe('retencaoDaNotaDoAdn', () => {
       tipo: 0,
       csll: 0,
     })
+  })
+})
+
+describe('aceitaBoletoEmLote', () => {
+  const nota = { status: 'emitida', arquivo_boleto_id: null, boleto_cobranca_id: null }
+  it('aceita a nota emitida sem boleto', () => {
+    expect(aceitaBoletoEmLote(nota)).toBe(true)
+  })
+  it('recusa rascunho, cancelada e nota que já tem boleto', () => {
+    expect(aceitaBoletoEmLote({ ...nota, status: 'rascunho' })).toBe(false)
+    expect(aceitaBoletoEmLote({ ...nota, status: 'cancelada' })).toBe(false)
+    expect(aceitaBoletoEmLote({ ...nota, arquivo_boleto_id: 'pdf' })).toBe(false)
+    expect(aceitaBoletoEmLote({ ...nota, boleto_cobranca_id: '211001292' })).toBe(false)
   })
 })

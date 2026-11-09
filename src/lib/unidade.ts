@@ -10,6 +10,8 @@ export const UNIDADES = {
     cidade: 'Palhoça',
     /** Operadores entram com um login curto (ex.: "joao"), que vira joao@<este domínio>. */
     dominioOperador: 'op.ecoambientalsc.com.br',
+    /** Bancos em que o sistema gera boleto (um botão para cada, na nota e em lote). */
+    bancosBoleto: ['asaas'],
     /** Dados da empresa no rodapé de todas as páginas do PDF da OS. */
     rodape: [
       'Eco Ambiental Serviços Ambientais LTDA · CNPJ 69.636.469/0001-18',
@@ -55,6 +57,7 @@ export const UNIDADES = {
     uf: 'RS',
     cidade: 'Esteio',
     dominioOperador: 'op.ecoambientalrs.com.br',
+    bancosBoleto: ['asaas', 'sicredi'],
     rodape: [
       'Eco-Ambiental Controle de Pragas e Higienização Ltda · CNPJ 07.125.516/0001-01',
       'Rua Santo Ângelo, 136 - Olímpica, Esteio/RS · Fone/Fax (51) 3458-4133 · atendimento@ecoambientalrs.com.br',

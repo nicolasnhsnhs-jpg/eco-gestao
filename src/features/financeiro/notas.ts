@@ -223,3 +223,15 @@ export function calcularPisCofins(d: {
       : null,
   }
 }
+
+/**
+ * Nota emitida que ainda pode ganhar boleto pelo sistema (a caixa de marcar do boleto em
+ * lote): sem boleto anexado nem registrado no banco.
+ */
+export function aceitaBoletoEmLote(n: {
+  status: string
+  arquivo_boleto_id: string | null
+  boleto_cobranca_id: string | null
+}): boolean {
+  return n.status === 'emitida' && !n.arquivo_boleto_id && !n.boleto_cobranca_id
+}

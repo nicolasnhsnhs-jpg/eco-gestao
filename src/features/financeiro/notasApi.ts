@@ -5,6 +5,7 @@ import { nomeSeguro, TAMANHO_MAXIMO } from '@/lib/arquivos'
 import type { Database, TablesInsert } from '@/lib/database.types'
 import { hojeISO } from '@/lib/datas'
 import { supabase } from '@/lib/supabase'
+import { UNIDADE } from '@/lib/unidade'
 
 /*
  * Notas fiscais de serviço, de contrato (a mensalidade) ou avulsas (serviço pontual).
@@ -619,6 +620,9 @@ export type BancoBoleto = 'sicredi' | 'asaas'
 
 export const NOME_BANCO: Record<BancoBoleto, string> = { sicredi: 'Sicredi', asaas: 'Asaas' }
 
+/** Os bancos desta unidade, na ordem dos botões (SC: só Asaas; RS: Asaas e Sicredi). */
+export const BANCOS_DA_UNIDADE: readonly BancoBoleto[] = UNIDADE.bancosBoleto
+
 /** desligado | sandbox (testes do banco, nada vale) | producao */
 export type AmbienteBoleto = 'desligado' | 'sandbox' | 'producao'
 
@@ -724,6 +728,26 @@ export function useBoletoNaEmissao() {
       if (error) throw error
     },
     onSuccess: atualizar,
+  })
+}
+
+/**
+ * Emissão em lote: grava em cada rascunho por boleto se o boleto sai junto na emissão e
+ * por qual banco (banco null = a nota sai sem boleto).
+ */
+export function usePrepararBoletoDoRascunho() {
+  return useMutation({
+    mutationFn: async ({ notaId, banco }: { notaId: string; banco: BancoBoleto | null }) => {
+      const { error } = await supabase
+        .from('notas_fiscais')
+        .update(
+          banco ? { boleto_banco: banco, boleto_na_emissao: true } : { boleto_na_emissao: false },
+        )
+        .eq('id', notaId)
+        .eq('status', 'rascunho')
+        .is('boleto_cobranca_id', null)
+      if (error) throw error
+    },
   })
 }
 

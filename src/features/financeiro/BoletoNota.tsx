@@ -1,4 +1,14 @@
-import { Ban, Copy, FileText, FlaskConical, Landmark, RefreshCw, Upload, X } from 'lucide-react'
+import {
+  Ban,
+  Copy,
+  FileText,
+  FlaskConical,
+  Landmark,
+  Mail,
+  RefreshCw,
+  Upload,
+  X,
+} from 'lucide-react'
 import { useRef, useState } from 'react'
 
 import { Aviso } from '@/components/ui/Aviso'
@@ -13,8 +23,10 @@ import { mensagemDeErro } from '@/lib/erros'
 import { abrirArquivo } from '../arquivos/api'
 import { totalRetido } from './notas'
 import {
+  BANCOS_DA_UNIDADE,
   bancoPelaRegra,
   NOME_BANCO,
+  useEnviarNotaPorEmail,
   useAnexarBoletoNota,
   useBaixarBoleto,
   useBoletoNaEmissao,
@@ -28,8 +40,6 @@ import {
   type EnsaioBoleto,
   type NotaFiscalCompleta,
 } from './notasApi'
-
-const BANCOS: BancoBoleto[] = ['asaas', 'sicredi']
 
 /** A situação como o financeiro entende (Sicredi: "LIQUIDADO PIX"; Asaas: "RECEIVED"…). */
 function nomeSituacao(situacao: string | null): string {
@@ -47,9 +57,9 @@ function nomeSituacao(situacao: string | null): string {
 const pago = (situacao: string | null) => /^(LIQUIDADO|RECEIVED|CONFIRMED)/i.test(situacao ?? '')
 
 /**
- * Boleto da cobrança: gerado pelo sistema no Asaas ou no Sicredi, ou anexado à mão. Segue
- * no mesmo e-mail que leva a nota ao cliente, logo depois da emissão. Na nota já enviada,
- * "Enviar de novo" manda os dois.
+ * Boleto da cobrança: gerado pelo sistema (um botão por banco da unidade: no RS, Asaas e
+ * Sicredi; em SC, só Asaas) ou anexado à mão. Segue no mesmo e-mail que leva a nota ao
+ * cliente, logo depois da emissão; gerado depois, "Enviar boleto" manda a nota e o boleto.
  */
 export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
   const config = useConfigBoleto()
@@ -61,6 +71,7 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
   const ensaiar = useEnsaiarBoleto()
   const consultar = useConsultarBoleto()
   const baixar = useBaixarBoleto()
+  const enviar = useEnviarNotaPorEmail()
   const entrada = useRef<HTMLInputElement>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [sucesso, setSucesso] = useState<string | null>(null)
@@ -75,12 +86,14 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
     marcarEmissao.isPending ||
     ensaiar.isPending ||
     consultar.isPending ||
-    baixar.isPending
+    baixar.isPending ||
+    enviar.isPending
 
   const registrado = !!nota.boleto_cobranca_id
   const bancoDoBoleto = (nota.boleto_banco as BancoBoleto | null) ?? null
-  const ligados = BANCOS.filter((b) => config.data?.ambiente[b] === 'producao')
-  const emTestes = BANCOS.filter((b) => config.data?.ambiente[b] === 'sandbox')
+  const ligados = BANCOS_DA_UNIDADE.filter((b) => config.data?.ambiente[b] === 'producao')
+  const emTestes = BANCOS_DA_UNIDADE.filter((b) => config.data?.ambiente[b] === 'sandbox')
+  const desligados = BANCOS_DA_UNIDADE.filter((b) => !ligados.includes(b))
   const valorBoleto = Math.round((Number(nota.valor_servico) - totalRetido(nota)) * 100) / 100
   const pelaRegra = config.data ? bancoPelaRegra(config.data, valorBoleto) : null
   // O escolhido na tela, senão o gravado na nota, senão o da regra, senão o primeiro ligado.
@@ -120,11 +133,29 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
   }
 
   const aposGerar =
-    nota.status === 'emitida' && nota.enviada_em
-      ? ' A nota já tinha sido enviada: use "Enviar de novo" para o cliente receber o boleto.'
+    nota.status === 'emitida' && nota.pdf
+      ? ' Clique em "Enviar boleto" para o cliente receber a nota e o boleto.'
       : ''
 
-  const podeGerar = ligados.length > 0 && !nota.boleto && !registrado
+  const semBoleto = !nota.boleto && !registrado
+  const podeGerar = ligados.length > 0 && semBoleto
+  // Nota emitida com PDF e boleto: o botão manda os dois ao cliente (o mesmo e-mail da nota).
+  const podeEnviar = nota.status === 'emitida' && !!nota.pdf && !!nota.boleto
+
+  function gerarNo(banco: BancoBoleto) {
+    void acao(async () => {
+      const r = await gerar.mutateAsync({ notaId: nota.id, banco })
+      return `Boleto gerado no ${NOME_BANCO[r.banco]}: ${formatarReais(r.valor)}, vence ${formatarData(r.vencimento)}.${aposGerar}`
+    })
+  }
+
+  function enviarBoleto() {
+    void acao(async () => {
+      const r = await enviar.mutateAsync({ notaId: nota.id })
+      if (!r.enviada) throw new Error(`${r.motivo} Ficou o aviso de envio pendente.`)
+      return `Nota e boleto enviados para ${r.para.join(', ')}.`
+    })
+  }
   // Rascunho por boleto: o financeiro escolhe se a emissão já gera o boleto no banco.
   const podeNaEmissao =
     nota.status === 'rascunho' && nota.forma_pagamento === 'boleto' && podeGerar && escolhido
@@ -147,16 +178,23 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
           ? nota.status === 'rascunho'
             ? 'O boleto vai junto com a nota no e-mail ao cliente, logo depois da emissão.'
             : nota.enviada_em
-              ? 'Boleto anexado. Para o cliente receber, use "Enviar de novo": vão a nota e o boleto.'
+              ? 'Boleto pronto. Para o cliente receber, clique em "Enviar boleto": vão a nota e o boleto.'
               : 'O boleto vai junto com a nota no e-mail ao cliente.'
           : naEmissao
             ? `Na emissão, o sistema gera o boleto pelo ${NOME_BANCO[escolhido]} e manda junto com a nota. Dá para trocar o banco aqui.`
             : podeNaEmissao
               ? 'A nota sai sem boleto. Marque abaixo para gerar o boleto junto na emissão, ou gere (ou anexe) depois.'
               : podeGerar
-                ? 'Gere o boleto pelo banco (ou anexe um PDF): ele vai no mesmo e-mail da nota fiscal.'
+                ? 'Escolha em qual banco gerar o boleto (ou anexe um PDF): ele vai no mesmo e-mail da nota fiscal.'
                 : 'Anexe o PDF do boleto: ele vai no mesmo e-mail da nota fiscal.'}
       </p>
+      {semBoleto && config.isSuccess && desligados.length > 0 && (
+        <p className="text-xs text-texto-suave">
+          {desligados.map((b) => NOME_BANCO[b]).join(' e ')}{' '}
+          {desligados.length > 1 ? 'ainda não estão valendo' : 'ainda não está valendo'}: ligue em
+          Financeiro → Cadastros → Boleto pelo sistema.
+        </p>
+      )}
 
       {registrado && (
         <dl className="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[auto_1fr]">
@@ -211,7 +249,7 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
         </label>
       )}
 
-      {podeGerar && ligados.length > 1 && (
+      {podeNaEmissao && geraNaEmissao && ligados.length > 1 && (
         <Campo
           rotulo="Banco do boleto"
           htmlFor={`banco-boleto-${nota.id}`}
@@ -248,20 +286,30 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
           </Button>
         )}
 
-        {podeGerar && escolhido && (
-          <Button
-            disabled={ocupado}
-            onClick={() =>
-              void acao(async () => {
-                const r = await gerar.mutateAsync({ notaId: nota.id, banco: escolhido })
-                return `Boleto gerado no ${NOME_BANCO[r.banco]}: ${formatarReais(r.valor)}, vence ${formatarData(r.vencimento)}.${aposGerar}`
-              })
-            }
-          >
-            <Landmark className="size-4" aria-hidden />
-            {gerar.isPending
-              ? `Gerando no ${NOME_BANCO[escolhido]}…`
-              : `Gerar boleto no ${NOME_BANCO[escolhido]}`}
+        {semBoleto &&
+          !naEmissao &&
+          BANCOS_DA_UNIDADE.map((banco) => (
+            <Button
+              key={banco}
+              disabled={ocupado || !ligados.includes(banco)}
+              title={
+                ligados.includes(banco)
+                  ? undefined
+                  : `O ${NOME_BANCO[banco]} ainda não está valendo.`
+              }
+              onClick={() => gerarNo(banco)}
+            >
+              <Landmark className="size-4" aria-hidden />
+              {gerar.isPending && gerar.variables?.banco === banco
+                ? `Gerando no ${NOME_BANCO[banco]}…`
+                : `Gerar boleto no ${NOME_BANCO[banco]}`}
+            </Button>
+          ))}
+
+        {podeEnviar && (
+          <Button disabled={ocupado} onClick={enviarBoleto}>
+            <Mail className="size-4" aria-hidden />
+            {enviar.isPending ? 'Enviando…' : 'Enviar boleto'}
           </Button>
         )}
 

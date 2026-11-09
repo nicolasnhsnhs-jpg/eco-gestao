@@ -1,4 +1,4 @@
-import { FileText, Plus, Search, Send } from 'lucide-react'
+import { FileText, Landmark, Plus, Search, Send } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 
@@ -14,12 +14,19 @@ import { mensagemDeErro } from '@/lib/erros'
 import { useValorAtrasado } from '@/lib/useValorAtrasado'
 import { cn } from '@/lib/utils'
 
-import { textoEmissao } from './notas'
+import { aceitaBoletoEmLote, textoEmissao } from './notas'
 import {
+  BANCOS_DA_UNIDADE,
+  NOME_BANCO,
   NOME_TIPO_NOTA,
   useAmbienteNfse,
+  useConfigBoleto,
   useEmitirNota,
+  useEnviarNotaPorEmail,
+  useGerarBoleto,
   useNotasFiscais,
+  usePrepararBoletoDoRascunho,
+  type BancoBoleto,
   type FiltroNotas,
   type NotaFiscalCompleta,
 } from './notasApi'
@@ -36,8 +43,14 @@ export function NotasFiscaisPage() {
   const buscaAtrasada = useValorAtrasado(filtro.busca)
   const notas = useNotasFiscais({ ...filtro, busca: buscaAtrasada })
   const ambiente = useAmbienteNfse()
+  const configBoleto = useConfigBoleto()
   // Na lista de rascunhos, com a emissão ligada: marcar várias e emitir de uma vez.
   const emLote = filtro.status === 'rascunho' && ambiente.data === 'producao'
+  // Na lista de emitidas, com um banco ligado: marcar as sem boleto e gerar de uma vez.
+  const boletoEmLote =
+    filtro.status === 'emitida' &&
+    BANCOS_DA_UNIDADE.some((b) => configBoleto.data?.ambiente[b] === 'producao')
+  // Cada barra só conta as marcadas que estão na lista dela (rascunhos e emitidas são outras notas).
   const [marcadas, setMarcadas] = useState<Set<string>>(new Set())
 
   function mudar(chave: string, valor: string) {
@@ -130,12 +143,17 @@ export function NotasFiscaisPage() {
       {lista.length > 0 && (
         <>
           {emLote && <EmitirMarcadas lista={lista} marcadas={marcadas} aoMarcar={setMarcadas} />}
+          {boletoEmLote && (
+            <BoletoDasMarcadas lista={lista} marcadas={marcadas} aoMarcar={setMarcadas} />
+          )}
           <ul className="divide-y divide-borda overflow-hidden rounded-2xl border border-borda bg-white">
             {lista.map((n) => (
               <LinhaNota
                 key={n.id}
                 n={n}
-                marcada={emLote ? marcadas.has(n.id) : undefined}
+                marcada={
+                  emLote || (boletoEmLote && aceitaBoletoEmLote(n)) ? marcadas.has(n.id) : undefined
+                }
                 aoMarcar={(sim) => {
                   const novas = new Set(marcadas)
                   if (sim) novas.add(n.id)
@@ -181,7 +199,7 @@ export function LinhaNota({
     <li className="flex items-center">
       {marcada !== undefined && (
         <label className="flex min-h-11 cursor-pointer items-center self-stretch pl-4">
-          <span className="sr-only">Marcar para emitir</span>
+          <span className="sr-only">Marcar esta nota</span>
           <input
             type="checkbox"
             className="size-5 accent-verde"
@@ -263,7 +281,110 @@ type Progresso = {
   linhas: { id: string; nome: string; ok: boolean; texto: string }[]
 }
 
-/** Barra acima da lista de rascunhos: marca todas e emite as marcadas, uma a uma. */
+const nomeDaNota = (n: NotaFiscalCompleta) => n.cliente?.nome_fantasia || n.cliente?.nome || ''
+
+/** Passa pelas notas uma de cada vez (o erro de uma não para as outras), com progresso. */
+function useLote() {
+  const [progresso, setProgresso] = useState<Progresso | null>(null)
+  const rodando = !!progresso && progresso.feitas < progresso.total
+  async function rodar(
+    notas: NotaFiscalCompleta[],
+    fazer: (n: NotaFiscalCompleta) => Promise<string>,
+  ) {
+    const p: Progresso = { feitas: 0, total: notas.length, linhas: [] }
+    setProgresso({ ...p })
+    for (const n of notas) {
+      try {
+        p.linhas.push({ id: n.id, nome: nomeDaNota(n), ok: true, texto: await fazer(n) })
+      } catch (erro) {
+        p.linhas.push({ id: n.id, nome: nomeDaNota(n), ok: false, texto: mensagemDeErro(erro) })
+      }
+      p.feitas++
+      setProgresso({ ...p, linhas: [...p.linhas] })
+    }
+  }
+  return { progresso, rodando, rodar }
+}
+
+function ProgressoLote({
+  progresso,
+  rodando,
+  feito,
+  seErro,
+}: {
+  progresso: Progresso | null
+  rodando: boolean
+  /** "emitida(s)", "com boleto"… */
+  feito: string
+  seErro: string
+}) {
+  if (!progresso) return null
+  const comErro = progresso.linhas.filter((l) => !l.ok)
+  return (
+    <>
+      <div
+        className="h-2 overflow-hidden rounded-full bg-fundo-suave"
+        role="progressbar"
+        aria-label="Andamento"
+        aria-valuenow={progresso.feitas}
+        aria-valuemax={progresso.total}
+      >
+        <div
+          className="h-full bg-verde transition-all"
+          style={{ width: `${(progresso.feitas / progresso.total) * 100}%` }}
+        />
+      </div>
+      {!rodando && (
+        <Aviso tipo={comErro.length ? 'erro' : 'sucesso'}>
+          {progresso.total - comErro.length} de {progresso.total} {feito}.
+          {comErro.length > 0 && ` ${seErro}`}
+        </Aviso>
+      )}
+      {progresso.linhas.length > 0 && (
+        <ul className="max-h-64 overflow-y-auto text-sm">
+          {progresso.linhas.map((l) => (
+            <li key={l.id} className={cn('py-1', l.ok ? 'text-verde-escuro' : 'text-perigo')}>
+              <strong>{l.nome}:</strong> {l.texto}
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  )
+}
+
+function MarcarTodas({
+  lista,
+  marcadas,
+  aoMarcar,
+  disabled,
+  rotulo = 'Marcar todas',
+}: {
+  lista: NotaFiscalCompleta[]
+  marcadas: Set<string>
+  aoMarcar: (s: Set<string>) => void
+  disabled: boolean
+  rotulo?: string
+}) {
+  const todas = lista.length > 0 && lista.every((n) => marcadas.has(n.id))
+  return (
+    <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold">
+      <input
+        type="checkbox"
+        className="size-5 accent-verde"
+        checked={todas}
+        disabled={disabled || lista.length === 0}
+        onChange={() => aoMarcar(todas ? new Set() : new Set(lista.map((n) => n.id)))}
+      />
+      {rotulo} ({lista.length})
+    </label>
+  )
+}
+
+/**
+ * Barra acima da lista de rascunhos: marca todas e emite as marcadas, uma a uma. Nas notas
+ * por boleto, dá para escolher o banco: o boleto sai junto na emissão e vai no mesmo e-mail.
+ */
 function EmitirMarcadas({
   lista,
   marcadas,
@@ -274,87 +395,161 @@ function EmitirMarcadas({
   aoMarcar: (s: Set<string>) => void
 }) {
   const emitir = useEmitirNota()
-  const [progresso, setProgresso] = useState<Progresso | null>(null)
-  const rodando = !!progresso && progresso.feitas < progresso.total
+  const preparar = usePrepararBoletoDoRascunho()
+  const config = useConfigBoleto()
+  const ligados = BANCOS_DA_UNIDADE.filter((b) => config.data?.ambiente[b] === 'producao')
+  // "" = como está em cada nota; "sem" = nenhuma gera boleto; ou o banco de todas.
+  const [boleto, setBoleto] = useState<'' | 'sem' | BancoBoleto>('')
+  const { progresso, rodando, rodar } = useLote()
   const escolhidas = lista.filter((n) => marcadas.has(n.id))
-  const todas = escolhidas.length === lista.length
+  const porBoleto = escolhidas.filter((n) => n.forma_pagamento === 'boleto')
 
   async function emitirTodas() {
+    const comBoleto =
+      boleto && boleto !== 'sem' && porBoleto.length
+        ? ` ${porBoleto.length} delas por boleto: o boleto sai no ${NOME_BANCO[boleto]} e vai junto no e-mail.`
+        : ''
     if (
       !window.confirm(
-        `Emitir ${escolhidas.length} nota(s) agora? Elas vão para o Sistema Nacional NFS-e e o PDF segue a cada cliente.`,
+        `Emitir ${escolhidas.length} nota(s) agora? Elas vão para o Sistema Nacional NFS-e e o PDF segue a cada cliente.${comBoleto}`,
       )
     )
       return
-    const p: Progresso = { feitas: 0, total: escolhidas.length, linhas: [] }
-    setProgresso({ ...p })
-    // Uma de cada vez: a Sefin recusa pedidos demais seguidos, e o erro de uma não para as outras.
-    for (const n of escolhidas) {
-      const nome = n.cliente?.nome_fantasia || n.cliente?.nome || ''
-      try {
-        const r = await emitir.mutateAsync(n.id)
-        p.linhas.push({ id: n.id, nome, ok: true, texto: textoEmissao(r) })
-      } catch (erro) {
-        p.linhas.push({ id: n.id, nome, ok: false, texto: mensagemDeErro(erro) })
-      }
-      p.feitas++
-      setProgresso({ ...p, linhas: [...p.linhas] })
-    }
+    // Uma de cada vez: a Sefin recusa pedidos demais seguidos.
+    await rodar(escolhidas, async (n) => {
+      if (boleto && n.forma_pagamento === 'boleto')
+        await preparar.mutateAsync({ notaId: n.id, banco: boleto === 'sem' ? null : boleto })
+      return textoEmissao(await emitir.mutateAsync(n.id))
+    })
     aoMarcar(new Set())
   }
 
-  const comErro = progresso?.linhas.filter((l) => !l.ok) ?? []
   return (
     <Card className="mb-3 flex flex-col gap-3 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold">
-          <input
-            type="checkbox"
-            className="size-5 accent-verde"
-            checked={todas}
-            disabled={rodando}
-            onChange={() => aoMarcar(todas ? new Set() : new Set(lista.map((n) => n.id)))}
-          />
-          Marcar todas ({lista.length})
-        </label>
-        <Button disabled={rodando || escolhidas.length === 0} onClick={() => void emitirTodas()}>
-          <Send className="size-4" aria-hidden />
-          {rodando
-            ? `Emitindo ${progresso.feitas + 1} de ${progresso.total}…`
-            : `Emitir marcadas (${escolhidas.length})`}
-        </Button>
-      </div>
-      {progresso && (
-        <>
-          <div
-            className="h-2 overflow-hidden rounded-full bg-fundo-suave"
-            role="progressbar"
-            aria-label="Notas emitidas"
-            aria-valuenow={progresso.feitas}
-            aria-valuemax={progresso.total}
-          >
-            <div
-              className="h-full bg-verde transition-all"
-              style={{ width: `${(progresso.feitas / progresso.total) * 100}%` }}
-            />
-          </div>
-          {!rodando && (
-            <Aviso tipo={comErro.length ? 'erro' : 'sucesso'}>
-              {progresso.total - comErro.length} de {progresso.total} emitida(s).
-              {comErro.length > 0 && ' As que deram erro continuam na lista como rascunho.'}
-            </Aviso>
-          )}
-          {progresso.linhas.length > 0 && (
-            <ul className="max-h-64 overflow-y-auto text-sm">
-              {progresso.linhas.map((l) => (
-                <li key={l.id} className={cn('py-1', l.ok ? 'text-verde-escuro' : 'text-perigo')}>
-                  <strong>{l.nome}:</strong> {l.texto}
-                </li>
+        <MarcarTodas lista={lista} marcadas={marcadas} aoMarcar={aoMarcar} disabled={rodando} />
+        <div className="flex flex-wrap items-center gap-2">
+          {ligados.length > 0 && (
+            <Select
+              aria-label="Boleto das notas por boleto"
+              className="w-auto"
+              value={boleto}
+              disabled={rodando}
+              onChange={(e) => setBoleto(e.target.value as typeof boleto)}
+            >
+              <option value="">Boleto: como está em cada nota</option>
+              {ligados.map((b) => (
+                <option key={b} value={b}>
+                  Gerar boleto no {NOME_BANCO[b]}
+                </option>
               ))}
-            </ul>
+              <option value="sem">Sem boleto (gerar depois)</option>
+            </Select>
           )}
-        </>
-      )}
+          <Button disabled={rodando || escolhidas.length === 0} onClick={() => void emitirTodas()}>
+            <Send className="size-4" aria-hidden />
+            {rodando
+              ? `Emitindo ${progresso!.feitas + 1} de ${progresso!.total}…`
+              : `Emitir marcadas (${escolhidas.length})`}
+          </Button>
+        </div>
+      </div>
+      <ProgressoLote
+        progresso={progresso}
+        rodando={rodando}
+        feito="emitida(s)"
+        seErro="As que deram erro continuam na lista como rascunho."
+      />
+    </Card>
+  )
+}
+
+/**
+ * Barra acima da lista de emitidas: marca as notas sem boleto e gera o boleto de todas no
+ * banco escolhido, uma a uma; com "enviar", cada cliente já recebe a nota e o boleto.
+ */
+function BoletoDasMarcadas({
+  lista,
+  marcadas,
+  aoMarcar,
+}: {
+  lista: NotaFiscalCompleta[]
+  marcadas: Set<string>
+  aoMarcar: (s: Set<string>) => void
+}) {
+  const gerar = useGerarBoleto()
+  const enviarEmail = useEnviarNotaPorEmail()
+  const config = useConfigBoleto()
+  const [enviar, setEnviar] = useState(true)
+  const [banco, setBanco] = useState<BancoBoleto | null>(null)
+  const { progresso, rodando, rodar } = useLote()
+  const aceitas = lista.filter(aceitaBoletoEmLote)
+  const escolhidas = aceitas.filter((n) => marcadas.has(n.id))
+  const ligados = BANCOS_DA_UNIDADE.filter((b) => config.data?.ambiente[b] === 'producao')
+
+  async function gerarTodas(b: BancoBoleto) {
+    if (
+      !window.confirm(
+        `Gerar o boleto de ${escolhidas.length} nota(s) no ${NOME_BANCO[b]}?${enviar ? ' Cada cliente recebe por e-mail a nota e o boleto.' : ''}`,
+      )
+    )
+      return
+    setBanco(b)
+    await rodar(escolhidas, async (n) => {
+      const r = await gerar.mutateAsync({ notaId: n.id, banco: b })
+      const texto = `boleto de ${formatarReais(r.valor)}, vence ${formatarData(r.vencimento)}`
+      if (!enviar) return `${texto}.`
+      if (!n.pdf) throw new Error(`${texto}, mas a nota ainda não tem PDF: não foi enviada.`)
+      const e = await enviarEmail.mutateAsync({ notaId: n.id })
+      if (!e.enviada) throw new Error(`${texto}, mas o e-mail não foi: ${e.motivo}`)
+      return `${texto}, enviado para ${e.para.join(', ')}.`
+    })
+    aoMarcar(new Set())
+  }
+
+  if (aceitas.length === 0 && !progresso) return null
+  return (
+    <Card className="mb-3 flex flex-col gap-3 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <MarcarTodas
+          lista={aceitas}
+          marcadas={marcadas}
+          aoMarcar={aoMarcar}
+          disabled={rodando}
+          rotulo="Marcar todas sem boleto"
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="size-4 accent-verde"
+              checked={enviar}
+              disabled={rodando}
+              onChange={(e) => setEnviar(e.target.checked)}
+            />
+            Enviar ao cliente logo depois
+          </label>
+          {BANCOS_DA_UNIDADE.map((b) => (
+            <Button
+              key={b}
+              disabled={rodando || escolhidas.length === 0 || !ligados.includes(b)}
+              title={ligados.includes(b) ? undefined : `O ${NOME_BANCO[b]} ainda não está valendo.`}
+              onClick={() => void gerarTodas(b)}
+            >
+              <Landmark className="size-4" aria-hidden />
+              {rodando && banco === b
+                ? `Gerando ${progresso!.feitas + 1} de ${progresso!.total}…`
+                : `Boleto no ${NOME_BANCO[b]} (${escolhidas.length})`}
+            </Button>
+          ))}
+        </div>
+      </div>
+      <ProgressoLote
+        progresso={progresso}
+        rodando={rodando}
+        feito={enviar ? 'com boleto e enviada(s)' : 'com boleto'}
+        seErro="Confira as que deram erro: a nota fica como estava ou com o boleto já gerado."
+      />
     </Card>
   )
 }
