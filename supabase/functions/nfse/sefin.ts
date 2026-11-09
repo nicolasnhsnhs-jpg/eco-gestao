@@ -10,7 +10,8 @@
 //   GET  /dps/{id}            → chave da nota gerada por aquela DPS (se já foi gerada)
 //   GET  /nfse/{chave}        → o XML da nota
 //   POST /nfse/{chave}/eventos → registra um evento (cancelamento): {eventoXmlGZipB64} ou {erros}
-//   GET  /parametros_municipais/{município}/{serviço} → a parametrização (alíquota) do município
+//   GET  adn: /parametrizacao/{município}/{01.07.01.000}/{AAAA-MM-DD}/aliquota
+//        → a alíquota do serviço na cidade (a parametrização é uma API do ADN, não da Sefin)
 
 import { decodeBase64, encodeBase64 } from 'jsr:@std/encoding@1/base64'
 
@@ -195,23 +196,38 @@ export class Sefin {
     return { ok: true, xml: await descomprimir(String(dados.eventoXmlGZipB64)) }
   }
 
-  /** A parametrização do município para o serviço (JSON da Sefin), ou null se não houver. */
-  async parametrosMunicipais(municipio: string, servico: string): Promise<unknown | null> {
-    const r = await this.pedir('GET', `parametros_municipais/${municipio}/${servico}`)
-    if (r.status === 404) {
-      await r.body?.cancel()
-      return null
-    }
+  /**
+   * A alíquota do serviço na cidade, como o município parametrizou no ADN. O serviço vai
+   * como cTribNac + o código municipal (000 quando a cidade não criou um próprio), com
+   * pontos: 01.07.01.000. Devolve o JSON ({aliquotas: {...}}) ou, quando o ADN recusa
+   * (cidade sem convênio, serviço sem alíquota), null e o motivo.
+   */
+  async aliquotaMunicipal(
+    municipio: string,
+    servico: string,
+    data: string,
+  ): Promise<{ dados: unknown | null; mensagem: string | null }> {
+    const s = servico.replace(/\D/g, '').padEnd(9, '0')
+    const codigo = `${s.slice(0, 2)}.${s.slice(2, 4)}.${s.slice(4, 6)}.${s.slice(6, 9)}`
+    const r = await this.pedir('GET', `parametrizacao/${municipio}/${codigo}/${data}/aliquota`)
     const bruto = await r.text()
+    let dados: Record<string, unknown> | null = null
+    try {
+      dados = JSON.parse(bruto)
+    } catch {
+      dados = null
+    }
+    const mensagem =
+      (dados && typeof dados.mensagem === 'string' && dados.mensagem) ||
+      (dados && typeof dados.title === 'string' && dados.title) ||
+      null
+    if (r.status === 400 || r.status === 404)
+      return { dados: null, mensagem: mensagem ?? `HTTP ${r.status}` }
     if (!r.ok)
       throw new Error(
-        `Consulta da alíquota do município falhou (HTTP ${r.status})${FALHAS[r.status] ? `: ${FALHAS[r.status]}` : ''}.`,
+        `Consulta da alíquota do município falhou (HTTP ${r.status})${FALHAS[r.status] ? `: ${FALHAS[r.status]}` : mensagem ? `: ${mensagem}` : ''}.`,
       )
-    try {
-      return JSON.parse(bruto)
-    } catch {
-      return null
-    }
+    return { dados, mensagem }
   }
 
   async xmlDaNota(chave: string): Promise<string | null> {

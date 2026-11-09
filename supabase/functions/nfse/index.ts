@@ -550,9 +550,27 @@ async function emitir(
   }
 }
 
-/** Procura no JSON da parametrização um número com cara de alíquota (0 a 5%). */
-function acharAliquota(dados: unknown): number | null {
+/**
+ * A alíquota vigente na data, da resposta do ADN:
+ * {aliquotas: {"01.07.01.000": [{Incidencia, Aliq: 5.00, DtIni, DtFim}]}}.
+ * Sem esse formato, procura qualquer número com cara de alíquota (0 a 5%).
+ */
+function acharAliquota(dados: unknown, data: string): number | null {
   if (dados == null || typeof dados !== 'object') return null
+  const grupos = (dados as { aliquotas?: unknown }).aliquotas
+  if (grupos && typeof grupos === 'object') {
+    const vigencias = Object.values(grupos as Record<string, unknown>)
+      .flatMap((v) => (Array.isArray(v) ? v : [v]))
+      .filter((v): v is Record<string, unknown> => !!v && typeof v === 'object')
+    const valida = (v: Record<string, unknown>) => {
+      const ini = String(v.DtIni ?? v.dtIni ?? '').slice(0, 10)
+      const fim = String(v.DtFim ?? v.dtFim ?? '').slice(0, 10)
+      return (!ini || ini <= data) && (!fim || fim >= data)
+    }
+    const escolhida = vigencias.find(valida) ?? vigencias.at(-1)
+    const n = Number(escolhida?.Aliq ?? escolhida?.aliq)
+    if (escolhida && Number.isFinite(n) && n > 0) return n
+  }
   for (const [chave, valor] of Object.entries(dados as Record<string, unknown>)) {
     if (/aliq/i.test(chave)) {
       const n = typeof valor === 'number' ? valor : Number(String(valor ?? '').replace(',', '.'))
@@ -560,7 +578,7 @@ function acharAliquota(dados: unknown): number | null {
     }
   }
   for (const valor of Object.values(dados as Record<string, unknown>)) {
-    const n = acharAliquota(valor)
+    const n = acharAliquota(valor, data)
     if (n != null) return n
   }
   return null
@@ -598,16 +616,22 @@ async function aliquotaIss(
   }
   const cfg = await configuracao(admin)
   const ambiente: Ambiente = cfg.nfse_ambiente === 'producao' ? 'producao' : 'homologacao'
-  const dados = await new Sefin(ambiente, certificadoDaEmpresa(), origem).parametrosMunicipais(
-    municipio,
-    servico,
-  )
-  const aliquota = acharAliquota(dados)
+  // Hoje, no horário de Brasília: a nota sai com a competência no dia da emissão.
+  const hoje = new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10)
+  const { dados, mensagem } = await new Sefin(
+    ambiente,
+    certificadoDaEmpresa(),
+    origem,
+  ).aliquotaMunicipal(municipio, servico, hoje)
+  const aliquota = acharAliquota(dados, hoje)
   return {
     municipio,
     aliquota,
-    // Para conferir quando a Sefin responde num formato que ainda não conhecemos.
-    detalhe: aliquota == null && dados != null ? JSON.stringify(dados).slice(0, 400) : null,
+    // O motivo do ADN (ex.: cidade sem convênio), ou a resposta crua para conferir.
+    detalhe:
+      aliquota == null
+        ? (mensagem ?? (dados != null ? JSON.stringify(dados).slice(0, 400) : null))
+        : null,
   }
 }
 

@@ -2,7 +2,8 @@
 // conexão (renegociação TLS), o que o motor das Edge Functions do Supabase não suporta;
 // o Node.js suporta. A função "nfse" do Supabase manda aqui o pedido junto com o
 // certificado e a chave (lidos dos segredos de lá); esta ponte não guarda nada e só
-// fala com os dois endereços da Sefin.
+// fala com a Sefin e com a parametrização municipal do ADN (a alíquota do ISS de cada
+// cidade), nos dois ambientes.
 
 import https from 'node:https'
 
@@ -11,9 +12,17 @@ const HOSTS = {
   homologacao: 'sefin.producaorestrita.nfse.gov.br',
 } as const
 
-// Só os caminhos que a função usa: emitir, consultar DPS e consultar nota.
-const CAMINHO =
-  /^(nfse|dps\/DPS\d{42}|nfse\/\d{50}|nfse\/\d{50}\/eventos|parametros_municipais\/\d{7}\/(\d{6,9}|convenio))$/
+// A parametrização dos municípios não fica na Sefin: é uma API do ADN.
+const HOSTS_ADN = {
+  producao: 'adn.nfse.gov.br',
+  homologacao: 'adn.producaorestrita.nfse.gov.br',
+} as const
+
+// Só os caminhos que a função usa: emitir, consultar DPS, consultar nota e cancelar.
+const CAMINHO = /^(nfse|dps\/DPS\d{42}|nfse\/\d{50}|nfse\/\d{50}\/eventos)$/
+// A alíquota do serviço na cidade: {município}/{01.07.01.000}/{AAAA-MM-DD}/aliquota.
+const CAMINHO_ADN =
+  /^parametrizacao\/\d{7}\/\d{2}\.\d{2}\.\d{2}\.\d{3}\/\d{4}-\d{2}-\d{2}\/aliquota$/
 
 type Pedido = {
   ambiente: keyof typeof HOSTS
@@ -38,11 +47,13 @@ export default async (req: Request) => {
   } catch {
     return json(400, { erro: 'Pedido inválido.' })
   }
-  const host = HOSTS[p.ambiente]
+  const adn = CAMINHO_ADN.test(p.caminho ?? '')
+  const host = (adn ? HOSTS_ADN : HOSTS)[p.ambiente]
   if (
     !host ||
     !['GET', 'POST'].includes(p.metodo) ||
-    !CAMINHO.test(p.caminho ?? '') ||
+    (!adn && !CAMINHO.test(p.caminho ?? '')) ||
+    (adn && p.metodo !== 'GET') ||
     !p.cert?.includes('BEGIN CERTIFICATE') ||
     !p.chave?.includes('PRIVATE KEY')
   ) {
@@ -55,7 +66,7 @@ export default async (req: Request) => {
       const pedido = https.request(
         {
           host,
-          path: `/SefinNacional/${p.caminho}`,
+          path: adn ? `/${p.caminho}` : `/SefinNacional/${p.caminho}`,
           method: p.metodo,
           cert: p.cert,
           key: p.chave,
