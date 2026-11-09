@@ -418,6 +418,8 @@ async function marcarSubstituida(
  *    01/12/2026, na produção; se a data da virada mudar, tenta o outro.
  *  - E0120: o município não tem a inscrição municipal no cadastro nacional (CNC), então
  *    ela não pode ir na nota; reenvia sem.
+ *  - E0312: a cidade de incidência só tem o serviço com código municipal próprio
+ *    (07.10.01.001…); acha o código no ADN e reenvia com o cTribMun.
  * Recusa não gasta o número da DPS, então o reenvio usa o mesmo.
  */
 async function enviarDps(
@@ -442,7 +444,8 @@ async function enviarDps(
     !r.ok && r.erros.some((e) => e.codigo === codigo)
 
   let r = await enviar()
-  for (let tentativa = 0; tentativa < 3 && !r.ok; tentativa++) {
+  let buscouCodigoMunicipal = false
+  for (let tentativa = 0; tentativa < 5 && !r.ok; tentativa++) {
     if (tem(r, 'E1235') && !trocouLeiaute) {
       trocouLeiaute = true
       leiaute = leiaute === 'nt009' ? 'anterior' : 'nt009'
@@ -469,6 +472,18 @@ async function enviarDps(
       r = await enviar()
     } else if (tem(r, 'E0120') && atual.prestador.inscricaoMunicipal) {
       atual = { ...atual, prestador: { ...atual.prestador, inscricaoMunicipal: null } }
+      r = await enviar()
+    } else if (tem(r, 'E0312') && !buscouCodigoMunicipal) {
+      buscouCodigoMunicipal = true
+      const achado = await codigoMunicipalDoServico(
+        sefin,
+        atual.servico.municipioPrestacao,
+        atual.servico.codigoTributacao,
+        agoraBrasilia().slice(0, 10),
+      )
+      // Só o 000 (ou nada) no ADN: o código municipal não resolve, fica a recusa.
+      if (!achado.sufixo || achado.sufixo === '000') break
+      atual = { ...atual, servico: { ...atual.servico, codigoMunicipal: achado.sufixo } }
       r = await enviar()
     } else break
   }
@@ -618,32 +633,50 @@ async function aliquotaIss(
   const ambiente: Ambiente = cfg.nfse_ambiente === 'producao' ? 'producao' : 'homologacao'
   // Hoje, no horário de Brasília: a nota sai com a competência no dia da emissão.
   const hoje = new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10)
-  // O serviço vai como cTribNac + o código municipal. A maioria das cidades usa 000, mas
-  // algumas (São Paulo, BH, Rio) só têm alíquota nos códigos próprios
-  // (.001, .002…): sem achar no 000, tenta os seguintes.
-  const sefin = new Sefin(ambiente, certificadoDaEmpresa(), origem)
+  const achado = await codigoMunicipalDoServico(
+    new Sefin(ambiente, certificadoDaEmpresa(), origem),
+    municipio,
+    servico,
+    hoje,
+  )
+  if (achado.aliquota == null)
+    return { municipio, aliquota: null, codigoServico: null, detalhe: achado.motivo }
+  const s = servico + achado.sufixo
+  return {
+    municipio,
+    aliquota: achado.aliquota,
+    codigoServico: `${s.slice(0, 2)}.${s.slice(2, 4)}.${s.slice(4, 6)}.${s.slice(6)}`,
+    detalhe: null,
+  }
+}
+
+/**
+ * O código municipal (cTribMun, 3 dígitos) em que a cidade tem o serviço parametrizado no
+ * ADN. A maioria usa 000, mas algumas (Porto Alegre, São Paulo, BH, Rio) só têm o serviço
+ * nos códigos próprios (.001, .002…) e recusam a nota sem ele (E0312): sem achar no 000,
+ * tenta os seguintes.
+ */
+async function codigoMunicipalDoServico(
+  sefin: Sefin,
+  municipio: string,
+  servico: string,
+  data: string,
+): Promise<
+  | { sufixo: string; aliquota: number; motivo: null }
+  | { sufixo: null; aliquota: null; motivo: string | null }
+> {
   let motivo: string | null = null
   for (let n = 0; n <= 10; n++) {
     const sufixo = String(n).padStart(3, '0')
-    const { dados, mensagem } = await sefin.aliquotaMunicipal(municipio, servico + sufixo, hoje)
-    const aliquota = acharAliquota(dados, hoje)
-    if (aliquota != null) {
-      const s = servico + sufixo
-      return {
-        municipio,
-        aliquota,
-        codigoServico: `${s.slice(0, 2)}.${s.slice(2, 4)}.${s.slice(4, 6)}.${s.slice(6)}`,
-        detalhe: null,
-      }
-    }
+    const { dados, mensagem } = await sefin.aliquotaMunicipal(municipio, servico + sufixo, data)
+    const aliquota = acharAliquota(dados, data)
+    if (aliquota != null) return { sufixo, aliquota, motivo: null }
     if (n === 0) motivo = mensagem ?? (dados != null ? JSON.stringify(dados).slice(0, 400) : null)
     // Cidade sem convênio ou pedido recusado: os outros códigos dariam o mesmo.
-    if (mensagem && !/n[aã]o encontrad/i.test(mensagem)) {
-      motivo = mensagem
-      break
-    }
+    if (mensagem && !/n[aã]o encontrad/i.test(mensagem))
+      return { sufixo: null, aliquota: null, motivo: mensagem }
   }
-  return { municipio, aliquota: null, codigoServico: null, detalhe: motivo }
+  return { sufixo: null, aliquota: null, motivo }
 }
 
 /**

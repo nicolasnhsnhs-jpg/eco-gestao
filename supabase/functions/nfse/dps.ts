@@ -57,6 +57,8 @@ export type DadosDps = {
   servico: {
     municipioPrestacao: string
     codigoTributacao: string // cTribNac, 6 dígitos
+    /** cTribMun, 3 dígitos: o código do serviço na cidade, quando ela exige (E0312). */
+    codigoMunicipal?: string | null
     descricao: string
     codigoNbs: string | null
   }
@@ -205,6 +207,7 @@ function corpoInfDps(d: DadosDps): string {
     el('locPrest', campo('cLocPrestacao', d.servico.municipioPrestacao)),
     el('cServ', [
       campo('cTribNac', d.servico.codigoTributacao),
+      campo('cTribMun', digitos(d.servico.codigoMunicipal ?? '') || null),
       // Na NT 009 a descrição vai depois do NBS.
       nt009 ? null : descricao,
       campo('cNBS', digitos(d.servico.codigoNbs) || null),
