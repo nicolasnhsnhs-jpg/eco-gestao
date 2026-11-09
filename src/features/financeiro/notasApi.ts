@@ -711,6 +711,22 @@ export function useEscolherBancoBoleto() {
   })
 }
 
+/** No rascunho: se a emissão já gera o boleto no banco (desmarcado = nota sai sem). */
+export function useBoletoNaEmissao() {
+  const atualizar = useAtualizarNotas()
+  return useMutation({
+    mutationFn: async ({ notaId, gerar }: { notaId: string; gerar: boolean }) => {
+      const { error } = await supabase
+        .from('notas_fiscais')
+        .update({ boleto_na_emissao: gerar })
+        .eq('id', notaId)
+        .eq('status', 'rascunho')
+      if (error) throw error
+    },
+    onSuccess: atualizar,
+  })
+}
+
 export type EnsaioBoleto = BoletoGerado & {
   pix: string | null
   pdfBase64: string | null

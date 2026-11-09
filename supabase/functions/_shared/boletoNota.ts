@@ -414,7 +414,12 @@ export async function ensaiarBoletoDaNota(admin: SupabaseClient, notaId: string,
  * o banco, ou null quando não há o que gerar.
  */
 export function bancoAoEmitir(cfg: Record<string, string>, nota: Record<string, any>) {
-  if (nota.forma_pagamento !== 'boleto' || nota.arquivo_boleto_id || nota.boleto_cobranca_id)
+  if (
+    nota.forma_pagamento !== 'boleto' ||
+    !nota.boleto_na_emissao ||
+    nota.arquivo_boleto_id ||
+    nota.boleto_cobranca_id
+  )
     return null
   // Banco desligado: a nota sai como antes (sem boleto do sistema), sem prender o e-mail.
   const banco = bancoDaNota(cfg, nota)

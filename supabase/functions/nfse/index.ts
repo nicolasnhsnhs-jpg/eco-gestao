@@ -368,8 +368,8 @@ async function concluir(
 
   if (!enviar) return { numero, chave, envio: null }
 
-  // Nota paga por boleto: o boleto sai agora (pelo banco escolhido na nota, ou pela regra
-  // da configuração) e vai no mesmo e-mail. Se falhar, a nota continua emitida e o e-mail
+  // Nota paga por boleto com "Gerar boleto na emissão" marcado: o boleto sai agora (pelo
+  // banco escolhido na nota, ou pela regra da configuração) e vai no mesmo e-mail. Se falhar, a nota continua emitida e o e-mail
   // espera (aviso de envio pendente) até o financeiro gerar ou anexar o boleto e clicar em
   // Enviar.
   const cfgBoleto = await configuracaoBoleto(admin)

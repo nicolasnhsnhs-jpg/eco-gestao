@@ -2031,6 +2031,105 @@ export type Database = {
           },
         ]
       }
+      nfse_adn_leitura: {
+        Row: {
+          atualizado_em: string
+          id: number
+          ultimo_nsu: number
+        }
+        Insert: {
+          atualizado_em?: string
+          id?: number
+          ultimo_nsu?: number
+        }
+        Update: {
+          atualizado_em?: string
+          id?: number
+          ultimo_nsu?: number
+        }
+        Relationships: []
+      }
+      nfse_adn_notas: {
+        Row: {
+          aliquota_cofins: number | null
+          aliquota_iss: number | null
+          aliquota_pis: number | null
+          cancelada: boolean
+          chave: string
+          codigo_municipal: string | null
+          codigo_nbs: string | null
+          codigo_tributacao: string | null
+          criado_em: string
+          descricao: string | null
+          emitida_em: string | null
+          iss_retido: boolean
+          municipio_prestacao: string | null
+          nsu: number
+          numero: string | null
+          tomador_doc: string | null
+          tomador_nome: string | null
+          tp_ret_piscofins: number | null
+          valor: number | null
+          valor_cofins: number | null
+          valor_inss: number | null
+          valor_irrf: number | null
+          valor_pis: number | null
+          valor_ret_csll: number | null
+        }
+        Insert: {
+          aliquota_cofins?: number | null
+          aliquota_iss?: number | null
+          aliquota_pis?: number | null
+          cancelada?: boolean
+          chave: string
+          codigo_municipal?: string | null
+          codigo_nbs?: string | null
+          codigo_tributacao?: string | null
+          criado_em?: string
+          descricao?: string | null
+          emitida_em?: string | null
+          iss_retido?: boolean
+          municipio_prestacao?: string | null
+          nsu: number
+          numero?: string | null
+          tomador_doc?: string | null
+          tomador_nome?: string | null
+          tp_ret_piscofins?: number | null
+          valor?: number | null
+          valor_cofins?: number | null
+          valor_inss?: number | null
+          valor_irrf?: number | null
+          valor_pis?: number | null
+          valor_ret_csll?: number | null
+        }
+        Update: {
+          aliquota_cofins?: number | null
+          aliquota_iss?: number | null
+          aliquota_pis?: number | null
+          cancelada?: boolean
+          chave?: string
+          codigo_municipal?: string | null
+          codigo_nbs?: string | null
+          codigo_tributacao?: string | null
+          criado_em?: string
+          descricao?: string | null
+          emitida_em?: string | null
+          iss_retido?: boolean
+          municipio_prestacao?: string | null
+          nsu?: number
+          numero?: string | null
+          tomador_doc?: string | null
+          tomador_nome?: string | null
+          tp_ret_piscofins?: number | null
+          valor?: number | null
+          valor_cofins?: number | null
+          valor_inss?: number | null
+          valor_irrf?: number | null
+          valor_pis?: number | null
+          valor_ret_csll?: number | null
+        }
+        Relationships: []
+      }
       nfse_numeracao: {
         Row: {
           ambiente: string
@@ -2070,6 +2169,7 @@ export type Database = {
           boleto_consultado_em: string | null
           boleto_gerado_em: string | null
           boleto_linha_digitavel: string | null
+          boleto_na_emissao: boolean
           boleto_nosso_numero: string | null
           boleto_pix: string | null
           boleto_situacao: string | null
@@ -2143,6 +2243,7 @@ export type Database = {
           boleto_consultado_em?: string | null
           boleto_gerado_em?: string | null
           boleto_linha_digitavel?: string | null
+          boleto_na_emissao?: boolean
           boleto_nosso_numero?: string | null
           boleto_pix?: string | null
           boleto_situacao?: string | null
@@ -2218,6 +2319,7 @@ export type Database = {
           boleto_consultado_em?: string | null
           boleto_gerado_em?: string | null
           boleto_linha_digitavel?: string | null
+          boleto_na_emissao?: boolean
           boleto_nosso_numero?: string | null
           boleto_pix?: string | null
           boleto_situacao?: string | null

@@ -17,6 +17,7 @@ import {
   NOME_BANCO,
   useAnexarBoletoNota,
   useBaixarBoleto,
+  useBoletoNaEmissao,
   useConfigBoleto,
   useConsultarBoleto,
   useEnsaiarBoleto,
@@ -56,6 +57,7 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
   const tirar = useTirarBoletoNota()
   const gerar = useGerarBoleto()
   const escolher = useEscolherBancoBoleto()
+  const marcarEmissao = useBoletoNaEmissao()
   const ensaiar = useEnsaiarBoleto()
   const consultar = useConsultarBoleto()
   const baixar = useBaixarBoleto()
@@ -64,11 +66,13 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
   const [sucesso, setSucesso] = useState<string | null>(null)
   const [ensaio, setEnsaio] = useState<EnsaioBoleto | null>(null)
   const [bancoLocal, setBancoLocal] = useState<BancoBoleto | null>(null)
+  const [naEmissaoLocal, setNaEmissaoLocal] = useState<boolean | null>(null)
   const ocupado =
     anexar.isPending ||
     tirar.isPending ||
     gerar.isPending ||
     escolher.isPending ||
+    marcarEmissao.isPending ||
     ensaiar.isPending ||
     consultar.isPending ||
     baixar.isPending
@@ -121,8 +125,19 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
       : ''
 
   const podeGerar = ligados.length > 0 && !nota.boleto && !registrado
-  const naEmissao =
+  // Rascunho por boleto: o financeiro escolhe se a emissão já gera o boleto no banco.
+  const podeNaEmissao =
     nota.status === 'rascunho' && nota.forma_pagamento === 'boleto' && podeGerar && escolhido
+  const geraNaEmissao = naEmissaoLocal ?? !!nota.boleto_na_emissao
+  const naEmissao = podeNaEmissao && geraNaEmissao
+
+  function marcarNaEmissao(gerar: boolean) {
+    setNaEmissaoLocal(gerar)
+    void acao(async () => {
+      await marcarEmissao.mutateAsync({ notaId: nota.id, gerar })
+      return null
+    })
+  }
 
   return (
     <Card className="flex flex-col gap-3">
@@ -136,9 +151,11 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
               : 'O boleto vai junto com a nota no e-mail ao cliente.'
           : naEmissao
             ? `Na emissão, o sistema gera o boleto pelo ${NOME_BANCO[escolhido]} e manda junto com a nota. Dá para trocar o banco aqui.`
-            : podeGerar
-              ? 'Gere o boleto pelo banco (ou anexe um PDF): ele vai no mesmo e-mail da nota fiscal.'
-              : 'Anexe o PDF do boleto: ele vai no mesmo e-mail da nota fiscal.'}
+            : podeNaEmissao
+              ? 'A nota sai sem boleto. Marque abaixo para gerar o boleto junto na emissão, ou gere (ou anexe) depois.'
+              : podeGerar
+                ? 'Gere o boleto pelo banco (ou anexe um PDF): ele vai no mesmo e-mail da nota fiscal.'
+                : 'Anexe o PDF do boleto: ele vai no mesmo e-mail da nota fiscal.'}
       </p>
 
       {registrado && (
@@ -179,6 +196,19 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
           {formatarReais(ensaio.valor)}, vence {formatarData(ensaio.vencimento)}.
           {ensaio.erroPdf && ` O PDF não veio: ${ensaio.erroPdf}`}
         </Aviso>
+      )}
+
+      {podeNaEmissao && (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="size-4 accent-verde"
+            checked={geraNaEmissao}
+            disabled={ocupado}
+            onChange={(e) => marcarNaEmissao(e.target.checked)}
+          />
+          Gerar o boleto pelo {NOME_BANCO[escolhido]} na emissão da nota
+        </label>
       )}
 
       {podeGerar && ligados.length > 1 && (
