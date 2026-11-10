@@ -90,6 +90,23 @@ export function escalaDoTecnico(n: number, escalas: readonly Escala[]): number {
   return escalas.findIndex((e) => e.tecnicos.includes(n))
 }
 
+export type CorEscala = 'padrao' | 'escura' | 'verde'
+
+/**
+ * Cor das bolinhas de cada escala. A escala com mais técnicos (ou a única) é a
+ * padrão: branca com borda escura. As outras (horários diferentes, com menos gente)
+ * ficam escuras e, se houver uma terceira, verdes.
+ */
+export function coresDasEscalas(escalas: readonly Escala[]): CorEscala[] {
+  let maior = 0
+  escalas.forEach((e, i) => {
+    if (e.tecnicos.length > escalas[maior].tecnicos.length) maior = i
+  })
+  const outras: CorEscala[] = ['escura', 'verde']
+  let k = 0
+  return escalas.map((_, i) => (i === maior ? 'padrao' : (outras[Math.min(k++, 1)] as CorEscala)))
+}
+
 /** Pela hora, depois pela ordem escolhida e, por fim, pela criação. */
 export function ordenarItens<T extends Pick<AgendaItem, 'hora' | 'ordem' | 'criado_em'>>(
   itens: readonly T[],

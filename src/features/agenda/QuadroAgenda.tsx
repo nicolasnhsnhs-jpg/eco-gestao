@@ -12,7 +12,9 @@ import {
 
 import {
   densidade,
+  coresDasEscalas,
   escalaDoTecnico,
+  type CorEscala,
   itensDoQuadro,
   lerEscalas,
   partesDaDescricao,
@@ -136,9 +138,9 @@ function Feito({ sim }: { sim: boolean }) {
   return sim ? <span className="aq-st aq-verde">{CHECK}</span> : <span className="aq-st aq-vazio" />
 }
 
-function Tecnico({ n, escalas }: { n: number; escalas: Escala[] }) {
+function Tecnico({ n, escalas, cores }: { n: number; escalas: Escala[]; cores: CorEscala[] }) {
   const e = escalaDoTecnico(n, escalas)
-  return <span className={`aq-tec ${e < 0 ? 'aq-sem' : `aq-e${Math.min(e, 2)}`}`}>{n}</span>
+  return <span className={e < 0 ? 'aq-tec aq-sem' : 'aq-tec aq-' + cores[e]}>{n}</span>
 }
 
 export function Placa({ placa, semSemParar }: { placa: string; semSemParar?: boolean }) {
@@ -175,6 +177,7 @@ function Relogio() {
 
 export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, style }: Props) {
   const escalas = lerEscalas(dia.escalas)
+  const cores = coresDasEscalas(escalas)
   const listaSemParar = veiculosSemSemParar(veiculos)
   const semParar = new Set(listaSemParar)
   const linhas = itensDoQuadro(itens)
@@ -189,11 +192,10 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
   // Hora da última mudança (aparece no lugar do relógio na prévia e na imagem).
   const ultima = [dia.atualizado_em, ...itens.map((i) => i.atualizado_em)].sort().at(-1)
 
-  // Marca onde começa cada turno e quando o horário se repete (só aparece uma vez).
+  // Marca onde começa cada turno. O horário aparece em todas as linhas.
   const linhasComGrupo = linhas.map((x, i) => {
     const anterior = linhas[i - 1]
-    const novoTurno = !anterior || turnoDe(anterior.hora) !== turnoDe(x.hora)
-    return { x, novoTurno, continua: !novoTurno && anterior.hora === x.hora }
+    return { x, novoTurno: !anterior || turnoDe(anterior.hora) !== turnoDe(x.hora) }
   })
 
   return (
@@ -263,17 +265,13 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
           </div>
           <div className="aq-lista">
             {linhas.length === 0 && <div className="aq-vazio">Nenhum serviço na agenda ainda</div>}
-            {linhasComGrupo.map(({ x, novoTurno, continua }) => {
+            {linhasComGrupo.map(({ x, novoTurno }) => {
               const partes = partesDaDescricao(x.descricao)
               return (
                 <Fragment key={x.id}>
                   {novoTurno && <div className="aq-turno">{turnoDe(x.hora)}</div>}
                   <div
-                    className={[
-                      'aq-linha aq-item',
-                      continua && 'aq-continua',
-                      onClicarItem && 'aq-clicavel',
-                    ]
+                    className={['aq-linha aq-item', onClicarItem && 'aq-clicavel']
                       .filter(Boolean)
                       .join(' ')}
                     onClick={onClicarItem ? () => onClicarItem(x.id) : undefined}
@@ -322,7 +320,7 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
                     </div>
                     <div className="aq-tecs">
                       {x.tecnicos.map((n) => (
-                        <Tecnico key={n} n={n} escalas={escalas} />
+                        <Tecnico key={n} n={n} escalas={escalas} cores={cores} />
                       ))}
                     </div>
                     <div className="aq-c">
@@ -354,11 +352,7 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
           <div className="aq-legenda">
             {escalas.slice(0, 3).map((e, i) => (
               <span key={i}>
-                <i
-                  style={{
-                    background: ['var(--noite)', 'var(--lima)', 'var(--verde)'][i],
-                  }}
-                />
+                <i className={'aq-' + cores[i]} />
                 Escala {e.inicio}–{e.fim}
               </span>
             ))}
@@ -387,7 +381,7 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
                 </div>
                 <div className="aq-tecs">
                   {e.tecnicos.map((n) => (
-                    <span key={n} className={`aq-tec aq-e${Math.min(i, 2)}`}>
+                    <span key={n} className={'aq-tec aq-' + cores[i]}>
                       {n}
                     </span>
                   ))}

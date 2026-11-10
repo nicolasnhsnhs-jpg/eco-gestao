@@ -9,6 +9,7 @@ import {
   ordenarItens,
   partesDaDescricao,
   alternarAvulso,
+  coresDasEscalas,
   almocoPadrao,
   conferirComCadastro,
   veiculosSemSemParar,
@@ -49,6 +50,19 @@ function item(p: Partial<AgendaItem>): AgendaItem {
     ...p,
   }
 }
+
+describe('coresDasEscalas', () => {
+  const e = (n: number) => ({
+    inicio: '07:30',
+    fim: '17h',
+    tecnicos: Array.from({ length: n }, (_, i) => i),
+  })
+  it('a escala com mais técnicos é a padrão (branca)', () => {
+    expect(coresDasEscalas([e(13)])).toEqual(['padrao'])
+    expect(coresDasEscalas([e(2), e(11)])).toEqual(['escura', 'padrao'])
+    expect(coresDasEscalas([e(9), e(3), e(2)])).toEqual(['padrao', 'escura', 'verde'])
+  })
+})
 
 describe('alternarAvulso', () => {
   it('marca e desmarca cada cliente da linha', () => {

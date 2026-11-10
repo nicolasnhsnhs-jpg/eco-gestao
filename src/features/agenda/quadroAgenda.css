@@ -239,9 +239,6 @@
 .aq-item.aq-clicavel:hover {
   background: #fafcf6;
 }
-.aq-item.aq-continua .aq-hora-txt {
-  visibility: hidden;
-}
 .aq-vazio {
   margin: auto;
   text-align: center;
@@ -385,21 +382,23 @@
   height: 30px;
   font-size: 14px;
 }
-.aq-tec.aq-e0 {
-  background: var(--noite);
-  color: var(--lima);
-}
-.aq-tec.aq-e1 {
-  background: var(--lima);
+/* Escala padrão (a de mais gente): branca com borda escura. Outros horários: escura. */
+.aq-tec.aq-padrao {
+  background: #fff;
   color: var(--noite);
+  box-shadow: inset 0 0 0 2.5px var(--noite);
 }
-.aq-tec.aq-e2 {
+.aq-tec.aq-escura {
+  background: var(--noite);
+  color: #e4ff3a;
+}
+.aq-tec.aq-verde {
   background: var(--verde);
   color: #fff;
 }
 .aq-tec.aq-sem {
   background: #fff;
-  color: var(--noite);
+  color: #8a9585;
   box-shadow: inset 0 0 0 2px var(--borda);
 }
 
@@ -511,6 +510,16 @@
   border-radius: 50%;
   display: inline-block;
 }
+.aq-legenda i.aq-padrao {
+  background: #fff;
+  box-shadow: inset 0 0 0 2px var(--noite);
+}
+.aq-legenda i.aq-escura {
+  background: var(--noite);
+}
+.aq-legenda i.aq-verde {
+  background: var(--verde);
+}
 
 /* Lateral */
 .aq-lateral {
@@ -577,19 +586,6 @@
   width: 42px;
   height: 42px;
   font-size: 18px;
-}
-.aq-escala .aq-tec.aq-e0 {
-  background: var(--noite);
-  color: #e4ff3a;
-}
-.aq-escala .aq-tec.aq-e1 {
-  background: #fff;
-  color: var(--noite);
-  box-shadow: inset 0 0 0 2.5px var(--noite);
-}
-.aq-escala .aq-tec.aq-e2 {
-  background: var(--verde);
-  color: #fff;
 }
 .aq-veiculos {
   background: var(--ambar-claro);
