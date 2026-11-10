@@ -29,8 +29,8 @@ export function useCertificados() {
       const { data, error } = await supabase
         .from('certificados')
         .select(`*, ${RELACOES}`)
-        .order('data_execucao', { ascending: false })
-        .order('numero', { ascending: false })
+        // O último emitido ou alterado fica em cima (não importa a data do serviço).
+        .order('atualizado_em', { ascending: false })
         .limit(500)
       if (error) throw error
       return data
