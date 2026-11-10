@@ -36,6 +36,32 @@ export const UNIDADES = {
       registroCoifa: null,
       responsavelSuccao: null,
     },
+    /**
+     * Proposta comercial em PDF. PROVISÓRIO: o modelo veio das propostas do RS; os
+     * registros de SC (responsável técnico, alvará, licenças) ainda não foram passados,
+     * então essas linhas não aparecem nos recursos até serem preenchidas aqui.
+     */
+    proposta: {
+      cidade: 'Palhoça',
+      empresa: 'Eco Ambiental Serviços Ambientais LTDA',
+      servicos: [
+        'Desinsetização, Desratização',
+        "Limpeza e Desinfecção de caixas d'água",
+        'Limpeza de coifa de cozinha industrial',
+        'Sucção de fossa e caixa de gordura',
+        'Desentupimento e hidrojateamento',
+      ],
+      rodape: [
+        'CNPJ nº 69.636.469/0001-18, com sede na Rua Albino Dias, 51 - Caminho Novo, Palhoça/SC - CEP 88132-592',
+        'adm@ecoambientalsc.com.br',
+      ],
+      responsavel: null,
+      alvara: null,
+      licencaSaude: null,
+      normas: [],
+      succao: null,
+      acrescimoPadrao: 480,
+    },
     /** Dados que já vêm preenchidos no gerador de assinatura de e-mail (Administrativo). */
     assinatura: {
       email: 'adm@ecoambientalsc.com.br',
@@ -88,6 +114,36 @@ export const UNIDADES = {
       // Na coifa a Andréia assina com outro CRQ (modelo "LC").
       registroCoifa: 'AFT - CRQ 253325',
       responsavelSuccao: { nome: 'BARBARA EHLERS FRANKE DE OLIVEIRA', registro: 'L.O. 02663/25' },
+    },
+    /** Proposta comercial em PDF (dados tirados das propostas em Word usadas hoje). */
+    proposta: {
+      cidade: 'Esteio',
+      empresa: 'Eco Ambiental Controle de Pragas e Higienização Ltda.',
+      servicos: [
+        'Desinsetização, Desratização',
+        "Limpeza e Desinfecção de caixas d'água",
+        'Limpeza de coifa de cozinha industrial',
+        'Sucção de resíduos, Limpeza de Fossa e',
+        'Serviços de desentupimento',
+      ],
+      rodape: [
+        'CNPJ nº 07.125.516/0001-01, com sede na Rua Santo Ângelo, 136 - Olímpica, Esteio/RS - Fone: (51) 3458-4133',
+        'Licença Sanitária nº 8 B3, Proc. de acordo com RDC nº 622, NR 33 e NR 35 - LO FEPAM nº 02481/2022.',
+        'Centro de Informações Toxicológicas - 0800.721.3000',
+      ],
+      responsavel: 'Andréia S. H. Semensato CRQ-V 05407339',
+      alvara: 'Alvará Sanitário sob nº 0008 B3',
+      licencaSaude: 'Licença de Saúde nº 68 - Processo sob nº 01.023243.12.0 / POA',
+      normas: [
+        'Procedimentos editados pela Secretaria Estadual de Saúde - Norma Técnica Estadual 03/88.',
+        'Portaria 201/06 de 04 de maio de 2006 da SMS-PMPA, em cumprimento à Norma Técnica 02/07.',
+      ],
+      // Sucção e hidrojato têm outra responsável e outra licença.
+      succao: {
+        responsavel: 'Engª. Bárbara Ehlers Franke de Oliveira CREA-RS: 155822',
+        licenca: 'LO / Licença de operação sob nº 02663/2025',
+      },
+      acrescimoPadrao: 480,
     },
     /** Assinatura de e-mail (dados e serviços da assinatura que o RS já usa). */
     assinatura: {

@@ -1553,6 +1553,65 @@ export type Database = {
           },
         ]
       }
+      drive_fila: {
+        Row: {
+          arquivo_id: string
+          criado_em: string
+          drive_arquivo_id: string | null
+          enviado_em: string | null
+          proxima_tentativa: string
+          tentativas: number
+          travado_ate: string | null
+          ultimo_erro: string | null
+        }
+        Insert: {
+          arquivo_id: string
+          criado_em?: string
+          drive_arquivo_id?: string | null
+          enviado_em?: string | null
+          proxima_tentativa?: string
+          tentativas?: number
+          travado_ate?: string | null
+          ultimo_erro?: string | null
+        }
+        Update: {
+          arquivo_id?: string
+          criado_em?: string
+          drive_arquivo_id?: string | null
+          enviado_em?: string | null
+          proxima_tentativa?: string
+          tentativas?: number
+          travado_ate?: string | null
+          ultimo_erro?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'drive_fila_arquivo_id_fkey'
+            columns: ['arquivo_id']
+            isOneToOne: true
+            referencedRelation: 'arquivos'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      drive_pastas: {
+        Row: {
+          chave: string
+          criado_em: string
+          pasta_id: string
+        }
+        Insert: {
+          chave: string
+          criado_em?: string
+          pasta_id: string
+        }
+        Update: {
+          chave?: string
+          criado_em?: string
+          pasta_id?: string
+        }
+        Relationships: []
+      }
       enderecos: {
         Row: {
           apelido: string | null
@@ -3689,33 +3748,51 @@ export type Database = {
       }
       proposta_itens: {
         Row: {
+          cobranca: string
           descricao: string
+          escopo: string | null
           id: string
+          metodologia: string | null
+          modelo: string | null
           ordem: number
           periodicidade_meses: number | null
           proposta_id: string
           quantidade: number
+          recursos: string | null
           tipo_servico_id: string | null
+          titulo: string | null
           valor_unitario: number
         }
         Insert: {
+          cobranca?: string
           descricao: string
+          escopo?: string | null
           id?: string
+          metodologia?: string | null
+          modelo?: string | null
           ordem?: number
           periodicidade_meses?: number | null
           proposta_id: string
           quantidade?: number
+          recursos?: string | null
           tipo_servico_id?: string | null
+          titulo?: string | null
           valor_unitario: number
         }
         Update: {
+          cobranca?: string
           descricao?: string
+          escopo?: string | null
           id?: string
+          metodologia?: string | null
+          modelo?: string | null
           ordem?: number
           periodicidade_meses?: number | null
           proposta_id?: string
           quantidade?: number
+          recursos?: string | null
           tipo_servico_id?: string | null
+          titulo?: string | null
           valor_unitario?: number
         }
         Relationships: [
@@ -3744,16 +3821,22 @@ export type Database = {
       }
       propostas: {
         Row: {
+          acrescimo_fora_horario: number | null
           atualizado_em: string
           atualizado_por: string | null
           cliente_id: string
           condicao_pagamento: string | null
+          contato_email: string | null
+          contato_nome: string | null
+          contato_telefone: string | null
           criado_em: string
           criado_por: string | null
+          custos_detalhados: boolean
           data_envio: string
           data_resposta: string | null
           endereco_id: string | null
           id: string
+          introducao: string | null
           motivo_recusa: string | null
           numero: string
           observacoes: string | null
@@ -3764,16 +3847,22 @@ export type Database = {
           vendedor_id: string
         }
         Insert: {
+          acrescimo_fora_horario?: number | null
           atualizado_em?: string
           atualizado_por?: string | null
           cliente_id: string
           condicao_pagamento?: string | null
+          contato_email?: string | null
+          contato_nome?: string | null
+          contato_telefone?: string | null
           criado_em?: string
           criado_por?: string | null
+          custos_detalhados?: boolean
           data_envio?: string
           data_resposta?: string | null
           endereco_id?: string | null
           id?: string
+          introducao?: string | null
           motivo_recusa?: string | null
           numero?: string
           observacoes?: string | null
@@ -3784,16 +3873,22 @@ export type Database = {
           vendedor_id?: string
         }
         Update: {
+          acrescimo_fora_horario?: number | null
           atualizado_em?: string
           atualizado_por?: string | null
           cliente_id?: string
           condicao_pagamento?: string | null
+          contato_email?: string | null
+          contato_nome?: string | null
+          contato_telefone?: string | null
           criado_em?: string
           criado_por?: string | null
+          custos_detalhados?: boolean
           data_envio?: string
           data_resposta?: string | null
           endereco_id?: string | null
           id?: string
+          introducao?: string | null
           motivo_recusa?: string | null
           numero?: string
           observacoes?: string | null
@@ -4915,17 +5010,23 @@ export type Database = {
       }
       v_propostas: {
         Row: {
+          acrescimo_fora_horario: number | null
           atualizado_em: string | null
           atualizado_por: string | null
           cliente_id: string | null
           condicao_pagamento: string | null
+          contato_email: string | null
+          contato_nome: string | null
+          contato_telefone: string | null
           criado_em: string | null
           criado_por: string | null
+          custos_detalhados: boolean | null
           data_envio: string | null
           data_resposta: string | null
           dias_sem_resposta: number | null
           endereco_id: string | null
           id: string | null
+          introducao: string | null
           motivo_recusa: string | null
           numero: string | null
           observacoes: string | null
@@ -4937,17 +5038,23 @@ export type Database = {
           vendedor_id: string | null
         }
         Insert: {
+          acrescimo_fora_horario?: number | null
           atualizado_em?: string | null
           atualizado_por?: string | null
           cliente_id?: string | null
           condicao_pagamento?: string | null
+          contato_email?: string | null
+          contato_nome?: string | null
+          contato_telefone?: string | null
           criado_em?: string | null
           criado_por?: string | null
+          custos_detalhados?: boolean | null
           data_envio?: string | null
           data_resposta?: string | null
           dias_sem_resposta?: never
           endereco_id?: string | null
           id?: string | null
+          introducao?: string | null
           motivo_recusa?: string | null
           numero?: string | null
           observacoes?: string | null
@@ -4959,17 +5066,23 @@ export type Database = {
           vendedor_id?: string | null
         }
         Update: {
+          acrescimo_fora_horario?: number | null
           atualizado_em?: string | null
           atualizado_por?: string | null
           cliente_id?: string | null
           condicao_pagamento?: string | null
+          contato_email?: string | null
+          contato_nome?: string | null
+          contato_telefone?: string | null
           criado_em?: string | null
           criado_por?: string | null
+          custos_detalhados?: boolean | null
           data_envio?: string | null
           data_resposta?: string | null
           dias_sem_resposta?: never
           endereco_id?: string | null
           id?: string | null
+          introducao?: string | null
           motivo_recusa?: string | null
           numero?: string | null
           observacoes?: string | null
@@ -5326,6 +5439,14 @@ export type Database = {
       dia_util: {
         Args: { ano: number; mes: number; n?: number }
         Returns: string
+      }
+      drive_enviar_antigos: { Args: never; Returns: number }
+      drive_pegar_fila: {
+        Args: { p_limite?: number }
+        Returns: {
+          arquivo_id: string
+          tentativas: number
+        }[]
       }
       faturar_os: {
         Args: {

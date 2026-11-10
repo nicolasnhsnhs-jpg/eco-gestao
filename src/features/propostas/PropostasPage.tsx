@@ -1,5 +1,5 @@
 import { ChevronRight, FileText, Plus, Search } from 'lucide-react'
-import { Link, useSearchParams } from 'react-router'
+import { Link, NavLink, Outlet, useSearchParams } from 'react-router'
 
 import { PageHeader } from '@/components/PageHeader'
 import { Aviso } from '@/components/ui/Aviso'
@@ -25,6 +25,39 @@ const sem = (t: string) =>
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase()
+
+/** Abas: as propostas já criadas e a criação de uma nova. */
+export function PropostasLayout() {
+  const abas = [
+    { rotulo: 'Propostas criadas', caminho: '/propostas', fim: true },
+    { rotulo: 'Nova proposta', caminho: '/propostas/nova', fim: true },
+  ]
+  return (
+    <>
+      <nav
+        aria-label="Propostas"
+        className="mb-6 flex gap-1 overflow-x-auto rounded-xl border border-borda bg-white p-1"
+      >
+        {abas.map((aba) => (
+          <NavLink
+            key={aba.caminho}
+            to={aba.caminho}
+            end={aba.fim}
+            className={({ isActive }) =>
+              cn(
+                'flex min-h-10 flex-1 items-center justify-center rounded-lg px-3 text-sm font-semibold whitespace-nowrap',
+                isActive ? 'bg-verde text-white' : 'text-texto-suave hover:bg-lima-claro',
+              )
+            }
+          >
+            {aba.rotulo}
+          </NavLink>
+        ))}
+      </nav>
+      <Outlet />
+    </>
+  )
+}
 
 export function PropostasPage() {
   const [parametros, setParametros] = useSearchParams()

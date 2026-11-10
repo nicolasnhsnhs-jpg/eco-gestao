@@ -1,6 +1,6 @@
 import { ArrowLeft, CalendarPlus, Check, Pencil, RotateCcw, X } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 
 import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
@@ -12,6 +12,7 @@ import { formatarReais } from '@/lib/dinheiro'
 import { mensagemDeErro } from '@/lib/erros'
 
 import { ListaArquivos } from '../arquivos/ListaArquivos'
+import { useCliente } from '../clientes/api'
 import { useServicos } from '../servicos/api'
 import { ListaServicos } from '../servicos/ServicosPages'
 import {
@@ -22,6 +23,7 @@ import {
   type PropostaCompleta,
   type SituacaoProposta,
 } from './api'
+import { AcoesPdfProposta } from './pdf/PdfProposta'
 
 export function PropostaPage() {
   const { id } = useParams()
@@ -36,6 +38,9 @@ export function PropostaPage() {
 
 function Detalhe({ p }: { p: PropostaCompleta }) {
   const responder = useResponderProposta(p.id!)
+  const cliente = useCliente(p.cliente_id!)
+  const [parametros] = useSearchParams()
+  const acabouDeSalvar = parametros.get('salva') === '1'
   const [erro, setErro] = useState<string | null>(null)
   const situacao = (p.situacao ?? p.status) as SituacaoProposta
   const nomeCliente = p.cliente?.nome_fantasia || p.cliente?.nome
@@ -108,6 +113,17 @@ function Detalhe({ p }: { p: PropostaCompleta }) {
       </header>
 
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
+      {acabouDeSalvar && (
+        <Aviso tipo="sucesso">
+          Proposta salva. O PDF já está pronto para ver, baixar ou enviar.
+        </Aviso>
+      )}
+
+      <Card>
+        <h2 className="mb-3 text-lg font-bold">PDF da proposta</h2>
+        <AcoesPdfProposta p={p} cliente={cliente.isPending ? undefined : (cliente.data ?? null)} />
+      </Card>
+
       {situacao === 'expirada' && (
         <Aviso>
           A validade terminou em {formatarData(p.validade)} sem resposta. Se o cliente aceitar mesmo
@@ -157,6 +173,14 @@ function Detalhe({ p }: { p: PropostaCompleta }) {
           <h2 className="mb-3 text-lg font-bold">Dados</h2>
           <dl className="flex flex-col gap-2 text-sm">
             <Dado rotulo="Vendedor" valor={p.vendedor?.nome} />
+            {p.contato_nome && (
+              <Dado
+                rotulo="A/C"
+                valor={[p.contato_nome, p.contato_telefone, p.contato_email]
+                  .filter(Boolean)
+                  .join('\n')}
+              />
+            )}
             <Dado rotulo="Enviada em" valor={formatarData(p.data_envio)} />
             <Dado rotulo="Válida até" valor={formatarData(p.validade) || '—'} />
             {p.endereco && (
@@ -179,7 +203,15 @@ function Detalhe({ p }: { p: PropostaCompleta }) {
                   : '—'
               }
             />
-            {p.condicao_pagamento && <Dado rotulo="Condição" valor={p.condicao_pagamento} />}
+            {p.condicao_pagamento && (
+              <Dado rotulo="Forma de pagamento" valor={p.condicao_pagamento} />
+            )}
+            {p.acrescimo_fora_horario != null && (
+              <Dado
+                rotulo="Acréscimo fora do horário"
+                valor={formatarReais(p.acrescimo_fora_horario)}
+              />
+            )}
             {p.observacoes && <Dado rotulo="Observações" valor={p.observacoes} />}
           </dl>
         </Card>
@@ -193,7 +225,7 @@ function Detalhe({ p }: { p: PropostaCompleta }) {
           clienteId={p.cliente_id!}
           propostaId={p.id!}
           categoria="proposta"
-          textoVazio="Anexe aqui o PDF enviado ao cliente (e a versão assinada, se houver)."
+          textoVazio="O PDF é gerado pelo sistema (acima). Anexe aqui a versão assinada pelo cliente, se houver."
         />
       </Card>
     </div>

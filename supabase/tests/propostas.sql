@@ -56,11 +56,20 @@ end $$;
 -- Trocar os itens de uma vez (como a tela faz ao editar).
 select public.salvar_itens_proposta('00000000-0000-0000-0000-0000000aa001',
   '[{"descricao": "Limpeza de coifa", "quantidade": 2, "valor_unitario": 450.50},
-    {"descricao": "Caixa de gordura", "quantidade": 1, "valor_unitario": 300, "periodicidade_meses": 4}]');
+    {"descricao": "Caixa de gordura", "quantidade": 1, "valor_unitario": 300, "periodicidade_meses": 4,
+     "modelo": "coifa", "titulo": "Serviço de limpeza de coifa", "escopo": "01 coifa  ",
+     "metodologia": "", "cobranca": "mensal"}]');
 do $$ begin
   assert (select count(*) from public.proposta_itens
            where proposta_id = '00000000-0000-0000-0000-0000000aa001') = 2,
     'Depois de trocar, a proposta deveria ter exatamente os 2 itens novos';
+  assert (select cobranca from public.proposta_itens
+           where proposta_id = '00000000-0000-0000-0000-0000000aa001' and ordem = 0) = 'unica',
+    'Item sem forma de cobrança deveria ficar como cobrança única';
+  assert (select escopo = '01 coifa' and metodologia is null and cobranca = 'mensal' and modelo = 'coifa'
+            from public.proposta_itens
+           where proposta_id = '00000000-0000-0000-0000-0000000aa001' and ordem = 1),
+    'Os textos do PDF deveriam ser gravados (sem espaços sobrando, vazio vira nulo)';
   begin
     perform public.salvar_itens_proposta('00000000-0000-0000-0000-0000000aa001', '[]');
     raise exception 'FALHOU: aceitou proposta sem itens';

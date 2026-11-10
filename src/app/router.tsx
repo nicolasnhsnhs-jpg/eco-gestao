@@ -27,7 +27,7 @@ import { NotasFiscaisPage } from '@/features/financeiro/NotasFiscaisPage'
 import { PainelPage } from '@/features/financeiro/PainelPage'
 import { PropostaFormPage } from '@/features/propostas/PropostaFormPage'
 import { PropostaPage } from '@/features/propostas/PropostaPage'
-import { PropostasPage } from '@/features/propostas/PropostasPage'
+import { PropostasLayout, PropostasPage } from '@/features/propostas/PropostasPage'
 import { ServicoFormPage } from '@/features/servicos/ServicoFormPage'
 import { ServicoPage } from '@/features/servicos/ServicoPage'
 import {
@@ -218,8 +218,13 @@ export const router = createBrowserRouter([
           </ExigePapel>
         ),
         children: [
-          { index: true, element: <PropostasPage /> },
-          { path: 'nova', element: <PropostaFormPage /> },
+          {
+            element: <PropostasLayout />,
+            children: [
+              { index: true, element: <PropostasPage /> },
+              { path: 'nova', element: <PropostaFormPage /> },
+            ],
+          },
           { path: ':id', element: <PropostaPage /> },
           { path: ':id/editar', element: <PropostaFormPage /> },
         ],
