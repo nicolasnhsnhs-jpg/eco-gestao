@@ -62,6 +62,7 @@ export type Database = {
           atualizado_em: string
           atualizado_por: string | null
           avulso: boolean
+          avulso_partes: number[]
           chegada: string
           criado_em: string
           criado_por: string | null
@@ -77,12 +78,14 @@ export type Database = {
           realizado: boolean
           tecnicos: number[]
           veiculo: string
+          viagem: string | null
         }
         Insert: {
           almoco?: string
           atualizado_em?: string
           atualizado_por?: string | null
           avulso?: boolean
+          avulso_partes?: number[]
           chegada?: string
           criado_em?: string
           criado_por?: string | null
@@ -98,12 +101,14 @@ export type Database = {
           realizado?: boolean
           tecnicos?: number[]
           veiculo?: string
+          viagem?: string | null
         }
         Update: {
           almoco?: string
           atualizado_em?: string
           atualizado_por?: string | null
           avulso?: boolean
+          avulso_partes?: number[]
           chegada?: string
           criado_em?: string
           criado_por?: string | null
@@ -119,6 +124,7 @@ export type Database = {
           realizado?: boolean
           tecnicos?: number[]
           veiculo?: string
+          viagem?: string | null
         }
         Relationships: [
           {

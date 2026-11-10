@@ -52,7 +52,9 @@ import {
 import { baixar, compartilharOuBaixar, copiarImagem, gerarImagem } from './imagem'
 import { QuadroAgenda, QuadroAjustado } from './QuadroAgenda'
 import {
+  alternarAvulso,
   conferirComCadastro,
+  partesDaDescricao,
   escreverTecnicos,
   lerEscalas,
   lerTecnicos,
@@ -763,13 +765,11 @@ function Linhas({
                   onSalvar={(v) => salvarCampo({ nota: v })}
                   className="min-h-9 min-w-48 flex-1 text-sm"
                 />
-                <Alternar
-                  ligado={item.avulso}
-                  onClick={() => salvarCampo({ avulso: !item.avulso })}
-                  cor="ambar"
-                >
-                  Avulso
-                </Alternar>
+                <AvulsoPorCliente
+                  descricao={item.descricao}
+                  marcados={item.avulso_partes}
+                  onMudar={(avulso_partes) => salvarCampo({ avulso_partes })}
+                />
                 <label
                   className="inline-flex items-center gap-1 text-sm text-texto-suave"
                   title="Horário marcado com o cliente. Também brilha se for escrito no texto (ex.: às 9h)"
@@ -845,6 +845,41 @@ function Linhas({
   )
 }
 
+/** Um botão de avulso para cada cliente da linha (separados por " / "). */
+function AvulsoPorCliente({
+  descricao,
+  marcados,
+  onMudar,
+}: {
+  descricao: string
+  marcados: number[]
+  onMudar: (v: number[]) => void
+}) {
+  const clientes = partesDaDescricao(descricao)
+  if (clientes.length <= 1) {
+    return (
+      <Alternar ligado={marcados.includes(0)} onClick={() => onMudar(alternarAvulso(marcados, 0))}>
+        Avulso
+      </Alternar>
+    )
+  }
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <span className="text-sm font-semibold text-texto-suave">Avulso:</span>
+      {clientes.map(([nome], i) => (
+        <Alternar
+          key={i}
+          ligado={marcados.includes(i)}
+          onClick={() => onMudar(alternarAvulso(marcados, i))}
+          titulo={`Marcar ${nome} como atendimento avulso`}
+        >
+          {nome || `Cliente ${i + 1}`}
+        </Alternar>
+      ))}
+    </span>
+  )
+}
+
 function Alternar({
   ligado,
   onClick,
@@ -854,7 +889,6 @@ function Alternar({
   ligado: boolean
   onClick: () => void
   children: React.ReactNode
-  cor: 'ambar'
   titulo?: string
 }) {
   return (
@@ -866,7 +900,7 @@ function Alternar({
       className={cn(
         'inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-semibold',
         ligado
-          ? 'border-amber-400 bg-amber-100 text-amber-900'
+          ? 'border-lime-500 bg-lime-300 text-verde-escuro'
           : 'border-borda bg-white text-texto-suave hover:bg-fundo-suave',
       )}
     >
@@ -1124,7 +1158,6 @@ function CadastroEquipe({
                       t.ativo ? 'Ativo (clique para desativar)' : 'Inativo (clique para ativar)'
                     }
                     onClick={() => podeEditar && salvarTecnico.mutate({ ...t, ativo: !t.ativo })}
-                    cor="ambar"
                   >
                     {t.ativo ? 'Ativo' : 'Inativo'}
                   </Alternar>
@@ -1222,7 +1255,6 @@ function CadastroEquipe({
                     onClick={() =>
                       podeEditar && salvarVeiculo.mutate({ ...v, tem_sem_parar: !v.tem_sem_parar })
                     }
-                    cor="ambar"
                   >
                     {v.tem_sem_parar ? 'Tem Sem Parar' : 'Sem Sem Parar'}
                   </Alternar>
@@ -1232,7 +1264,6 @@ function CadastroEquipe({
                       v.ativo ? 'Ativo (clique para desativar)' : 'Inativo (clique para ativar)'
                     }
                     onClick={() => podeEditar && salvarVeiculo.mutate({ ...v, ativo: !v.ativo })}
-                    cor="ambar"
                   >
                     {v.ativo ? 'Ativo' : 'Inativo'}
                   </Alternar>

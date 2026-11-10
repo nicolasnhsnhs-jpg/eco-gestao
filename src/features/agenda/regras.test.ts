@@ -8,6 +8,7 @@ import {
   lerTecnicos,
   ordenarItens,
   partesDaDescricao,
+  alternarAvulso,
   almocoPadrao,
   conferirComCadastro,
   veiculosSemSemParar,
@@ -32,6 +33,8 @@ function item(p: Partial<AgendaItem>): AgendaItem {
     periodo: '',
     nota: '',
     avulso: false,
+    avulso_partes: [],
+    viagem: null,
     horario_cliente: false,
     chegada: '',
     tecnicos: [],
@@ -46,6 +49,14 @@ function item(p: Partial<AgendaItem>): AgendaItem {
     ...p,
   }
 }
+
+describe('alternarAvulso', () => {
+  it('marca e desmarca cada cliente da linha', () => {
+    expect(alternarAvulso([], 1)).toEqual([1])
+    expect(alternarAvulso([1], 0)).toEqual([0, 1])
+    expect(alternarAvulso([0, 1], 0)).toEqual([1])
+  })
+})
 
 describe('partesDaDescricao', () => {
   it('separa empresa e serviço no primeiro ":"', () => {

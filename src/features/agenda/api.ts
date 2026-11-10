@@ -224,14 +224,22 @@ export function useCopiarItens(data: string) {
       const { data: origem, error: e1 } = await supabase
         .from('agenda_itens')
         .select(
-          'ordem, hora, descricao, periodo, nota, avulso, horario_cliente, chegada, tecnicos, veiculo, almoco',
+          'ordem, hora, descricao, periodo, nota, avulso_partes, horario_cliente, chegada, tecnicos, veiculo, almoco',
         )
         .eq('data', deData)
       if (e1) throw e1
-      if (!origem.length) return 0
+      // Viagens já trazem a linha sozinhas para este dia: não duplica.
+      const { data: jaTem, error: e2 } = await supabase
+        .from('agenda_itens')
+        .select('descricao')
+        .eq('data', data)
+      if (e2) throw e2
+      const existentes = new Set(jaTem.map((j) => j.descricao.trim().toLowerCase()))
+      const novas = origem.filter((o) => !existentes.has(o.descricao.trim().toLowerCase()))
+      if (!novas.length) return 0
       const { error } = await supabase
         .from('agenda_itens')
-        .insert(origem.map((o) => ({ ...o, data })))
+        .insert(novas.map((o) => ({ ...o, data })))
       if (error) throw error
       return origem.length
     },

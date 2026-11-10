@@ -47,6 +47,11 @@ export function partesDaDescricao(descricao: string): [string, string][] {
     })
 }
 
+/** Liga ou desliga o avulso do cliente na posição i da linha. */
+export function alternarAvulso(partes: readonly number[], i: number): number[] {
+  return partes.includes(i) ? partes.filter((p) => p !== i) : [...partes, i].sort((a, b) => a - b)
+}
+
 /** "3, 4 e 13" → [3, 4, 13] (sem repetir). */
 export function lerTecnicos(texto: string): number[] {
   return [...new Set((texto.match(/\d+/g) ?? []).map(Number))]

@@ -269,7 +269,13 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
                 <Fragment key={x.id}>
                   {novoTurno && <div className="aq-turno">{turnoDe(x.hora)}</div>}
                   <div
-                    className={`aq-linha aq-item${continua ? 'aq-continua' : ''}${onClicarItem ? 'aq-clicavel' : ''}`}
+                    className={[
+                      'aq-linha aq-item',
+                      continua && 'aq-continua',
+                      onClicarItem && 'aq-clicavel',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
                     onClick={onClicarItem ? () => onClicarItem(x.id) : undefined}
                   >
                     <div className="aq-hora-txt">{x.hora}</div>
@@ -289,7 +295,7 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
                                 </span>
                               </>
                             )}
-                            {i === 0 && x.avulso && (
+                            {x.avulso_partes.includes(i) && (
                               <>
                                 {' '}
                                 <span className="aq-chip aq-avulso">Avulso</span>
@@ -400,7 +406,7 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
               </div>
             </div>
           )}
-          <div className="aq-cartao aq-obs">
+          <div className={observacoes.length ? 'aq-cartao aq-obs aq-tem' : 'aq-cartao aq-obs'}>
             <div className="aq-titulo">Observações</div>
             {observacoes.length ? (
               <ul>
