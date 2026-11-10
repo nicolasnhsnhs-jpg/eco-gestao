@@ -1,5 +1,7 @@
 import { createBrowserRouter, Navigate, Outlet } from 'react-router'
 
+import { AgendaDiaPage } from '@/features/agenda/AgendaDiaPage'
+import { AgendaTvPage } from '@/features/agenda/AgendaTvPage'
 import { AdministrativoLayout } from '@/features/administrativo/AdministrativoLayout'
 import { AssinaturaPage } from '@/features/administrativo/assinatura/AssinaturaPage'
 import { AvisosPage } from '@/features/avisos/AvisosPage'
@@ -73,6 +75,19 @@ export const router = createBrowserRouter([
   { path: '/entrar', element: <EntrarPage /> },
   { path: '/esqueci-senha', element: <EsqueciSenhaPage /> },
   { path: '/definir-senha', element: <DefinirSenhaPage /> },
+
+  // Agenda do dia na TV: tela cheia, sem o menu do sistema.
+  {
+    path: '/agenda-tv',
+    element: (
+      <RotaProtegida>
+        <ExigePapel papeis={COMERCIAL}>
+          <AgendaTvPage />
+        </ExigePapel>
+      </RotaProtegida>
+    ),
+    errorElement: <ErroPage />,
+  },
 
   // Telas do sistema (exigem login)
   {
@@ -221,6 +236,7 @@ export const router = createBrowserRouter([
             element: <ServicosLayout />,
             children: [
               { index: true, element: <AgendaPage /> },
+              { path: 'dia', element: <AgendaDiaPage /> },
               { path: 'vencimentos', element: <VencimentosPage /> },
               {
                 path: 'tipos',

@@ -14,6 +14,238 @@ export type Database = {
   }
   public: {
     Tables: {
+      agenda_dias: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          criado_em: string
+          criado_por: string | null
+          data: string
+          escalas: Json
+          mensagem: string
+          observacoes: string
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data: string
+          escalas?: Json
+          mensagem?: string
+          observacoes?: string
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data?: string
+          escalas?: Json
+          mensagem?: string
+          observacoes?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agenda_dias_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_dias_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agenda_itens: {
+        Row: {
+          almoco: string
+          atualizado_em: string
+          atualizado_por: string | null
+          avulso: boolean
+          chegada: string
+          criado_em: string
+          criado_por: string | null
+          data: string
+          descricao: string
+          faturado: boolean
+          hora: string
+          horario_cliente: boolean
+          id: string
+          nota: string
+          ordem: number
+          periodo: string
+          realizado: boolean
+          tecnicos: number[]
+          veiculo: string
+        }
+        Insert: {
+          almoco?: string
+          atualizado_em?: string
+          atualizado_por?: string | null
+          avulso?: boolean
+          chegada?: string
+          criado_em?: string
+          criado_por?: string | null
+          data: string
+          descricao?: string
+          faturado?: boolean
+          hora?: string
+          horario_cliente?: boolean
+          id?: string
+          nota?: string
+          ordem?: number
+          periodo?: string
+          realizado?: boolean
+          tecnicos?: number[]
+          veiculo?: string
+        }
+        Update: {
+          almoco?: string
+          atualizado_em?: string
+          atualizado_por?: string | null
+          avulso?: boolean
+          chegada?: string
+          criado_em?: string
+          criado_por?: string | null
+          data?: string
+          descricao?: string
+          faturado?: boolean
+          hora?: string
+          horario_cliente?: boolean
+          id?: string
+          nota?: string
+          ordem?: number
+          periodo?: string
+          realizado?: boolean
+          tecnicos?: number[]
+          veiculo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agenda_itens_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_itens_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_itens_data_fkey"
+            columns: ["data"]
+            isOneToOne: false
+            referencedRelation: "agenda_dias"
+            referencedColumns: ["data"]
+          },
+        ]
+      }
+      agenda_tecnicos: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          cnh: string
+          criado_em: string
+          criado_por: string | null
+          nome: string
+          numero: number
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cnh?: string
+          criado_em?: string
+          criado_por?: string | null
+          nome: string
+          numero: number
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cnh?: string
+          criado_em?: string
+          criado_por?: string | null
+          nome?: string
+          numero?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agenda_tecnicos_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_tecnicos_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agenda_veiculos: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          codigo: string
+          criado_em: string
+          criado_por: string | null
+          placa: string
+          tem_sem_parar: boolean
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          codigo: string
+          criado_em?: string
+          criado_por?: string | null
+          placa?: string
+          tem_sem_parar?: boolean
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          codigo?: string
+          criado_em?: string
+          criado_por?: string | null
+          placa?: string
+          tem_sem_parar?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agenda_veiculos_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_veiculos_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       antecipacoes: {
         Row: {
           atualizado_em: string
