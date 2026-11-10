@@ -96,7 +96,9 @@ Deno.serve(async (req) => {
         continue
       }
       if (error) throw new Error(error.message)
-      const linha = (data as { conversa_id: string; mensagem_id: string; nova: boolean }[] | null)?.[0]
+      const linha = (
+        data as { conversa_id: string; mensagem_id: string; nova: boolean }[] | null
+      )?.[0]
       if (linha?.nova && m.midiaId) comMidia.push(linha.mensagem_id)
       if (linha?.nova && m.tipo !== 'reacao') notificar.set(linha.conversa_id, linha.mensagem_id)
     }

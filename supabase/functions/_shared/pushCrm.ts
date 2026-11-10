@@ -132,13 +132,15 @@ export async function notificarMensagem(
       .single(),
     admin.from('wa_mensagens').select('tipo, texto, midia_nome').eq('id', mensagemId).single(),
   ])
-  const contato = (conversa as unknown as {
-    contato: {
-      wa_id: string
-      nome_perfil: string | null
-      cliente: { nome: string; nome_fantasia: string | null } | null
-    }
-  } | null)?.contato
+  const contato = (
+    conversa as unknown as {
+      contato: {
+        wa_id: string
+        nome_perfil: string | null
+        cliente: { nome: string; nome_fantasia: string | null } | null
+      }
+    } | null
+  )?.contato
   const nome =
     contato?.cliente?.nome_fantasia ||
     contato?.cliente?.nome ||
@@ -176,7 +178,10 @@ export async function notificarMensagem(
 export async function enviarTeste(admin: SupabaseClient, usuarioId: string) {
   const chaves = chavesVapid()
   if (!chaves) {
-    return { configurado: false, resultados: [] as { dispositivo: string | null; ok: boolean; erro: string | null }[] }
+    return {
+      configurado: false,
+      resultados: [] as { dispositivo: string | null; ok: boolean; erro: string | null }[],
+    }
   }
   const { data } = await admin
     .from('push_inscricoes')
@@ -190,7 +195,8 @@ export async function enviarTeste(admin: SupabaseClient, usuarioId: string) {
         { inscricao_id: i.id, endpoint: i.endpoint, p256dh: i.p256dh, auth: i.auth },
         {
           titulo: 'Teste do Eco Gestão',
-          corpo: 'Se você está vendo isto, as notificações do atendimento funcionam neste aparelho.',
+          corpo:
+            'Se você está vendo isto, as notificações do atendimento funcionam neste aparelho.',
           url: '/crm/notificacoes',
           tag: 'crm-teste',
         },

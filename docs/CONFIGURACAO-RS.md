@@ -138,8 +138,8 @@ sozinho antes do e-mail. Se o boleto falhar, a nota continua emitida e o e-mail 
 1. Pedir a modalidade **API (Cobrança Online)** no convênio de cobrança do RS.
 2. No [Portal do Desenvolvedor](https://developer.sicredi.com.br) (não precisa do gerente): menu ☰ →
    **Minhas Apps** → **Criar nova aplicação**, com as APIs **Open API - OAuth - Parceiros** e
-   **Open API - Cobranca - Parceiros**. Depois, **Abrir chamado** → tipo *API Cobrança Boletos* →
-   motivo *Solicitar Access Token* → ambiente e o Client ID do app. O Client ID não é o x-api-key:
+   **Open API - Cobranca - Parceiros**. Depois, **Abrir chamado** → tipo _API Cobrança Boletos_ →
+   motivo _Solicitar Access Token_ → ambiente e o Client ID do app. O Client ID não é o x-api-key:
    o token sai em alguns dias em **Minhas Apps → app → Tokens de acesso**. Repetir com ambiente
    **Produção**. ✅ Sandbox: app criado, token liberado (chamado #247739), `SICREDI_API_KEY` gravado no RS e
    boleto de teste registrado com PDF em 09/11/2026. Falta a produção.
