@@ -6,6 +6,8 @@
 //                tela e manda para ADM
 //   agenda       (navegador) recebe a imagem da agenda do dia e guarda em
 //                ADM / AGENDA / ano / mês / dd-mm-aaaa.png
+//   proposta     (navegador) recebe o PDF da proposta e guarda em
+//                VENDAS / ano / vendedor / cliente / Proposta <número> - <data de envio>.pdf
 //   situacao     (Administrador) confere a conta Google conectada e as pastas dos setores
 //
 // Caminho no Drive: <SETOR> / <ano> / <Cliente - CNPJ> / <arquivo>.pdf
@@ -101,6 +103,29 @@ async function subpasta(
   )
 }
 
+/** Pasta do cliente dentro de `pai` (etiquetada com o id do cliente). */
+async function pastaDoClienteEm(
+  admin: SupabaseClient,
+  drive: Drive,
+  chave: string,
+  pai: string,
+  cliente: Cliente,
+) {
+  return await lembrar(admin, chave, async () => {
+    const etiqueta = { eco_cliente: cliente.id }
+    const marcada = await drive.acharPastaEtiquetada('eco_cliente', cliente.id, pai)
+    if (marcada) return marcada
+    const nome = nomePastaCliente(cliente)
+    // Pasta criada à mão com o mesmo nome: passa a ser a do cliente.
+    const mesmoNome = await drive.acharPasta(nome, pai)
+    if (mesmoNome) {
+      await drive.etiquetar(mesmoNome, etiqueta)
+      return mesmoNome
+    }
+    return await drive.criarPasta(nome, pai, etiqueta)
+  })
+}
+
 /** Acha (ou cria) SETOR / ano / cliente, lembrando no banco o id de cada pasta. */
 async function pastaDoCliente(
   admin: SupabaseClient,
@@ -112,19 +137,13 @@ async function pastaDoCliente(
 ) {
   const pastaSetor = await pastaDoSetor(admin, drive, raiz, setor)
   const pastaAno = await subpasta(admin, drive, `ano:${setor}:${ano}`, ano, pastaSetor)
-  return await lembrar(admin, `cliente:${setor}:${ano}:${cliente.id}`, async () => {
-    const etiqueta = { eco_cliente: cliente.id }
-    const marcada = await drive.acharPastaEtiquetada('eco_cliente', cliente.id, pastaAno)
-    if (marcada) return marcada
-    const nome = nomePastaCliente(cliente)
-    // Pasta criada à mão com o mesmo nome: passa a ser a do cliente.
-    const mesmoNome = await drive.acharPasta(nome, pastaAno)
-    if (mesmoNome) {
-      await drive.etiquetar(mesmoNome, etiqueta)
-      return mesmoNome
-    }
-    return await drive.criarPasta(nome, pastaAno, etiqueta)
-  })
+  return await pastaDoClienteEm(
+    admin,
+    drive,
+    `cliente:${setor}:${ano}:${cliente.id}`,
+    pastaAno,
+    cliente,
+  )
 }
 
 async function buscarCliente(admin: SupabaseClient, id: string): Promise<Cliente> {
@@ -306,6 +325,7 @@ type Pedido =
   | { acao: 'situacao' }
   | { acao: 'certificado'; certificadoId: string; pdf: string }
   | { acao: 'agenda'; data: string; imagem: string }
+  | { acao: 'proposta'; propostaId: string; pdf: string }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
@@ -413,6 +433,56 @@ Deno.serve(async (req) => {
       const nomeMes = `${mes} - ${MESES[Number(mes) - 1]}`
       const pastaMes = await subpasta(admin, drive, `agenda:${ano}:${mes}`, nomeMes, pastaAno)
       const id = await drive.enviar(pastaMes, `${dataNoNome(pedido.data)}.png`, 'image/png', png)
+      return resposta(200, { enviado: true, id })
+    }
+
+    if (pedido.acao === 'proposta') {
+      // VENDAS / ano / vendedor / cliente / Proposta 2026-0012 - dd-mm-aaaa.pdf
+      const negado = await conferirPapel(req, admin, [
+        'admin',
+        'administrativo',
+        'financeiro',
+        'vendedor',
+      ])
+      if (negado) return negado
+      if (!config) return resposta(200, { enviado: false, motivo: 'Drive não configurado.' })
+      const pdf = decodeBase64(pedido.pdf ?? '')
+      if (pdf.byteLength > LIMITE_PDF) return resposta(413, { erro: 'PDF grande demais.' })
+      if (new TextDecoder().decode(pdf.subarray(0, 5)) !== '%PDF-') {
+        return resposta(400, { erro: 'O arquivo enviado não é um PDF.' })
+      }
+      const { data: prop } = await admin
+        .from('propostas')
+        .select('numero, cliente_id, vendedor_id, data_envio')
+        .eq('id', pedido.propostaId)
+        .maybeSingle()
+      if (!prop) return resposta(404, { erro: 'Proposta não encontrada.' })
+      const { data: vendedor } = await admin
+        .from('perfis')
+        .select('nome')
+        .eq('id', prop.vendedor_id)
+        .maybeSingle()
+      const ano = String(prop.data_envio).slice(0, 4)
+      const drive = new Drive(config.conta)
+      const vendas = await pastaDoSetor(admin, drive, config.raiz, 'VENDAS')
+      const pastaAno = await subpasta(admin, drive, `ano:VENDAS:${ano}`, ano, vendas)
+      const pastaVendedor = await subpasta(
+        admin,
+        drive,
+        `vendedor:${ano}:${prop.vendedor_id}`,
+        nomeSeguro(vendedor?.nome?.trim() || 'Sem vendedor'),
+        pastaAno,
+      )
+      const cliente = await buscarCliente(admin, prop.cliente_id)
+      const pasta = await pastaDoClienteEm(
+        admin,
+        drive,
+        `cliente:VENDAS:${ano}:${prop.vendedor_id}:${cliente.id}`,
+        pastaVendedor,
+        cliente,
+      )
+      const nome = nomeSeguro(`Proposta ${prop.numero} - ${dataNoNome(prop.data_envio)}.pdf`)
+      const id = await drive.enviar(pasta, nome, 'application/pdf', pdf)
       return resposta(200, { enviado: true, id })
     }
 

@@ -10,6 +10,7 @@ import { UNIDADE } from '@/lib/unidade'
 import type { ClienteCompleto } from '../../clientes/api'
 import type { PropostaCompleta } from '../api'
 import {
+  copiarPropostaNoDrive,
   nomeArquivoProposta,
   pdfDaProposta,
   propostaGravadaParaBase,
@@ -141,6 +142,7 @@ export function AcoesPdfProposta({
         p.endereco_id,
         vendedor.data,
       )
+      copiarPropostaNoDrive(p.id, blob)
       await acao(blob)
     } catch (e) {
       aba?.close()
@@ -161,6 +163,30 @@ export function AcoesPdfProposta({
   }
 
   const pronto = !vendedor.isPending && cliente !== undefined
+
+  // Proposta salva (nova ou alterada): a cópia vai para o Drive sem ninguém clicar.
+  // Uma vez por versão neste navegador, para não reenviar a cada visita.
+  useEffect(() => {
+    if (!pronto || !UNIDADE.drive) return
+    const chave = `drive:proposta:${p.id}:${p.atualizado_em}`
+    try {
+      if (localStorage.getItem(chave)) return
+    } catch {
+      /* sem armazenamento: manda assim mesmo */
+    }
+    void pdfDaProposta(propostaGravadaParaBase(p), cliente, p.endereco_id, vendedor.data)
+      .then((blob) => {
+        copiarPropostaNoDrive(p.id, blob)
+        try {
+          localStorage.setItem(chave, '1')
+        } catch {
+          /* tanto faz */
+        }
+      })
+      .catch(() => {})
+    // Só quando a versão da proposta muda.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pronto, p.id, p.atualizado_em])
 
   return (
     <div className="flex flex-col gap-3">

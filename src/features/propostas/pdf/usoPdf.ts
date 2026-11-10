@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 
 import { formatarTelefone } from '@/lib/documentos'
 import { supabase } from '@/lib/supabase'
+import { UNIDADE } from '@/lib/unidade'
 
 import type { ClienteCompleto } from '../../clientes/api'
 import type { PropostaCompleta } from '../api'
@@ -76,4 +77,22 @@ export function nomeArquivoProposta(numero: string | null | undefined, cliente: 
     .replace(/\s+/g, '_')
     .slice(0, 50)
   return `Proposta_${numero ?? 'rascunho'}_${limpo || 'cliente'}.pdf`
+}
+
+/**
+ * Guarda uma cópia do PDF no Google Drive: VENDAS / ano / vendedor / cliente /
+ * Proposta <número> - <data de envio>.pdf. Gerar de novo troca a cópia. Falhar aqui não
+ * atrapalha quem está usando a proposta.
+ */
+export function copiarPropostaNoDrive(propostaId: string | null, pdf: Blob) {
+  if (!UNIDADE.drive || !propostaId) return
+  void (async () => {
+    const bytes = new Uint8Array(await pdf.arrayBuffer())
+    let texto = ''
+    for (let i = 0; i < bytes.length; i += 0x8000)
+      texto += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+    await supabase.functions.invoke('drive', {
+      body: { acao: 'proposta', propostaId, pdf: btoa(texto) },
+    })
+  })().catch(() => {})
 }
