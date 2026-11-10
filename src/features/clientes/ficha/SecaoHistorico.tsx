@@ -48,7 +48,9 @@ const NOME_CAMPO: Record<string, string> = {
   cpf_cnpj: 'CPF/CNPJ',
   inscricao_estadual: 'Inscrição estadual',
   email: 'E-mail',
+  emails_extras: 'Outros e-mails',
   telefone: 'Telefone',
+  telefones_extras: 'Outros telefones',
   whatsapp: 'WhatsApp',
   vendedor_responsavel_id: 'Vendedor responsável',
   origem: 'Origem',
@@ -159,6 +161,9 @@ export function SecaoHistorico({ clienteId }: { clienteId: string }) {
     if (campo === 'vendedor_responsavel_id') return nomeDe(v)
     if (campo === 'data_hora') return formatarDataHora(String(v))
     if (campo === 'telefone' || campo === 'whatsapp') return formatarTelefone(String(v))
+    if (campo === 'telefones_extras' && Array.isArray(v))
+      return v.length ? v.map((t) => formatarTelefone(String(t))).join(', ') : '—'
+    if (Array.isArray(v)) return v.length ? v.join(', ') : '—'
     if (campo === 'cep') return formatarCep(String(v))
     if (campo === 'cpf_cnpj') {
       const doc = String(v)

@@ -38,6 +38,10 @@ const emailOpcional = z
   .trim()
   .refine((v) => v === '' || z.email().safeParse(v).success, 'E-mail inválido.')
 
+/** Lista de campos repetidos (useFieldArray do formulário precisa de objetos). */
+const listaDe = <T extends z.ZodType<string, string>>(campo: T) =>
+  z.array(z.object({ valor: campo }))
+
 /** Campo vazio vira null no banco. */
 function ouNulo(valor: string): string | null {
   const v = valor.trim()
@@ -107,7 +111,9 @@ export const esquemaCliente = z
     cpf_cnpj: textoOpcional,
     inscricao_estadual: textoOpcional,
     email: emailOpcional,
+    emails_extras: listaDe(emailOpcional),
     telefone: telefoneOpcional,
+    telefones_extras: listaDe(telefoneOpcional),
     whatsapp: telefoneOpcional,
     vendedor_responsavel_id: z.string(),
     origem: textoOpcional,
@@ -134,23 +140,42 @@ export const CLIENTE_VAZIO: FormCliente = {
   cpf_cnpj: '',
   inscricao_estadual: '',
   email: '',
+  emails_extras: [],
   telefone: '',
+  telefones_extras: [],
   whatsapp: '',
   vendedor_responsavel_id: '',
   origem: '',
   observacoes: '',
 }
 
+/**
+ * O primeiro e-mail (ou telefone) preenchido vira o principal; os outros vão para a
+ * lista de extras, sem vazios e sem repetidos.
+ */
+function principalEExtras(valores: string[]): [string | null, string[]] {
+  const unicos = [...new Set(valores.map((v) => v.trim()).filter(Boolean))]
+  return [unicos[0] ?? null, unicos.slice(1)]
+}
+
 export function clienteParaBanco(f: FormCliente) {
   const pj = f.tipo_pessoa === 'PJ'
+  const [email, emails_extras] = principalEExtras(
+    [f.email, ...f.emails_extras.map((e) => e.valor)].map((e) => e.toLowerCase()),
+  )
+  const [telefone, telefones_extras] = principalEExtras(
+    [f.telefone, ...f.telefones_extras.map((t) => t.valor)].map(soNumeros),
+  )
   return {
     tipo_pessoa: f.tipo_pessoa,
     nome: f.nome.trim(),
     nome_fantasia: pj ? ouNulo(f.nome_fantasia) : null,
     cpf_cnpj: ouNulo(limparDocumento(f.cpf_cnpj)),
     inscricao_estadual: pj ? ouNulo(f.inscricao_estadual) : null,
-    email: ouNulo(f.email.toLowerCase()),
-    telefone: ouNulo(soNumeros(f.telefone)),
+    email,
+    emails_extras,
+    telefone,
+    telefones_extras,
     whatsapp: ouNulo(soNumeros(f.whatsapp)),
     vendedor_responsavel_id: ouNulo(f.vendedor_responsavel_id),
     origem: ouNulo(f.origem),

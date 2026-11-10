@@ -237,7 +237,7 @@ const ROTULOS: Record<CampoCliente | CampoEndereco, string> = {
   nome_fantasia: 'Nome fantasia',
   inscricao_estadual: 'Inscrição estadual',
   email: 'E-mail',
-  telefone: 'Outro telefone',
+  telefone: 'Telefone',
   whatsapp: 'WhatsApp',
   cep: 'CEP',
   logradouro: 'Rua',

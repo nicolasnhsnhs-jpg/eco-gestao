@@ -174,18 +174,22 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
                   </a>
                 </div>
               )}
-              {cliente.telefone && (
-                <a href={`tel:${cliente.telefone}`} className="inline-flex items-center gap-2">
+              {[cliente.telefone, ...cliente.telefones_extras].filter(Boolean).map((t) => (
+                <a key={t} href={`tel:${t}`} className="inline-flex items-center gap-2">
                   <Phone className="size-4 text-verde" aria-hidden />
-                  {formatarTelefone(cliente.telefone)}
+                  {formatarTelefone(t)}
                 </a>
-              )}
-              {cliente.email && (
-                <a href={`mailto:${cliente.email}`} className="inline-flex items-center gap-2">
-                  <Mail className="size-4 text-verde" aria-hidden />
-                  {cliente.email}
+              ))}
+              {[cliente.email, ...cliente.emails_extras].filter(Boolean).map((e) => (
+                <a
+                  key={e}
+                  href={`mailto:${e}`}
+                  className="inline-flex items-center gap-2 break-all"
+                >
+                  <Mail className="size-4 shrink-0 text-verde" aria-hidden />
+                  {e}
                 </a>
-              )}
+              ))}
               {!cliente.whatsapp && !cliente.telefone && !cliente.email && (
                 <p className="text-sm text-texto-suave">Nenhum telefone ou e-mail cadastrado.</p>
               )}

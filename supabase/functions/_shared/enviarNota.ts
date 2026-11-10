@@ -73,10 +73,19 @@ export function enderecosEmail(texto: string | null | undefined): string[] {
     .filter((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e))
 }
 
-/** O e-mail do cliente ou, sem ele, o do contato principal (igual a privado.email_do_cliente). */
+/**
+ * Todos os e-mails do cliente (o principal e os outros) ou, sem nenhum, o do contato
+ * principal (igual a privado.email_do_cliente).
+ */
 export async function emailDoCliente(admin: SupabaseClient, clienteId: string): Promise<string[]> {
-  const { data: c } = await admin.from('clientes').select('email').eq('id', clienteId).single()
-  const doCliente = enderecosEmail(c?.email)
+  const { data: c } = await admin
+    .from('clientes')
+    .select('email, emails_extras')
+    .eq('id', clienteId)
+    .single()
+  const doCliente = [
+    ...new Set([c?.email, ...(c?.emails_extras ?? [])].flatMap((e) => enderecosEmail(e))),
+  ]
   if (doCliente.length) return doCliente
   const { data: contatos } = await admin
     .from('contatos_cliente')

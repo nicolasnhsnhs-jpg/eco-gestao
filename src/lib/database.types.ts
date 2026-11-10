@@ -957,6 +957,7 @@ export type Database = {
           criado_em: string
           criado_por: string | null
           email: string | null
+          emails_extras: string[]
           id: string
           inscricao_estadual: string | null
           nome: string
@@ -964,6 +965,7 @@ export type Database = {
           observacoes: string | null
           origem: string | null
           telefone: string | null
+          telefones_extras: string[]
           tipo_pessoa: Database['public']['Enums']['tipo_pessoa']
           vendedor_responsavel_id: string | null
           whatsapp: string | null
@@ -978,6 +980,7 @@ export type Database = {
           criado_em?: string
           criado_por?: string | null
           email?: string | null
+          emails_extras?: string[]
           id?: string
           inscricao_estadual?: string | null
           nome: string
@@ -985,6 +988,7 @@ export type Database = {
           observacoes?: string | null
           origem?: string | null
           telefone?: string | null
+          telefones_extras?: string[]
           tipo_pessoa: Database['public']['Enums']['tipo_pessoa']
           vendedor_responsavel_id?: string | null
           whatsapp?: string | null
@@ -999,6 +1003,7 @@ export type Database = {
           criado_em?: string
           criado_por?: string | null
           email?: string | null
+          emails_extras?: string[]
           id?: string
           inscricao_estadual?: string | null
           nome?: string
@@ -1006,6 +1011,7 @@ export type Database = {
           observacoes?: string | null
           origem?: string | null
           telefone?: string | null
+          telefones_extras?: string[]
           tipo_pessoa?: Database['public']['Enums']['tipo_pessoa']
           vendedor_responsavel_id?: string | null
           whatsapp?: string | null
@@ -5249,6 +5255,7 @@ export type Database = {
         }
         Returns: {
           conversa_id: string
+          emails_extras: string[]
           mensagem_id: string
           nova: boolean
         }[]
@@ -5256,6 +5263,7 @@ export type Database = {
       crm_registrar_aparelho: {
         Args: {
           p_auth: string
+          telefones_extras: string[]
           p_dispositivo: string
           p_endpoint: string
           p_p256dh: string

@@ -28,7 +28,9 @@ export function EnvioNota({ nota }: { nota: NotaFiscalCompleta }) {
   const enviar = useEnviarNotaPorEmail()
   const marcar = useMarcarNotaEnviada()
   const entrada = useRef<HTMLInputElement>(null)
-  const [para, setPara] = useState(nota.cliente?.email ?? '')
+  const [para, setPara] = useState(
+    [nota.cliente?.email, ...(nota.cliente?.emails_extras ?? [])].filter(Boolean).join(', '),
+  )
   const [mensagem, setMensagem] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null)
   const ocupado = anexar.isPending || enviar.isPending || marcar.isPending
 

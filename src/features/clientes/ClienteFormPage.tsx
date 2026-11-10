@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { LoaderCircle, Search } from 'lucide-react'
+import { LoaderCircle, Plus, Search, X } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { useForm, useWatch } from 'react-hook-form'
+import { useFieldArray, useForm, useWatch, type UseFormReturn } from 'react-hook-form'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 
 import { PageHeader } from '@/components/PageHeader'
@@ -75,7 +75,9 @@ function valoresIniciais(cliente: ClienteCompleto): FormCliente {
     cpf_cnpj: formatarDocumento(cliente.cpf_cnpj, cliente.tipo_pessoa),
     inscricao_estadual: cliente.inscricao_estadual ?? '',
     email: cliente.email ?? '',
+    emails_extras: cliente.emails_extras.map((valor) => ({ valor })),
     telefone: formatarTelefone(cliente.telefone),
+    telefones_extras: cliente.telefones_extras.map((t) => ({ valor: formatarTelefone(t) })),
     whatsapp: formatarTelefone(cliente.whatsapp),
     vendedor_responsavel_id: cliente.vendedor_responsavel_id ?? '',
     origem: cliente.origem ?? '',
@@ -204,7 +206,6 @@ function FormularioCliente({ cliente }: { cliente?: ClienteCompleto }) {
   }
 
   const documento = form.register('cpf_cnpj')
-  const telefone = form.register('telefone')
   const whatsapp = form.register('whatsapp')
 
   return (
@@ -315,47 +316,24 @@ function FormularioCliente({ cliente }: { cliente?: ClienteCompleto }) {
 
         <Card className="grid gap-4 sm:grid-cols-2">
           <h2 className="font-bold sm:col-span-2">Contato</h2>
-          <Campo rotulo="WhatsApp" htmlFor="whatsapp" erro={errors.whatsapp?.message}>
-            <Input
-              id="whatsapp"
-              type="tel"
-              inputMode="tel"
-              placeholder="(48) 99999-9999"
-              aria-invalid={!!errors.whatsapp}
-              {...whatsapp}
-              onChange={(e) => {
-                e.target.value = formatarTelefone(e.target.value)
-                void whatsapp.onChange(e)
-              }}
-            />
-          </Campo>
-          <Campo rotulo="Outro telefone" htmlFor="telefone" erro={errors.telefone?.message}>
-            <Input
-              id="telefone"
-              type="tel"
-              inputMode="tel"
-              aria-invalid={!!errors.telefone}
-              {...telefone}
-              onChange={(e) => {
-                e.target.value = formatarTelefone(e.target.value)
-                void telefone.onChange(e)
-              }}
-            />
-          </Campo>
-          <Campo
-            rotulo="E-mail"
-            htmlFor="email"
-            erro={errors.email?.message}
-            className="sm:col-span-2"
-          >
-            <Input
-              id="email"
-              type="email"
-              inputMode="email"
-              aria-invalid={!!errors.email}
-              {...form.register('email')}
-            />
-          </Campo>
+          <div className="flex flex-col gap-3">
+            <Campo rotulo="WhatsApp" htmlFor="whatsapp" erro={errors.whatsapp?.message}>
+              <Input
+                id="whatsapp"
+                type="tel"
+                inputMode="tel"
+                placeholder="(48) 99999-9999"
+                aria-invalid={!!errors.whatsapp}
+                {...whatsapp}
+                onChange={(e) => {
+                  e.target.value = formatarTelefone(e.target.value)
+                  void whatsapp.onChange(e)
+                }}
+              />
+            </Campo>
+            <ListaRepetida form={form} tipo="telefone" />
+          </div>
+          <ListaRepetida form={form} tipo="email" />
         </Card>
 
         {!editando && (
@@ -475,5 +453,98 @@ function ResultadoConsulta({
         </Aviso>
       )}
     </>
+  )
+}
+
+/**
+ * Telefones ou e-mails do cliente: o primeiro é o principal (vai na NFS-e e no boleto);
+ * o botão "Adicionar" abre mais campos. A nota fiscal é enviada para todos os e-mails.
+ */
+function ListaRepetida({
+  form,
+  tipo,
+}: {
+  form: UseFormReturn<FormCliente>
+  tipo: 'telefone' | 'email'
+}) {
+  const ehTelefone = tipo === 'telefone'
+  const principal = ehTelefone ? 'telefone' : 'email'
+  const extras = ehTelefone ? 'telefones_extras' : 'emails_extras'
+  const lista = useFieldArray({ control: form.control, name: extras })
+  const { errors } = form.formState
+  const rotulo = ehTelefone ? 'Telefone' : 'E-mail'
+
+  const propsCampo = ehTelefone
+    ? { type: 'tel', inputMode: 'tel' as const }
+    : { type: 'email', inputMode: 'email' as const }
+
+  function registrar(nome: typeof principal | `${typeof extras}.${number}.valor`) {
+    const r = form.register(nome)
+    if (!ehTelefone) return r
+    return {
+      ...r,
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+        e.target.value = formatarTelefone(e.target.value)
+        return r.onChange(e)
+      },
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <Campo
+        rotulo={rotulo}
+        htmlFor={principal}
+        erro={errors[principal]?.message}
+        dica={
+          !ehTelefone && lista.fields.length > 0
+            ? 'A nota fiscal vai para todos os e-mails.'
+            : undefined
+        }
+      >
+        <Input
+          id={principal}
+          {...propsCampo}
+          aria-invalid={!!errors[principal]}
+          {...registrar(principal)}
+        />
+      </Campo>
+
+      {lista.fields.map((campo, i) => {
+        const id = `${extras}-${i}`
+        const erro = errors[extras]?.[i]?.valor?.message
+        return (
+          <Campo key={campo.id} rotulo={`${rotulo} ${i + 2}`} htmlFor={id} erro={erro}>
+            <div className="flex gap-2">
+              <Input
+                id={id}
+                {...propsCampo}
+                aria-invalid={!!erro}
+                {...registrar(`${extras}.${i}.valor`)}
+              />
+              <Button
+                variante="fantasma"
+                className="shrink-0"
+                aria-label={`Remover ${rotulo.toLowerCase()} ${i + 2}`}
+                onClick={() => lista.remove(i)}
+              >
+                <X className="size-4" aria-hidden />
+              </Button>
+            </div>
+          </Campo>
+        )
+      })}
+
+      <Button
+        variante="secundario"
+        className="self-start"
+        onClick={() => {
+          lista.append({ valor: '' }, { shouldFocus: true })
+        }}
+      >
+        <Plus className="size-4" aria-hidden />
+        {ehTelefone ? 'Adicionar outro telefone' : 'Adicionar outro e-mail'}
+      </Button>
+    </div>
   )
 }
