@@ -513,35 +513,56 @@
   border-radius: 4px;
   background: currentColor;
 }
+/* Escala operacional em verde-limão vivo, para chamar a atenção de longe. */
 .aq-escala {
-  background: linear-gradient(150deg, var(--noite), var(--escuro));
-  color: #fff;
+  background: linear-gradient(150deg, #e4ff3a, #b6f02c 55%, #9fe02a);
+  color: var(--noite);
+  box-shadow:
+    0 0 0 3px #d6f53a,
+    0 18px 40px -18px rgba(120, 170, 0, 0.9);
 }
 .aq-escala .aq-titulo {
-  color: var(--lima);
+  color: var(--noite);
+  font-size: 15px;
 }
 .aq-turma + .aq-turma {
   margin-top: 18px;
   padding-top: 18px;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-top: 2px solid rgba(15, 42, 13, 0.18);
 }
 .aq-turma-hora {
-  font-size: 26px;
+  font-size: 30px;
   font-weight: 800;
+  color: var(--noite);
 }
 .aq-turma-hora span {
-  color: var(--lima);
-  font-size: 18px;
-  font-weight: 600;
+  color: var(--escuro);
+  font-size: 19px;
+  font-weight: 700;
   margin: 0 6px;
 }
 .aq-turma .aq-tecs {
   justify-content: flex-start;
   margin-top: 10px;
 }
+/* No fundo limão, as bolinhas seguem a cor da escala, mas com contorno escuro. */
+.aq-escala .aq-tec {
+  width: 42px;
+  height: 42px;
+  font-size: 18px;
+}
 .aq-escala .aq-tec.aq-e0 {
+  background: var(--noite);
+  color: #e4ff3a;
+}
+.aq-escala .aq-tec.aq-e1 {
   background: #fff;
   color: var(--noite);
+  box-shadow: inset 0 0 0 2.5px var(--noite);
+}
+.aq-escala .aq-tec.aq-e2 {
+  background: var(--verde);
+  color: #fff;
 }
 .aq-veiculos {
   background: var(--ambar-claro);
@@ -603,9 +624,10 @@
   margin: auto 0;
   text-align: center;
 }
+/* A mensagem fica escura, para não brigar com a escala em limão. */
 .aq-mensagem {
-  background: linear-gradient(120deg, var(--lima-forte), var(--lima));
-  color: var(--noite);
+  background: linear-gradient(120deg, var(--noite), var(--escuro));
+  color: #fff;
   display: flex;
   align-items: center;
   gap: 18px;
@@ -614,7 +636,7 @@
   width: 58px;
   height: 58px;
   border-radius: 18px;
-  background: var(--noite);
+  background: var(--lima);
   display: grid;
   place-items: center;
   flex: none;
@@ -622,7 +644,7 @@
 .aq-mensagem-icone svg {
   width: 30px;
   height: 30px;
-  fill: var(--lima);
+  fill: var(--noite);
 }
 .aq-mensagem b {
   font-size: 34px;
