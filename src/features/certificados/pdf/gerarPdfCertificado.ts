@@ -631,7 +631,7 @@ export async function gerarPdfCertificado(
     .filter(Boolean)
     .map((l) => ({ principal: l }))
   const blocoProdutos: Bloco = { titulo: 'Produtos e quantidades', itens: itensProdutos }
-  const blocoAreas: Bloco = { titulo: 'Áreas atendidas', itens: itensAreas }
+  const blocoAreas: Bloco = { titulo: modelo.tituloAreas ?? 'Áreas atendidas', itens: itensAreas }
   const meio = (blocos: Bloco[], topo: number) =>
     blocosDoMeio(p, f, blocos, M, LARGURA_BLOCOS, topo, limite, destaque)
 

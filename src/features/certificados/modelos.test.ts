@@ -24,6 +24,9 @@ describe('modeloDoTipo', () => {
     )
     expect(modeloDoTipo({ nome: 'Sucção de fossa', formulario_os: 'generico' })).toBe('succao')
     expect(modeloDoTipo({ nome: 'Hidrojateamento', formulario_os: 'generico' })).toBe('succao')
+    expect(modeloDoTipo({ nome: 'Limpeza de Bebedouros', formulario_os: 'generico' })).toBe(
+      'bebedouro',
+    )
   })
 
   it('cai no modelo geral para os outros serviços', () => {

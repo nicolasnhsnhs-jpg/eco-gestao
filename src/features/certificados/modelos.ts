@@ -8,7 +8,7 @@ import { UNIDADE } from '@/lib/unidade'
  * O desenho do PDF fica em pdf/gerarPdfCertificado.ts.
  */
 
-export const MODELOS = ['pragas', 'reservatorio', 'coifa', 'succao', 'geral'] as const
+export const MODELOS = ['pragas', 'reservatorio', 'bebedouro', 'coifa', 'succao', 'geral'] as const
 export type ModeloCertificado = (typeof MODELOS)[number]
 
 /** Como os blocos do meio da página são arrumados. */
@@ -28,6 +28,10 @@ export type Modelo = {
   temPragas: boolean
   /** A sucção tem outra responsável técnica e outro rodapé. */
   responsavelSuccao: boolean
+  /** Nome do bloco das áreas (padrão "Áreas atendidas"). */
+  tituloAreas?: string
+  /** Exemplo de linha no campo das áreas. */
+  exemploAreas?: string
   /** Sugestões que já vêm preenchidas (dá para mudar em cada certificado). */
   padrao: {
     titulo: string
@@ -64,6 +68,19 @@ export const MODELO: Record<ModeloCertificado, Modelo> = {
       titulo: 'LIMPEZA E DESINFECÇÃO DE RESERVATÓRIO DE ÁGUA POTÁVEL',
       servicoDescrito: 'LIMPEZA E DESINFECÇÃO nos Reservatórios de Água Potável',
       complemento: 'O Processo de Desinfecção foi através de limpeza mecânica.',
+    },
+  },
+  bebedouro: {
+    nome: 'Limpeza de bebedouros',
+    destaque: AZUL,
+    arranjo: 'areas_produtos',
+    temPragas: false,
+    responsavelSuccao: false,
+    tituloAreas: 'Bebedouros atendidos',
+    exemploAreas: '4 bebedouros - Refeitório',
+    padrao: {
+      titulo: 'LIMPEZA E HIGIENIZAÇÃO DE BEBEDOUROS',
+      servicoDescrito: 'LIMPEZA E HIGIENIZAÇÃO de BEBEDOUROS',
     },
   },
   coifa: {
@@ -134,6 +151,7 @@ export function modeloDoTipo(tipo: Tipo | null | undefined): ModeloCertificado {
   if (tipo.formulario_os === 'pragas') return 'pragas'
   if (tipo.formulario_os === 'coifa') return 'coifa'
   const nome = semAcento(tipo.nome)
+  if (nome.includes('bebedour')) return 'bebedouro'
   if (nome.includes('reservat') || nome.includes('caixa d')) return 'reservatorio'
   if (nome.includes('succao') || nome.includes('fossa') || nome.includes('hidrojat'))
     return 'succao'

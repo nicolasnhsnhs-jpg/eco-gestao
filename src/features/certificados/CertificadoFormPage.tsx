@@ -750,12 +750,14 @@ function Formulario({
           ) : (
             <Card className="grid gap-4">
               <h2 className="font-bold">
-                {m.arranjo === 'reservatorios' ? 'Áreas (opcional)' : 'Áreas atendidas'}
+                {m.arranjo === 'reservatorios'
+                  ? 'Áreas (opcional)'
+                  : (m.tituloAreas ?? 'Áreas atendidas')}
               </h2>
               <Campo
-                rotulo="Áreas"
+                rotulo={m.tituloAreas ?? 'Áreas'}
                 htmlFor="areas"
-                dica="Uma linha para cada área (ex.: 322 apartamentos)."
+                dica={`Uma linha para cada item (ex.: ${m.exemploAreas ?? '322 apartamentos'}).`}
               >
                 <Textarea id="areas" rows={4} {...form.register('areas')} />
               </Campo>
