@@ -58,3 +58,62 @@ self.addEventListener('fetch', (evento) => {
     caches.match(pedido, { ignoreVary: true }).then((guardado) => guardado || fetch(pedido)),
   )
 })
+
+/*
+ * Notificações push do atendimento (WhatsApp). O servidor manda o conteúdo
+ * criptografado (supabase/functions/_shared/pushCrm.ts); aqui ele vira a notificação.
+ * No iPhone, só funciona com o app aberto pela tela de início, e toda mensagem push
+ * precisa mostrar uma notificação (o iOS não aceita push silencioso).
+ */
+self.addEventListener('push', (evento) => {
+  let dados = {}
+  try {
+    dados = evento.data ? evento.data.json() : {}
+  } catch {
+    dados = { corpo: evento.data ? evento.data.text() : '' }
+  }
+  const tarefas = [
+    self.registration.showNotification(dados.titulo || 'Eco Gestão', {
+      body: dados.corpo || 'Nova mensagem no atendimento',
+      // Uma notificação por mensagem (o servidor já garante que a mesma mensagem não
+      // chega duas vezes); ao abrir a conversa, o app limpa as notificações dela.
+      tag: dados.tag,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      data: { url: dados.url || '/crm', conversaId: dados.conversaId || null },
+    }),
+  ]
+  // Número no ícone do app (iPhone com o app na tela de início, Android e computador).
+  if (typeof dados.naoLidas === 'number' && self.navigator && 'setAppBadge' in self.navigator) {
+    tarefas.push(
+      (dados.naoLidas > 0
+        ? self.navigator.setAppBadge(dados.naoLidas)
+        : self.navigator.clearAppBadge()
+      ).catch(() => {}),
+    )
+  }
+  evento.waitUntil(Promise.all(tarefas))
+})
+
+// Tocou na notificação: abre o app direto na conversa (ou traz para a frente o que já está aberto).
+self.addEventListener('notificationclick', (evento) => {
+  evento.notification.close()
+  const caminho = (evento.notification.data && evento.notification.data.url) || '/crm'
+  const endereco = new URL(caminho, self.location.origin).href
+  evento.waitUntil(
+    (async () => {
+      const janelas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      for (const janela of janelas) {
+        if (new URL(janela.url).origin !== self.location.origin) continue
+        try {
+          await janela.focus()
+          janela.postMessage({ tipo: 'abrir', url: caminho })
+          return
+        } catch {
+          // Não deu para trazer esta janela: abre uma nova abaixo.
+        }
+      }
+      await self.clients.openWindow(endereco)
+    })(),
+  )
+})

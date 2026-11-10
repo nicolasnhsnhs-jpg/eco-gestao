@@ -3,6 +3,8 @@ import { createBrowserRouter, Navigate, Outlet } from 'react-router'
 import { AdministrativoLayout } from '@/features/administrativo/AdministrativoLayout'
 import { AssinaturaPage } from '@/features/administrativo/assinatura/AssinaturaPage'
 import { AvisosPage } from '@/features/avisos/AvisosPage'
+import { CrmPage } from '@/features/crm/CrmPage'
+import { NotificacoesPage } from '@/features/crm/NotificacoesPage'
 import { DefinirSenhaPage } from '@/features/auth/DefinirSenhaPage'
 import { EntrarPage } from '@/features/auth/EntrarPage'
 import { EsqueciSenhaPage } from '@/features/auth/EsqueciSenhaPage'
@@ -82,6 +84,10 @@ export const router = createBrowserRouter([
     errorElement: <ErroPage />,
     children: [
       { index: true, element: <InicioPage /> },
+      // Atendimento pelo WhatsApp. Quem pode entrar é decidido na própria página (permissão no perfil).
+      { path: 'crm', element: <CrmPage /> },
+      { path: 'crm/notificacoes', element: <NotificacoesPage /> },
+      { path: 'crm/:conversaId', element: <CrmPage /> },
       {
         path: 'clientes',
         element: (

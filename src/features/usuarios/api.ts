@@ -148,6 +148,25 @@ export function useAlterarComissao() {
   })
 }
 
+/** Liga ou desliga o acesso ao CRM do WhatsApp (o admin sempre tem; o operador nunca). */
+export function useAlterarAtendeWhatsapp() {
+  const atualizar = useAtualizarListas()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ usuarioId, atende }: { usuarioId: string; atende: boolean }) => {
+      const { error } = await supabase
+        .from('perfis')
+        .update({ atende_whatsapp: atende })
+        .eq('id', usuarioId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      atualizar()
+      void queryClient.invalidateQueries({ queryKey: ['crm', 'atendentes'] })
+    },
+  })
+}
+
 export function useTransferirCarteira() {
   const atualizar = useAtualizarListas()
   return useMutation({

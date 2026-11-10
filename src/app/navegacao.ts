@@ -10,6 +10,7 @@ import {
   HandCoins,
   House,
   Mail,
+  MessageCircle,
   UserCog,
   Users,
   Wallet,
@@ -35,7 +36,12 @@ export type ItemMenu = {
   barraInferior?: readonly Papel[]
   /** Grupo do menu lateral onde o item fica (ver GRUPOS). */
   grupo?: NomeGrupo
+  /** Só aparece para quem usa o CRM do WhatsApp (permissão no perfil, ver crm/regras.ts). */
+  crm?: boolean
 }
+
+/** O que, além do perfil, muda o menu de uma pessoa. */
+export type OpcoesMenu = { crm?: boolean }
 
 type NomeGrupo = 'administrativo' | 'propostas'
 
@@ -66,6 +72,14 @@ const COMERCIAL: readonly Papel[] = [...PAPEIS_GESTAO, 'vendedor']
 
 export const MENU: readonly ItemMenu[] = [
   { rotulo: 'Início', caminho: '/', icone: House, papeis: TODOS, barraInferior: TODOS },
+  {
+    rotulo: 'Atendimento',
+    caminho: '/crm',
+    icone: MessageCircle,
+    papeis: SEM_OPERADOR,
+    barraInferior: SEM_OPERADOR,
+    crm: true,
+  },
   {
     rotulo: 'Clientes',
     caminho: '/clientes',
@@ -139,23 +153,23 @@ export const MENU: readonly ItemMenu[] = [
 ]
 
 /** Itens do menu que um perfil pode ver. */
-export function menuDoPapel(papel: Papel): ItemMenu[] {
-  return MENU.filter((item) => item.papeis.includes(papel))
+export function menuDoPapel(papel: Papel, opcoes: OpcoesMenu = {}): ItemMenu[] {
+  return MENU.filter((item) => item.papeis.includes(papel) && (!item.crm || opcoes.crm))
 }
 
-/** Atalhos da barra de baixo (celular) de um perfil. */
-export function barraDoPapel(papel: Papel): ItemMenu[] {
-  return menuDoPapel(papel).filter((item) => item.barraInferior?.includes(papel))
+/** Atalhos da barra de baixo (celular) de um perfil. Com o CRM, podem ser 5. */
+export function barraDoPapel(papel: Papel, opcoes: OpcoesMenu = {}): ItemMenu[] {
+  return menuDoPapel(papel, opcoes).filter((item) => item.barraInferior?.includes(papel))
 }
 
 /**
  * Menu lateral de um perfil, já agrupado. O grupo fica onde aparece o primeiro
  * item dele; um grupo com um item só vira item solto.
  */
-export function entradasDoPapel(papel: Papel): EntradaMenu[] {
+export function entradasDoPapel(papel: Papel, opcoes: OpcoesMenu = {}): EntradaMenu[] {
   const entradas: EntradaMenu[] = []
   const grupos = new Map<NomeGrupo, GrupoMenu>()
-  for (const item of menuDoPapel(papel)) {
+  for (const item of menuDoPapel(papel, opcoes)) {
     const nome = item.grupo
     if (!nome || !GRUPOS[nome].papeis.includes(papel)) {
       entradas.push({ tipo: 'item', ...item })

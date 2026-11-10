@@ -13,6 +13,7 @@ import { Carregando } from '@/components/ui/Carregando'
 import { Etiqueta } from '@/components/ui/Etiqueta'
 import { Modal } from '@/components/ui/Modal'
 import { mensagemDeErro } from '@/lib/erros'
+import { UNIDADE } from '@/lib/unidade'
 import {
   DOMINIO_OPERADOR,
   NOME_DO_PAPEL,
@@ -25,6 +26,7 @@ import { usePerfil } from '../auth/useAuth'
 import {
   useAlterarComissao,
   useAlterarNome,
+  useAlterarAtendeWhatsapp,
   useAlterarPapel,
   useAlternarAtivo,
   useClientesPorVendedor,
@@ -55,6 +57,7 @@ export function UsuariosPage() {
   const alterarPapel = useAlterarPapel()
   const alterarNome = useAlterarNome()
   const alterarComissao = useAlterarComissao()
+  const alterarAtende = useAlterarAtendeWhatsapp()
   const alternarAtivo = useAlternarAtivo()
   const definirSenha = useDefinirSenha()
   const [convidando, setConvidando] = useState(false)
@@ -162,6 +165,27 @@ export function UsuariosPage() {
                         ? 'padrão da empresa'
                         : 'não recebe'}
                   </button>
+                )}
+                {UNIDADE.crm && u.papel !== 'operador' && (
+                  <label className="mt-1 flex min-h-9 items-center gap-2 text-sm text-texto-suave">
+                    <input
+                      type="checkbox"
+                      className="size-4 accent-verde"
+                      checked={u.papel === 'admin' || u.atende_whatsapp}
+                      disabled={u.papel === 'admin' || !u.ativo || alterarAtende.isPending}
+                      onChange={(e) => {
+                        const atende = e.target.checked
+                        void executar(
+                          () => alterarAtende.mutateAsync({ usuarioId: u.id, atende }),
+                          atende
+                            ? `${u.nome} agora atende pelo WhatsApp.`
+                            : `${u.nome} não atende mais pelo WhatsApp.`,
+                        )
+                      }}
+                    />
+                    Atende WhatsApp
+                    {u.papel === 'admin' && ' (o administrador sempre atende)'}
+                  </label>
                 )}
               </div>
 

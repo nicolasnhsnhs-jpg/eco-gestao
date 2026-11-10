@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { LoaderCircle, Search } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 
 import { PageHeader } from '@/components/PageHeader'
 import { Aviso } from '@/components/ui/Aviso'
@@ -22,6 +22,7 @@ import { mensagemDeErro } from '@/lib/erros'
 import { PAPEIS_GESTAO } from '@/lib/papeis'
 
 import { usePerfil } from '../auth/useAuth'
+import { useVincularCliente } from '../crm/api'
 import {
   equipeComercial,
   useAtualizarCliente,
@@ -89,6 +90,10 @@ function FormularioCliente({ cliente }: { cliente?: ClienteCompleto }) {
   const equipe = useEquipe()
   const criar = useCriarCliente()
   const atualizar = useAtualizarCliente(cliente?.id ?? '')
+  // Aberto pelo CRM do WhatsApp: já vem com o número e o nome, e volta para a conversa.
+  const [parametros] = useSearchParams()
+  const conversaCrm = editando ? null : parametros.get('conversa')
+  const vincularConversa = useVincularCliente()
   const [comEndereco, setComEndereco] = useState(true)
   const [consulta, setConsulta] = useState<EstadoConsulta>({ etapa: 'parada' })
   // Para não consultar duas vezes o mesmo CNPJ nem aplicar uma resposta atrasada.
@@ -100,6 +105,8 @@ function FormularioCliente({ cliente }: { cliente?: ClienteCompleto }) {
       ? valoresIniciais(cliente)
       : {
           ...CLIENTE_VAZIO,
+          nome: parametros.get('nome') ?? '',
+          whatsapp: formatarTelefone(parametros.get('whatsapp') ?? ''),
           // O vendedor que cadastra já fica como responsável.
           vendedor_responsavel_id: perfil.papel === 'vendedor' ? perfil.id : '',
         },
@@ -134,6 +141,11 @@ function FormularioCliente({ cliente }: { cliente?: ClienteCompleto }) {
         cliente: clienteParaBanco(dados),
         endereco: comEndereco ? enderecoParaBanco(formEndereco.getValues()) : null,
       })
+      if (conversaCrm) {
+        await vincularConversa.mutateAsync({ conversa: conversaCrm, cliente: novoId })
+        navegar(`/crm/${conversaCrm}`, { replace: true })
+        return
+      }
       navegar(`/clientes/${novoId}`, { replace: true })
     } catch (erro) {
       form.setError('root', { message: mensagemDeErro(erro) })

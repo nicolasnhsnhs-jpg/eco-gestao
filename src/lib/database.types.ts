@@ -3228,6 +3228,7 @@ export type Database = {
       }
       perfis: {
         Row: {
+          atende_whatsapp: boolean
           ativo: boolean
           atualizado_em: string
           atualizado_por: string | null
@@ -3240,6 +3241,7 @@ export type Database = {
           telefone: string | null
         }
         Insert: {
+          atende_whatsapp?: boolean
           ativo?: boolean
           atualizado_em?: string
           atualizado_por?: string | null
@@ -3252,6 +3254,7 @@ export type Database = {
           telefone?: string | null
         }
         Update: {
+          atende_whatsapp?: boolean
           ativo?: boolean
           atualizado_em?: string
           atualizado_por?: string | null
@@ -3348,6 +3351,38 @@ export type Database = {
             columns: ["modelo_id"]
             isOneToOne: false
             referencedRelation: "os_modelos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      preferencias_notificacao: {
+        Row: {
+          apenas_minhas: boolean
+          ativo: boolean
+          atualizado_em: string
+          mostrar_previa: boolean
+          usuario_id: string
+        }
+        Insert: {
+          apenas_minhas?: boolean
+          ativo?: boolean
+          atualizado_em?: string
+          mostrar_previa?: boolean
+          usuario_id?: string
+        }
+        Update: {
+          apenas_minhas?: boolean
+          ativo?: boolean
+          atualizado_em?: string
+          mostrar_previa?: boolean
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "preferencias_notificacao_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: true
+            referencedRelation: "perfis"
             referencedColumns: ["id"]
           },
         ]
@@ -3563,6 +3598,86 @@ export type Database = {
           {
             foreignKeyName: "propostas_vendedor_id_fkey"
             columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_enviados: {
+        Row: {
+          enviado_em: string
+          inscricao_id: string
+          mensagem_id: string
+        }
+        Insert: {
+          enviado_em?: string
+          inscricao_id: string
+          mensagem_id: string
+        }
+        Update: {
+          enviado_em?: string
+          inscricao_id?: string
+          mensagem_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_enviados_inscricao_id_fkey"
+            columns: ["inscricao_id"]
+            isOneToOne: false
+            referencedRelation: "push_inscricoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_enviados_mensagem_id_fkey"
+            columns: ["mensagem_id"]
+            isOneToOne: false
+            referencedRelation: "wa_mensagens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_inscricoes: {
+        Row: {
+          auth: string
+          criado_em: string
+          dispositivo: string | null
+          endpoint: string
+          id: string
+          p256dh: string
+          ultimo_acesso_em: string
+          ultimo_envio_em: string | null
+          ultimo_erro: string | null
+          usuario_id: string
+        }
+        Insert: {
+          auth: string
+          criado_em?: string
+          dispositivo?: string | null
+          endpoint: string
+          id?: string
+          p256dh: string
+          ultimo_acesso_em?: string
+          ultimo_envio_em?: string | null
+          ultimo_erro?: string | null
+          usuario_id?: string
+        }
+        Update: {
+          auth?: string
+          criado_em?: string
+          dispositivo?: string | null
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          ultimo_acesso_em?: string
+          ultimo_envio_em?: string | null
+          ultimo_erro?: string | null
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_inscricoes_usuario_id_fkey"
+            columns: ["usuario_id"]
             isOneToOne: false
             referencedRelation: "perfis"
             referencedColumns: ["id"]
@@ -3947,6 +4062,408 @@ export type Database = {
             columns: ["ultimo_servico_id"]
             isOneToOne: false
             referencedRelation: "servicos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wa_contatos: {
+        Row: {
+          atualizado_em: string
+          cliente_id: string | null
+          criado_em: string
+          id: string
+          nome_perfil: string | null
+          wa_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          cliente_id?: string | null
+          criado_em?: string
+          id?: string
+          nome_perfil?: string | null
+          wa_id: string
+        }
+        Update: {
+          atualizado_em?: string
+          cliente_id?: string | null
+          criado_em?: string
+          id?: string
+          nome_perfil?: string | null
+          wa_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_contatos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wa_conversa_etiquetas: {
+        Row: {
+          conversa_id: string
+          etiqueta_id: string
+        }
+        Insert: {
+          conversa_id: string
+          etiqueta_id: string
+        }
+        Update: {
+          conversa_id?: string
+          etiqueta_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_conversa_etiquetas_conversa_id_fkey"
+            columns: ["conversa_id"]
+            isOneToOne: false
+            referencedRelation: "wa_conversas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_conversa_etiquetas_etiqueta_id_fkey"
+            columns: ["etiqueta_id"]
+            isOneToOne: false
+            referencedRelation: "wa_etiquetas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wa_conversas: {
+        Row: {
+          contato_id: string
+          criado_em: string
+          finalizada_em: string | null
+          id: string
+          nao_lidas: number
+          numero_id: string
+          responsavel_id: string | null
+          setor: Database["public"]["Enums"]["setor_atendimento"] | null
+          status: Database["public"]["Enums"]["status_conversa"]
+          ultima_entrada_em: string | null
+          ultima_mensagem_em: string | null
+          ultima_mensagem_previa: string | null
+          ultimo_responsavel_id: string | null
+        }
+        Insert: {
+          contato_id: string
+          criado_em?: string
+          finalizada_em?: string | null
+          id?: string
+          nao_lidas?: number
+          numero_id: string
+          responsavel_id?: string | null
+          setor?: Database["public"]["Enums"]["setor_atendimento"] | null
+          status?: Database["public"]["Enums"]["status_conversa"]
+          ultima_entrada_em?: string | null
+          ultima_mensagem_em?: string | null
+          ultima_mensagem_previa?: string | null
+          ultimo_responsavel_id?: string | null
+        }
+        Update: {
+          contato_id?: string
+          criado_em?: string
+          finalizada_em?: string | null
+          id?: string
+          nao_lidas?: number
+          numero_id?: string
+          responsavel_id?: string | null
+          setor?: Database["public"]["Enums"]["setor_atendimento"] | null
+          status?: Database["public"]["Enums"]["status_conversa"]
+          ultima_entrada_em?: string | null
+          ultima_mensagem_em?: string | null
+          ultima_mensagem_previa?: string | null
+          ultimo_responsavel_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_conversas_contato_id_fkey"
+            columns: ["contato_id"]
+            isOneToOne: false
+            referencedRelation: "wa_contatos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_conversas_numero_id_fkey"
+            columns: ["numero_id"]
+            isOneToOne: false
+            referencedRelation: "wa_numeros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_conversas_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_conversas_ultimo_responsavel_id_fkey"
+            columns: ["ultimo_responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wa_etiquetas: {
+        Row: {
+          cor: string
+          criado_em: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          cor?: string
+          criado_em?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          cor?: string
+          criado_em?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
+      wa_eventos: {
+        Row: {
+          corpo: Json
+          erro: string | null
+          hash: string
+          id: string
+          processado_em: string | null
+          recebido_em: string
+          tentativas: number
+        }
+        Insert: {
+          corpo: Json
+          erro?: string | null
+          hash: string
+          id?: string
+          processado_em?: string | null
+          recebido_em?: string
+          tentativas?: number
+        }
+        Update: {
+          corpo?: Json
+          erro?: string | null
+          hash?: string
+          id?: string
+          processado_em?: string | null
+          recebido_em?: string
+          tentativas?: number
+        }
+        Relationships: []
+      }
+      wa_mensagens: {
+        Row: {
+          conversa_id: string
+          criado_em: string
+          direcao: string
+          enviada_em: string
+          enviada_por: string | null
+          erro: string | null
+          id: string
+          midia_caminho: string | null
+          midia_id: string | null
+          midia_mime: string | null
+          midia_nome: string | null
+          midia_tamanho: number | null
+          responde_wamid: string | null
+          status: Database["public"]["Enums"]["status_mensagem"]
+          status_em: string | null
+          texto: string | null
+          tipo: string
+          wamid: string | null
+        }
+        Insert: {
+          conversa_id: string
+          criado_em?: string
+          direcao: string
+          enviada_em?: string
+          enviada_por?: string | null
+          erro?: string | null
+          id?: string
+          midia_caminho?: string | null
+          midia_id?: string | null
+          midia_mime?: string | null
+          midia_nome?: string | null
+          midia_tamanho?: number | null
+          responde_wamid?: string | null
+          status: Database["public"]["Enums"]["status_mensagem"]
+          status_em?: string | null
+          texto?: string | null
+          tipo: string
+          wamid?: string | null
+        }
+        Update: {
+          conversa_id?: string
+          criado_em?: string
+          direcao?: string
+          enviada_em?: string
+          enviada_por?: string | null
+          erro?: string | null
+          id?: string
+          midia_caminho?: string | null
+          midia_id?: string | null
+          midia_mime?: string | null
+          midia_nome?: string | null
+          midia_tamanho?: number | null
+          responde_wamid?: string | null
+          status?: Database["public"]["Enums"]["status_mensagem"]
+          status_em?: string | null
+          texto?: string | null
+          tipo?: string
+          wamid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_mensagens_conversa_id_fkey"
+            columns: ["conversa_id"]
+            isOneToOne: false
+            referencedRelation: "wa_conversas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_mensagens_enviada_por_fkey"
+            columns: ["enviada_por"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wa_notas: {
+        Row: {
+          autor_id: string
+          conversa_id: string
+          criado_em: string
+          id: string
+          texto: string
+        }
+        Insert: {
+          autor_id?: string
+          conversa_id: string
+          criado_em?: string
+          id?: string
+          texto: string
+        }
+        Update: {
+          autor_id?: string
+          conversa_id?: string
+          criado_em?: string
+          id?: string
+          texto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_notas_autor_id_fkey"
+            columns: ["autor_id"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_notas_conversa_id_fkey"
+            columns: ["conversa_id"]
+            isOneToOne: false
+            referencedRelation: "wa_conversas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wa_numeros: {
+        Row: {
+          ativo: boolean
+          criado_em: string
+          id: string
+          nome: string
+          numero_exibicao: string
+          phone_number_id: string
+          waba_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          criado_em?: string
+          id?: string
+          nome: string
+          numero_exibicao: string
+          phone_number_id: string
+          waba_id: string
+        }
+        Update: {
+          ativo?: boolean
+          criado_em?: string
+          id?: string
+          nome?: string
+          numero_exibicao?: string
+          phone_number_id?: string
+          waba_id?: string
+        }
+        Relationships: []
+      }
+      wa_transferencias: {
+        Row: {
+          conversa_id: string
+          em: string
+          feita_por: string | null
+          id: string
+          motivo: string | null
+          responsavel_anterior: string | null
+          responsavel_novo: string | null
+          setor: Database["public"]["Enums"]["setor_atendimento"] | null
+        }
+        Insert: {
+          conversa_id: string
+          em?: string
+          feita_por?: string | null
+          id?: string
+          motivo?: string | null
+          responsavel_anterior?: string | null
+          responsavel_novo?: string | null
+          setor?: Database["public"]["Enums"]["setor_atendimento"] | null
+        }
+        Update: {
+          conversa_id?: string
+          em?: string
+          feita_por?: string | null
+          id?: string
+          motivo?: string | null
+          responsavel_anterior?: string | null
+          responsavel_novo?: string | null
+          setor?: Database["public"]["Enums"]["setor_atendimento"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_transferencias_conversa_id_fkey"
+            columns: ["conversa_id"]
+            isOneToOne: false
+            referencedRelation: "wa_conversas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_transferencias_feita_por_fkey"
+            columns: ["feita_por"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_transferencias_responsavel_anterior_fkey"
+            columns: ["responsavel_anterior"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_transferencias_responsavel_novo_fkey"
+            columns: ["responsavel_novo"]
+            isOneToOne: false
+            referencedRelation: "perfis"
             referencedColumns: ["id"]
           },
         ]
@@ -4485,6 +5002,92 @@ export type Database = {
       }
       concluir_os: { Args: { os: string }; Returns: undefined }
       conferir_os: { Args: { os: string }; Returns: undefined }
+      crm_assumir: { Args: { conversa: string }; Returns: undefined }
+      crm_atualizar_status: {
+        Args: {
+          p_em: string
+          p_erro: string
+          p_status: Database["public"]["Enums"]["status_mensagem"]
+          p_wamid: string
+        }
+        Returns: undefined
+      }
+      crm_destinatarios_push: {
+        Args: { p_conversa: string }
+        Returns: {
+          auth: string
+          endpoint: string
+          inscricao_id: string
+          mostrar_previa: boolean
+          nao_lidas_total: number
+          p256dh: string
+          usuario_id: string
+        }[]
+      }
+      crm_marcar_lida: { Args: { conversa: string }; Returns: undefined }
+      crm_receber_mensagem: {
+        Args: {
+          p_enviada_em: string
+          p_midia_id: string
+          p_midia_mime: string
+          p_midia_nome: string
+          p_nome_perfil: string
+          p_phone_number_id: string
+          p_responde_wamid: string
+          p_texto: string
+          p_tipo: string
+          p_wa_id: string
+          p_wamid: string
+        }
+        Returns: {
+          conversa_id: string
+          mensagem_id: string
+          nova: boolean
+        }[]
+      }
+      crm_registrar_aparelho: {
+        Args: {
+          p_auth: string
+          p_dispositivo: string
+          p_endpoint: string
+          p_p256dh: string
+        }
+        Returns: string
+      }
+      crm_registrar_envio: {
+        Args: {
+          p_conversa: string
+          p_midia_caminho: string
+          p_midia_mime: string
+          p_midia_nome: string
+          p_midia_tamanho: number
+          p_texto: string
+          p_tipo: string
+          p_usuario: string
+        }
+        Returns: string
+      }
+      crm_remover_aparelho: { Args: { p_endpoint: string }; Returns: undefined }
+      crm_status: {
+        Args: {
+          conversa: string
+          novo_status: Database["public"]["Enums"]["status_conversa"]
+        }
+        Returns: undefined
+      }
+      crm_transferir: {
+        Args: {
+          conversa: string
+          motivo?: string
+          novo_setor?: Database["public"]["Enums"]["setor_atendimento"]
+          responsavel: string
+        }
+        Returns: undefined
+      }
+      crm_vincular_cliente: {
+        Args: { cliente: string; conversa: string }
+        Returns: undefined
+      }
       desfazer_antecipacao: {
         Args: { p_antecipacao: string }
         Returns: undefined
@@ -4619,10 +5222,23 @@ export type Database = {
         | "recepcao"
         | "operador"
         | "administrativo"
+      setor_atendimento:
+        | "administrativo"
+        | "comercial"
+        | "financeiro"
+        | "operacional"
       status_comissao: "prevista" | "paga" | "cancelada"
       status_contrato: "ativo" | "suspenso" | "encerrado"
+      status_conversa: "aberta" | "pendente" | "finalizada"
       status_fechamento: "aberto" | "pago"
       status_lancamento: "pendente" | "agendado" | "realizado" | "cancelado"
+      status_mensagem:
+        | "recebida"
+        | "pendente"
+        | "enviada"
+        | "entregue"
+        | "lida"
+        | "falhou"
       status_nota_fiscal: "rascunho" | "emitida" | "cancelada"
       status_os:
         | "rascunho"
@@ -4808,10 +5424,25 @@ export const Constants = {
         "operador",
         "administrativo",
       ],
+      setor_atendimento: [
+        "administrativo",
+        "comercial",
+        "financeiro",
+        "operacional",
+      ],
       status_comissao: ["prevista", "paga", "cancelada"],
       status_contrato: ["ativo", "suspenso", "encerrado"],
+      status_conversa: ["aberta", "pendente", "finalizada"],
       status_fechamento: ["aberto", "pago"],
       status_lancamento: ["pendente", "agendado", "realizado", "cancelado"],
+      status_mensagem: [
+        "recebida",
+        "pendente",
+        "enviada",
+        "entregue",
+        "lida",
+        "falhou",
+      ],
       status_nota_fiscal: ["rascunho", "emitida", "cancelada"],
       status_os: [
         "rascunho",

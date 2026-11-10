@@ -5,6 +5,10 @@ import { NavLink, Outlet, useLocation } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import { useAuth, usePerfil } from '@/features/auth/useAuth'
 import { useAvisosNaoLidos } from '@/features/avisos/api'
+import { useNaoLidasCrm, useTempoRealCrm } from '@/features/crm/api'
+import { removerAoSair } from '@/features/crm/push'
+import { podeUsarCrm } from '@/features/crm/regras'
+import { useNotificacoesApp } from '@/features/crm/useNotificacoesApp'
 import { TarjaEnvio } from '@/features/os/offline/TarjaEnvio'
 import { NOME_DO_PAPEL } from '@/lib/papeis'
 import { cn } from '@/lib/utils'
@@ -19,9 +23,14 @@ import { useNovaVersao } from './novaVersao'
  */
 export function AppLayout() {
   const [menuAberto, setMenuAberto] = useState(false)
-  const papel = usePerfil().papel
-  const entradas = entradasDoPapel(papel)
-  const atalhos = barraDoPapel(papel)
+  const perfil = usePerfil()
+  const papel = perfil.papel
+  const crm = podeUsarCrm(perfil)
+  const entradas = entradasDoPapel(papel, { crm })
+  const atalhos = barraDoPapel(papel, { crm })
+  // Um canal de tempo real só, aberto aqui: o contador do menu e as telas do CRM se atualizam juntos.
+  useTempoRealCrm(crm)
+  useNotificacoesApp(crm)
 
   return (
     <div className="min-h-dvh lg:flex">
@@ -118,6 +127,7 @@ export function AppLayout() {
             <span className="relative">
               <item.icone className="size-5" aria-hidden />
               {item.caminho === '/avisos' && <ContadorAvisos flutuante />}
+              {item.caminho === '/crm' && <ContadorCrm flutuante />}
             </span>
             {item.rotulo}
           </NavLink>
@@ -223,6 +233,7 @@ function ItemLateral({
       <item.icone className="size-5" aria-hidden />
       <span className="flex-1">{item.rotulo}</span>
       {item.caminho === '/avisos' && <ContadorAvisos />}
+      {item.caminho === '/crm' && <ContadorCrm />}
     </NavLink>
   )
 }
@@ -230,6 +241,24 @@ function ItemLateral({
 /** Número de avisos não lidos, ao lado de "Avisos" no menu. */
 function ContadorAvisos({ flutuante }: { flutuante?: boolean }) {
   const { data: total = 0 } = useAvisosNaoLidos()
+  return <Contador total={total} flutuante={flutuante} rotulo="aviso(s) não lido(s)" />
+}
+
+/** Mensagens do WhatsApp não lidas, ao lado de "Atendimento" no menu. */
+function ContadorCrm({ flutuante }: { flutuante?: boolean }) {
+  const { data: total = 0 } = useNaoLidasCrm(true)
+  return <Contador total={total} flutuante={flutuante} rotulo="mensagem(ns) não lida(s)" />
+}
+
+function Contador({
+  total,
+  flutuante,
+  rotulo,
+}: {
+  total: number
+  flutuante?: boolean
+  rotulo: string
+}) {
   if (total === 0) return null
   return (
     <span
@@ -237,7 +266,7 @@ function ContadorAvisos({ flutuante }: { flutuante?: boolean }) {
         'grid min-w-5 place-items-center rounded-full bg-perigo px-1.5 text-xs leading-5 font-bold text-white',
         flutuante && 'absolute -top-2 -right-3',
       )}
-      aria-label={`${total} aviso(s) não lido(s)`}
+      aria-label={`${total} ${rotulo}`}
     >
       {total > 99 ? '99+' : total}
     </span>
@@ -265,7 +294,12 @@ function Usuario() {
       </div>
       <button
         type="button"
-        onClick={() => void sair()}
+        onClick={async () => {
+          // Saída pelo botão: este aparelho para de avisar as conversas de quem saiu.
+          // (A saída automática por tempo parado não mexe: o celular continua avisando.)
+          await removerAoSair()
+          await sair()
+        }}
         className="grid size-10 place-items-center rounded-xl text-texto-suave hover:bg-lima-claro hover:text-verde-escuro"
         aria-label="Sair do sistema"
         title="Sair"
