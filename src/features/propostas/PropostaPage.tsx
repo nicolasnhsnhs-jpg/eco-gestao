@@ -23,6 +23,7 @@ import {
   type PropostaCompleta,
   type SituacaoProposta,
 } from './api'
+import { nomeFrequencia } from './modelos'
 import { AcoesPdfProposta } from './pdf/PdfProposta'
 
 export function PropostaPage() {
@@ -153,7 +154,9 @@ function Detalhe({ p }: { p: PropostaCompleta }) {
                   <p className="text-sm text-texto-suave">
                     {Number(i.quantidade).toLocaleString('pt-BR')} ×{' '}
                     {formatarReais(i.valor_unitario)}
-                    {i.periodicidade_meses && ` · repetir a cada ${i.periodicidade_meses} meses`}
+                    {i.frequencia
+                      ? ` · ${nomeFrequencia(i.frequencia).toLowerCase()}`
+                      : i.periodicidade_meses && ` · repetir a cada ${i.periodicidade_meses} meses`}
                   </p>
                 </div>
                 <strong>

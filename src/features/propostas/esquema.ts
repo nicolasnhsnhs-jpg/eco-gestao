@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import { lerValor, paraCentavos } from '@/lib/dinheiro'
 
+import { ehFrequenciaCurta, separarFrequencia } from './modelos'
 import type { PropostaBase } from './pdf/dadosPdf'
 
 const inteiroOpcional = (min: number, max: number, mensagem: string) =>
@@ -25,7 +26,14 @@ export const esquemaItem = z.object({
     .trim()
     .refine((v) => Number(v.replace(',', '.')) > 0, 'Quantidade inválida.'),
   valor_unitario: z.string().refine((v) => lerValor(v) !== null, 'Informe o valor.'),
-  periodicidade_meses: inteiroOpcional(1, 60, 'Entre 1 e 60 meses.'),
+  /** Meses (1 a 60) ou "semanal"/"quinzenal"; vazio = avulso. */
+  periodicidade_meses: z
+    .string()
+    .trim()
+    .refine(
+      (v) => v === '' || ehFrequenciaCurta(v) || (/^\d+$/.test(v) && +v >= 1 && +v <= 60),
+      'Entre 1 e 60 meses.',
+    ),
   cobranca: z.enum(['unica', 'mensal', 'por_visita']),
 })
 
@@ -117,7 +125,7 @@ export function propostaParaBanco(f: FormProposta) {
       descricao: i.descricao.trim(),
       quantidade: quantidadeDe(i.quantidade),
       valor_unitario: lerValor(i.valor_unitario)!,
-      periodicidade_meses: i.periodicidade_meses ? Number(i.periodicidade_meses) : null,
+      ...separarFrequencia(i.periodicidade_meses),
       cobranca: i.cobranca,
     })),
   }
@@ -151,7 +159,7 @@ export function formParaBase(f: FormProposta, numero?: string | null): PropostaB
       descricao: i.descricao?.trim() || 'Serviço',
       quantidade: quantidadeDe(i.quantidade ?? '1') || 1,
       valor_unitario: lerValor(i.valor_unitario ?? '') ?? 0,
-      periodicidade_meses: i.periodicidade_meses ? Number(i.periodicidade_meses) : null,
+      ...separarFrequencia(i.periodicidade_meses),
       cobranca: i.cobranca ?? 'unica',
     })),
   }

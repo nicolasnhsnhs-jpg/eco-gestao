@@ -29,6 +29,8 @@ export type ItemBase = {
   quantidade: number
   valor_unitario: number
   periodicidade_meses: number | null
+  /** "semanal" / "quinzenal" (aí periodicidade_meses fica vazio). */
+  frequencia: string | null
   cobranca: string | null
 }
 
@@ -129,7 +131,7 @@ export function montarDadosPdf(
     const novo = !!i.modelo
     const base = i.titulo?.trim() || i.descricao
     return {
-      titulo: novo ? tituloComFrequencia(base, i.periodicidade_meses) : base,
+      titulo: novo ? tituloComFrequencia(base, i.frequencia ?? i.periodicidade_meses) : base,
       escopo: i.escopo ?? '',
     }
   })

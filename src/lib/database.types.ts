@@ -3751,6 +3751,7 @@ export type Database = {
           cobranca: string
           descricao: string
           escopo: string | null
+          frequencia: string | null
           id: string
           metodologia: string | null
           modelo: string | null
@@ -3767,6 +3768,7 @@ export type Database = {
           cobranca?: string
           descricao: string
           escopo?: string | null
+          frequencia?: string | null
           id?: string
           metodologia?: string | null
           modelo?: string | null
@@ -3783,6 +3785,7 @@ export type Database = {
           cobranca?: string
           descricao?: string
           escopo?: string | null
+          frequencia?: string | null
           id?: string
           metodologia?: string | null
           modelo?: string | null

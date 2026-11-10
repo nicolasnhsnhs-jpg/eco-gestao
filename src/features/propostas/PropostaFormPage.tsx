@@ -39,6 +39,7 @@ import {
   MODELOS,
   modeloDe,
   recursosDoModelo,
+  valorFrequencia,
   type ChaveModelo,
 } from './modelos'
 import { PreviaPdf } from './pdf/PdfProposta'
@@ -97,7 +98,7 @@ function valoresIniciais(
         descricao: i.descricao,
         quantidade: String(i.quantidade).replace('.', ','),
         valor_unitario: valorParaCampo(i.valor_unitario),
-        periodicidade_meses: i.periodicidade_meses?.toString() ?? '',
+        periodicidade_meses: valorFrequencia(i.periodicidade_meses, i.frequencia),
         cobranca: (i.cobranca as FormItem['cobranca']) ?? 'unica',
       })),
     }
@@ -535,7 +536,7 @@ function ItemServico({
       >
         <SelectForm id={`freq-${i}`} control={form.control} name={`itens.${i}.periodicidade_meses`}>
           {FREQUENCIAS.map((f) => (
-            <option key={f.meses} value={f.meses}>
+            <option key={f.valor} value={f.valor}>
               {f.nome}
             </option>
           ))}

@@ -54,6 +54,7 @@ export function propostaGravadaParaBase(p: PropostaCompleta): PropostaBase {
       quantidade: Number(i.quantidade),
       valor_unitario: Number(i.valor_unitario),
       periodicidade_meses: i.periodicidade_meses,
+      frequencia: i.frequencia,
       cobranca: i.cobranca,
     })),
   }

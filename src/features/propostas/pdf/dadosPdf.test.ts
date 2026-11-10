@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { MODELOS, recursosDoModelo, tituloComFrequencia } from '../modelos'
+import {
+  MODELOS,
+  recursosDoModelo,
+  separarFrequencia,
+  tituloComFrequencia,
+  valorFrequencia,
+} from '../modelos'
 import { montarDadosPdf, type ItemBase, type PropostaBase } from './dadosPdf'
 
 const item = (x: Partial<ItemBase>): ItemBase => ({
@@ -13,6 +19,7 @@ const item = (x: Partial<ItemBase>): ItemBase => ({
   quantidade: 1,
   valor_unitario: 0,
   periodicidade_meses: null,
+  frequencia: null,
   cobranca: 'unica',
   ...x,
 })
@@ -166,5 +173,31 @@ describe('montarDadosPdf', () => {
       'Limpeza de coifa / semestral',
     )
     expect(tituloComFrequencia('Desratização', 1)).toBe('Desratização / Mensal')
+  })
+
+  it('aceita frequência semanal e quinzenal', () => {
+    const d = montarDadosPdf(
+      base({
+        itens: [
+          item({ modelo: 'pragas', titulo: 'Controle de pragas', frequencia: 'quinzenal' }),
+          item({ modelo: 'ralos', titulo: 'Limpeza de ralos', frequencia: 'semanal' }),
+        ],
+      }),
+      cliente,
+      null,
+      vendedor,
+    )
+    expect(d.itens.map((i) => i.titulo)).toEqual([
+      'Controle de pragas / Quinzenal',
+      'Limpeza de ralos / Semanal',
+    ])
+    expect(separarFrequencia('quinzenal')).toEqual({
+      periodicidade_meses: null,
+      frequencia: 'quinzenal',
+    })
+    expect(separarFrequencia('6')).toEqual({ periodicidade_meses: 6, frequencia: null })
+    expect(separarFrequencia('')).toEqual({ periodicidade_meses: null, frequencia: null })
+    expect(valorFrequencia(null, 'semanal')).toBe('semanal')
+    expect(valorFrequencia(3, null)).toBe('3')
   })
 })

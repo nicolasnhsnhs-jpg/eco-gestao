@@ -305,19 +305,48 @@ export function recursosDoModelo(m: ModeloServico, u: DadosUnidade = UNIDADE.pro
 // Frequência e cobrança
 // -----------------------------------------------------------------------------
 
-export const FREQUENCIAS: { meses: string; nome: string }[] = [
-  { meses: '', nome: 'Avulso' },
-  { meses: '1', nome: 'Mensal' },
-  { meses: '2', nome: 'Bimestral' },
-  { meses: '3', nome: 'Trimestral' },
-  { meses: '4', nome: 'Quadrimestral' },
-  { meses: '6', nome: 'Semestral' },
-  { meses: '12', nome: 'Anual' },
+/**
+ * Opções de frequência da tela. O valor é o número de meses, ou "semanal" /
+ * "quinzenal" (que não cabem em meses e vão para a coluna "frequencia").
+ */
+export const FREQUENCIAS: { valor: string; nome: string }[] = [
+  { valor: '', nome: 'Avulso' },
+  { valor: 'semanal', nome: 'Semanal' },
+  { valor: 'quinzenal', nome: 'Quinzenal' },
+  { valor: '1', nome: 'Mensal' },
+  { valor: '2', nome: 'Bimestral' },
+  { valor: '3', nome: 'Trimestral' },
+  { valor: '4', nome: 'Quadrimestral' },
+  { valor: '6', nome: 'Semestral' },
+  { valor: '12', nome: 'Anual' },
 ]
 
-export function nomeFrequencia(meses: number | string | null | undefined): string {
-  const m = meses == null ? '' : String(meses)
-  return FREQUENCIAS.find((f) => f.meses === m)?.nome ?? `A cada ${m} meses`
+export const FREQUENCIAS_CURTAS = ['semanal', 'quinzenal'] as const
+export type FrequenciaCurta = (typeof FREQUENCIAS_CURTAS)[number]
+
+export const ehFrequenciaCurta = (v: string | null | undefined): v is FrequenciaCurta =>
+  FREQUENCIAS_CURTAS.includes(v as FrequenciaCurta)
+
+/** Valor da tela → como vai para o banco (meses ou semanal/quinzenal, nunca os dois). */
+export function separarFrequencia(valor: string | null | undefined) {
+  const v = (valor ?? '').trim()
+  if (ehFrequenciaCurta(v)) return { periodicidade_meses: null, frequencia: v }
+  return { periodicidade_meses: v ? Number(v) : null, frequencia: null }
+}
+
+/** Do banco para a tela. */
+export function valorFrequencia(
+  meses: number | null | undefined,
+  frequencia: string | null | undefined,
+) {
+  if (ehFrequenciaCurta(frequencia)) return frequencia
+  return meses?.toString() ?? ''
+}
+
+/** Nome da frequência: aceita o valor da tela (meses ou semanal/quinzenal). */
+export function nomeFrequencia(valor: number | string | null | undefined): string {
+  const v = valor == null ? '' : String(valor)
+  return FREQUENCIAS.find((f) => f.valor === v)?.nome ?? `A cada ${v} meses`
 }
 
 export type Cobranca = 'unica' | 'mensal' | 'por_visita'
@@ -332,8 +361,8 @@ export const sufixoCobranca = (c: string | null | undefined) =>
   COBRANCAS.find((x) => x.valor === c)?.sufixo ?? ''
 
 /** "SERVIÇO DE LIMPEZA DE COIFA / SEMESTRAL" (não repete se já estiver no título). */
-export function tituloComFrequencia(titulo: string, meses: number | string | null | undefined) {
-  const freq = nomeFrequencia(meses)
+export function tituloComFrequencia(titulo: string, valor: number | string | null | undefined) {
+  const freq = nomeFrequencia(valor)
   const t = titulo.trim()
   if (sem(t).includes(sem(freq))) return t
   return `${t} / ${freq}`

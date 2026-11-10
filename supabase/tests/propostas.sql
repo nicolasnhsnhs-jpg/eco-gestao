@@ -70,6 +70,23 @@ do $$ begin
             from public.proposta_itens
            where proposta_id = '00000000-0000-0000-0000-0000000aa001' and ordem = 1),
     'Os textos do PDF deveriam ser gravados (sem espaços sobrando, vazio vira nulo)';
+  -- Semanal/quinzenal: grava a frequência e não aceita junto com meses.
+  -- (O "desfazer" no fim volta os itens de antes.)
+  begin
+    perform public.salvar_itens_proposta('00000000-0000-0000-0000-0000000aa001',
+      '[{"descricao": "Desratização", "quantidade": 1, "valor_unitario": 100, "frequencia": "quinzenal"}]');
+    assert (select frequencia from public.proposta_itens
+             where proposta_id = '00000000-0000-0000-0000-0000000aa001') = 'quinzenal',
+      'A frequência quinzenal deveria ser gravada';
+    begin
+      perform public.salvar_itens_proposta('00000000-0000-0000-0000-0000000aa001',
+        '[{"descricao": "X", "quantidade": 1, "valor_unitario": 1, "frequencia": "semanal", "periodicidade_meses": 1}]');
+      raise exception 'FALHOU: aceitou semanal e meses ao mesmo tempo';
+    exception when check_violation then null;
+    end;
+    raise exception 'desfazer' using errcode = 'P0001';
+  exception when sqlstate 'P0001' then null;
+  end;
   begin
     perform public.salvar_itens_proposta('00000000-0000-0000-0000-0000000aa001', '[]');
     raise exception 'FALHOU: aceitou proposta sem itens';
