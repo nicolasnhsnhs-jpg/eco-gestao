@@ -102,6 +102,20 @@ describe('produtos', () => {
     ])
   })
 
+  it('deixa a marca de fora: só o princípio ativo', () => {
+    expect(
+      linhasDoProduto({
+        nome_comercial: 'DEVETION',
+        principio_ativo: 'Diclorvós',
+        registro: 'MS 3.1606.0050.001-9',
+        quantidade: '300ml',
+        lote: '',
+        fabricacao: '',
+        validade: '',
+      })[0],
+    ).toBe('Diclorvós (MS 3.1606.0050.001-9) - 300ml')
+  })
+
   it('ignora produtos vazios ou mal formados', () => {
     expect(
       lerProdutos([{ principio_ativo: 'Gel', quantidade: '10 g' }, { principio_ativo: ' ' }, null]),

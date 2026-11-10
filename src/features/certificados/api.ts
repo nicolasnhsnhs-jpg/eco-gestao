@@ -282,7 +282,7 @@ async function produtosDaOs(osId: string): Promise<ProdutoCertificado[]> {
     nome_comercial: item.nome_comercial ?? '',
     principio_ativo: item.principio_ativo,
     registro: item.registro ?? '',
-    quantidade: g ? `${num(g)}g` : un ? `${num(un)} un` : (item.quantidade_padrao ?? ''),
+    quantidade: g ? `${num(g)}g` : un ? `${num(un)} un` : '',
     lote: item.lote ?? '',
     fabricacao: item.fabricacao ?? '',
     validade: item.validade ?? '',

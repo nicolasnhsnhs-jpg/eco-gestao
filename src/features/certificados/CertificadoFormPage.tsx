@@ -342,7 +342,8 @@ function Formulario({
       nome_comercial: item.nome_comercial ?? '',
       principio_ativo: item.principio_ativo,
       registro: item.registro ?? '',
-      quantidade: item.quantidade_padrao ?? '',
+      // A quantidade é a usada no serviço: quem emite informa na hora.
+      quantidade: '',
       lote: item.lote ?? '',
       fabricacao: item.fabricacao ?? '',
       validade: item.validade ?? '',
@@ -859,7 +860,12 @@ function Formulario({
               </option>
               {ativos.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {[p.nome_comercial, p.principio_ativo].filter(Boolean).join(' ')}
+                  {p.principio_ativo}
+                  {/* Mesmo princípio ativo em mais de um produto: o registro diferencia. */}
+                  {p.registro &&
+                  ativos.some((o) => o.id !== p.id && o.principio_ativo === p.principio_ativo)
+                    ? ` (${p.registro})`
+                    : ''}
                   {p.lote ? ` · lote ${p.lote}` : ''}
                 </option>
               ))}

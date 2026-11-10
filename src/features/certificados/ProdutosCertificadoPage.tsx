@@ -51,7 +51,7 @@ const comoProduto = (p: ProdutoCatalogo) => ({
   nome_comercial: p.nome_comercial ?? '',
   principio_ativo: p.principio_ativo,
   registro: p.registro ?? '',
-  quantidade: p.quantidade_padrao ?? '',
+  quantidade: '',
   lote: p.lote ?? '',
   fabricacao: p.fabricacao ?? '',
   validade: p.validade ?? '',
@@ -96,7 +96,12 @@ export function ProdutosCertificadoPage() {
               )}
             >
               <div className="min-w-0 flex-1">
-                <p className="font-semibold">{linha1}</p>
+                <p className="font-semibold">
+                  {p.nome_comercial && (
+                    <span className="text-texto-suave">{p.nome_comercial} · </span>
+                  )}
+                  {linha1}
+                </p>
                 {linha2 && <p className="text-sm text-texto-suave">{linha2}</p>}
               </div>
               {!p.ativo && <Etiqueta>Desativado</Etiqueta>}
@@ -185,7 +190,11 @@ function FormProduto({
     <form onSubmit={(e) => void enviar(e)} className="flex flex-col gap-4">
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       <div className="grid gap-4 sm:grid-cols-2">
-        <Campo rotulo="Nome comercial" htmlFor="p-nome" dica="Ex.: FENDONA (pode ficar vazio).">
+        <Campo
+          rotulo="Nome comercial"
+          htmlFor="p-nome"
+          dica="Ex.: FENDONA. Só para achar aqui; não sai no certificado."
+        >
           <Input id="p-nome" {...campo('nome_comercial')} />
         </Campo>
         <Campo rotulo="Princípio ativo" htmlFor="p-principio" obrigatorio>
@@ -198,13 +207,9 @@ function FormProduto({
         >
           <Input id="p-registro" {...campo('registro')} />
         </Campo>
-        <Campo rotulo="Quantidade mais usada" htmlFor="p-qtd" dica="Já vem preenchida na emissão.">
-          <Input id="p-qtd" placeholder="100ml" {...campo('quantidade_padrao')} />
-        </Campo>
         <Campo rotulo="Lote" htmlFor="p-lote">
           <Input id="p-lote" {...campo('lote')} />
         </Campo>
-        <span />
         <Campo rotulo="Fabricação (mês)" htmlFor="p-fab">
           <Input id="p-fab" type="month" {...campo('fabricacao')} />
         </Campo>

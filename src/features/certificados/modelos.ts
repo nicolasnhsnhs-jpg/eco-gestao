@@ -306,9 +306,12 @@ export function mesCurto(iso: string | null | undefined) {
   return `${MES_CURTO[Number(mes) - 1]}${ano.slice(2)}`
 }
 
-/** As duas linhas de um produto no certificado. */
+/**
+ * As duas linhas de um produto no certificado. Vai só o princípio ativo: a marca
+ * (nome comercial) muda quando trocam de fornecedor, o princípio ativo não.
+ */
 export function linhasDoProduto(p: ProdutoCertificado): [string, string] {
-  const nome = [p.nome_comercial, p.principio_ativo].filter((t) => t?.trim()).join(' ')
+  const nome = p.principio_ativo?.trim() || p.nome_comercial?.trim() || ''
   const primeira = [
     nome,
     p.registro?.trim() && ` (${p.registro.trim()})`,
