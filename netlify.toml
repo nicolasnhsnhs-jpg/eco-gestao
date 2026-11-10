@@ -26,7 +26,8 @@
     # arquivos), o ViaCEP (busca de CEP), a BrasilAPI e a CNPJ.ws (consulta de CNPJ), as fontes
     # do Google e as imagens da assinatura de e-mail (ecoambientalsc.com.br/assinatura/img/). Qualquer outra origem
     # é bloqueada pelo navegador, o que limita o estrago de um código malicioso injetado.
-    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://ecoambientalsc.com.br; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://viacep.com.br https://brasilapi.com.br https://publica.cnpj.ws; frame-src 'self' https://*.supabase.co; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    # frame-src blob: é a prévia do PDF da proposta, montado no próprio navegador.
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://ecoambientalsc.com.br; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://viacep.com.br https://brasilapi.com.br https://publica.cnpj.ws; frame-src 'self' blob: https://*.supabase.co; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
 # O Service Worker (app sem internet) sempre é conferido com o servidor: é assim que
 # o celular descobre que saiu versão nova do sistema.

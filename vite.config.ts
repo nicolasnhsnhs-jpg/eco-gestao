@@ -33,9 +33,12 @@ function serviceWorker(): Plugin {
         .map((nome) => `/${nome}`)
       const arquivos = [...new Set([...doBuild, ...PUBLICOS_OFFLINE])].sort()
       const modelo = readFileSync(new URL('./service-worker/sw.js', import.meta.url), 'utf8')
-      // A versão muda quando muda qualquer arquivo do app ou o próprio worker.
+      // A versão muda quando muda qualquer arquivo do app, o próprio worker ou os
+      // cabeçalhos do site (netlify.toml): a página guardada leva junto a política de
+      // segurança, então mudar só o cabeçalho também precisa trocar a página guardada.
+      const cabecalhos = readFileSync(new URL('./netlify.toml', import.meta.url), 'utf8')
       const versao = createHash('sha256')
-        .update(arquivos.join('\n') + modelo)
+        .update(arquivos.join('\n') + modelo + cabecalhos)
         .digest('hex')
         .slice(0, 12)
       this.emitFile({
