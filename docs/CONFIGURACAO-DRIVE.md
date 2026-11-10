@@ -2,12 +2,13 @@
 
 Todo PDF que o sistema gera vai sozinho para o "Meu Drive" da conta Gmail do SC, na pasta do cliente:
 
-| PDF                  | Pasta                                  |
-| -------------------- | -------------------------------------- |
-| Nota fiscal (DANFSe) | `FINANCEIRO / 2026 / Cliente - CNPJ /` |
-| Boleto               | `FINANCEIRO / 2026 / Cliente - CNPJ /` |
-| Ordem de serviço     | `GERAL / 2026 / Cliente - CNPJ /`      |
-| Certificado          | `GERAL / 2026 / Cliente - CNPJ /`      |
+| PDF                  | Pasta                                   |
+| -------------------- | --------------------------------------- |
+| Nota fiscal (DANFSe) | `FINANCEIRO / 2026 / Cliente - CNPJ /`  |
+| Boleto               | `FINANCEIRO / 2026 / Cliente - CNPJ /`  |
+| Ordem de serviço     | `GERAL / 2026 / Cliente - CNPJ /`       |
+| Certificado          | `ADM / 2026 / Cliente - CNPJ /`         |
+| Agenda do dia        | `ADM / AGENDA / 2026 / 11 - Novembro /` |
 
 - Nome dos arquivos: tipo, número e a data do próprio documento (não a de quando o PDF foi gerado,
   para que gerar de novo troque o arquivo em vez de duplicar):
@@ -24,6 +25,8 @@ Todo PDF que o sistema gera vai sozinho para o "Meu Drive" da conta Gmail do SC,
 - Nota, boleto e OS vão por uma fila: chegam ao Drive em até 1 ou 2 minutos. Se o Google falhar,
   o sistema tenta de novo sozinho (até 10 vezes, com intervalos cada vez maiores).
 - O certificado vai na hora em que é salvo ou aberto.
+- A agenda vai quando alguém gera a imagem do dia (Gerar, Copiar ou Baixar), com o nome do dia:
+  `10-11-2026.png`. Gerar de novo no mesmo dia troca a cópia.
 - Vale para as duas unidades, com a mesma conta Google: o SC grava na pasta SC e o RS na pasta RS
   (o segredo `GOOGLE_DRIVE_RAIZ` de cada projeto). No RS fica junto com o servidor próprio.
 

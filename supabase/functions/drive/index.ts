@@ -3,7 +3,9 @@
 //   processar    (pg_cron, a cada minuto, com o cabeçalho x-drive-segredo) manda o que
 //                estiver na drive_fila: nota fiscal e boleto em FINANCEIRO, PDF da OS em GERAL
 //   certificado  (navegador, Administrador/ADM) recebe o PDF do certificado montado na
-//                tela e manda para GERAL
+//                tela e manda para ADM
+//   agenda       (navegador) recebe a imagem da agenda do dia e guarda em
+//                ADM / AGENDA / ano / mês / dd-mm-aaaa.png
 //   situacao     (Administrador) confere a conta Google conectada e as pastas dos setores
 //
 // Caminho no Drive: <SETOR> / <ano> / <Cliente - CNPJ> / <arquivo>.pdf
@@ -22,8 +24,23 @@ const SETOR_DA_CATEGORIA: Record<string, Setor> = {
   nota_fiscal: 'FINANCEIRO',
   boleto: 'FINANCEIRO',
   relatorio: 'GERAL',
-  certificado: 'GERAL',
+  certificado: 'ADM',
 }
+
+const MESES = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+]
 
 const LIMITE_PDF = 15 * 1024 * 1024
 /** A função tem ~150 s; para de pegar lotes novos antes disso. */
@@ -45,6 +62,45 @@ export function nomePastaCliente(c: Cliente) {
   return nomeSeguro(doc ? `${c.nome.trim()} - ${doc}` : c.nome.trim())
 }
 
+/** Id de uma pasta já achada/criada (drive_pastas), ou acha/cria e guarda. */
+async function lembrar(admin: SupabaseClient, chave: string, achar: () => Promise<string>) {
+  const { data } = await admin
+    .from('drive_pastas')
+    .select('pasta_id')
+    .eq('chave', chave)
+    .maybeSingle()
+  if (data) return data.pasta_id as string
+  const id = await achar()
+  await admin.from('drive_pastas').upsert({ chave, pasta_id: id })
+  return id
+}
+
+async function pastaDoSetor(admin: SupabaseClient, drive: Drive, raiz: string, setor: Setor) {
+  return await lembrar(admin, `setor:${setor}`, async () => {
+    const id = await drive.acharPasta(setor, raiz)
+    if (!id)
+      throw new Error(
+        `A pasta ${setor} não foi encontrada no Drive (confira o nome e se está na raiz do Meu Drive).`,
+      )
+    return id
+  })
+}
+
+/** Subpasta com este nome (cria se não houver). */
+async function subpasta(
+  admin: SupabaseClient,
+  drive: Drive,
+  chave: string,
+  nome: string,
+  pai: string,
+) {
+  return await lembrar(
+    admin,
+    chave,
+    async () => (await drive.acharPasta(nome, pai)) ?? (await drive.criarPasta(nome, pai)),
+  )
+}
+
 /** Acha (ou cria) SETOR / ano / cliente, lembrando no banco o id de cada pasta. */
 async function pastaDoCliente(
   admin: SupabaseClient,
@@ -54,30 +110,9 @@ async function pastaDoCliente(
   ano: string,
   cliente: Cliente,
 ) {
-  const lembrar = async (chave: string, achar: () => Promise<string>) => {
-    const { data } = await admin
-      .from('drive_pastas')
-      .select('pasta_id')
-      .eq('chave', chave)
-      .maybeSingle()
-    if (data) return data.pasta_id as string
-    const id = await achar()
-    await admin.from('drive_pastas').upsert({ chave, pasta_id: id })
-    return id
-  }
-
-  const pastaSetor = await lembrar(`setor:${setor}`, async () => {
-    const id = await drive.acharPasta(setor, raiz)
-    if (!id)
-      throw new Error(
-        `A pasta ${setor} não foi encontrada no Drive (confira o nome e se está na raiz do Meu Drive).`,
-      )
-    return id
-  })
-  const pastaAno = await lembrar(`ano:${setor}:${ano}`, async () => {
-    return (await drive.acharPasta(ano, pastaSetor)) ?? (await drive.criarPasta(ano, pastaSetor))
-  })
-  return await lembrar(`cliente:${setor}:${ano}:${cliente.id}`, async () => {
+  const pastaSetor = await pastaDoSetor(admin, drive, raiz, setor)
+  const pastaAno = await subpasta(admin, drive, `ano:${setor}:${ano}`, ano, pastaSetor)
+  return await lembrar(admin, `cliente:${setor}:${ano}:${cliente.id}`, async () => {
     const etiqueta = { eco_cliente: cliente.id }
     const marcada = await drive.acharPastaEtiquetada('eco_cliente', cliente.id, pastaAno)
     if (marcada) return marcada
@@ -270,6 +305,7 @@ type Pedido =
   | { acao: 'processar' }
   | { acao: 'situacao' }
   | { acao: 'certificado'; certificadoId: string; pdf: string }
+  | { acao: 'agenda'; data: string; imagem: string }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
@@ -340,7 +376,7 @@ Deno.serve(async (req) => {
         admin,
         drive,
         config.raiz,
-        'GERAL',
+        'ADM',
         cert.data_execucao.slice(0, 4),
         cliente,
       )
@@ -350,6 +386,33 @@ Deno.serve(async (req) => {
         'application/pdf',
         pdf,
       )
+      return resposta(200, { enviado: true, id })
+    }
+
+    if (pedido.acao === 'agenda') {
+      // Quem gera a imagem da agenda (todos menos o operador).
+      const negado = await conferirPapel(req, admin, [
+        'admin',
+        'administrativo',
+        'financeiro',
+        'vendedor',
+      ])
+      if (negado) return negado
+      if (!config) return resposta(200, { enviado: false, motivo: 'Drive não configurado.' })
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(pedido.data ?? ''))
+        return resposta(400, { erro: 'Data inválida.' })
+      const png = decodeBase64(pedido.imagem ?? '')
+      if (png.byteLength > LIMITE_PDF) return resposta(413, { erro: 'Imagem grande demais.' })
+      if (png[0] !== 0x89 || png[1] !== 0x50) return resposta(400, { erro: 'A imagem não é PNG.' })
+      // ADM / AGENDA / 2026 / 11 - Novembro / 10-11-2026.png
+      const [ano, mes] = pedido.data.split('-')
+      const drive = new Drive(config.conta)
+      const adm = await pastaDoSetor(admin, drive, config.raiz, 'ADM')
+      const agenda = await subpasta(admin, drive, 'agenda', 'AGENDA', adm)
+      const pastaAno = await subpasta(admin, drive, `agenda:${ano}`, ano, agenda)
+      const nomeMes = `${mes} - ${MESES[Number(mes) - 1]}`
+      const pastaMes = await subpasta(admin, drive, `agenda:${ano}:${mes}`, nomeMes, pastaAno)
+      const id = await drive.enviar(pastaMes, `${dataNoNome(pedido.data)}.png`, 'image/png', png)
       return resposta(200, { enviado: true, id })
     }
 

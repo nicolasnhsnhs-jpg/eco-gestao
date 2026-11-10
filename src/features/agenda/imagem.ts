@@ -1,5 +1,8 @@
 import { toBlob } from 'html-to-image'
 
+import { supabase } from '@/lib/supabase'
+import { UNIDADE } from '@/lib/unidade'
+
 import { ALTURA_QUADRO, LARGURA_QUADRO } from './QuadroAgenda'
 import { nomeDaImagem } from './regras'
 
@@ -58,4 +61,21 @@ export async function copiarImagem(blob: Blob): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+/**
+ * Guarda uma cópia da imagem no Google Drive: ADM / AGENDA / ano / mês / dd-mm-aaaa.png.
+ * Gerar de novo no mesmo dia troca a cópia. Falhar aqui não atrapalha quem gerou.
+ */
+export function copiarAgendaNoDrive(blob: Blob, data: string) {
+  if (!UNIDADE.drive) return
+  void (async () => {
+    const bytes = new Uint8Array(await blob.arrayBuffer())
+    let texto = ''
+    for (let i = 0; i < bytes.length; i += 0x8000)
+      texto += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+    await supabase.functions.invoke('drive', {
+      body: { acao: 'agenda', data, imagem: btoa(texto) },
+    })
+  })().catch(() => {})
 }

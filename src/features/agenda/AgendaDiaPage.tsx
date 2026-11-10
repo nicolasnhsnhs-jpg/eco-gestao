@@ -49,7 +49,13 @@ import {
   type Conexao,
   type Presente,
 } from './api'
-import { baixar, compartilharOuBaixar, copiarImagem, gerarImagem } from './imagem'
+import {
+  baixar,
+  compartilharOuBaixar,
+  copiarAgendaNoDrive,
+  copiarImagem,
+  gerarImagem,
+} from './imagem'
 import { QuadroAgenda, QuadroAjustado } from './QuadroAgenda'
 import {
   alternarAvulso,
@@ -388,6 +394,7 @@ function ExportarImagem({
     setEstado('gerando')
     try {
       const blob = await gerarImagem(quadro.current)
+      copiarAgendaNoDrive(blob, dia.data)
       if (acao === 'copiar') {
         if (await copiarImagem(blob)) {
           setEstado('copiada')
