@@ -660,8 +660,12 @@ export async function gerarPdfCertificado(
   }
 
   if (obs) {
-    const l = quebrarLinhas(obs, f.medio, 9, LARGURA_BLOCOS)[0] ?? ''
-    texto(p, l, M, BASE_CORPO + 4, 9, f.medio, COR.escuro)
+    // Uma linha só: diminui a letra para caber antes de cortar o fim.
+    const umaLinha = obs.replace(/\s+/g, ' ')
+    let t = 9
+    while (t > 7 && f.medio.widthOfTextAtSize(textoSeguro(umaLinha), t) > LARGURA_BLOCOS) t -= 0.25
+    const l = quebrarLinhas(umaLinha, f.medio, t, LARGURA_BLOCOS)[0] ?? ''
+    texto(p, l, M, BASE_CORPO + 4, t, f.medio, COR.escuro)
   }
 
   // Rodapé da empresa

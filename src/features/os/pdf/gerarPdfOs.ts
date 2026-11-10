@@ -28,12 +28,22 @@ const BORDA = rgb(0.82, 0.86, 0.8)
 /** Dados da empresa no rodapé de todas as páginas (cada unidade tem os seus). */
 export const EMPRESA_RODAPE = UNIDADE.rodape
 
-/** As fontes padrão do PDF só têm os caracteres do português "comum". */
+/**
+ * As fontes do PDF só têm os caracteres do português "comum". Os parecidos que vêm
+ * de outros programas e do celular (espaços especiais, barras e traços "chiques",
+ * letras de largura dupla) viram os comuns; o resto vira "?".
+ */
 export function textoSeguro(texto: string | null | undefined) {
   return (texto ?? '')
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'")
-    .replace(/[–—]/g, '-')
+    .replace(/[\uFF01-\uFF5E]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+    .replace(/[\u2000-\u200A\u202F\u205F\u3000]/g, ' ')
+    .replace(/[\u200B-\u200D\u2060\uFEFF\r]/g, '')
+    .replace(/[\u2028\u2029]/g, '\n')
+    .replace(/[\u2044\u2215\u29F8]/g, '/')
+    .replace(/[\u29F5\u2216]/g, '\\')
+    .replace(/[\u201C\u201D\u201E\u201F\u2033]/g, '"')
+    .replace(/[\u2018\u2019\u201A\u201B\u2032]/g, "'")
+    .replace(/[\u2010-\u2015\u2212]/g, '-')
     .replace(/…/g, '...')
     .replace(/→/g, '->')
     .replace(/\t/g, ' ')
