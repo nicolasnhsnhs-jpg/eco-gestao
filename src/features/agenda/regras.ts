@@ -113,10 +113,40 @@ export function resumoDoDia(itens: readonly AgendaItem[]) {
   }
 }
 
-/** Texto do selo da estrela. */
+/** Horário escrito no texto: "às 6h", "14h", "9h30", "09:00". */
+const HORARIO = /(?<![\p{L}\d])(?:às\s+)?\d{1,2}(?:h(?:\d{2})?|:\d{2}h?)(?![\p{L}\d])/giu
+
+/** Separa o texto em pedaços, marcando os horários (que aparecem brilhando com estrela). */
+export function trechosComHorario(texto: string): { texto: string; horario: boolean }[] {
+  const saida: { texto: string; horario: boolean }[] = []
+  let desde = 0
+  for (const m of texto.matchAll(HORARIO)) {
+    const i = m.index ?? 0
+    if (i > desde) saida.push({ texto: texto.slice(desde, i), horario: false })
+    saida.push({ texto: m[0], horario: true })
+    desde = i + m[0].length
+  }
+  if (desde < texto.length) saida.push({ texto: texto.slice(desde), horario: false })
+  return saida
+}
+
+/** "9h" → "às 9h". */
 export function textoHorarioCliente(chegada: string): string {
   const h = chegada.trim()
-  return h ? `Chegar ${/^às\s/i.test(h) ? h : `às ${h}`} · ver OS` : 'Horário do cliente · ver OS'
+  return !h ? '' : /^às\s/i.test(h) ? h : `às ${h}`
+}
+
+/** Horário do campo que ainda não está escrito no texto (vira selo no fim da linha). */
+export function horarioForaDoTexto(descricao: string, chegada: string): string {
+  const h = chegada
+    .trim()
+    .replace(/^às\s+/i, '')
+    .toLowerCase()
+  if (!h) return ''
+  const noTexto = trechosComHorario(descricao)
+    .filter((t) => t.horario)
+    .some((t) => t.texto.replace(/^às\s+/i, '').toLowerCase() === h)
+  return noTexto ? '' : textoHorarioCliente(chegada)
 }
 
 /** Quantas linhas cabem confortáveis; acima disso o quadro aperta. */

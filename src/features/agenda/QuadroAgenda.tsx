@@ -17,7 +17,8 @@ import {
   lerEscalas,
   partesDaDescricao,
   resumoDoDia,
-  textoHorarioCliente,
+  horarioForaDoTexto,
+  trechosComHorario,
   turnoDe,
   type AgendaDia,
   type AgendaItem,
@@ -56,6 +57,26 @@ const ESTRELA = (
     </svg>
   </span>
 )
+
+function HorarioBrilhando({ texto }: { texto: string }) {
+  return (
+    <span className="aq-horario">
+      {ESTRELA}
+      {texto}
+    </span>
+  )
+}
+
+/** Texto com os horários ("às 6h") brilhando com estrela. */
+function ComHorario({ texto }: { texto: string }) {
+  return trechosComHorario(texto).map((t, i) =>
+    t.horario ? (
+      <HorarioBrilhando key={i} texto={t.texto} />
+    ) : (
+      <Fragment key={i}>{t.texto}</Fragment>
+    ),
+  )
+}
 
 const ICONE_PERIODO = (
   <svg
@@ -257,11 +278,15 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
                         <Fragment key={i}>
                           {i > 0 && <span className="aq-sep">/</span>}
                           <span>
-                            <b>{emp}</b>
+                            <b>
+                              <ComHorario texto={emp} />
+                            </b>
                             {desc && (
                               <>
                                 <span className="aq-sep"> · </span>
-                                <span className="aq-desc">{desc}</span>
+                                <span className="aq-desc">
+                                  <ComHorario texto={desc} />
+                                </span>
                               </>
                             )}
                             {i === 0 && x.avulso && (
@@ -285,11 +310,8 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
                           {x.nota.trim()}
                         </span>
                       )}
-                      {x.horario_cliente && (
-                        <span className="aq-chip aq-cliente">
-                          {ESTRELA}
-                          {textoHorarioCliente(x.chegada)}
-                        </span>
+                      {horarioForaDoTexto(x.descricao, x.chegada) && (
+                        <HorarioBrilhando texto={horarioForaDoTexto(x.descricao, x.chegada)} />
                       )}
                     </div>
                     <div className="aq-tecs">
@@ -337,7 +359,9 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
             <span>
               <span className="aq-st aq-verde aq-mini">{CHECK}</span> Volta almoçar na empresa
             </span>
-            <span>{ESTRELA} Horário do cliente: ver na OS</span>
+            <span>
+              <HorarioBrilhando texto="às 9h" /> Horário marcado com o cliente
+            </span>
             <span>
               <span className="aq-chip aq-avulso">Avulso</span> Atendimento avulso
             </span>

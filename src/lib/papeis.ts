@@ -43,6 +43,9 @@ export const PAPEIS_ESCRITORIO_OS: readonly Papel[] = [
   'recepcao',
 ]
 
+/** Quem mexe na Agenda do dia. O ADM só consulta (vê ao vivo, mas não altera). */
+export const PAPEIS_EDITAR_AGENDA: readonly Papel[] = ['admin', 'financeiro', 'vendedor']
+
 /** Quem emite certificados de serviço. */
 export const PAPEIS_CERTIFICADOS: readonly Papel[] = ['admin', 'administrativo']
 

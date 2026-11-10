@@ -27,7 +27,7 @@ import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
 import { formatarData, hojeISO, somarDias } from '@/lib/datas'
 import { mensagemDeErro } from '@/lib/erros'
-import { PAPEIS_GESTAO } from '@/lib/papeis'
+import { PAPEIS_EDITAR_AGENDA, PAPEIS_GESTAO } from '@/lib/papeis'
 import { cn } from '@/lib/utils'
 
 import { usePerfil } from '../auth/useAuth'
@@ -89,7 +89,8 @@ export function AgendaDiaPage() {
   const agenda = useAgenda(data)
   const { presentes, conexao } = useAgendaTempoReal(data, perfil.id, perfil.nome)
   const [mostrarPrevia, setMostrarPrevia] = useState(true)
-  const podeConferir = PAPEIS_GESTAO.includes(perfil.papel)
+  const podeEditar = PAPEIS_EDITAR_AGENDA.includes(perfil.papel)
+  const podeConferir = podeEditar && PAPEIS_GESTAO.includes(perfil.papel)
   const cadastro = useCadastroAgenda()
   const tecnicos = cadastro.data?.tecnicos ?? []
   const veiculos = cadastro.data?.veiculos ?? []
@@ -144,14 +145,23 @@ export function AgendaDiaPage() {
       {agenda.isPending && <Carregando />}
       {agenda.isError && <Aviso tipo="erro">{mensagemDeErro(agenda.error)}</Aviso>}
 
-      {agenda.data && !agenda.data.dia && <CriarDia data={data} />}
+      {!podeEditar && (
+        <Aviso tipo="info">
+          Você só consulta a agenda: as mudanças aparecem aqui ao vivo, mas não dá para alterar.
+        </Aviso>
+      )}
+
+      {agenda.data && !agenda.data.dia && podeEditar && <CriarDia data={data} />}
+      {agenda.data && !agenda.data.dia && !podeEditar && (
+        <Card className="p-6 text-center text-texto-suave">Este dia ainda não tem agenda.</Card>
+      )}
 
       {agenda.data?.dia && (
         <>
           <Card className="flex flex-col gap-3 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-texto-suave">
-                Prévia do quadro. Clique numa linha para editar.
+                {podeEditar ? 'Prévia do quadro. Clique numa linha para editar.' : 'Quadro do dia.'}
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button variante="fantasma" onClick={() => setMostrarPrevia((v) => !v)}>
@@ -185,7 +195,7 @@ export function AgendaDiaPage() {
                       itens={agenda.data.itens}
                       veiculos={veiculos}
                       modo="tela"
-                      onClicarItem={rolarAte}
+                      onClicarItem={podeEditar ? rolarAte : undefined}
                       style={{ transform: `scale(${k})` }}
                     />
                   )}
@@ -194,14 +204,18 @@ export function AgendaDiaPage() {
             )}
           </Card>
 
-          <Linhas
-            data={data}
-            itens={agenda.data.itens}
-            tecnicos={tecnicos}
-            veiculos={veiculos}
-            podeConferir={podeConferir}
-          />
-          <DadosDoDia dia={agenda.data.dia} tecnicos={tecnicos} />
+          {podeEditar && (
+            <>
+              <Linhas
+                data={data}
+                itens={agenda.data.itens}
+                tecnicos={tecnicos}
+                veiculos={veiculos}
+                podeConferir={podeConferir}
+              />
+              <DadosDoDia dia={agenda.data.dia} tecnicos={tecnicos} />
+            </>
+          )}
         </>
       )}
 
@@ -756,23 +770,19 @@ function Linhas({
                 >
                   Avulso
                 </Alternar>
-                <Alternar
-                  ligado={item.horario_cliente}
-                  onClick={() => salvarCampo({ horario_cliente: !item.horario_cliente })}
-                  cor="ambar"
-                  titulo="O cliente tem horário específico: o técnico confere na OS"
+                <label
+                  className="inline-flex items-center gap-1 text-sm text-texto-suave"
+                  title="Horário marcado com o cliente. Também brilha se for escrito no texto (ex.: às 9h)"
                 >
-                  <Star className="size-4" aria-hidden /> Horário do cliente
-                </Alternar>
-                {item.horario_cliente && (
+                  <Star className="size-4 text-amber-500" aria-hidden />
                   <CampoAuto
-                    aria-label="Chegar no cliente às"
-                    placeholder="Chegar às (ex.: 9h)"
+                    aria-label="Horário do cliente"
+                    placeholder="Horário do cliente"
                     valor={item.chegada}
-                    onSalvar={(v) => salvarCampo({ chegada: v })}
-                    className="min-h-9 w-36 text-sm"
+                    onSalvar={(v) => salvarCampo({ chegada: v, horario_cliente: v.trim() !== '' })}
+                    className="min-h-9 w-40 text-sm"
                   />
-                )}
+                </label>
 
                 <div className="ml-auto flex items-center gap-1">
                   <button

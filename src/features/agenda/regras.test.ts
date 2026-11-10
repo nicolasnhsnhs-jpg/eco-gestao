@@ -16,6 +16,8 @@ import {
   proximoAlmoco,
   resumoDoDia,
   textoHorarioCliente,
+  trechosComHorario,
+  horarioForaDoTexto,
   turnoDe,
   type AgendaItem,
 } from './regras'
@@ -107,10 +109,29 @@ describe('quadro', () => {
     ])
     expect(r).toEqual({ servicos: 2, tecnicos: 2, veiculos: 1 })
   })
-  it('texto da estrela', () => {
-    expect(textoHorarioCliente('')).toBe('Horário do cliente · ver OS')
-    expect(textoHorarioCliente('9h')).toBe('Chegar às 9h · ver OS')
-    expect(textoHorarioCliente('às 12h')).toBe('Chegar às 12h · ver OS')
+  it('horário do cliente', () => {
+    expect(textoHorarioCliente('')).toBe('')
+    expect(textoHorarioCliente('9h')).toBe('às 9h')
+    expect(textoHorarioCliente('às 12h')).toBe('às 12h')
+    expect(horarioForaDoTexto('Vitlog: Rota e LC às 14h', '14h')).toBe('')
+    expect(horarioForaDoTexto('Vitlog: Rota', '14h')).toBe('às 14h')
+    expect(horarioForaDoTexto('Vitlog: Rota', '')).toBe('')
+  })
+  it('acha os horários escritos no texto', () => {
+    expect(trechosComHorario('Implantação CI CR e LR às 6h')).toEqual([
+      { texto: 'Implantação CI CR e LR ', horario: false },
+      { texto: 'às 6h', horario: true },
+    ])
+    expect(trechosComHorario('Rota 9h30 e 14:00, depois')).toEqual([
+      { texto: 'Rota ', horario: false },
+      { texto: '9h30', horario: true },
+      { texto: ' e ', horario: false },
+      { texto: '14:00', horario: true },
+      { texto: ', depois', horario: false },
+    ])
+    for (const t of ['SUSEPE 14 e 20', 'Sucção 200lt Fossa', '6CRLR', 'Hotel 5h2o']) {
+      expect(trechosComHorario(t).some((x) => x.horario)).toBe(false)
+    }
   })
   it('almoço gira pelos três estados', () => {
     expect(proximoAlmoco('fica')).toBe('volta')
