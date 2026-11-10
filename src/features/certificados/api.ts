@@ -423,6 +423,25 @@ function paraBase64(bytes: Uint8Array) {
   return btoa(s)
 }
 
+/**
+ * Manda o PDF do certificado para a pasta do cliente no Google Drive (GERAL / ano /
+ * cliente). Só nas unidades com o Drive ligado; uma falha aqui não impede o PDF de abrir.
+ */
+export async function copiarCertificadoNoDrive(certificadoId: string, pdf: Blob) {
+  const bytes = new Uint8Array(await pdf.arrayBuffer())
+  const { data, error } = await supabase.functions.invoke('drive', {
+    body: { acao: 'certificado', certificadoId, pdf: paraBase64(bytes) },
+  })
+  if (error) {
+    const detalhe =
+      error instanceof FunctionsHttpError
+        ? ((await error.context.json().catch(() => null)) as { erro?: string } | null)
+        : null
+    throw new Error(detalhe?.erro ?? 'Não foi possível copiar o certificado no Drive.')
+  }
+  return data as { enviado: boolean; motivo?: string }
+}
+
 /** Manda o PDF montado na tela e recebe de volta o mesmo PDF assinado digitalmente. */
 export async function assinarPdfCertificado(certificadoId: string, pdf: Blob): Promise<Blob> {
   const bytes = new Uint8Array(await pdf.arrayBuffer())

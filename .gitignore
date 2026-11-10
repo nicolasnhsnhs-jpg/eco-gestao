@@ -40,3 +40,7 @@ importacao/
 # Certificados digitais (A1): nunca no repositório
 *.pfx
 *.p12
+
+# Acesso ao Google Drive (cliente OAuth e autorização): nunca no repositório
+drive-conta*.json
+drive-cliente*.json

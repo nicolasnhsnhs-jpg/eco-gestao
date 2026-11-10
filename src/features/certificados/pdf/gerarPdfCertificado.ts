@@ -10,6 +10,7 @@ import { UNIDADE } from '@/lib/unidade'
 import {
   assinarPdfCertificado,
   baixarAssinatura,
+  copiarCertificadoNoDrive,
   type CertificadoResumo,
   type QualAssinatura,
 } from '../api'
@@ -766,10 +767,31 @@ function tabelaReservatorios(
  * assinatura digital vai antes ao servidor, que devolve o PDF assinado.
  */
 export async function abrirPdfCertificado(c: CertificadoResumo, aba: Window | null) {
-  const assinatura = await baixarAssinatura(assinaturaDoCertificado(c))
-  let blob = await gerarPdfCertificado(c, assinatura)
-  if (c.assinatura_digital) blob = await assinarPdfCertificado(c.id, blob)
+  const blob = await pdfFinalCertificado(c)
+  // A cópia no Drive vai junto (é a mesma folha; troca a anterior se mudou).
+  if (UNIDADE.drive) void copiarCertificadoNoDrive(c.id, blob).catch(() => {})
   const link = URL.createObjectURL(blob)
   if (aba) aba.location.href = link
   else window.location.href = link
+}
+
+/** O PDF como sai para o cliente: com a assinatura digital, quando marcada. */
+async function pdfFinalCertificado(c: CertificadoResumo) {
+  const assinatura = await baixarAssinatura(assinaturaDoCertificado(c))
+  const blob = await gerarPdfCertificado(c, assinatura)
+  return c.assinatura_digital ? await assinarPdfCertificado(c.id, blob) : blob
+}
+
+/**
+ * Ao salvar o certificado: monta o PDF e guarda a cópia no Google Drive, sem abrir nada.
+ * Devolve o aviso de erro (ou null).
+ */
+export async function copiarPdfCertificadoNoDrive(c: CertificadoResumo): Promise<string | null> {
+  if (!UNIDADE.drive) return null
+  try {
+    await copiarCertificadoNoDrive(c.id, await pdfFinalCertificado(c))
+    return null
+  } catch (e) {
+    return `Certificado salvo, mas a cópia no Drive falhou: ${e instanceof Error ? e.message : String(e)}`
+  }
 }

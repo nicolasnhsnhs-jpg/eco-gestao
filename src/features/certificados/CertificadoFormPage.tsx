@@ -406,6 +406,18 @@ function Formulario({
         } finally {
           setGerandoPdf(false)
         }
+      } else if (UNIDADE.drive) {
+        // Sem assinatura digital o PDF não abre ao salvar, mas a cópia vai para o Drive.
+        setGerandoPdf(true)
+        try {
+          const salvo = await buscarCertificado(id)
+          if (salvo) {
+            const { copiarPdfCertificadoNoDrive } = await import('./pdf/gerarPdfCertificado')
+            avisoPdf = await copiarPdfCertificadoNoDrive(salvo)
+          }
+        } finally {
+          setGerandoPdf(false)
+        }
       }
       if (editando) {
         form.reset({ ...d, assinatura_digital: digital })

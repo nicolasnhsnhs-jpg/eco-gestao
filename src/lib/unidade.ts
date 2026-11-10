@@ -14,6 +14,8 @@ export const UNIDADES = {
     bancosBoleto: ['asaas'],
     /** CRM do WhatsApp (número comercial ligado à Meta). Veja docs/CONFIGURACAO-WHATSAPP.md. */
     crm: true,
+    /** Cópia automática dos PDFs no Google Drive (pasta SC). Veja docs/CONFIGURACAO-DRIVE.md. */
+    drive: true,
     /** Dados da empresa no rodapé de todas as páginas do PDF da OS. */
     rodape: [
       'Eco Ambiental Serviços Ambientais LTDA · CNPJ 69.636.469/0001-18',
@@ -88,6 +90,8 @@ export const UNIDADES = {
     bancosBoleto: ['asaas', 'sicredi'],
     /** Sem número de WhatsApp ligado nesta unidade: o CRM não aparece. */
     crm: false,
+    /** Cópia automática dos PDFs no Google Drive (pasta RS), além do servidor próprio. */
+    drive: true,
     rodape: [
       'Eco-Ambiental Controle de Pragas e Higienização Ltda · CNPJ 07.125.516/0001-01',
       'Rua Santo Ângelo, 136 - Olímpica, Esteio/RS · Fone/Fax (51) 3458-4133 · atendimento@ecoambientalrs.com.br',
