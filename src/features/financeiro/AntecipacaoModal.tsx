@@ -16,11 +16,14 @@ import {
   totalBruto,
   type ModoDesconto,
 } from './antecipacao'
-import { useAntecipar, useContas, type LancamentoCompleto } from './api'
+import { useAntecipar, useContas } from './api'
+
+/** A conta a receber que vai ser antecipada (vinda dos lançamentos ou das notas). */
+export type ContaParaAntecipar = { id: string | null; valor: number | string | null }
 
 type Props = {
   aberto: boolean
-  selecionados: LancamentoCompleto[]
+  selecionados: ContaParaAntecipar[]
   aoFechar: () => void
   aoAntecipar: () => void
 }
@@ -38,7 +41,7 @@ function Formulario({
   selecionados,
   aoTerminar,
 }: {
-  selecionados: LancamentoCompleto[]
+  selecionados: ContaParaAntecipar[]
   aoTerminar: () => void
 }) {
   const contas = useContas()

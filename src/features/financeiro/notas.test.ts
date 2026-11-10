@@ -5,6 +5,7 @@ import { filtrarCodigos, formatarCodigoNfse } from './codigosNfse'
 import {
   aceitaBoletoEmLote,
   calcularPisCofins,
+  contaParaAntecipar,
   retencaoDaNotaDoAdn,
   notaDoContrato,
   proximaNota,
@@ -280,5 +281,28 @@ describe('aceitaBoletoEmLote', () => {
     expect(aceitaBoletoEmLote({ ...nota, status: 'cancelada' })).toBe(false)
     expect(aceitaBoletoEmLote({ ...nota, arquivo_boleto_id: 'pdf' })).toBe(false)
     expect(aceitaBoletoEmLote({ ...nota, boleto_cobranca_id: '211001292' })).toBe(false)
+  })
+})
+
+describe('contaParaAntecipar', () => {
+  const conta = { id: 'l1', status: 'pendente', valor: 150 }
+  const nota = { status: 'emitida', lancamento: conta }
+  it('devolve a conta a receber em aberto da nota emitida', () => {
+    expect(contaParaAntecipar(nota)).toBe(conta)
+    expect(contaParaAntecipar({ ...nota, lancamento: { ...conta, status: 'agendado' } })).toEqual({
+      ...conta,
+      status: 'agendado',
+    })
+  })
+  it('recusa nota sem conta, cancelada, rascunho ou já recebida', () => {
+    expect(contaParaAntecipar({ ...nota, lancamento: null })).toBeNull()
+    expect(contaParaAntecipar({ ...nota, status: 'cancelada' })).toBeNull()
+    expect(contaParaAntecipar({ ...nota, status: 'rascunho' })).toBeNull()
+    expect(
+      contaParaAntecipar({ ...nota, lancamento: { ...conta, status: 'realizado' } }),
+    ).toBeNull()
+    expect(
+      contaParaAntecipar({ ...nota, lancamento: { ...conta, status: 'cancelado' } }),
+    ).toBeNull()
   })
 })

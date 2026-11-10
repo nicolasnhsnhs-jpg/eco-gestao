@@ -235,3 +235,15 @@ export function aceitaBoletoEmLote(n: {
 }): boolean {
   return n.status === 'emitida' && !n.arquivo_boleto_id && !n.boleto_cobranca_id
 }
+
+/**
+ * Nota emitida cuja conta a receber ainda está em aberto: dá para antecipar pela tela das
+ * notas. Devolve a conta (é ela que o banco antecipa, com o valor dela) ou null.
+ */
+export function contaParaAntecipar<
+  L extends { id: string; status: string; valor: number | string | null },
+>(n: { status: string; lancamento: L | null }): L | null {
+  const l = n.lancamento
+  if (n.status !== 'emitida' || !l) return null
+  return l.status === 'pendente' || l.status === 'agendado' ? l : null
+}

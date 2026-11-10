@@ -38,6 +38,8 @@ const RELACOES = `
 export type FiltroNotas = {
   /** "2026-11" (mês de competência) ou vazio = todos. */
   mes: string
+  /** "2026-11-10" (dia da emissão) ou vazio = todos. */
+  dia?: string
   tipo: TipoNota | 'todos'
   status: StatusNota | 'todos'
   busca: string
@@ -57,6 +59,7 @@ export function useNotasFiscais(filtro: FiltroNotas) {
         .limit(1000)
 
       if (filtro.mes) consulta = consulta.eq('competencia', `${filtro.mes}-01`)
+      if (filtro.dia) consulta = consulta.eq('data_emissao', filtro.dia)
       if (filtro.tipo !== 'todos') consulta = consulta.eq('tipo', filtro.tipo)
       if (filtro.status !== 'todos') consulta = consulta.eq('status', filtro.status)
       if (filtro.contratoId) consulta = consulta.eq('contrato_id', filtro.contratoId)

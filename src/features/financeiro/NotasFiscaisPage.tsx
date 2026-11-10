@@ -1,4 +1,4 @@
-import { FileText, Landmark, Plus, Search, Send } from 'lucide-react'
+import { FileText, HandCoins, Landmark, Plus, Search, Send, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 
@@ -8,13 +8,15 @@ import { Card } from '@/components/ui/Card'
 import { Input, Select } from '@/components/ui/Campo'
 import { Carregando } from '@/components/ui/Carregando'
 import { Etiqueta } from '@/components/ui/Etiqueta'
-import { formatarData, formatarMes } from '@/lib/datas'
+import { formatarData, formatarMes, hojeISO } from '@/lib/datas'
 import { formatarReais } from '@/lib/dinheiro'
 import { mensagemDeErro } from '@/lib/erros'
 import { useValorAtrasado } from '@/lib/useValorAtrasado'
 import { cn } from '@/lib/utils'
 
-import { aceitaBoletoEmLote, textoEmissao } from './notas'
+import { AntecipacaoModal } from './AntecipacaoModal'
+import { totalBruto } from './antecipacao'
+import { aceitaBoletoEmLote, contaParaAntecipar, textoEmissao } from './notas'
 import {
   BANCOS_DA_UNIDADE,
   NOME_BANCO,
@@ -34,10 +36,16 @@ import {
 export function NotasFiscaisPage() {
   // Filtros no endereço (?mes=2026-11&tipo=contrato…): "voltar" mantém tudo.
   const [parametros, setParametros] = useSearchParams()
+  // Modo antecipar: só notas emitidas com a conta a receber em aberto, filtradas pelo dia
+  // da emissão (?antecipar=1&dia=2026-11-10), com caixinhas para escolher.
+  const antecipando = parametros.get('antecipar') === '1'
   const filtro: FiltroNotas = {
-    mes: parametros.get('mes') ?? '',
+    mes: antecipando ? '' : (parametros.get('mes') ?? ''),
+    dia: antecipando ? (parametros.get('dia') ?? '') : '',
     tipo: (parametros.get('tipo') as FiltroNotas['tipo']) ?? 'todos',
-    status: (parametros.get('status') as FiltroNotas['status']) ?? 'emitida',
+    status: antecipando
+      ? 'emitida'
+      : ((parametros.get('status') as FiltroNotas['status']) ?? 'emitida'),
     busca: parametros.get('q') ?? '',
   }
   const buscaAtrasada = useValorAtrasado(filtro.busca)
@@ -45,14 +53,15 @@ export function NotasFiscaisPage() {
   const ambiente = useAmbienteNfse()
   const configBoleto = useConfigBoleto()
   // Na lista de rascunhos, com a emissão ligada: marcar várias e emitir de uma vez.
-  const emLote = filtro.status === 'rascunho' && ambiente.data === 'producao'
+  const emLote = !antecipando && filtro.status === 'rascunho' && ambiente.data === 'producao'
   // Na lista de emitidas, com um banco ligado: marcar as sem boleto e gerar de uma vez.
   // Só com o mês escolhido no filtro, para não pegar as notas antigas que nunca tiveram boleto.
   const bancoLigado = BANCOS_DA_UNIDADE.some((b) => configBoleto.data?.ambiente[b] === 'producao')
-  const boletoEmLote = filtro.status === 'emitida' && bancoLigado && !!filtro.mes
-  const pedirMes = filtro.status === 'emitida' && bancoLigado && !filtro.mes
+  const boletoEmLote = !antecipando && filtro.status === 'emitida' && bancoLigado && !!filtro.mes
+  const pedirMes = !antecipando && filtro.status === 'emitida' && bancoLigado && !filtro.mes
   // Cada barra só conta as marcadas que estão na lista dela (rascunhos e emitidas são outras notas).
   const [marcadas, setMarcadas] = useState<Set<string>>(new Set())
+  const [antecipacaoAberta, setAntecipacaoAberta] = useState(false)
 
   function mudar(chave: string, valor: string) {
     const novos = new URLSearchParams(parametros)
@@ -61,7 +70,27 @@ export function NotasFiscaisPage() {
     setParametros(novos, { replace: true })
   }
 
-  const lista = notas.data ?? []
+  function alternarAntecipacao(ligar: boolean) {
+    const novos = new URLSearchParams(parametros)
+    if (ligar) {
+      novos.set('antecipar', '1')
+      novos.set('dia', hojeISO())
+    } else {
+      novos.delete('antecipar')
+      novos.delete('dia')
+    }
+    setParametros(novos, { replace: true })
+    setMarcadas(new Set())
+  }
+
+  const todasDoFiltro = notas.data ?? []
+  // Na antecipação só aparecem as que dá para antecipar; as outras do dia são contadas à parte.
+  const lista = antecipando ? todasDoFiltro.filter((n) => contaParaAntecipar(n)) : todasDoFiltro
+  const foraDaAntecipacao = todasDoFiltro.length - lista.length
+  // Só valem as marcadas que ainda aparecem na lista (o filtro pode ter mudado).
+  const contasMarcadas = antecipando
+    ? lista.filter((n) => marcadas.has(n.id)).map((n) => contaParaAntecipar(n)!)
+    : []
   const somar = (lista: NotaFiscalCompleta[]) =>
     lista.reduce((s, n) => s + Number(n.valor_servico), 0)
   const deContrato = lista.filter((n) => n.tipo === 'contrato')
@@ -71,7 +100,18 @@ export function NotasFiscaisPage() {
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Notas fiscais</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button variante="secundario" onClick={() => alternarAntecipacao(!antecipando)}>
+            {antecipando ? (
+              <>
+                <X className="size-5" aria-hidden /> Sair da antecipação
+              </>
+            ) : (
+              <>
+                <HandCoins className="size-5" aria-hidden /> Antecipar
+              </>
+            )}
+          </Button>
           <Link
             to="/financeiro/notas/nova?tipo=contrato"
             className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-verde px-4 font-semibold text-white hover:bg-verde-escuro"
@@ -86,6 +126,19 @@ export function NotasFiscaisPage() {
           </Link>
         </div>
       </div>
+
+      {antecipando && (
+        <div className="mb-4">
+          <Aviso>
+            Escolha o <strong>dia da emissão</strong>, marque as notas que foram antecipadas e toque
+            em <strong>Antecipar</strong>. Aparecem só as notas com a conta a receber em aberto; os
+            vencimentos dos clientes continuam registrados e no saldo entra só o que caiu na conta.{' '}
+            <Link to="/financeiro/antecipacoes" className="font-semibold underline">
+              Ver antecipações feitas
+            </Link>
+          </Aviso>
+        </div>
+      )}
 
       <Card className="mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
         <label className="relative sm:col-span-2 lg:col-span-1">
@@ -114,6 +167,7 @@ export function NotasFiscaisPage() {
         <Select
           aria-label="Situação"
           value={filtro.status}
+          disabled={antecipando}
           onChange={(e) => mudar('status', e.target.value === 'emitida' ? '' : e.target.value)}
         >
           <option value="emitida">Emitidas</option>
@@ -121,28 +175,57 @@ export function NotasFiscaisPage() {
           <option value="cancelada">Canceladas</option>
           <option value="todos">Todas</option>
         </Select>
-        <Input
-          type="month"
-          aria-label="Mês de competência"
-          title="Mês de competência (vazio = todos)"
-          value={filtro.mes}
-          onChange={(e) => mudar('mes', e.target.value)}
-        />
+        {antecipando ? (
+          <Input
+            type="date"
+            aria-label="Dia da emissão"
+            title="Dia da emissão (vazio = todos)"
+            value={filtro.dia}
+            onChange={(e) => mudar('dia', e.target.value)}
+          />
+        ) : (
+          <Input
+            type="month"
+            aria-label="Mês de competência"
+            title="Mês de competência (vazio = todos)"
+            value={filtro.mes}
+            onChange={(e) => mudar('mes', e.target.value)}
+          />
+        )}
       </Card>
 
-      <RascunhosDoMes />
+      {!antecipando && <RascunhosDoMes />}
 
       {notas.isError && <Aviso tipo="erro">{mensagemDeErro(notas.error)}</Aviso>}
       {notas.isPending && <Carregando />}
 
       {notas.isSuccess && lista.length === 0 && (
         <Card className="py-10 text-center text-texto-suave">
-          Nenhuma nota fiscal com estes filtros.
+          {antecipando
+            ? 'Nenhuma nota para antecipar com estes filtros.'
+            : 'Nenhuma nota fiscal com estes filtros.'}
         </Card>
+      )}
+
+      {antecipando && notas.isSuccess && foraDaAntecipacao > 0 && (
+        <p className="mb-3 text-sm text-texto-suave">
+          {foraDaAntecipacao} nota(s) com estes filtros ficaram de fora: já recebidas, antecipadas
+          ou sem conta a receber.
+        </p>
       )}
 
       {lista.length > 0 && (
         <>
+          {antecipando && (
+            <div className="mb-2 px-4">
+              <MarcarTodas
+                lista={lista}
+                marcadas={marcadas}
+                aoMarcar={setMarcadas}
+                disabled={false}
+              />
+            </div>
+          )}
           {emLote && <EmitirMarcadas lista={lista} marcadas={marcadas} aoMarcar={setMarcadas} />}
           {boletoEmLote && (
             <BoletoDasMarcadas lista={lista} marcadas={marcadas} aoMarcar={setMarcadas} />
@@ -158,8 +241,11 @@ export function NotasFiscaisPage() {
                 key={n.id}
                 n={n}
                 marcada={
-                  emLote || (boletoEmLote && aceitaBoletoEmLote(n)) ? marcadas.has(n.id) : undefined
+                  antecipando || emLote || (boletoEmLote && aceitaBoletoEmLote(n))
+                    ? marcadas.has(n.id)
+                    : undefined
                 }
+                antecipacao={antecipando}
                 aoMarcar={(sim) => {
                   const novas = new Set(marcadas)
                   if (sim) novas.add(n.id)
@@ -184,6 +270,30 @@ export function NotasFiscaisPage() {
           </div>
         </>
       )}
+
+      {antecipando && contasMarcadas.length > 0 && (
+        <div className="sticky bottom-4 z-10 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-borda bg-white p-3 shadow-lg">
+          <p className="text-sm">
+            {contasMarcadas.length} nota(s) marcada(s) · A receber{' '}
+            <strong className="text-verde">
+              {formatarReais(totalBruto(contasMarcadas.map((l) => l.valor ?? 0)))}
+            </strong>
+          </p>
+          <Button onClick={() => setAntecipacaoAberta(true)}>
+            <HandCoins className="size-5" aria-hidden /> Antecipar
+          </Button>
+        </div>
+      )}
+
+      <AntecipacaoModal
+        aberto={antecipacaoAberta}
+        selecionados={contasMarcadas}
+        aoFechar={() => setAntecipacaoAberta(false)}
+        aoAntecipar={() => {
+          setAntecipacaoAberta(false)
+          setMarcadas(new Set())
+        }}
+      />
     </>
   )
 }
@@ -192,11 +302,14 @@ export function LinhaNota({
   n,
   marcada,
   aoMarcar,
+  antecipacao,
 }: {
   n: NotaFiscalCompleta
   /** Com valor, a linha ganha a caixa de marcar (emissão em lote). */
   marcada?: boolean
   aoMarcar?: (sim: boolean) => void
+  /** Na antecipação mostra o valor da conta a receber (é ele que é antecipado). */
+  antecipacao?: boolean
 }) {
   const cancelada = n.status === 'cancelada'
   const rascunho = n.status === 'rascunho'
@@ -242,7 +355,9 @@ export function LinhaNota({
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
-          <strong className="text-sm">{formatarReais(n.valor_servico)}</strong>
+          <strong className="text-sm">
+            {formatarReais(antecipacao && n.lancamento ? n.lancamento.valor : n.valor_servico)}
+          </strong>
           <span className="flex gap-1">
             {cancelada && <Etiqueta cor="perigo">Cancelada</Etiqueta>}
             {rascunho && n.erro_emissao && <Etiqueta cor="perigo">Erro na emissão</Etiqueta>}
