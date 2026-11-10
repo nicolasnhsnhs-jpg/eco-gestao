@@ -193,6 +193,16 @@ do $$ begin
   end if;
 end $$;
 
+-- Troca o veículo no 2º dia e depois mexe na nota do 1º: a troca do 2º dia fica.
+update public.agenda_itens set veiculo = 'ON11' where data = '2099-03-03' and descricao = 'SUSEPE 14: Rota';
+update public.agenda_itens set nota = 'Levar EPI' where id = '00000000-0000-0000-0000-0000000a9201';
+do $$ begin
+  if (select veiculo || '|' || nota from public.agenda_itens
+       where data = '2099-03-03' and descricao = 'SUSEPE 14: Rota') <> 'ON11|Levar EPI' then
+    raise exception 'só o campo que mudou deveria ir para os outros dias';
+  end if;
+end $$;
+
 -- Encurta o período: o dia 03 sai; o 04 fica porque já está realizado.
 update public.agenda_itens set periodo = '02/03 a 02/03' where id = '00000000-0000-0000-0000-0000000a9201';
 do $$ begin
