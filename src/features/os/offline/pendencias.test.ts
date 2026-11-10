@@ -90,6 +90,35 @@ describe('pendenciasLocais', () => {
       ),
     ).toEqual([])
   })
+
+  it('bebedouro: preventivo/corretivo, limpeza de cada um e conferência', () => {
+    const bebedouros = [
+      { tipo: 'bebedouro_garrafao', numero: 1, area: 'Recepção', limpo: null },
+      { tipo: 'bebedouro', numero: 2, area: 'Solda', limpo: null },
+      { tipo: 'bebedouro', numero: 1, area: 'Montagem', limpo: true },
+    ]
+    expect(pendenciasLocais('bebedouro', comum, bebedouros)).toEqual([
+      'preventivo ou corretivo',
+      'limpeza de: Solda, Recepção',
+      'conferência com o cliente',
+    ])
+    const checklist = {
+      trabalho: 'preventivo',
+      conferencia: {
+        todos_limpos: { sim: false, texto: 'Recepção fechada' },
+        danificados: { sim: false },
+      },
+    }
+    expect(
+      pendenciasLocais(
+        'bebedouro',
+        { ...comum, checklist },
+        bebedouros.map((b) => ({ ...b, limpo: b.limpo ?? false })),
+      ),
+    ).toEqual([])
+    expect(etapaDaPendencia('limpeza de: Solda')).toBe('Bebedouros')
+    expect(etapaDaPendencia('preventivo ou corretivo')).toBe('Trabalho a ser realizado')
+  })
 })
 
 describe('horariosForaDeOrdem', () => {

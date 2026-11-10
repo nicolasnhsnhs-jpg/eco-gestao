@@ -1,10 +1,11 @@
 import type { CamposExecucao } from '../api'
+import type { ChecklistBebedouro } from '../tipos/bebedouro'
 import type { ChecklistCoifa } from '../tipos/coifa'
 import type { ChecklistPragas } from '../tipos/pragas'
 
 /*
  * O que falta para concluir a OS — a MESMA regra de privado.pendencias_os no banco
- * (migration 20261106120100_os_coifa.sql). O celular usa esta cópia para concluir
+ * (migration 20261207120100_os_bebedouro.sql). O celular usa esta cópia para concluir
  * sem internet; quando o sinal volta, o banco confere de novo e é quem garante.
  * Se mudar uma, mude a outra (os testes de pendencias.test.ts e de os*.sql ajudam).
  */
@@ -15,6 +16,7 @@ type Ponto = {
   area: string
   situacao_armadilha?: string | null
   sujidade?: string | null
+  limpo?: boolean | null
 }
 
 const vazio = (texto: unknown) => typeof texto !== 'string' || texto.trim() === ''
@@ -55,7 +57,7 @@ export function horariosForaDeOrdem(e: CamposExecucao): string | null {
 export type FotosDaOs = { exigidas: boolean; antes: number; depois: number }
 
 export function pendenciasLocais(
-  formulario: 'generico' | 'pragas' | 'coifa' | string | undefined,
+  formulario: 'generico' | 'pragas' | 'coifa' | 'bebedouro' | string | undefined,
   e: CamposExecucao,
   pontos: Ponto[],
   fotos?: FotosDaOs,
@@ -114,6 +116,22 @@ export function pendenciasLocais(
     }
   }
 
+  if (formulario === 'bebedouro') {
+    const c = (e.checklist ?? {}) as ChecklistBebedouro
+    if (!c.trabalho || !['preventivo', 'corretivo'].includes(c.trabalho)) {
+      falta.push('preventivo ou corretivo')
+    }
+    const semResposta = pontos
+      .filter((p) => (p.tipo === 'bebedouro' || p.tipo === 'bebedouro_garrafao') && p.limpo == null)
+      .sort((a, b) => a.tipo.localeCompare(b.tipo) || a.numero - b.numero)
+      .map((p) => p.area)
+    if (semResposta.length) falta.push(`limpeza de: ${semResposta.join(', ')}`)
+    const finais = ['todos_limpos', 'danificados'] as const
+    if (finais.some((p) => typeof c.conferencia?.[p]?.sim !== 'boolean')) {
+      falta.push('conferência com o cliente')
+    }
+  }
+
   // Serviços de limpeza: pelo menos uma foto de antes e uma de depois.
   if (fotos?.exigidas) {
     if (fotos.antes === 0) falta.push('foto antes do serviço')
@@ -142,7 +160,14 @@ export function etapaDaPendencia(pendencia: string): string | null {
   }
   if (pendencia.startsWith('sujidade de')) return 'Coifas'
   if (pendencia === 'quantidade de produto') return 'Produto utilizado'
-  if (pendencia === 'conferência final com o cliente') return 'Conferência com o cliente'
+  if (
+    pendencia === 'conferência final com o cliente' ||
+    pendencia === 'conferência com o cliente'
+  ) {
+    return 'Conferência com o cliente'
+  }
+  if (pendencia === 'preventivo ou corretivo') return 'Trabalho a ser realizado'
+  if (pendencia.startsWith('limpeza de:')) return 'Bebedouros'
   if (pendencia === 'foto antes do serviço' || pendencia === 'foto após o serviço') {
     return 'Relatório fotográfico'
   }

@@ -24,6 +24,7 @@ import {
   type ModeloCompleto,
   type ModeloResumo,
 } from './api'
+import { EscopoBebedouro } from './EscopoBebedouro'
 import { EscopoCoifa } from './EscopoCoifa'
 import { EscopoPragas } from './EscopoPragas'
 
@@ -96,10 +97,14 @@ export function ModelosOsPage() {
           const iscas = ativos.filter((p) => p.tipo === 'porta_isca').length
           const armadilhas = ativos.filter((p) => p.tipo === 'armadilha_luminosa').length
           const coifas = ativos.filter((p) => p.tipo === 'coifa').length
+          const bebedouros = ativos.filter(
+            (p) => p.tipo === 'bebedouro' || p.tipo === 'bebedouro_garrafao',
+          ).length
           const contagem = [
             iscas && `${iscas} porta-iscas`,
             armadilhas && `${armadilhas} armadilhas`,
             coifas && `${coifas} coifas`,
+            bebedouros && `${bebedouros} bebedouros`,
           ].filter(Boolean)
           return (
             <li key={m.id}>
@@ -289,6 +294,11 @@ export function ModeloOsPage() {
       {m.tipo?.formulario_os === 'coifa' && (
         <div className="mt-4">
           <EscopoCoifa alvo={alvo} />
+        </div>
+      )}
+      {m.tipo?.formulario_os === 'bebedouro' && (
+        <div className="mt-4">
+          <EscopoBebedouro alvo={alvo} />
         </div>
       )}
     </>

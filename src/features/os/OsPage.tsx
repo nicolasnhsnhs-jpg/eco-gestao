@@ -27,6 +27,7 @@ import {
   useReabrirOs,
 } from './api'
 import { ConferenciaOs } from './ConferenciaOs'
+import { EscopoBebedouro } from './EscopoBebedouro'
 import { EscopoCoifa } from './EscopoCoifa'
 import { EscopoPragas } from './EscopoPragas'
 import type { AlvoEscopo } from './pragasApi'
@@ -228,6 +229,11 @@ export function OsPage() {
       {escritorio && alvo && o.tipo?.formulario_os === 'coifa' && (
         <div className="mt-4">
           <EscopoCoifa alvo={alvo} />
+        </div>
+      )}
+      {escritorio && alvo && o.tipo?.formulario_os === 'bebedouro' && (
+        <div className="mt-4">
+          <EscopoBebedouro alvo={alvo} />
         </div>
       )}
       {escritorio && alvo && (

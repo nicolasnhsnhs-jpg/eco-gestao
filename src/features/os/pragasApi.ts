@@ -141,6 +141,8 @@ type CamposPonto = Pick<
   | 'observacao'
   | 'sujidade'
   | 'foto_antes'
+  | 'limpo'
+  | 'filtro_trocado'
 >
 
 /**

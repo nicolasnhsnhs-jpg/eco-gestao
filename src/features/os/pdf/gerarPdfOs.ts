@@ -7,6 +7,7 @@ import { UNIDADE } from '@/lib/unidade'
 import { supabase } from '@/lib/supabase'
 
 import { enderecoDaFicha, fichaDaOs, type OsCompleta } from '../api'
+import { escreverBebedouro } from './bebedouroPdf'
 import { escreverCoifa } from './coifaPdf'
 import { buscarDadosPragas, escreverPragas, type DadosPragas } from './pragasPdf'
 
@@ -355,6 +356,7 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
   w.campo('Observações', e?.observacoes)
   if (pragas && os.tipo?.formulario_os === 'pragas') escreverPragas(w, normal, os, pragas)
   if (pragas && os.tipo?.formulario_os === 'coifa') escreverCoifa(w, os, pragas.pontos)
+  if (pragas && os.tipo?.formulario_os === 'bebedouro') escreverBebedouro(w, os, pragas.pontos)
 
   /** Grade de fotos, 3 por linha; com legenda, cada uma leva "<legenda> 1, 2…" embaixo. */
   async function grade(titulo: string, lista: Arquivo[], legenda?: string) {
@@ -425,9 +427,11 @@ export async function gerarESalvarPdfOs(os: OsCompleta) {
     .order('criado_em')
   if (error) throw error
 
-  // Pragas e coifa têm itens próprios (pontos, produtos, insetos) além da execução.
+  // Pragas, coifa e bebedouro têm itens próprios (pontos, produtos, insetos) além da execução.
   const pragas =
-    os.tipo?.formulario_os === 'pragas' || os.tipo?.formulario_os === 'coifa'
+    os.tipo?.formulario_os === 'pragas' ||
+    os.tipo?.formulario_os === 'coifa' ||
+    os.tipo?.formulario_os === 'bebedouro'
       ? await buscarDadosPragas(os.id)
       : undefined
   const bytes = await gerarPdfOs(os, arquivos, pragas)

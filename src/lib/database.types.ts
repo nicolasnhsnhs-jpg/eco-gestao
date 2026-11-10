@@ -3264,13 +3264,16 @@ export type Database = {
           atualizado_em: string
           atualizado_por: string | null
           capturas: Json
+          codigo_filtro: string | null
           criado_em: string
           criado_por: string | null
+          filtro_trocado: boolean | null
           forma_iscagem: string | null
           foto_antes: boolean | null
           higiene: string | null
           id: string
           lampadas_trocadas: boolean | null
+          limpo: boolean | null
           material: string | null
           modelo_armadilha: string | null
           numero: number
@@ -3285,6 +3288,7 @@ export type Database = {
           sujidade: string | null
           tipo: Database['public']['Enums']['tipo_ponto']
           tipo_isca: string | null
+          ultima_limpeza: string | null
           ultima_troca_lampada: string | null
         }
         Insert: {
@@ -3292,13 +3296,16 @@ export type Database = {
           atualizado_em?: string
           atualizado_por?: string | null
           capturas?: Json
+          codigo_filtro?: string | null
           criado_em?: string
           criado_por?: string | null
+          filtro_trocado?: boolean | null
           forma_iscagem?: string | null
           foto_antes?: boolean | null
           higiene?: string | null
           id?: string
           lampadas_trocadas?: boolean | null
+          limpo?: boolean | null
           material?: string | null
           modelo_armadilha?: string | null
           numero: number
@@ -3313,6 +3320,7 @@ export type Database = {
           sujidade?: string | null
           tipo: Database['public']['Enums']['tipo_ponto']
           tipo_isca?: string | null
+          ultima_limpeza?: string | null
           ultima_troca_lampada?: string | null
         }
         Update: {
@@ -3320,13 +3328,16 @@ export type Database = {
           atualizado_em?: string
           atualizado_por?: string | null
           capturas?: Json
+          codigo_filtro?: string | null
           criado_em?: string
           criado_por?: string | null
+          filtro_trocado?: boolean | null
           forma_iscagem?: string | null
           foto_antes?: boolean | null
           higiene?: string | null
           id?: string
           lampadas_trocadas?: boolean | null
+          limpo?: boolean | null
           material?: string | null
           modelo_armadilha?: string | null
           numero?: number
@@ -3341,6 +3352,7 @@ export type Database = {
           sujidade?: string | null
           tipo?: Database['public']['Enums']['tipo_ponto']
           tipo_isca?: string | null
+          ultima_limpeza?: string | null
           ultima_troca_lampada?: string | null
         }
         Relationships: [
@@ -3504,6 +3516,7 @@ export type Database = {
           ativo: boolean
           atualizado_em: string
           atualizado_por: string | null
+          codigo_filtro: string | null
           criado_em: string
           criado_por: string | null
           forma_iscagem: string | null
@@ -3522,6 +3535,7 @@ export type Database = {
           ativo?: boolean
           atualizado_em?: string
           atualizado_por?: string | null
+          codigo_filtro?: string | null
           criado_em?: string
           criado_por?: string | null
           forma_iscagem?: string | null
@@ -3540,6 +3554,7 @@ export type Database = {
           ativo?: boolean
           atualizado_em?: string
           atualizado_por?: string | null
+          codigo_filtro?: string | null
           criado_em?: string
           criado_por?: string | null
           forma_iscagem?: string | null
@@ -5419,7 +5434,7 @@ export type Database = {
         | 'boleto'
       forma_pagamento:
         'pix' | 'boleto' | 'transferencia' | 'cartao' | 'dinheiro' | 'debito_automatico' | 'outro'
-      formulario_os: 'generico' | 'pragas' | 'coifa'
+      formulario_os: 'generico' | 'pragas' | 'coifa' | 'bebedouro'
       papel: 'admin' | 'financeiro' | 'vendedor' | 'recepcao' | 'operador' | 'administrativo'
       setor_atendimento: 'administrativo' | 'comercial' | 'financeiro' | 'operacional'
       status_comissao: 'prevista' | 'paga' | 'cancelada'
@@ -5438,7 +5453,7 @@ export type Database = {
       tipo_movimento_investimento: 'aporte' | 'resgate' | 'rendimento'
       tipo_nota_fiscal: 'contrato' | 'avulsa'
       tipo_pessoa: 'PF' | 'PJ'
-      tipo_ponto: 'porta_isca' | 'armadilha_luminosa' | 'coifa'
+      tipo_ponto: 'porta_isca' | 'armadilha_luminosa' | 'coifa' | 'bebedouro' | 'bebedouro_garrafao'
       tipo_vencimento: 'certificado' | 'recomendacao'
     }
     CompositeTypes: {
@@ -5586,7 +5601,7 @@ export const Constants = {
         'debito_automatico',
         'outro',
       ],
-      formulario_os: ['generico', 'pragas', 'coifa'],
+      formulario_os: ['generico', 'pragas', 'coifa', 'bebedouro'],
       papel: ['admin', 'financeiro', 'vendedor', 'recepcao', 'operador', 'administrativo'],
       setor_atendimento: ['administrativo', 'comercial', 'financeiro', 'operacional'],
       status_comissao: ['prevista', 'paga', 'cancelada'],
@@ -5605,7 +5620,7 @@ export const Constants = {
       tipo_movimento_investimento: ['aporte', 'resgate', 'rendimento'],
       tipo_nota_fiscal: ['contrato', 'avulsa'],
       tipo_pessoa: ['PF', 'PJ'],
-      tipo_ponto: ['porta_isca', 'armadilha_luminosa', 'coifa'],
+      tipo_ponto: ['porta_isca', 'armadilha_luminosa', 'coifa', 'bebedouro', 'bebedouro_garrafao'],
       tipo_vencimento: ['certificado', 'recomendacao'],
     },
   },

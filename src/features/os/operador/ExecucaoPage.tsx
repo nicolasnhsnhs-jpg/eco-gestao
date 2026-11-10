@@ -36,8 +36,10 @@ import {
   type OsCompleta,
 } from '../api'
 import { usePontosOs } from '../pragasApi'
+import { ETAPAS_BEBEDOURO } from '../tipos/bebedouro'
 import { ETAPAS_COIFA } from '../tipos/coifa'
 import { quantasEtapasPragas } from '../tipos/pragas'
+import { ExecucaoBebedouro } from './ExecucaoBebedouro'
 import { ExecucaoCoifa } from './ExecucaoCoifa'
 import { ExecucaoPragas } from './ExecucaoPragas'
 import { useRascunhoExecucao, type EstadoEnvio } from './rascunho'
@@ -126,10 +128,19 @@ function Execucao({ os }: { os: OsCompleta }) {
   const pontos = usePontosOs(os.id)
   // Etapas: 1 chegada, depois as do tipo de serviço, depois fotos, cliente e operador.
   const coifa = os.tipo?.formulario_os === 'coifa'
+  const bebedouro = os.tipo?.formulario_os === 'bebedouro'
   const fila = useFila()
   const aguardandoEnvio = pendenteDaOs(fila, os.id).length > 0
   const fotos = useFotosAntesDepois(os, fila)
-  const depois = 2 + (pragas ? quantasEtapasPragas(os, pontos.data) : coifa ? ETAPAS_COIFA : 1)
+  const depois =
+    2 +
+    (pragas
+      ? quantasEtapasPragas(os, pontos.data)
+      : coifa
+        ? ETAPAS_COIFA
+        : bebedouro
+          ? ETAPAS_BEBEDOURO
+          : 1)
 
   async function registrarAgora(campo: CampoHora) {
     setErro(null)
@@ -365,6 +376,8 @@ function Execucao({ os }: { os: OsCompleta }) {
         <ExecucaoPragas os={os} campos={campos} alterar={alterar} aberta={aberta} primeira={2} />
       ) : coifa ? (
         <ExecucaoCoifa os={os} campos={campos} alterar={alterar} aberta={aberta} primeira={2} />
+      ) : bebedouro ? (
+        <ExecucaoBebedouro os={os} campos={campos} alterar={alterar} aberta={aberta} primeira={2} />
       ) : (
         <Etapa numero={2} titulo="Serviço realizado">
           <Campo rotulo="Resultado" htmlFor="ex-resultado" obrigatorio>
