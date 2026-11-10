@@ -765,11 +765,21 @@ function tabelaReservatorios(
 /**
  * Abre o PDF numa aba nova (ou na mesma, se o navegador bloquear). Certificado com
  * assinatura digital vai antes ao servidor, que devolve o PDF assinado.
+ *
+ * `soLeitura` (vendedor): não usa o certificado digital da empresa (o servidor só
+ * assina para quem emite) e não mexe na cópia do Drive. O PDF sai com a assinatura
+ * escaneada, como os certificados sem assinatura digital.
  */
-export async function abrirPdfCertificado(c: CertificadoResumo, aba: Window | null) {
-  const blob = await pdfFinalCertificado(c)
+export async function abrirPdfCertificado(
+  c: CertificadoResumo,
+  aba: Window | null,
+  { soLeitura = false }: { soLeitura?: boolean } = {},
+) {
+  const blob = soLeitura
+    ? await pdfFinalCertificado({ ...c, assinatura_digital: false })
+    : await pdfFinalCertificado(c)
   // A cópia no Drive vai junto (é a mesma folha; troca a anterior se mudou).
-  if (UNIDADE.drive) void copiarCertificadoNoDrive(c.id, blob).catch(() => {})
+  if (UNIDADE.drive && !soLeitura) void copiarCertificadoNoDrive(c.id, blob).catch(() => {})
   const link = URL.createObjectURL(blob)
   if (aba) aba.location.href = link
   else window.location.href = link

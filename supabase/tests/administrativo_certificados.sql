@@ -3,7 +3,7 @@
 --
 --  1. O ADM cuida de clientes, propostas, serviços, OS e O.S de contrato,
 --     mas NÃO lê nem grava nada do financeiro e não gerencia usuários.
---  2. Certificados: só Administrador e ADM veem e emitem; número sequencial,
+--  2. Certificados: só Administrador e ADM emitem (o vendedor vê os da carteira dele); número sequencial,
 --     ficha do cliente congelada, número no serviço de origem, cancelamento.
 --  3. Catálogo de produtos dos certificados: só Administrador e ADM.
 --
@@ -224,7 +224,7 @@ do $$ begin
          = '00000000-0000-0000-0000-0000000007e1', 'O cancelamento deveria registrar quem cancelou';
 end $$;
 
--- Administrador vê; financeiro, vendedor e recepção não veem nem emitem
+-- Administrador vê; financeiro e recepção não veem nem emitem
 select pg_temp.como('00000000-0000-0000-0000-0000000007a1');
 set local role authenticated;
 do $$ begin
@@ -261,9 +261,33 @@ set local role authenticated;
 select pg_temp.sem_certificados('Financeiro');
 reset role;
 
+-- Vendedor: vê o certificado do cliente da carteira dele (e a assinatura, para o
+-- PDF), mas não emite, não corrige e não vê o catálogo de produtos.
 select pg_temp.como('00000000-0000-0000-0000-0000000007b1');
 set local role authenticated;
-select pg_temp.sem_certificados('Vendedor');
+do $$ begin
+  assert (select count(*) from public.certificados where id = '00000000-0000-0000-0000-00000000ce01') = 1,
+    'Vendedor deveria ver o certificado do cliente dele';
+  assert (select count(*) from storage.objects where bucket_id = 'assinaturas') >= 1,
+    'Vendedor deveria ler a assinatura (para o PDF)';
+  assert (select count(*) from public.produtos_certificado) = 0,
+    'Vendedor não deveria ver o catálogo de produtos';
+  update public.certificados set titulo = 'VENDEDOR' where id = '00000000-0000-0000-0000-00000000ce01';
+  assert (select titulo from public.certificados where id = '00000000-0000-0000-0000-00000000ce01') <> 'VENDEDOR',
+    'Vendedor não deveria corrigir certificado';
+  begin
+    insert into public.certificados (numero, cliente_id, tipo_servico_id, titulo, servico_descrito, data_execucao)
+    select '', '00000000-0000-0000-0000-00000000c7a1', id, 'TESTE', 'TESTE', '2026-10-27'
+      from public.tipos_servico limit 1;
+    raise exception 'Vendedor não deveria emitir certificado';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    insert into storage.objects (bucket_id, name) values ('assinaturas', 'responsavel.png');
+    raise exception 'Vendedor não deveria enviar assinatura';
+  exception when insufficient_privilege or unique_violation then null;
+  end;
+end $$;
 reset role;
 
 select pg_temp.como('00000000-0000-0000-0000-0000000007c1');

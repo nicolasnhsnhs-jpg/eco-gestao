@@ -61,6 +61,7 @@ import {
   PAPEIS_CERTIFICADOS,
   PAPEIS_ESCRITORIO_OS,
   PAPEIS_GESTAO,
+  PAPEIS_VER_CERTIFICADOS,
 } from '@/lib/papeis'
 
 import { AppLayout } from './AppLayout'
@@ -314,16 +315,26 @@ export const router = createBrowserRouter([
       {
         path: 'certificados',
         element: (
-          <ExigePapel papeis={PAPEIS_CERTIFICADOS}>
+          <ExigePapel papeis={PAPEIS_VER_CERTIFICADOS}>
             <Outlet />
           </ExigePapel>
         ),
         children: [
+          // O vendedor só vê a lista e baixa o PDF; o resto é de quem emite.
           { index: true, element: <CertificadosPage /> },
-          { path: 'novo', element: <CertificadoFormPage /> },
-          { path: 'produtos', element: <ProdutosCertificadoPage /> },
-          { path: 'assinaturas', element: <AssinaturasCertificadoPage /> },
-          { path: ':id', element: <CertificadoFormPage /> },
+          {
+            element: (
+              <ExigePapel papeis={PAPEIS_CERTIFICADOS}>
+                <Outlet />
+              </ExigePapel>
+            ),
+            children: [
+              { path: 'novo', element: <CertificadoFormPage /> },
+              { path: 'produtos', element: <ProdutosCertificadoPage /> },
+              { path: 'assinaturas', element: <AssinaturasCertificadoPage /> },
+              { path: ':id', element: <CertificadoFormPage /> },
+            ],
+          },
         ],
       },
       { path: 'avisos', element: <AvisosPage /> },

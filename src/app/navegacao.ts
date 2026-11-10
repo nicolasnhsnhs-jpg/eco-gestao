@@ -20,9 +20,9 @@ import {
 import {
   PAPEIS,
   PAPEIS_ACESSO_TOTAL,
-  PAPEIS_CERTIFICADOS,
   PAPEIS_ESCRITORIO_OS,
   PAPEIS_GESTAO,
+  PAPEIS_VER_CERTIFICADOS,
   type Papel,
 } from '@/lib/papeis'
 
@@ -130,7 +130,7 @@ export const MENU: readonly ItemMenu[] = [
     rotulo: 'Certificados',
     caminho: '/certificados',
     icone: Award,
-    papeis: PAPEIS_CERTIFICADOS,
+    papeis: PAPEIS_VER_CERTIFICADOS,
     grupo: 'administrativo',
   },
   {

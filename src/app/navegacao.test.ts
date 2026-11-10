@@ -43,10 +43,11 @@ describe('menuDoPapel', () => {
     ])
   })
 
-  it('só admin e ADM emitem certificados', () => {
+  it('admin e ADM emitem certificados; o vendedor só consulta', () => {
     expect(caminhos('admin')).toContain('/certificados')
     expect(caminhos('administrativo')).toContain('/certificados')
-    for (const papel of ['financeiro', 'vendedor', 'recepcao', 'operador'] as const)
+    expect(caminhos('vendedor')).toContain('/certificados')
+    for (const papel of ['financeiro', 'recepcao', 'operador'] as const)
       expect(caminhos(papel)).not.toContain('/certificados')
   })
 
@@ -102,6 +103,7 @@ describe('entradasDoPapel', () => {
       '/clientes',
       'Propostas: /propostas /orcamentos',
       '/servicos',
+      '/certificados',
       '/contratos',
       '/comissoes',
       '/avisos',

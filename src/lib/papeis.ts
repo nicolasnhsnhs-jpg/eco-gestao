@@ -49,6 +49,9 @@ export const PAPEIS_EDITAR_AGENDA: readonly Papel[] = ['admin', 'financeiro', 'v
 /** Quem emite certificados de serviço. */
 export const PAPEIS_CERTIFICADOS: readonly Papel[] = ['admin', 'administrativo']
 
+/** Quem vê a lista de certificados e baixa o PDF. O vendedor só consulta (os da carteira dele). */
+export const PAPEIS_VER_CERTIFICADOS: readonly Papel[] = [...PAPEIS_CERTIFICADOS, 'vendedor']
+
 /** Perfis que não são da equipe comercial: não podem ser o vendedor de um cliente. */
 export const PAPEIS_FORA_DO_COMERCIAL: readonly Papel[] = ['recepcao', 'operador', 'administrativo']
 

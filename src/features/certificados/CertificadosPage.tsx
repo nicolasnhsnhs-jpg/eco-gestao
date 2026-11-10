@@ -9,6 +9,9 @@ import { Carregando } from '@/components/ui/Carregando'
 import { Etiqueta } from '@/components/ui/Etiqueta'
 import { formatarData, hojeISO } from '@/lib/datas'
 import { mensagemDeErro } from '@/lib/erros'
+import { PAPEIS_CERTIFICADOS } from '@/lib/papeis'
+
+import { usePerfil } from '../auth/useAuth'
 
 import { useCertificados, type CertificadoResumo } from './api'
 import { AbasCertificados } from './ProdutosCertificadoPage'
@@ -25,8 +28,9 @@ function situacao(c: CertificadoResumo) {
   return { texto: `Válido até ${formatarData(c.validade)}`, cor: 'verde' as const }
 }
 
-/** /certificados: lista dos certificados emitidos, com busca e PDF. */
+/** /certificados: lista dos certificados emitidos, com busca e PDF. O vendedor só consulta. */
 export function CertificadosPage() {
+  const emite = PAPEIS_CERTIFICADOS.includes(usePerfil().papel)
   const certificados = useCertificados()
   const [busca, setBusca] = useState('')
   const [gerando, setGerando] = useState<string | null>(null)
@@ -48,7 +52,7 @@ export function CertificadosPage() {
     const aba = window.open('', '_blank')
     try {
       const { abrirPdfCertificado } = await import('./pdf/gerarPdfCertificado')
-      await abrirPdfCertificado(c, aba)
+      await abrirPdfCertificado(c, aba, { soLeitura: !emite })
     } catch (e) {
       aba?.close()
       setErro(mensagemDeErro(e))
@@ -59,16 +63,22 @@ export function CertificadosPage() {
 
   return (
     <>
-      <AbasCertificados />
+      {emite && <AbasCertificados />}
       <PageHeader
         titulo="Certificados"
-        descricao="Emita o certificado de cada serviço feito e baixe o PDF para enviar ao cliente."
+        descricao={
+          emite
+            ? 'Emita o certificado de cada serviço feito e baixe o PDF para enviar ao cliente.'
+            : 'Certificados dos seus clientes. Baixe o PDF para enviar ao cliente.'
+        }
         acoes={
-          <Link to="/certificados/novo">
-            <Button>
-              <Plus className="size-5" aria-hidden /> Emitir certificado
-            </Button>
-          </Link>
+          emite && (
+            <Link to="/certificados/novo">
+              <Button>
+                <Plus className="size-5" aria-hidden /> Emitir certificado
+              </Button>
+            </Link>
+          )
         }
       />
       <input
@@ -98,16 +108,7 @@ export function CertificadosPage() {
               key={c.id}
               className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-borda bg-white p-4"
             >
-              <Link to={`/certificados/${c.id}`} className="min-w-0 flex-1 hover:underline">
-                <p className="font-semibold text-verde-escuro">
-                  {c.numero} · {nomeCliente(c.cliente)}
-                  {nomeUnidade(c.endereco) && ` · ${nomeUnidade(c.endereco)}`}
-                </p>
-                <p className="text-sm text-texto-suave">
-                  {c.tipo?.nome} · feito em {formatarData(c.data_execucao)}
-                  {c.os?.numero && ` · ${c.os.numero}`}
-                </p>
-              </Link>
+              <Resumo c={c} link={emite} />
               <div className="flex items-center gap-2">
                 <Etiqueta cor={s.cor}>{s.texto}</Etiqueta>
                 <Button
@@ -125,5 +126,28 @@ export function CertificadosPage() {
         })}
       </ul>
     </>
+  )
+}
+
+/** Número, cliente e serviço. Quem emite clica para abrir; o vendedor só lê. */
+function Resumo({ c, link }: { c: CertificadoResumo; link: boolean }) {
+  const conteudo = (
+    <>
+      <p className="font-semibold text-verde-escuro">
+        {c.numero} · {nomeCliente(c.cliente)}
+        {nomeUnidade(c.endereco) && ` · ${nomeUnidade(c.endereco)}`}
+      </p>
+      <p className="text-sm text-texto-suave">
+        {c.tipo?.nome} · feito em {formatarData(c.data_execucao)}
+        {c.os?.numero && ` · ${c.os.numero}`}
+      </p>
+    </>
+  )
+  return link ? (
+    <Link to={`/certificados/${c.id}`} className="min-w-0 flex-1 hover:underline">
+      {conteudo}
+    </Link>
+  ) : (
+    <div className="min-w-0 flex-1">{conteudo}</div>
   )
 }
