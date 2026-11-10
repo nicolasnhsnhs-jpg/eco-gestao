@@ -171,18 +171,13 @@ export function AcoesPdfProposta({
     const chave = `drive:proposta:${p.id}:${p.atualizado_em}`
     try {
       if (localStorage.getItem(chave)) return
+      // Marca antes de gerar: a página pode rodar isto de novo enquanto o PDF é montado.
+      localStorage.setItem(chave, '1')
     } catch {
       /* sem armazenamento: manda assim mesmo */
     }
     void pdfDaProposta(propostaGravadaParaBase(p), cliente, p.endereco_id, vendedor.data)
-      .then((blob) => {
-        copiarPropostaNoDrive(p.id, blob)
-        try {
-          localStorage.setItem(chave, '1')
-        } catch {
-          /* tanto faz */
-        }
-      })
+      .then((blob) => copiarPropostaNoDrive(p.id, blob))
       .catch(() => {})
     // Só quando a versão da proposta muda.
     // eslint-disable-next-line react-hooks/exhaustive-deps

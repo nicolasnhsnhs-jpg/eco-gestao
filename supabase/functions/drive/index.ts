@@ -64,21 +64,45 @@ export function nomePastaCliente(c: Cliente) {
   return nomeSeguro(doc ? `${c.nome.trim()} - ${doc}` : c.nome.trim())
 }
 
-/** Id de uma pasta já achada/criada (drive_pastas), ou acha/cria e guarda. */
-async function lembrar(admin: SupabaseClient, chave: string, achar: () => Promise<string>) {
-  const { data } = await admin
+/**
+ * Id de uma pasta já achada/criada (drive_pastas); senão acha no Drive ou cria, e guarda.
+ * Duas cópias ao mesmo tempo (ex.: a página manda a proposta duas vezes) podem criar a
+ * mesma pasta duas vezes: quem gravar primeiro no banco vale, e a pasta do outro vai para
+ * a lixeira (ainda vazia, porque o arquivo só sobe depois).
+ */
+async function lembrar(
+  admin: SupabaseClient,
+  drive: Drive,
+  chave: string,
+  achar: () => Promise<string | null>,
+  criar?: () => Promise<string>,
+) {
+  const gravada = async () => {
+    const { data } = await admin
+      .from('drive_pastas')
+      .select('pasta_id')
+      .eq('chave', chave)
+      .maybeSingle()
+    return (data?.pasta_id as string | undefined) ?? null
+  }
+  const ja = await gravada()
+  if (ja) return ja
+  let id = await achar()
+  const criada = !id
+  if (!id) {
+    if (!criar) throw new Error('Pasta não encontrada.')
+    id = await criar()
+  }
+  await admin
     .from('drive_pastas')
-    .select('pasta_id')
-    .eq('chave', chave)
-    .maybeSingle()
-  if (data) return data.pasta_id as string
-  const id = await achar()
-  await admin.from('drive_pastas').upsert({ chave, pasta_id: id })
-  return id
+    .upsert({ chave, pasta_id: id }, { onConflict: 'chave', ignoreDuplicates: true })
+  const vale = (await gravada()) ?? id
+  if (criada && vale !== id) await drive.lixeira(id).catch(() => {})
+  return vale
 }
 
 async function pastaDoSetor(admin: SupabaseClient, drive: Drive, raiz: string, setor: Setor) {
-  return await lembrar(admin, `setor:${setor}`, async () => {
+  return await lembrar(admin, drive, `setor:${setor}`, async () => {
     const id = await drive.acharPasta(setor, raiz)
     if (!id)
       throw new Error(
@@ -98,8 +122,10 @@ async function subpasta(
 ) {
   return await lembrar(
     admin,
+    drive,
     chave,
-    async () => (await drive.acharPasta(nome, pai)) ?? (await drive.criarPasta(nome, pai)),
+    () => drive.acharPasta(nome, pai),
+    () => drive.criarPasta(nome, pai),
   )
 }
 
@@ -111,19 +137,21 @@ async function pastaDoClienteEm(
   pai: string,
   cliente: Cliente,
 ) {
-  return await lembrar(admin, chave, async () => {
-    const etiqueta = { eco_cliente: cliente.id }
-    const marcada = await drive.acharPastaEtiquetada('eco_cliente', cliente.id, pai)
-    if (marcada) return marcada
-    const nome = nomePastaCliente(cliente)
-    // Pasta criada à mão com o mesmo nome: passa a ser a do cliente.
-    const mesmoNome = await drive.acharPasta(nome, pai)
-    if (mesmoNome) {
-      await drive.etiquetar(mesmoNome, etiqueta)
+  const etiqueta = { eco_cliente: cliente.id }
+  return await lembrar(
+    admin,
+    drive,
+    chave,
+    async () => {
+      const marcada = await drive.acharPastaEtiquetada('eco_cliente', cliente.id, pai)
+      if (marcada) return marcada
+      // Pasta criada à mão com o mesmo nome: passa a ser a do cliente.
+      const mesmoNome = await drive.acharPasta(nomePastaCliente(cliente), pai)
+      if (mesmoNome) await drive.etiquetar(mesmoNome, etiqueta)
       return mesmoNome
-    }
-    return await drive.criarPasta(nome, pai, etiqueta)
-  })
+    },
+    () => drive.criarPasta(nomePastaCliente(cliente), pai, etiqueta),
+  )
 }
 
 /** Acha (ou cria) SETOR / ano / cliente, lembrando no banco o id de cada pasta. */

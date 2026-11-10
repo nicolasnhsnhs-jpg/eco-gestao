@@ -84,8 +84,12 @@ export function nomeArquivoProposta(numero: string | null | undefined, cliente: 
  * Proposta <número> - <data de envio>.pdf. Gerar de novo troca a cópia. Falhar aqui não
  * atrapalha quem está usando a proposta.
  */
+const enviandoProposta = new Set<string>()
+
 export function copiarPropostaNoDrive(propostaId: string | null, pdf: Blob) {
-  if (!UNIDADE.drive || !propostaId) return
+  // Uma cópia por vez de cada proposta (abrir e clicar em Baixar logo em seguida, por ex.).
+  if (!UNIDADE.drive || !propostaId || enviandoProposta.has(propostaId)) return
+  enviandoProposta.add(propostaId)
   void (async () => {
     const bytes = new Uint8Array(await pdf.arrayBuffer())
     let texto = ''
@@ -94,5 +98,7 @@ export function copiarPropostaNoDrive(propostaId: string | null, pdf: Blob) {
     await supabase.functions.invoke('drive', {
       body: { acao: 'proposta', propostaId, pdf: btoa(texto) },
     })
-  })().catch(() => {})
+  })()
+    .catch(() => {})
+    .finally(() => enviandoProposta.delete(propostaId))
 }

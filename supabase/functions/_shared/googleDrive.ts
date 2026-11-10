@@ -12,7 +12,7 @@ const API = 'https://www.googleapis.com/drive/v3'
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3'
 /** Funciona também se um dia as pastas forem para um Drive compartilhado. */
 const TODOS = 'supportsAllDrives=true'
-const BUSCA = `${TODOS}&includeItemsFromAllDrives=true&fields=files(id,name)&pageSize=10`
+const BUSCA = `${TODOS}&includeItemsFromAllDrives=true&fields=files(id,name)&pageSize=10&orderBy=createdTime`
 
 type Conta = { client_id: string; client_secret: string; refresh_token: string }
 
@@ -120,6 +120,15 @@ export class Drive {
     return corpo.id as string
   }
 
+  /** Manda para a lixeira do Drive (dá para recuperar por 30 dias). */
+  async lixeira(id: string) {
+    await this.chamar(`${API}/files/${id}?${TODOS}&fields=id`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trashed: true }),
+    })
+  }
+
   async etiquetar(id: string, etiquetas: Record<string, string>) {
     await this.chamar(`${API}/files/${id}?${TODOS}&fields=id`, {
       method: 'PATCH',
@@ -155,6 +164,16 @@ export class Drive {
       headers: { 'Content-Type': `multipart/related; boundary=${limite}` },
       body: corpo,
     })
+    if (existente) return r.id as string
+    // Dois envios ao mesmo tempo criam dois arquivos com o mesmo nome: fica o mais antigo
+    // (com o conteúdo novo) e o outro vai para a lixeira.
+    const iguais = await this.buscar(
+      `name = ${aspas(nome)} and ${aspas(pasta)} in parents and trashed = false`,
+    )
+    if (iguais.length > 1 && iguais[0].id !== r.id) {
+      await this.lixeira(r.id).catch(() => {})
+      return iguais[0].id
+    }
     return r.id as string
   }
 }
