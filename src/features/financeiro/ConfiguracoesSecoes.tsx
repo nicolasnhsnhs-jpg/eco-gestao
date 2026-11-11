@@ -358,6 +358,7 @@ export function SecaoBoleto() {
           {r.conexao === 'ok'
             ? `O ${NOME_BANCO[r.banco]} aceitou as credenciais (${r.testado === 'producao' ? 'produção' : 'sandbox'}).`
             : `A conexão com o ${NOME_BANCO[r.banco]} falhou: ${r.conexao}`}
+          {r.detalhe && <DetalheParaSuporte detalhe={r.detalhe} />}
         </Aviso>
       ))}
       <div className="mt-4 flex flex-wrap gap-2">
@@ -385,6 +386,29 @@ const NOME_ABRANGENCIA = {
   outro: 'Outro',
 } as const
 type Abrangencia = keyof typeof NOME_ABRANGENCIA
+
+/** A requisição e a resposta da recusa (token e senha mascarados), para colar no e-mail do suporte. */
+function DetalheParaSuporte({ detalhe }: { detalhe: Record<string, unknown> }) {
+  const [copiado, setCopiado] = useState(false)
+  const texto = JSON.stringify(detalhe, null, 2)
+  return (
+    <details className="mt-2 text-texto">
+      <summary className="cursor-pointer font-medium">Detalhes para o suporte do banco</summary>
+      <pre className="mt-2 max-h-80 overflow-auto rounded border border-borda bg-white p-2 text-xs whitespace-pre-wrap break-all">
+        {texto}
+      </pre>
+      <Button
+        variante="secundario"
+        className="mt-2"
+        onClick={() => {
+          void navigator.clipboard.writeText(texto).then(() => setCopiado(true))
+        }}
+      >
+        {copiado ? 'Copiado' : 'Copiar detalhes'}
+      </Button>
+    </details>
+  )
+}
 
 export function SecaoFeriados() {
   const ano = Number(hojeISO().slice(0, 4))

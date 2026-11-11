@@ -19,7 +19,20 @@
 
 export type AmbienteBoleto = 'sandbox' | 'producao'
 
-export class FalhaSicredi extends Error {}
+export class FalhaSicredi extends Error {
+  /** Requisição e resposta completas (segredos mascarados), para mandar ao suporte do Sicredi. */
+  constructor(
+    mensagem: string,
+    readonly detalhe?: Record<string, unknown>,
+  ) {
+    super(mensagem)
+  }
+}
+
+/** Só o começo e o fim de um segredo: dá para conferir qual é sem revelá-lo. */
+function mascarar(s: string): string {
+  return s.length <= 8 ? '****' : `${s.slice(0, 4)}…${s.slice(-4)} (${s.length} caracteres)`
+}
 
 const BASE: Record<AmbienteBoleto, string> = {
   producao: 'https://api-parceiro.sicredi.com.br',
@@ -102,23 +115,53 @@ export class Sicredi {
   }
 
   private async pedirToken(campos: Record<string, string>): Promise<Token> {
-    const r = await fetch(`${BASE[this.ambiente]}/auth/openapi/token`, {
+    const endpoint = `${BASE[this.ambiente]}/auth/openapi/token`
+    const headers = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'x-api-key': this.apiKey,
+      context: 'COBRANCA',
+    }
+    const corpo = { scope: 'cobranca', ...campos }
+    const r = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'x-api-key': this.apiKey,
-        context: 'COBRANCA',
-      },
-      body: new URLSearchParams({ scope: 'cobranca', ...campos }),
+      headers,
+      body: new URLSearchParams(corpo),
       signal: AbortSignal.timeout(20_000),
     })
     if (!r.ok) {
+      const texto = await r.clone().text().catch(() => '')
       const m = await motivo(r)
+      let corpoResposta: unknown = texto
+      try {
+        corpoResposta = JSON.parse(texto)
+      } catch {
+        // Não era JSON: fica o texto.
+      }
+      const detalhe = {
+        quando: new Date().toISOString(),
+        requisicao: {
+          metodo: 'POST',
+          endpoint,
+          headers: { ...headers, 'x-api-key': mascarar(this.apiKey) },
+          corpo: {
+            ...corpo,
+            ...(corpo.password ? { password: mascarar(corpo.password) } : {}),
+            ...(corpo.refresh_token ? { refresh_token: mascarar(corpo.refresh_token) } : {}),
+          },
+        },
+        resposta: {
+          status: r.status,
+          statusText: r.statusText,
+          headers: Object.fromEntries(r.headers.entries()),
+          corpo: corpoResposta,
+        },
+      }
       throw new FalhaSicredi(
         r.status === 401 || /invalid|credentials/i.test(m)
           ? `O Sicredi recusou o acesso (${r.status}: ${m}). Confira o SICREDI_API_KEY, o ` +
               'Código de Acesso e o código do beneficiário/cooperativa.'
           : `O Sicredi recusou a autenticação (${r.status}: ${m}).`,
+        detalhe,
       )
     }
     const j = (await r.json()) as {

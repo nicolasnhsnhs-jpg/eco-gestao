@@ -24,6 +24,7 @@ import {
   type Banco,
 } from '../_shared/boletoNota.ts'
 import { boletoPago } from '../_shared/pedidoBoleto.ts'
+import { FalhaSicredi } from '../_shared/sicredi.ts'
 import { clienteAdmin, conferirFinanceiro, CORS, resposta } from '../_shared/servidor.ts'
 
 type Pedido =
@@ -46,13 +47,15 @@ async function testar(admin: SupabaseClient) {
     if (banco === 'asaas' && ambiente === 'desligado') continue
     const testado = ambiente === 'producao' ? 'producao' : 'sandbox'
     let conexao: string
+    let detalhe: Record<string, unknown> | undefined
     try {
       await contaDoBanco(cfg, banco, testado).autenticar()
       conexao = 'ok'
     } catch (e) {
       conexao = (e as Error).message
+      if (e instanceof FalhaSicredi) detalhe = e.detalhe
     }
-    resultados.push({ banco, ambiente, testado, conexao })
+    resultados.push({ banco, ambiente, testado, conexao, detalhe })
   }
   return { resultados }
 }

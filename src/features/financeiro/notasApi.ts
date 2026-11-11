@@ -814,6 +814,8 @@ export type ResultadoTesteBoleto = {
     ambiente: AmbienteBoleto
     testado: 'sandbox' | 'producao'
     conexao: string
+    /** Requisição e resposta da recusa (segredos mascarados), para o suporte do banco. */
+    detalhe?: Record<string, unknown>
   }[]
 }
 
