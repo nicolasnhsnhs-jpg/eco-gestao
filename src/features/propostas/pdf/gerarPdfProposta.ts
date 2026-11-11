@@ -17,8 +17,8 @@ import type { DadosPdfProposta } from './dadosPdf'
 /*
  * PDF da proposta comercial, no navegador com pdf-lib (como a OS e o certificado).
  * Segue o modelo das propostas em Word: A4 em pé, logo e serviços no alto, cliente
- * ("À …"), apresentação, seções numeradas com faixa verde-clara, assinatura do
- * vendedor e o rodapé da empresa em todas as páginas.
+ * ("À …"), apresentação, seções numeradas com faixa verde-clara e o rodapé da
+ * empresa em todas as páginas. O vendedor responsável fica no alto, abaixo da data.
  */
 
 const A4 = { largura: 595.28, altura: 841.89 }
@@ -283,21 +283,7 @@ export async function gerarPdfProposta(d: DadosPdfProposta): Promise<Blob> {
     else rico(partesRicas(l.texto), { justificar: l.tipo === 'paragrafo' })
   }
 
-  // Assinatura (fica junta)
-  y -= 10
-  garantir(ENTRELINHA * 4 + 4)
-  const assinatura = [
-    { texto: 'Atenciosamente,', negrito: false },
-    { texto: d.vendedor.nome, negrito: true },
-    {
-      texto: d.vendedor.telefone ? `Comercial · ${d.vendedor.telefone}` : 'Comercial',
-      negrito: false,
-    },
-    ...(d.vendedor.email ? [{ texto: d.vendedor.email, negrito: false }] : []),
-  ]
-  for (const a of assinatura) {
-    rico([a], { alinhar: 'centro', cor: a.negrito ? COR.noite : COR.texto })
-  }
+  // O vendedor responsável vai no cabeçalho, abaixo da data (cabecalhoPrimeira).
 
   // ---------------------------------------------------------------------------
   // Rodapé e marca d'água em todas as páginas
@@ -388,6 +374,27 @@ function cabecalhoPrimeira(p: PDFPage, f: Fontes, logo: PDFImage, d: DadosPdfPro
     f.negrito,
     COR.verde,
   )
+
+  // Vendedor responsável, logo abaixo da data (no fim do PDF ele às vezes ia
+  // sozinho para uma página nova).
+  y -= ENTRELINHA
+  const nomeVendedor = textoSeguro(d.vendedor.nome)
+  escrever(p, nomeVendedor, A4.largura - M, y, T, f.negrito, COR.noite, 'direita')
+  escrever(
+    p,
+    'Vendedor responsável: ',
+    A4.largura - M - f.negrito.widthOfTextAtSize(nomeVendedor, T),
+    y,
+    T,
+    f.normal,
+    COR.texto,
+    'direita',
+  )
+  const contato = [d.vendedor.telefone, d.vendedor.email].filter(Boolean).join(' · ')
+  if (contato) {
+    y -= ENTRELINHA
+    escrever(p, contato, A4.largura - M, y, T, f.normal, COR.texto, 'direita')
+  }
   y -= 16
 
   // Cliente
