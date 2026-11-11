@@ -1,7 +1,9 @@
 import {
   ArrowDown,
   ArrowUp,
+  BellRing,
   CalendarPlus,
+  Check,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -42,8 +44,10 @@ import {
   useApagarItem,
   useCopiarItens,
   useCriarDia,
+  useConferirLembrete,
   useCriarItem,
   useDiasComAgenda,
+  useLembretesAgenda,
   useSalvarDia,
   useSalvarItem,
   type Conexao,
@@ -150,6 +154,8 @@ export function AgendaDiaPage() {
 
       <ProximosDias data={data} irPara={irPara} />
 
+      <LembretesPropostas data={data} podeConferir={podeEditar} />
+
       {agenda.isPending && <Carregando />}
       {agenda.isError && <Aviso tipo="erro">{mensagemDeErro(agenda.error)}</Aviso>}
 
@@ -231,6 +237,70 @@ export function AgendaDiaPage() {
         <CadastroEquipe tecnicos={tecnicos} veiculos={veiculos} podeEditar={podeConferir} />
       )}
     </div>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// Avisos das propostas aprovadas com execução marcada neste dia
+// -----------------------------------------------------------------------------
+
+function LembretesPropostas({ data, podeConferir }: { data: string; podeConferir: boolean }) {
+  const lembretes = useLembretesAgenda(data)
+  const conferir = useConferirLembrete(data)
+  const lista = lembretes.data ?? []
+  if (lista.length === 0) return null
+
+  return (
+    <Card className="flex flex-col gap-3 border-alerta/40 bg-amber-50 p-4">
+      <p className="flex items-center gap-2 font-bold text-texto">
+        <BellRing className="size-5 text-alerta" aria-hidden />
+        {lista.length === 1
+          ? '1 serviço de proposta aprovada marcado para este dia'
+          : `${lista.length} serviços de propostas aprovadas marcados para este dia`}
+      </p>
+      <p className="-mt-2 text-sm text-texto-suave">
+        O vendedor já combinou com o cliente. Lance na agenda com técnico, carro e horário
+        {podeConferir && ' e depois tire o aviso'}.
+      </p>
+      <ul className="flex flex-col gap-2">
+        {lista.map((l) => (
+          <li
+            key={l.proposta_id}
+            className="flex flex-wrap items-start gap-3 rounded-xl border border-borda bg-white p-3"
+          >
+            <span className="w-14 shrink-0 pt-0.5 font-bold text-verde-escuro">
+              {l.hora ? l.hora.slice(0, 5) : '—'}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold">
+                {l.cliente}{' '}
+                <Link
+                  to={`/propostas/${l.proposta_id}`}
+                  className="text-sm font-normal text-verde underline"
+                >
+                  proposta {l.numero}
+                </Link>
+              </p>
+              {l.servicos && <p className="text-sm">{l.servicos}</p>}
+              <p className="text-sm text-texto-suave">
+                {[l.endereco, l.vendedor && `Vendedor: ${l.vendedor}`].filter(Boolean).join(' · ')}
+              </p>
+            </div>
+            {podeConferir && (
+              <Button
+                variante="secundario"
+                className="min-h-9"
+                disabled={conferir.isPending}
+                onClick={() => conferir.mutate(l.proposta_id)}
+              >
+                <Check className="size-4" aria-hidden /> Já lancei, tirar aviso
+              </Button>
+            )}
+          </li>
+        ))}
+      </ul>
+      {conferir.isError && <Aviso tipo="erro">{mensagemDeErro(conferir.error)}</Aviso>}
+    </Card>
   )
 }
 

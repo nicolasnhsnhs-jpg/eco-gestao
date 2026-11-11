@@ -5576,6 +5576,19 @@ export type Database = {
           saldo_acumulado: number
         }[]
       }
+      conferir_lembrete_agenda: { Args: { proposta: string }; Returns: undefined }
+      lembretes_agenda: {
+        Args: { dia: string }
+        Returns: {
+          cliente: string
+          endereco: string | null
+          hora: string | null
+          numero: string
+          proposta_id: string
+          servicos: string | null
+          vendedor: string | null
+        }[]
+      }
       salvar_itens_proposta: {
         Args: { itens: Json; proposta: string }
         Returns: undefined

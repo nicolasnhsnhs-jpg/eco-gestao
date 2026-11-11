@@ -303,3 +303,33 @@ export function useAgendaTempoReal(data: string, meuId: string, meuNome: string)
 
   return { presentes, conexao }
 }
+
+/**
+ * Avisos do dia: propostas aprovadas com execução marcada neste dia que ainda não
+ * foram conferidas na agenda (o vendedor marcou, falta lançar técnico, carro, horário).
+ */
+export function useLembretesAgenda(data: string) {
+  return useQuery({
+    queryKey: ['agenda', 'lembretes', data],
+    queryFn: async () => {
+      const { data: lista, error } = await supabase.rpc('lembretes_agenda', { dia: data })
+      if (error) throw error
+      return lista
+    },
+  })
+}
+
+export type LembreteAgenda = NonNullable<ReturnType<typeof useLembretesAgenda>['data']>[number]
+
+/** Tira o aviso depois de conferir (volta se o vendedor mudar a data ou o horário). */
+export function useConferirLembrete(data: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (proposta: string) => {
+      const { error } = await supabase.rpc('conferir_lembrete_agenda', { proposta })
+      if (error) throw error
+    },
+    onSuccess: () =>
+      void queryClient.invalidateQueries({ queryKey: ['agenda', 'lembretes', data] }),
+  })
+}
