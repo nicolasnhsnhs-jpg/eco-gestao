@@ -4,6 +4,7 @@ import { formatarData } from '@/lib/datas'
 import { supabase } from '@/lib/supabase'
 
 import type { OsCompleta } from '../api'
+import { quebrarLinhas } from './gerarPdfOs'
 import { nomeDoProduto, type InsetoOs, type PontoOs, type ProdutoOs } from '../pragasApi'
 import {
   escreverFaixas,
@@ -43,6 +44,7 @@ export type EscritorPdf = {
   campo: (rotulo: string, valor: string | null | undefined) => void
   item: (texto: string, destaque?: string) => void
   garantir: (altura: number) => void
+  novaPagina: () => void
 }
 
 /** "Expedição (PIE · IP): MS 1-3, 5 · DT 4" — uma linha por área e tipo de isca. */
@@ -60,6 +62,156 @@ export function resumoPorArea(pontos: PontoOs[]) {
       .map(([codigo, numeros]) => `${codigo} ${escreverFaixas(numeros)}`)
       .join(' · '),
   }))
+}
+
+/*
+ * Grade dos porta-iscas: 3 colunas por folha (branca · verde clarinho · branca).
+ * A lista desce na esquerda, segue no meio, depois na direita, e só então abre
+ * outra folha. Assim 150+ porta-iscas cabem em bem menos folhas para imprimir.
+ */
+const GRADE = {
+  margem: 40,
+  largura: 595.28 - 80,
+  rodape: 60, // mesmo limite do garantir() do Escritor
+  colunas: 3,
+  folga: 6,
+  tamanho: 8,
+  linha: 9.8,
+}
+const VERDE_CLARO = rgb(0.93, 0.96, 0.91)
+const SEPARADOR = rgb(0.89, 0.91, 0.87)
+
+function desenharGradePortaIscas(
+  w: EscritorPdf,
+  normal: PDFFont,
+  negrito: PDFFont,
+  linhas: { area: string; texto: string }[],
+) {
+  const larguraCol = GRADE.largura / GRADE.colunas
+  const larguraTexto = larguraCol - GRADE.folga * 2
+  const itens = linhas.map((l) => {
+    // "(PIE · IP)" não se parte no meio: os espaços dentro viram não-quebráveis.
+    const rotulo = l.area.replace(/\([^)]*\)$/, (m) => m.replace(/ /g, ' '))
+    const area = quebrarLinhas(rotulo, negrito, GRADE.tamanho, larguraTexto)
+    const codigos = quebrarLinhas(l.texto, normal, GRADE.tamanho, larguraTexto)
+    return { area, codigos, altura: (area.length + codigos.length) * GRADE.linha + 5 }
+  })
+
+  let i = 0
+  let continuacao = false
+  while (i < itens.length) {
+    // Pouco espaço no fim da folha: a grade começa na próxima.
+    if (w.y - GRADE.rodape < 70) {
+      w.novaPagina()
+      continuacao = true
+    }
+    if (continuacao) {
+      w.pagina.drawText('Porta-iscas (continuação)', {
+        x: GRADE.margem,
+        y: w.y - 7.5,
+        size: 7.5,
+        font: normal,
+        color: CINZA,
+      })
+      w.y -= 14
+    }
+    const topo = w.y - 2
+    const alturaMax = topo - GRADE.rodape
+
+    // Distribui os itens nas colunas desta folha (enche uma, passa para a próxima).
+    const distribuir = (limite: number, inicio: number) => {
+      const cols: (typeof itens)[] = []
+      let k = inicio
+      for (let c = 0; c < GRADE.colunas; c++) {
+        const col: typeof itens = []
+        let h = GRADE.folga
+        while (k < itens.length && (h + itens[k].altura <= limite - 2 || col.length === 0)) {
+          col.push(itens[k])
+          h += itens[k].altura
+          k++
+        }
+        cols.push(col)
+      }
+      return { cols, fim: k }
+    }
+    let { cols: colunas, fim } = distribuir(alturaMax, i)
+    if (fim === itens.length) {
+      // Última folha da grade: a menor altura em que tudo ainda cabe, para as
+      // três colunas ficarem parecidas em vez de só a esquerda preenchida.
+      let baixo = 0
+      let alto = alturaMax
+      while (alto - baixo > 2) {
+        const meio = (baixo + alto) / 2
+        if (distribuir(meio, i).fim === itens.length) alto = meio
+        else baixo = meio
+      }
+      colunas = distribuir(alto, i).cols
+    }
+    i = fim
+    const alturaUsada = Math.max(
+      ...colunas.map((col) => col.reduce((s, it) => s + it.altura, GRADE.folga + 2)),
+    )
+    const altura = i < itens.length ? alturaMax : Math.min(alturaMax, alturaUsada)
+
+    // Fundo do meio, bordas e divisórias.
+    w.pagina.drawRectangle({
+      x: GRADE.margem + larguraCol,
+      y: topo - altura,
+      width: larguraCol,
+      height: altura,
+      color: VERDE_CLARO,
+    })
+    w.pagina.drawRectangle({
+      x: GRADE.margem,
+      y: topo - altura,
+      width: GRADE.largura,
+      height: altura,
+      borderColor: LINHA,
+      borderWidth: 0.6,
+    })
+    for (let c = 1; c < GRADE.colunas; c++) {
+      const x = GRADE.margem + larguraCol * c
+      w.pagina.drawLine({
+        start: { x, y: topo },
+        end: { x, y: topo - altura },
+        thickness: 0.6,
+        color: LINHA,
+      })
+    }
+
+    for (const [c, col] of colunas.entries()) {
+      const x = GRADE.margem + larguraCol * c + GRADE.folga
+      let y = topo - GRADE.folga
+      for (const [n, it] of col.entries()) {
+        if (n > 0) {
+          w.pagina.drawLine({
+            start: { x, y: y + 1.5 },
+            end: { x: x + larguraTexto, y: y + 1.5 },
+            thickness: 0.4,
+            color: SEPARADOR,
+          })
+        }
+        for (const t of it.area) {
+          w.pagina.drawText(t, {
+            x,
+            y: y - GRADE.tamanho,
+            size: GRADE.tamanho,
+            font: negrito,
+            color: VERDE_ESCURO,
+          })
+          y -= GRADE.linha
+        }
+        for (const t of it.codigos) {
+          w.pagina.drawText(t, { x, y: y - GRADE.tamanho, size: GRADE.tamanho, font: normal })
+          y -= GRADE.linha
+        }
+        y -= 5
+      }
+    }
+
+    w.y = topo - altura - 8
+    continuacao = true
+  }
 }
 
 const CORES_PIZZA: Record<string, ReturnType<typeof rgb>> = {
@@ -234,7 +386,13 @@ function pizzaInsetos(w: EscritorPdf, fonte: PDFFont, armadilhas: PontoOs[]) {
   )
 }
 
-export function escreverPragas(w: EscritorPdf, fonte: PDFFont, os: OsCompleta, dados: DadosPragas) {
+export function escreverPragas(
+  w: EscritorPdf,
+  fonte: PDFFont,
+  negrito: PDFFont,
+  os: OsCompleta,
+  dados: DadosPragas,
+) {
   const escopo = (os.escopo ?? {}) as EscopoPragas
   const checklist = (os.execucao?.checklist ?? {}) as ChecklistPragas
   const portaIscas = dados.pontos.filter((p) => p.tipo === 'porta_isca')
@@ -250,7 +408,7 @@ export function escreverPragas(w: EscritorPdf, fonte: PDFFont, os: OsCompleta, d
       : '',
   )
   w.campo('Porta-iscas', `${portaIscas.length} no total`)
-  for (const linha of resumoPorArea(portaIscas)) w.campo(linha.area, linha.texto)
+  desenharGradePortaIscas(w, fonte, negrito, resumoPorArea(portaIscas))
   pizzaIscas(w, fonte, portaIscas)
   w.campo('Sem acesso', checklist.sem_acesso)
   w.campo('Quebrados', checklist.quebrados)

@@ -359,7 +359,7 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
   )
   if (os.tipo?.formulario_os === 'generico') w.campo('Resultado', e?.resultado)
   w.campo('Observações', e?.observacoes)
-  if (pragas && os.tipo?.formulario_os === 'pragas') escreverPragas(w, normal, os, pragas)
+  if (pragas && os.tipo?.formulario_os === 'pragas') escreverPragas(w, normal, negrito, os, pragas)
   if (pragas && os.tipo?.formulario_os === 'coifa') escreverCoifa(w, os, pragas.pontos)
   if (pragas && os.tipo?.formulario_os === 'bebedouro') escreverBebedouro(w, os, pragas.pontos)
   if (pragas && os.tipo?.formulario_os === 'telas') escreverTelas(w, os, pragas.pontos)
