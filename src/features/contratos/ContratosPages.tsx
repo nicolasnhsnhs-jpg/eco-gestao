@@ -7,14 +7,16 @@ import {
   Play,
   Plus,
   RefreshCw,
+  Search,
   Square,
 } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 
 import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { Input } from '@/components/ui/Campo'
 import { Carregando } from '@/components/ui/Carregando'
 import { Etiqueta } from '@/components/ui/Etiqueta'
 import { formatarData, formatarMes } from '@/lib/datas'
@@ -50,6 +52,16 @@ export function ContratosPage() {
   const gerar = useGerarCobrancas()
   const verValor = veValorDeContrato(perfil.papel)
   const [mensagem, setMensagem] = useState<string | null>(null)
+  const [parametros, setParametros] = useSearchParams()
+  const termo = parametros.get('q') ?? ''
+  const busca = semAcento(termo.trim())
+  const encontrados = busca
+    ? (contratos.data ?? []).filter((c) =>
+        semAcento(
+          [c.descricao, c.cliente?.nome_fantasia, c.cliente?.nome].filter(Boolean).join(' '),
+        ).includes(busca),
+      )
+    : (contratos.data ?? [])
 
   const ativos = (contratos.data ?? []).filter((c) => c.status === 'ativo')
   const totalMensal = ativos.reduce((s, c) => s + Number(c.valor_mensal), 0)
@@ -99,14 +111,43 @@ export function ContratosPage() {
         </p>
       )}
 
+      {!!contratos.data?.length && (
+        <label className="relative">
+          <span className="sr-only">Buscar contrato</span>
+          <Search
+            className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-texto-suave"
+            aria-hidden
+          />
+          <Input
+            type="search"
+            placeholder="Buscar pelo nome do contrato ou do cliente"
+            className="pl-10"
+            value={termo}
+            onChange={(e) =>
+              setParametros(e.target.value ? { q: e.target.value } : {}, { replace: true })
+            }
+          />
+        </label>
+      )}
+
       {contratos.isPending && <Carregando />}
       {contratos.isError && <Aviso tipo="erro">{mensagemDeErro(contratos.error)}</Aviso>}
       {contratos.data?.length === 0 && (
         <Card className="py-10 text-center text-texto-suave">Nenhum contrato cadastrado.</Card>
       )}
-      {!!contratos.data?.length && <ListaContratos contratos={contratos.data} mostrarCliente />}
+      {!!contratos.data?.length && encontrados.length === 0 && (
+        <Card className="py-10 text-center text-texto-suave">
+          Nenhum contrato encontrado para “{termo.trim()}”.
+        </Card>
+      )}
+      {encontrados.length > 0 && <ListaContratos contratos={encontrados} mostrarCliente />}
     </div>
   )
+}
+
+/** Minúsculas e sem acento, para a busca achar "joao" em "João". */
+function semAcento(s: string) {
+  return s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
 }
 
 export function ListaContratos({
