@@ -228,7 +228,11 @@
 }
 .aq-item {
   min-height: var(--linha-alt);
-  border-bottom: 1px dashed var(--borda);
+  border-bottom: 1px solid #e3ecd6;
+}
+/* Uma linha branca, outra verde quase branca, para o olho não pular de serviço. */
+.aq-item.aq-par {
+  background: #f2f8e8;
 }
 .aq-item:last-child {
   border-bottom: 0;
@@ -237,7 +241,7 @@
   cursor: pointer;
 }
 .aq-item.aq-clicavel:hover {
-  background: #fafcf6;
+  background: #e8f3d8;
 }
 .aq-vazio {
   margin: auto;

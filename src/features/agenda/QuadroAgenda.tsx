@@ -265,13 +265,17 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
           </div>
           <div className="aq-lista">
             {linhas.length === 0 && <div className="aq-vazio">Nenhum serviço na agenda ainda</div>}
-            {linhasComGrupo.map(({ x, novoTurno }) => {
+            {linhasComGrupo.map(({ x, novoTurno }, i) => {
               const partes = partesDaDescricao(x.descricao)
               return (
                 <Fragment key={x.id}>
                   {novoTurno && <div className="aq-turno">{turnoDe(x.hora)}</div>}
                   <div
-                    className={['aq-linha aq-item', onClicarItem && 'aq-clicavel']
+                    className={[
+                      'aq-linha aq-item',
+                      i % 2 === 1 && 'aq-par',
+                      onClicarItem && 'aq-clicavel',
+                    ]
                       .filter(Boolean)
                       .join(' ')}
                     onClick={onClicarItem ? () => onClicarItem(x.id) : undefined}
