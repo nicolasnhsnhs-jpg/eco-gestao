@@ -16,6 +16,7 @@ import {
   propostaGravadaParaBase,
   useVendedorPdf,
 } from './usoPdf'
+import { PaginasPdf } from './PaginasPdf'
 
 function baixar(blob: Blob, nome: string) {
   const url = URL.createObjectURL(blob)
@@ -38,6 +39,7 @@ function baixar(blob: Blob, nome: string) {
  */
 export function PreviaPdf({ gerar, chave }: { gerar: () => Promise<Blob>; chave: string }) {
   const [url, setUrl] = useState<string | null>(null)
+  const [blob, setBlob] = useState<Blob | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [gerando, setGerando] = useState(false)
   const gerarRef = useRef(gerar)
@@ -52,6 +54,7 @@ export function PreviaPdf({ gerar, chave }: { gerar: () => Promise<Blob>; chave:
       try {
         const blob = await gerarRef.current()
         if (cancelado) return
+        setBlob(blob)
         const novo = URL.createObjectURL(blob)
         setUrl((antigo) => {
           if (antigo) setTimeout(() => URL.revokeObjectURL(antigo), 2000)
@@ -91,13 +94,9 @@ export function PreviaPdf({ gerar, chave }: { gerar: () => Promise<Blob>; chave:
         )}
       </div>
       {erro && <Aviso tipo="erro">Não deu para montar a prévia: {erro}</Aviso>}
-      <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-borda bg-fundo-suave">
-        {url ? (
-          <iframe
-            title="Prévia do PDF da proposta"
-            src={`${url}#toolbar=0&navpanes=0&view=FitH`}
-            className="h-full w-full"
-          />
+      <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-borda bg-fundo-suave p-2">
+        {blob ? (
+          <PaginasPdf blob={blob} />
         ) : (
           <p className="p-6 text-center text-sm text-texto-suave">Montando a prévia…</p>
         )}
