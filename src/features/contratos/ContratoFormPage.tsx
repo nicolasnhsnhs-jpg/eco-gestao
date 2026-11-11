@@ -208,8 +208,9 @@ function Formulario({ contrato }: { contrato?: ContratoResumo }) {
             erro={errors.descricao?.message}
             className="sm:col-span-2"
           >
-            <Input
+            <Textarea
               id="descricao"
+              rows={5}
               placeholder="Ex.: Controle de pragas mensal"
               {...form.register('descricao')}
             />
