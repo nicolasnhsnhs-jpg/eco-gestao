@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { FileDown } from 'lucide-react'
+import { FileDown, Printer } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 
@@ -51,6 +51,7 @@ export function OsPage() {
   const reabrir = useReabrirOs(id)
   const [erro, setErro] = useState<string | null>(null)
   const [gerandoPdf, setGerandoPdf] = useState(false)
+  const [gerandoFicha, setGerandoFicha] = useState(false)
   const queryClient = useQueryClient()
 
   if (os.isPending) return <Carregando />
@@ -90,6 +91,24 @@ export function OsPage() {
     }
   }
 
+  async function imprimirOsFisica() {
+    setErro(null)
+    setGerandoFicha(true)
+    const aba = window.open('', '_blank')
+    try {
+      const { gerarFichaCampo } = await import('./pdf/fichaCampoPdf')
+      const bytes = await gerarFichaCampo(o)
+      const link = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/pdf' }))
+      if (aba) aba.location.href = link
+      else window.location.href = link
+    } catch (err) {
+      aba?.close()
+      setErro(mensagemDeErro(err))
+    } finally {
+      setGerandoFicha(false)
+    }
+  }
+
   async function executar(acao: () => Promise<unknown>) {
     setErro(null)
     try {
@@ -110,6 +129,17 @@ export function OsPage() {
               <Button onClick={() => void baixarPdf()} disabled={gerandoPdf}>
                 <FileDown className="size-5" aria-hidden />
                 {gerandoPdf ? 'Gerando PDF…' : 'PDF da OS'}
+              </Button>
+            )}
+            {/* Enquanto as equipes aprendem a OS digital: via em papel para preencher à mão. */}
+            {escritorio && (o.status === 'rascunho' || osAberta(o.status)) && (
+              <Button
+                variante="secundario"
+                onClick={() => void imprimirOsFisica()}
+                disabled={gerandoFicha}
+              >
+                <Printer className="size-5" aria-hidden />
+                {gerandoFicha ? 'Gerando…' : 'Imprimir OS física'}
               </Button>
             )}
             {PAPEIS_CERTIFICADOS.includes(perfil.papel) &&
