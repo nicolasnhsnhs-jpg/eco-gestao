@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Clock, MapPin } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ClipboardList, Clock, MapPin } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router'
 
 import { Aviso } from '@/components/ui/Aviso'
@@ -8,8 +8,10 @@ import { Input } from '@/components/ui/Campo'
 import { Carregando } from '@/components/ui/Carregando'
 import { formatarData, hojeISO, somarDias } from '@/lib/datas'
 import { mensagemDeErro } from '@/lib/erros'
+import { PAPEIS_GESTAO } from '@/lib/papeis'
 import { cn } from '@/lib/utils'
 
+import { usePerfil } from '../auth/useAuth'
 import { horaCurta, usePropostasAgendadas, type PropostaAgendada } from './api'
 
 const diaDaSemana = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', timeZone: 'UTC' })
@@ -26,6 +28,7 @@ export function PropostasAgendadasPage() {
   const semana = parametros.get('ver') === 'semana'
   const ate = semana ? somarDias(dia, 6) : dia
   const agendadas = usePropostasAgendadas(dia, ate)
+  const podeEmitirOs = PAPEIS_GESTAO.includes(usePerfil().papel)
 
   function mudar(novo: Record<string, string | null>) {
     const p = new URLSearchParams(parametros)
@@ -156,6 +159,16 @@ export function PropostasAgendadasPage() {
                     </div>
                     <ChevronRight className="mt-1 size-5 shrink-0 text-texto-suave" aria-hidden />
                   </Link>
+                  {podeEmitirOs && (
+                    <div className="-mt-1 px-4 pb-3 pl-[5.75rem]">
+                      <Link
+                        to={`/os/nova?proposta=${p.id}`}
+                        className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-borda px-3 text-sm font-semibold text-verde-escuro hover:bg-lima-claro"
+                      >
+                        <ClipboardList className="size-4" aria-hidden /> Emitir OS
+                      </Link>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

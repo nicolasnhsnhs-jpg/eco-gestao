@@ -1,3 +1,4 @@
+import { FileSearch } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 
@@ -10,11 +11,15 @@ import { Carregando } from '@/components/ui/Carregando'
 import type { Tables } from '@/lib/database.types'
 import { hojeISO } from '@/lib/datas'
 import { mensagemDeErro } from '@/lib/erros'
+import { PAPEIS_GESTAO } from '@/lib/papeis'
 
+import { usePerfil } from '../auth/useAuth'
 import { useCliente } from '../clientes/api'
+import { horaCurta, useProposta } from '../propostas/api'
 import { ClienteSeletor, type ClienteEscolhido } from '../clientes/ClienteSeletor'
 import { useTiposServico } from '../servicos/api'
 import { useAgendarOs, useModelo, useOperadores, useVeiculos } from './api'
+import { EscolherProposta, PainelProposta } from './PropostaParaOs'
 
 /**
  * Nova OS: escolhe cliente → unidade → serviço. Se já existe um modelo para esse
@@ -22,10 +27,31 @@ import { useAgendarOs, useModelo, useOperadores, useVeiculos } from './api'
  */
 export function OsFormPage() {
   const [parametros] = useSearchParams()
+  const perfil = usePerfil()
   const [cliente, setCliente] = useState<ClienteEscolhido | null>(null)
   const [enderecoId, setEnderecoId] = useState(parametros.get('unidade') ?? '')
   const [tipoId, setTipoId] = useState(parametros.get('tipo') ?? '')
   const tipos = useTiposServico()
+
+  // Proposta aprovada aberta ao lado (a recepção não vê propostas: têm valores).
+  const podeVerPropostas = PAPEIS_GESTAO.includes(perfil.papel)
+  const [propostaId, setPropostaId] = useState(parametros.get('proposta') ?? '')
+  const [buscandoProposta, setBuscandoProposta] = useState(false)
+  const proposta = useProposta(podeVerPropostas && propostaId ? propostaId : undefined)
+  const p = propostaId ? proposta.data : null
+  // Quando a proposta chega, puxa cliente, unidade e serviço dela (uma vez por proposta).
+  const [aplicada, setAplicada] = useState('')
+  if (p && aplicada !== p.id) {
+    setAplicada(p.id!)
+    setCliente({ id: p.cliente_id!, nome: p.cliente?.nome_fantasia || p.cliente?.nome || '' })
+    setEnderecoId(p.endereco_id ?? '')
+    const tipoDaProposta = p.itens.find((i) => i.tipo_servico_id)?.tipo_servico_id
+    if (tipoDaProposta) setTipoId(tipoDaProposta)
+  }
+  const fecharProposta = () => {
+    setPropostaId('')
+    setAplicada('')
+  }
 
   const clienteId = cliente?.id ?? parametros.get('cliente') ?? ''
   const dadosCliente = useCliente(clienteId)
@@ -37,70 +63,142 @@ export function OsFormPage() {
   return (
     <>
       <PageHeader titulo="Nova ordem de serviço" />
-      <Card className="flex flex-col gap-4">
-        <Campo rotulo="Cliente" htmlFor="os-cliente" obrigatorio>
-          {clienteId && !cliente && dadosCliente.data ? (
-            <p className="flex min-h-11 items-center font-semibold">{dadosCliente.data.nome}</p>
-          ) : (
-            <ClienteSeletor
-              id="os-cliente"
-              valor={cliente}
-              aoMudar={(c) => {
-                setCliente(c)
-                setEnderecoId('')
-              }}
-            />
-          )}
-        </Campo>
-
-        {clienteId && (
-          <Campo
-            rotulo="Unidade"
-            htmlFor="os-unidade"
-            dica={enderecos.length === 0 ? 'O cliente não tem endereço cadastrado.' : undefined}
-          >
-            <Select id="os-unidade" value={unidade} onChange={(e) => setEnderecoId(e.target.value)}>
-              {enderecos.length !== 1 && <option value="">Escolha…</option>}
-              {enderecos.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {[e.apelido, `${e.logradouro}, ${e.numero ?? 's/n'}`, e.cidade]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </option>
-              ))}
-            </Select>
-          </Campo>
+      <div
+        className={
+          p ? 'grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,28rem)]' : undefined
+        }
+      >
+        {p && (
+          <aside className="max-h-[45dvh] overflow-y-auto rounded-2xl xl:sticky xl:top-4 xl:order-2 xl:max-h-[calc(100dvh-2rem)] xl:overflow-y-auto">
+            <PainelProposta p={p} aoFechar={fecharProposta} />
+          </aside>
         )}
-
-        <Campo rotulo="Serviço" htmlFor="os-tipo" obrigatorio>
-          <Select id="os-tipo" value={tipoId} onChange={(e) => setTipoId(e.target.value)}>
-            <option value="">Escolha…</option>
-            {tipos.data
-              ?.filter((t) => t.ativo)
-              .map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nome}
-                </option>
-              ))}
-          </Select>
-        </Campo>
-      </Card>
-
-      {clienteId && tipoId && (enderecos.length === 0 || unidade) && (
-        <>
-          {modelo.isPending && <Carregando />}
-          {modelo.isError && <Aviso tipo="erro">{mensagemDeErro(modelo.error)}</Aviso>}
-          {modelo.isSuccess && (
-            <FormAgendamento
-              key={modelo.data?.id ?? 'novo'}
-              clienteId={clienteId}
-              enderecoId={unidade || null}
-              tipoId={tipoId}
-              modelo={modelo.data}
-            />
+        <div className="min-w-0">
+          {podeVerPropostas && !p && (
+            <Card className="mb-4 flex flex-col gap-3">
+              {buscandoProposta || propostaId ? (
+                <>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-semibold">Buscar proposta aprovada</p>
+                    <Button
+                      variante="fantasma"
+                      className="min-h-9"
+                      onClick={() => {
+                        setBuscandoProposta(false)
+                        fecharProposta()
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                  {propostaId ? (
+                    proposta.isError ? (
+                      <Aviso tipo="erro">{mensagemDeErro(proposta.error)}</Aviso>
+                    ) : (
+                      <Carregando />
+                    )
+                  ) : (
+                    <EscolherProposta
+                      aoEscolher={(escolhida) => {
+                        setPropostaId(escolhida.id!)
+                        setBuscandoProposta(false)
+                      }}
+                    />
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm text-texto-suave">
+                    Vai fazer a OS de uma proposta aprovada? Abra a proposta ao lado e vá
+                    preenchendo olhando para ela.
+                  </p>
+                  <Button variante="secundario" onClick={() => setBuscandoProposta(true)}>
+                    <FileSearch className="size-4" aria-hidden /> Buscar proposta aprovada
+                  </Button>
+                </div>
+              )}
+            </Card>
           )}
-        </>
-      )}
+          <Card className="flex flex-col gap-4">
+            <Campo rotulo="Cliente" htmlFor="os-cliente" obrigatorio>
+              {clienteId && !cliente && dadosCliente.data ? (
+                <p className="flex min-h-11 items-center font-semibold">{dadosCliente.data.nome}</p>
+              ) : (
+                <ClienteSeletor
+                  id="os-cliente"
+                  valor={cliente}
+                  aoMudar={(c) => {
+                    setCliente(c)
+                    setEnderecoId('')
+                  }}
+                />
+              )}
+            </Campo>
+
+            {clienteId && (
+              <Campo
+                rotulo="Unidade"
+                htmlFor="os-unidade"
+                dica={enderecos.length === 0 ? 'O cliente não tem endereço cadastrado.' : undefined}
+              >
+                <Select
+                  id="os-unidade"
+                  value={unidade}
+                  onChange={(e) => setEnderecoId(e.target.value)}
+                >
+                  {enderecos.length !== 1 && <option value="">Escolha…</option>}
+                  {enderecos.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {[e.apelido, `${e.logradouro}, ${e.numero ?? 's/n'}`, e.cidade]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </option>
+                  ))}
+                </Select>
+              </Campo>
+            )}
+
+            <Campo rotulo="Serviço" htmlFor="os-tipo" obrigatorio>
+              <Select id="os-tipo" value={tipoId} onChange={(e) => setTipoId(e.target.value)}>
+                <option value="">Escolha…</option>
+                {tipos.data
+                  ?.filter((t) => t.ativo)
+                  .map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.nome}
+                    </option>
+                  ))}
+              </Select>
+            </Campo>
+          </Card>
+
+          {clienteId && tipoId && (enderecos.length === 0 || unidade) && (
+            <>
+              {modelo.isPending && <Carregando />}
+              {modelo.isError && <Aviso tipo="erro">{mensagemDeErro(modelo.error)}</Aviso>}
+              {modelo.isSuccess && (
+                <FormAgendamento
+                  key={`${modelo.data?.id ?? 'novo'}:${p?.id ?? ''}`}
+                  clienteId={clienteId}
+                  enderecoId={unidade || null}
+                  tipoId={tipoId}
+                  modelo={modelo.data}
+                  sugestao={
+                    p
+                      ? {
+                          data: p.execucao_data,
+                          hora: p.execucao_hora ? horaCurta(p.execucao_hora) : null,
+                          descricao:
+                            p.itens.find((i) => i.tipo_servico_id === tipoId)?.descricao ?? null,
+                        }
+                      : undefined
+                  }
+                />
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </>
   )
 }
@@ -110,21 +208,24 @@ function FormAgendamento({
   enderecoId,
   tipoId,
   modelo,
+  sugestao,
 }: {
   clienteId: string
   enderecoId: string | null
   tipoId: string
   modelo: Tables<'os_modelos'> | null
+  /** Da proposta aprovada aberta ao lado: dia/horário combinados e o serviço. */
+  sugestao?: { data: string | null; hora: string | null; descricao: string | null }
 }) {
   const navigate = useNavigate()
   const operadores = useOperadores()
   const veiculos = useVeiculos()
   const agendar = useAgendarOs()
-  const [data, setData] = useState(hojeISO())
-  const [hora, setHora] = useState('')
+  const [data, setData] = useState(sugestao?.data ?? hojeISO())
+  const [hora, setHora] = useState(sugestao?.hora ?? '')
   const [escolhidos, setEscolhidos] = useState<string[]>(modelo?.operadores_padrao ?? [])
   const [veiculoId, setVeiculoId] = useState(modelo?.veiculo_padrao_id ?? '')
-  const [descricao, setDescricao] = useState(modelo?.descricao ?? '')
+  const [descricao, setDescricao] = useState(modelo?.descricao || sugestao?.descricao || '')
   const [observacoes, setObservacoes] = useState(modelo?.observacoes_adm_padrao ?? '')
   const [salvarComoPadrao, setSalvarComoPadrao] = useState(!modelo)
   const [erro, setErro] = useState<string | null>(null)
