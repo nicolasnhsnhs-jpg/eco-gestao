@@ -28,6 +28,7 @@ import { NotasFiscaisPage } from '@/features/financeiro/NotasFiscaisPage'
 import { PainelPage } from '@/features/financeiro/PainelPage'
 import { PropostaFormPage } from '@/features/propostas/PropostaFormPage'
 import { PropostaPage } from '@/features/propostas/PropostaPage'
+import { PropostasAgendadasPage } from '@/features/propostas/PropostasAgendadasPage'
 import { PropostasLayout, PropostasPage } from '@/features/propostas/PropostasPage'
 import { ServicoFormPage } from '@/features/servicos/ServicoFormPage'
 import { ServicoPage } from '@/features/servicos/ServicoPage'
@@ -226,6 +227,7 @@ export const router = createBrowserRouter([
             element: <PropostasLayout />,
             children: [
               { index: true, element: <PropostasPage /> },
+              { path: 'agendadas', element: <PropostasAgendadasPage /> },
               { path: 'nova', element: <PropostaFormPage /> },
             ],
           },

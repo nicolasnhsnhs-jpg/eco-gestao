@@ -27,6 +27,9 @@ export const COR_SITUACAO_PROPOSTA = {
   recusada: 'perigo',
 } as const satisfies Record<SituacaoProposta, string>
 
+/** Horário de execução: "08:30:00" → "08:30" */
+export const horaCurta = (hora: string | null | undefined) => (hora ? hora.slice(0, 5) : '')
+
 const RELACOES = `
   cliente:clientes(id, nome, nome_fantasia, vendedor_responsavel_id),
   vendedor:perfis!propostas_vendedor_id_fkey(id, nome),
@@ -121,10 +124,40 @@ export function useSalvarProposta() {
 export function useResponderProposta(id: string) {
   const atualizar = useAtualizarPropostas()
   return useMutation({
-    mutationFn: async (dados: Pick<TablesUpdate<'propostas'>, 'status' | 'motivo_recusa'>) => {
+    mutationFn: async (
+      dados: Pick<
+        TablesUpdate<'propostas'>,
+        'status' | 'motivo_recusa' | 'execucao_data' | 'execucao_hora'
+      >,
+    ) => {
       const { error } = await supabase.from('propostas').update(dados).eq('id', id)
       if (error) throw error
     },
     onSuccess: atualizar,
   })
 }
+
+/**
+ * Aprovadas com execução marcada entre dois dias (inclusive), na ordem do dia e do
+ * horário: é onde o ADM vê o que precisa virar ordem de serviço.
+ */
+export function usePropostasAgendadas(de: string, ate: string) {
+  return useQuery({
+    queryKey: ['propostas', 'agendadas', de, ate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('v_propostas')
+        .select(`*, ${RELACOES}, itens:proposta_itens(id, descricao, ordem)`)
+        .eq('status', 'aprovada')
+        .gte('execucao_data', de)
+        .lte('execucao_data', ate)
+        .order('execucao_data')
+        .order('execucao_hora', { nullsFirst: false })
+        .order('ordem', { referencedTable: 'proposta_itens' })
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export type PropostaAgendada = NonNullable<ReturnType<typeof usePropostasAgendadas>['data']>[number]

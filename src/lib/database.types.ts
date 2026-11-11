@@ -3886,6 +3886,8 @@ export type Database = {
           criado_em: string
           criado_por: string | null
           custos_detalhados: boolean
+          execucao_data: string | null
+          execucao_hora: string | null
           data_envio: string
           data_resposta: string | null
           endereco_id: string | null
@@ -3912,6 +3914,8 @@ export type Database = {
           criado_em?: string
           criado_por?: string | null
           custos_detalhados?: boolean
+          execucao_data?: string | null
+          execucao_hora?: string | null
           data_envio?: string
           data_resposta?: string | null
           endereco_id?: string | null
@@ -3938,6 +3942,8 @@ export type Database = {
           criado_em?: string
           criado_por?: string | null
           custos_detalhados?: boolean
+          execucao_data?: string | null
+          execucao_hora?: string | null
           data_envio?: string
           data_resposta?: string | null
           endereco_id?: string | null
@@ -5075,6 +5081,8 @@ export type Database = {
           criado_em: string | null
           criado_por: string | null
           custos_detalhados: boolean | null
+          execucao_data: string | null
+          execucao_hora: string | null
           data_envio: string | null
           data_resposta: string | null
           dias_sem_resposta: number | null
@@ -5103,6 +5111,8 @@ export type Database = {
           criado_em?: string | null
           criado_por?: string | null
           custos_detalhados?: boolean | null
+          execucao_data?: string | null
+          execucao_hora?: string | null
           data_envio?: string | null
           data_resposta?: string | null
           dias_sem_resposta?: never
@@ -5131,6 +5141,8 @@ export type Database = {
           criado_em?: string | null
           criado_por?: string | null
           custos_detalhados?: boolean | null
+          execucao_data?: string | null
+          execucao_hora?: string | null
           data_envio?: string | null
           data_resposta?: string | null
           dias_sem_resposta?: never

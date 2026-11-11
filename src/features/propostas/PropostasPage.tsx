@@ -30,6 +30,7 @@ const sem = (t: string) =>
 export function PropostasLayout() {
   const abas = [
     { rotulo: 'Propostas criadas', caminho: '/propostas', fim: true },
+    { rotulo: 'Agendadas', caminho: '/propostas/agendadas', fim: true },
     { rotulo: 'Nova proposta', caminho: '/propostas/nova', fim: true },
   ]
   return (
@@ -45,7 +46,7 @@ export function PropostasLayout() {
             end={aba.fim}
             className={({ isActive }) =>
               cn(
-                'flex min-h-10 flex-1 items-center justify-center rounded-lg px-3 text-sm font-semibold whitespace-nowrap',
+                'flex min-h-10 flex-1 items-center justify-center rounded-lg px-2 text-center text-sm leading-tight font-semibold sm:px-3 sm:whitespace-nowrap',
                 isActive ? 'bg-verde text-white' : 'text-texto-suave hover:bg-lima-claro',
               )
             }
@@ -180,6 +181,9 @@ export function ListaPropostas({
                 <p className="truncate text-sm text-texto-suave">
                   {[
                     `Enviada ${formatarData(p.data_envio)}`,
+                    p.status === 'aprovada' && p.execucao_data
+                      ? `Execução ${formatarData(p.execucao_data)}${p.execucao_hora ? ` ${p.execucao_hora.slice(0, 5)}` : ''}`
+                      : null,
                     p.vendedor?.nome,
                     p.status === 'enviada' && p.dias_sem_resposta
                       ? `${p.dias_sem_resposta} dia(s) sem resposta`

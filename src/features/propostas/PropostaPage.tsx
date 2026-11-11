@@ -1,4 +1,4 @@
-import { ArrowLeft, CalendarPlus, Check, Pencil, RotateCcw, X } from 'lucide-react'
+import { ArrowLeft, CalendarClock, CalendarPlus, Check, Pencil, RotateCcw, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 
@@ -17,12 +17,14 @@ import { useServicos } from '../servicos/api'
 import { ListaServicos } from '../servicos/ServicosPages'
 import {
   COR_SITUACAO_PROPOSTA,
+  horaCurta,
   NOME_SITUACAO_PROPOSTA,
   useProposta,
   useResponderProposta,
   type PropostaCompleta,
   type SituacaoProposta,
 } from './api'
+import { JanelaExecucao } from './JanelaExecucao'
 import { nomeFrequencia } from './modelos'
 import { AcoesPdfProposta } from './pdf/PdfProposta'
 
@@ -43,11 +45,13 @@ function Detalhe({ p }: { p: PropostaCompleta }) {
   const [parametros] = useSearchParams()
   const acabouDeSalvar = parametros.get('salva') === '1'
   const [erro, setErro] = useState<string | null>(null)
+  const [janela, setJanela] = useState<'aprovar' | 'alterar' | null>(null)
   const situacao = (p.situacao ?? p.status) as SituacaoProposta
   const nomeCliente = p.cliente?.nome_fantasia || p.cliente?.nome
 
   async function mudar(status: 'aprovada' | 'recusada' | 'enviada') {
     setErro(null)
+    if (status === 'aprovada') return setJanela('aprovar')
     let motivo: string | null = null
     if (status === 'recusada') {
       motivo = window.prompt('Motivo da recusa (opcional):') ?? null
@@ -133,7 +137,23 @@ function Detalhe({ p }: { p: PropostaCompleta }) {
       )}
       {p.status === 'aprovada' && (
         <Aviso tipo="sucesso">
-          Aprovada em {formatarData(p.data_resposta)}. Registre ou agende os serviços logo abaixo.
+          <span className="flex flex-wrap items-center justify-between gap-2">
+            <span>
+              Aprovada em {formatarData(p.data_resposta)}.{' '}
+              {p.execucao_data ? (
+                <strong>
+                  Execução marcada para {formatarData(p.execucao_data)}
+                  {p.execucao_hora && ` às ${horaCurta(p.execucao_hora)}`}.
+                </strong>
+              ) : (
+                'Sem data de execução marcada.'
+              )}
+            </span>
+            <Button variante="secundario" onClick={() => setJanela('alterar')}>
+              <CalendarClock className="size-4" aria-hidden />
+              {p.execucao_data ? 'Alterar data de execução' : 'Marcar data de execução'}
+            </Button>
+          </span>
         </Aviso>
       )}
       {p.status === 'recusada' && (
@@ -221,6 +241,8 @@ function Detalhe({ p }: { p: PropostaCompleta }) {
       </div>
 
       {p.status === 'aprovada' && <ServicosDaProposta p={p} />}
+
+      <JanelaExecucao p={p} modo={janela} aoFechar={() => setJanela(null)} />
 
       <Card>
         <h2 className="mb-3 text-lg font-bold">Arquivos da proposta</h2>
