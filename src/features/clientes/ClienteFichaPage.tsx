@@ -68,6 +68,9 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
   // propostas, serviços, histórico e alterações ficam só para os da carteira dele.
   const daCarteira = perfil.papel !== 'vendedor' || cliente.vendedor_responsavel_id === perfil.id
   const podeEditar = !anonimizado && daCarteira
+  // Quem tem a permissão "atribuir vendedor" define o vendedor de clientes que ainda não têm.
+  const podeAtribuirVendedor =
+    perfil.pode_atribuir_vendedor && !anonimizado && !cliente.vendedor_responsavel_id
 
   const atendimentos = useAtendimentos(cliente.id)
   const ultimo = atendimentos.data?.[0]
@@ -281,7 +284,7 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
                 </div>
               )}
             </dl>
-            {ehAdmin && podeEditar && (
+            {ehAdmin && podeEditar ? (
               <Button
                 variante="secundario"
                 className="mt-4 w-full"
@@ -289,6 +292,16 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
               >
                 <Repeat className="size-4" aria-hidden /> Transferir para outro vendedor
               </Button>
+            ) : (
+              podeAtribuirVendedor && (
+                <Button
+                  variante="secundario"
+                  className="mt-4 w-full"
+                  onClick={() => setTransferindo(true)}
+                >
+                  <Repeat className="size-4" aria-hidden /> Definir vendedor responsável
+                </Button>
+              )
             )}
           </Secao>
 

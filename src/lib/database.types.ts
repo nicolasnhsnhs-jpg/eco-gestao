@@ -3571,6 +3571,7 @@ export type Database = {
           link_cadastro_id: string | null
           nome: string
           papel: Database['public']['Enums']['papel']
+          pode_atribuir_vendedor: boolean
           telefone: string | null
         }
         Insert: {
@@ -3586,6 +3587,7 @@ export type Database = {
           link_cadastro_id?: string | null
           nome: string
           papel?: Database['public']['Enums']['papel']
+          pode_atribuir_vendedor?: boolean
           telefone?: string | null
         }
         Update: {
@@ -3601,6 +3603,7 @@ export type Database = {
           link_cadastro_id?: string | null
           nome?: string
           papel?: Database['public']['Enums']['papel']
+          pode_atribuir_vendedor?: boolean
           telefone?: string | null
         }
         Relationships: [
