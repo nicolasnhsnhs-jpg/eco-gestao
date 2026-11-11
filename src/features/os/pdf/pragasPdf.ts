@@ -4,7 +4,7 @@ import { formatarData } from '@/lib/datas'
 import { supabase } from '@/lib/supabase'
 
 import type { OsCompleta } from '../api'
-import { quebrarLinhas } from './gerarPdfOs'
+import { quebrarLinhas, textoSeguro } from './gerarPdfOs'
 import { nomeDoProduto, type InsetoOs, type PontoOs, type ProdutoOs } from '../pragasApi'
 import {
   escreverFaixas,
@@ -65,9 +65,10 @@ export function resumoPorArea(pontos: PontoOs[]) {
 }
 
 /*
- * Grade dos porta-iscas: 3 colunas por folha (branca · verde clarinho · branca).
- * A lista desce na esquerda, segue no meio, depois na direita, e só então abre
- * outra folha. Assim 150+ porta-iscas cabem em bem menos folhas para imprimir.
+ * Grade de 3 colunas por folha (branca · verde clarinho · branca), usada para os
+ * porta-iscas e as armadilhas luminosas. A lista desce na esquerda, segue no meio,
+ * depois na direita, e só então abre outra folha. Assim 150+ itens cabem em bem
+ * menos folhas para imprimir.
  */
 const GRADE = {
   margem: 40,
@@ -81,19 +82,20 @@ const GRADE = {
 const VERDE_CLARO = rgb(0.93, 0.96, 0.91)
 const SEPARADOR = rgb(0.89, 0.91, 0.87)
 
-function desenharGradePortaIscas(
+function desenharGrade(
   w: EscritorPdf,
   normal: PDFFont,
   negrito: PDFFont,
-  linhas: { area: string; texto: string }[],
+  entradas: { titulo: string; linhas: string[] }[],
+  rotuloContinuacao: string,
 ) {
   const larguraCol = GRADE.largura / GRADE.colunas
   const larguraTexto = larguraCol - GRADE.folga * 2
-  const itens = linhas.map((l) => {
+  const itens = entradas.map((e) => {
     // "(PIE · IP)" não se parte no meio: os espaços dentro viram não-quebráveis.
-    const rotulo = l.area.replace(/\([^)]*\)$/, (m) => m.replace(/ /g, ' '))
+    const rotulo = e.titulo.replace(/\([^)]*\)$/, (m) => m.replace(/ /g, ' '))
     const area = quebrarLinhas(rotulo, negrito, GRADE.tamanho, larguraTexto)
-    const codigos = quebrarLinhas(l.texto, normal, GRADE.tamanho, larguraTexto)
+    const codigos = e.linhas.flatMap((l) => quebrarLinhas(l, normal, GRADE.tamanho, larguraTexto))
     return { area, codigos, altura: (area.length + codigos.length) * GRADE.linha + 5 }
   })
 
@@ -106,7 +108,7 @@ function desenharGradePortaIscas(
       continuacao = true
     }
     if (continuacao) {
-      w.pagina.drawText('Porta-iscas (continuação)', {
+      w.pagina.drawText(textoSeguro(`${rotuloContinuacao} (continuação)`), {
         x: GRADE.margem,
         y: w.y - 7.5,
         size: 7.5,
@@ -408,7 +410,13 @@ export function escreverPragas(
       : '',
   )
   w.campo('Porta-iscas', `${portaIscas.length} no total`)
-  desenharGradePortaIscas(w, fonte, negrito, resumoPorArea(portaIscas))
+  desenharGrade(
+    w,
+    fonte,
+    negrito,
+    resumoPorArea(portaIscas).map((l) => ({ titulo: l.area, linhas: [l.texto] })),
+    'Porta-iscas',
+  )
   pizzaIscas(w, fonte, portaIscas)
   w.campo('Sem acesso', checklist.sem_acesso)
   w.campo('Quebrados', checklist.quebrados)
@@ -435,24 +443,31 @@ export function escreverPragas(
     w.secao(
       `Armadilhas luminosas (${contrato} ${contrato === 1 ? 'unidade' : 'unidades'} no contrato)`,
     )
-    for (const a of armadilhas) {
-      const capturas = Object.entries((a.capturas ?? {}) as Record<string, number>)
-        .filter(([, n]) => n > 0)
-        .map(([codigo, n]) => `${ESPECIES[codigo as keyof typeof ESPECIES] ?? codigo} ${n}`)
-        .join(', ')
-      w.campo(
-        `${String(a.numero).padStart(2, '0')} · ${a.area}`,
-        [
-          `modelo ${a.modelo_armadilha}`,
-          `última troca de lâmpada ${a.ultima_troca_lampada ? formatarData(a.ultima_troca_lampada) : '—'}`,
-          `refil ${a.refil ?? '—'}`,
-          `situação ${a.situacao_armadilha ?? '—'}`,
-          `lâmpadas trocadas ${a.lampadas_trocadas == null ? '—' : a.lampadas_trocadas ? 'sim' : 'não'}`,
-          `higiene ${a.higiene ?? '—'}`,
-          `capturas: ${capturas || 'nenhuma'}`,
-        ].join(' · '),
-      )
-    }
+    // Mesma grade de 3 colunas dos porta-iscas: uma "ficha" curta por armadilha.
+    desenharGrade(
+      w,
+      fonte,
+      negrito,
+      armadilhas.map((a) => {
+        const capturas = Object.entries((a.capturas ?? {}) as Record<string, number>)
+          .filter(([, n]) => n > 0)
+          .map(([codigo, n]) => `${ESPECIES[codigo as keyof typeof ESPECIES] ?? codigo} ${n}`)
+          .join(', ')
+        return {
+          titulo: `${String(a.numero).padStart(2, '0')} · ${a.area}`,
+          // Rótulo e valor ficam juntos (espaço não-quebrável) quando a linha quebra.
+          linhas: [
+            `Modelo ${a.modelo_armadilha ?? '—'}`,
+            `Refil ${a.refil ?? '—'} · Higiene ${a.higiene ?? '—'}`,
+            `Situação ${a.situacao_armadilha ?? '—'}`,
+            `Lâmpadas trocadas: ${a.lampadas_trocadas == null ? '—' : a.lampadas_trocadas ? 'sim' : 'não'}`,
+            `Última troca de lâmpada: ${a.ultima_troca_lampada ? formatarData(a.ultima_troca_lampada) : '—'}`,
+            `Capturas: ${capturas || 'nenhuma'}`,
+          ],
+        }
+      }),
+      'Armadilhas luminosas',
+    )
     w.campo('Observação', 'Troca de lâmpada com custo à parte.')
     w.secao('Capturas nas armadilhas luminosas')
     pizzaInsetos(w, fonte, armadilhas)
