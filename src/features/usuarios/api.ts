@@ -54,13 +54,15 @@ function useAtualizarListas() {
 /** Chama a Edge Function "usuarios" e traduz a mensagem de erro que ela devolve. */
 async function chamarFuncao(corpo: Record<string, unknown>) {
   const { error } = await supabase.functions.invoke('usuarios', { body: corpo })
-  if (error) {
-    if (error instanceof FunctionsHttpError) {
-      const detalhe = (await error.context.json().catch(() => null)) as { erro?: string } | null
-      throw new Error(detalhe?.erro ?? 'Não foi possível concluir a ação.')
-    }
-    throw error
+  if (error) await lancarErroDaFuncao(error)
+}
+
+async function lancarErroDaFuncao(error: unknown): Promise<never> {
+  if (error instanceof FunctionsHttpError) {
+    const detalhe = (await error.context.json().catch(() => null)) as { erro?: string } | null
+    throw new Error(detalhe?.erro ?? 'Não foi possível concluir a ação.')
   }
+  throw error
 }
 
 export function useConvidarUsuario() {
@@ -99,6 +101,115 @@ export function useAlternarAtivo() {
       chamarFuncao({ acao: ativo ? 'reativar' : 'desativar', usuarioId }),
     onSuccess: atualizar,
   })
+}
+
+/** Troca o e-mail de acesso (ex.: o convite foi para um e-mail que a pessoa não usa). */
+export function useAlterarEmail() {
+  const atualizar = useAtualizarListas()
+  return useMutation({
+    mutationFn: (dados: { usuarioId: string; email: string }) =>
+      chamarFuncao({ acao: 'alterarEmail', ...dados }),
+    onSuccess: atualizar,
+  })
+}
+
+/** Manda de novo, para o e-mail atual, o link para a pessoa criar a senha. */
+export function useReenviarAcesso() {
+  return useMutation({
+    mutationFn: (usuarioId: string) =>
+      chamarFuncao({
+        acao: 'reenviarAcesso',
+        usuarioId,
+        redirecionarPara: `${window.location.origin}/definir-senha`,
+      }),
+  })
+}
+
+export function useResolverSolicitacao() {
+  const atualizar = useAtualizarListas()
+  return useMutation({
+    mutationFn: (
+      dados:
+        { usuarioId: string; aprovar: true; papel: Papel } | { usuarioId: string; aprovar: false },
+    ) =>
+      dados.aprovar
+        ? chamarFuncao({ acao: 'aprovar', usuarioId: dados.usuarioId, papel: dados.papel })
+        : chamarFuncao({ acao: 'recusar', usuarioId: dados.usuarioId }),
+    onSuccess: atualizar,
+  })
+}
+
+// --- Links de cadastro -------------------------------------------------------
+
+export type LinkCadastro = Tables<'links_cadastro'>
+
+export function enderecoDoLink(codigo: string) {
+  return `${window.location.origin}/cadastro/${codigo}`
+}
+
+export function useLinksCadastro() {
+  return useQuery({
+    queryKey: ['links-cadastro'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('links_cadastro')
+        .select('*')
+        .eq('revogado', false)
+        .gt('expira_em', new Date().toISOString())
+        .order('criado_em', { ascending: false })
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export function useCriarLinkCadastro() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ papel, dias }: { papel: Papel; dias: number }) => {
+      const expira = new Date(Date.now() + dias * 24 * 60 * 60_000).toISOString()
+      const { data, error } = await supabase
+        .from('links_cadastro')
+        .insert({ papel, expira_em: expira })
+        .select()
+        .single()
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['links-cadastro'] }),
+  })
+}
+
+export function useRevogarLinkCadastro() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('links_cadastro')
+        .update({ revogado: true })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['links-cadastro'] }),
+  })
+}
+
+/** Tela pública: o link ainda vale? Para qual perfil? (sem login) */
+export async function verLinkCadastro(codigo: string): Promise<Papel> {
+  const { data, error } = await supabase.functions.invoke('usuarios', {
+    body: { acao: 'verLink', codigo },
+  })
+  if (error) await lancarErroDaFuncao(error)
+  return (data as { papel: Papel }).papel
+}
+
+export async function solicitarAcesso(dados: {
+  codigo: string
+  nome: string
+  email: string
+  senha: string
+}) {
+  await chamarFuncao({ acao: 'solicitarAcesso', ...dados })
 }
 
 export function useAlterarPapel() {

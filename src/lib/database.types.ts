@@ -1924,6 +1924,44 @@ export type Database = {
           },
         ]
       }
+      links_cadastro: {
+        Row: {
+          codigo: string
+          criado_em: string
+          criado_por: string | null
+          expira_em: string
+          id: string
+          papel: Database['public']['Enums']['papel']
+          revogado: boolean
+        }
+        Insert: {
+          codigo?: string
+          criado_em?: string
+          criado_por?: string | null
+          expira_em: string
+          id?: string
+          papel: Database['public']['Enums']['papel']
+          revogado?: boolean
+        }
+        Update: {
+          codigo?: string
+          criado_em?: string
+          criado_por?: string | null
+          expira_em?: string
+          id?: string
+          papel?: Database['public']['Enums']['papel']
+          revogado?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'links_cadastro_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       lancamentos: {
         Row: {
           antecipacao_id: string | null
@@ -3521,6 +3559,7 @@ export type Database = {
       }
       perfis: {
         Row: {
+          aguardando_aprovacao: boolean
           atende_whatsapp: boolean
           ativo: boolean
           atualizado_em: string
@@ -3529,11 +3568,13 @@ export type Database = {
           criado_em: string
           email: string
           id: string
+          link_cadastro_id: string | null
           nome: string
           papel: Database['public']['Enums']['papel']
           telefone: string | null
         }
         Insert: {
+          aguardando_aprovacao?: boolean
           atende_whatsapp?: boolean
           ativo?: boolean
           atualizado_em?: string
@@ -3542,11 +3583,13 @@ export type Database = {
           criado_em?: string
           email: string
           id: string
+          link_cadastro_id?: string | null
           nome: string
           papel?: Database['public']['Enums']['papel']
           telefone?: string | null
         }
         Update: {
+          aguardando_aprovacao?: boolean
           atende_whatsapp?: boolean
           ativo?: boolean
           atualizado_em?: string
@@ -3555,6 +3598,7 @@ export type Database = {
           criado_em?: string
           email?: string
           id?: string
+          link_cadastro_id?: string | null
           nome?: string
           papel?: Database['public']['Enums']['papel']
           telefone?: string | null
@@ -3565,6 +3609,13 @@ export type Database = {
             columns: ['atualizado_por']
             isOneToOne: false
             referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'perfis_link_cadastro_id_fkey'
+            columns: ['link_cadastro_id']
+            isOneToOne: false
+            referencedRelation: 'links_cadastro'
             referencedColumns: ['id']
           },
         ]

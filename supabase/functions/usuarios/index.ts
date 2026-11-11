@@ -4,8 +4,12 @@
 //   - criarOperador: cria o login de um operador com senha definida pelo admin
 //     (operadores de campo nem sempre têm e-mail);
 //   - definirSenha: troca a senha de um operador que esqueceu a dele;
-//   - desativar / reativar: bloqueia ou libera o login.
-// Só o administrador consegue chamar estas ações.
+//   - desativar / reativar: bloqueia ou libera o login;
+//   - alterarEmail / reenviarAcesso: troca o e-mail e manda o link para criar a senha;
+//   - aprovar / recusar: decide quem se cadastrou por um link de cadastro.
+// Só o administrador consegue chamar estas ações. As duas exceções, sem login, são
+// verLink e solicitarAcesso: quem recebeu um link de cadastro cria a própria conta,
+// que nasce bloqueada até o administrador aprovar.
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
@@ -30,6 +34,17 @@ type Pedido =
   | { acao: 'criarOperador'; nome: string; login: string; senha: string }
   | { acao: 'definirSenha'; usuarioId: string; senha: string }
   | { acao: 'desativar' | 'reativar'; usuarioId: string }
+  | { acao: 'alterarEmail'; usuarioId: string; email: string }
+  | { acao: 'reenviarAcesso'; usuarioId: string; redirecionarPara: string }
+  | { acao: 'aprovar'; usuarioId: string; papel: Papel }
+  | { acao: 'recusar'; usuarioId: string }
+
+type PedidoPublico =
+  | { acao: 'verLink'; codigo: string }
+  | { acao: 'solicitarAcesso'; codigo: string; nome: string; email: string; senha: string }
+
+const BLOQUEADO = '876000h' // "banir" por 100 anos = bloquear o login
+const EMAIL_VALIDO = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -64,6 +79,18 @@ Deno.serve(async (req) => {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 
+  let pedido: Pedido | PedidoPublico
+  try {
+    pedido = await req.json()
+  } catch {
+    return resposta(400, { erro: 'Pedido inválido.' })
+  }
+
+  // 0. Ações sem login: quem recebeu o link de cadastro.
+  if (pedido.acao === 'verLink' || pedido.acao === 'solicitarAcesso') {
+    return await atenderLinkDeCadastro(admin, pedido)
+  }
+
   // 1. Quem está chamando? Confere o token do usuário logado.
   const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '')
   if (!token) return resposta(401, { erro: 'Faça login novamente.' })
@@ -81,18 +108,11 @@ Deno.serve(async (req) => {
     return resposta(403, { erro: 'Somente o administrador pode gerenciar usuários.' })
   }
 
-  let pedido: Pedido
-  try {
-    pedido = await req.json()
-  } catch {
-    return resposta(400, { erro: 'Pedido inválido.' })
-  }
-
   // 3. Executa a ação.
   if (pedido.acao === 'convidar') {
     const email = pedido.email?.trim().toLowerCase()
     const nome = pedido.nome?.trim()
-    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    if (!email || !EMAIL_VALIDO.test(email)) {
       return resposta(400, { erro: 'Informe um e-mail válido.' })
     }
     if (!nome || nome.length < 2) return resposta(400, { erro: 'Informe o nome.' })
@@ -180,18 +200,165 @@ Deno.serve(async (req) => {
 
     const { error: erroLogin } = await admin.auth.admin.updateUserById(pedido.usuarioId, {
       // "Banir" por 100 anos = bloquear o login. "none" libera de novo.
-      ban_duration: ativo ? 'none' : '876000h',
+      ban_duration: ativo ? 'none' : BLOQUEADO,
     })
     if (erroLogin) return resposta(400, { erro: erroLogin.message })
 
     const { error: erroPerfil } = await admin
       .from('perfis')
-      .update({ ativo })
+      // Reativar alguém que esperava aprovação vale como aprovar.
+      .update({ ativo, aguardando_aprovacao: false })
       .eq('id', pedido.usuarioId)
     if (erroPerfil) return resposta(500, { erro: erroPerfil.message })
 
     return resposta(200, { ok: true })
   }
 
+  if (pedido.acao === 'alterarEmail') {
+    const email = pedido.email?.trim().toLowerCase()
+    if (!email || !EMAIL_VALIDO.test(email)) {
+      return resposta(400, { erro: 'Informe um e-mail válido.' })
+    }
+    // email_confirm: o admin garante que este é o e-mail certo; não precisa confirmar.
+    const { error } = await admin.auth.admin.updateUserById(pedido.usuarioId, {
+      email,
+      email_confirm: true,
+    })
+    if (error) {
+      const jaExiste = /already|registered|exists/i.test(error.message)
+      return resposta(400, {
+        erro: jaExiste ? 'Já existe um usuário com este e-mail.' : error.message,
+      })
+    }
+    const { error: erroPerfil } = await admin
+      .from('perfis')
+      .update({ email })
+      .eq('id', pedido.usuarioId)
+    if (erroPerfil) return resposta(500, { erro: erroPerfil.message })
+    return resposta(200, { ok: true })
+  }
+
+  if (pedido.acao === 'reenviarAcesso') {
+    // Manda para o e-mail atual um link para a pessoa criar (ou trocar) a senha.
+    const { data: alvo } = await admin
+      .from('perfis')
+      .select('email')
+      .eq('id', pedido.usuarioId)
+      .single()
+    if (!alvo) return resposta(404, { erro: 'Usuário não encontrado.' })
+    if (alvo.email.endsWith(`@${DOMINIO_OPERADOR}`)) {
+      return resposta(400, {
+        erro: 'Este operador entra pelo login, sem e-mail. Use “Definir senha”.',
+      })
+    }
+    const { error } = await admin.auth.resetPasswordForEmail(alvo.email, {
+      redirectTo: pedido.redirecionarPara,
+    })
+    if (error) return resposta(400, { erro: error.message })
+    return resposta(200, { ok: true })
+  }
+
+  if (pedido.acao === 'aprovar' || pedido.acao === 'recusar') {
+    const { data: alvo } = await admin
+      .from('perfis')
+      .select('aguardando_aprovacao')
+      .eq('id', pedido.usuarioId)
+      .single()
+    if (!alvo?.aguardando_aprovacao) {
+      return resposta(400, { erro: 'Esta solicitação já foi resolvida.' })
+    }
+
+    if (pedido.acao === 'recusar') {
+      // A conta nunca entrou no sistema: some de vez (o perfil vai junto).
+      const { error } = await admin.auth.admin.deleteUser(pedido.usuarioId)
+      if (error) return resposta(400, { erro: error.message })
+      return resposta(200, { ok: true })
+    }
+
+    if (!PAPEIS.includes(pedido.papel)) return resposta(400, { erro: 'Perfil inválido.' })
+    const { error: erroLogin } = await admin.auth.admin.updateUserById(pedido.usuarioId, {
+      ban_duration: 'none',
+      app_metadata: { papel: pedido.papel },
+    })
+    if (erroLogin) return resposta(400, { erro: erroLogin.message })
+    const { error: erroPerfil } = await admin
+      .from('perfis')
+      .update({ ativo: true, aguardando_aprovacao: false, papel: pedido.papel })
+      .eq('id', pedido.usuarioId)
+    if (erroPerfil) return resposta(500, { erro: erroPerfil.message })
+    return resposta(200, { ok: true })
+  }
+
   return resposta(400, { erro: 'Ação desconhecida.' })
 })
+
+/** Link de cadastro: confere se ainda vale e, no pedido, cria a conta já bloqueada. */
+async function atenderLinkDeCadastro(
+  admin: ReturnType<typeof createClient>,
+  pedido: PedidoPublico,
+): Promise<Response> {
+  const codigo = String(pedido.codigo ?? '').trim()
+  if (!/^[a-f0-9]{32}$/.test(codigo)) {
+    return resposta(404, { erro: 'Link de cadastro inválido.' })
+  }
+
+  const { data: link } = await admin
+    .from('links_cadastro')
+    .select('id, papel, expira_em, revogado')
+    .eq('codigo', codigo)
+    .maybeSingle()
+  if (!link || link.revogado || new Date(link.expira_em) < new Date()) {
+    return resposta(404, {
+      erro: 'Este link de cadastro não vale mais. Peça um novo ao administrador.',
+    })
+  }
+
+  if (pedido.acao === 'verLink') return resposta(200, { ok: true, papel: link.papel })
+
+  const nome = pedido.nome?.trim().replace(/\s+/g, ' ')
+  const email = pedido.email?.trim().toLowerCase()
+  if (!nome || nome.length < 5 || !nome.includes(' ')) {
+    return resposta(400, { erro: 'Informe o nome completo.' })
+  }
+  if (nome.length > 120) return resposta(400, { erro: 'Nome comprido demais.' })
+  if (!email || !EMAIL_VALIDO.test(email) || email.endsWith(`@${DOMINIO_OPERADOR}`)) {
+    return resposta(400, { erro: 'Informe o seu e-mail.' })
+  }
+  if (!pedido.senha || pedido.senha.length < SENHA_MINIMA || pedido.senha.length > 72) {
+    return resposta(400, { erro: `A senha precisa ter pelo menos ${SENHA_MINIMA} caracteres.` })
+  }
+
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password: pedido.senha,
+    email_confirm: true,
+    ban_duration: BLOQUEADO,
+    user_metadata: { nome },
+    app_metadata: { papel: link.papel },
+  })
+  if (error) {
+    const jaExiste = /already|registered|exists/i.test(error.message)
+    return resposta(400, {
+      erro: jaExiste
+        ? 'Este e-mail já tem cadastro no sistema. Se você já pediu acesso, aguarde a aprovação do administrador.'
+        : error.message,
+    })
+  }
+
+  const { error: erroPerfil } = await admin
+    .from('perfis')
+    .update({
+      nome,
+      papel: link.papel,
+      ativo: false,
+      aguardando_aprovacao: true,
+      link_cadastro_id: link.id,
+    })
+    .eq('id', data.user.id)
+  if (erroPerfil) {
+    // Sem o perfil bloqueado a conta não pode ficar: desfaz.
+    await admin.auth.admin.deleteUser(data.user.id)
+    return resposta(500, { erro: 'Não foi possível concluir o cadastro. Tente de novo.' })
+  }
+  return resposta(200, { ok: true })
+}

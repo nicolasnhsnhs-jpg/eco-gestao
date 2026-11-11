@@ -14,7 +14,8 @@ const MENSAGENS_POR_CODIGO: Record<string, string> = {
 const MENSAGENS_LOGIN: Record<string, string> = {
   'Invalid login credentials': 'E-mail ou senha incorretos.',
   'Email not confirmed': 'Confirme o seu e-mail pelo link do convite antes de entrar.',
-  'User is banned': 'Seu acesso foi desativado. Fale com o administrador.',
+  'User is banned':
+    'Seu acesso ainda não foi liberado (ou foi desativado). Fale com o administrador.',
   'Failed to fetch': 'Sem conexão com o servidor. Verifique a internet.',
 }
 

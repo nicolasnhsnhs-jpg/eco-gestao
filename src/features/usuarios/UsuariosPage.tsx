@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { HardHat, KeyRound, Pencil, Repeat, UserPlus } from 'lucide-react'
+import { HardHat, KeyRound, Link2, Mail, Pencil, Repeat, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
@@ -23,9 +23,12 @@ import {
 } from '@/lib/papeis'
 
 import { usePerfil } from '../auth/useAuth'
+import { LinksCadastro, SolicitacoesDeAcesso } from './LinksCadastro'
 import {
   useAlterarComissao,
+  useAlterarEmail,
   useAlterarNome,
+  useReenviarAcesso,
   useAlterarAtendeWhatsapp,
   useAlterarPapel,
   useAlternarAtivo,
@@ -60,6 +63,9 @@ export function UsuariosPage() {
   const alterarAtende = useAlterarAtendeWhatsapp()
   const alternarAtivo = useAlternarAtivo()
   const definirSenha = useDefinirSenha()
+  const alterarEmail = useAlterarEmail()
+  const reenviarAcesso = useReenviarAcesso()
+  const [gerandoLink, setGerandoLink] = useState(false)
   const [convidando, setConvidando] = useState(false)
   const [criandoOperador, setCriandoOperador] = useState(false)
   const [transferindoDe, setTransferindoDe] = useState<Usuario | null>(null)
@@ -84,6 +90,9 @@ export function UsuariosPage() {
         descricao="Quem acessa o sistema e o que cada pessoa pode ver."
         acoes={
           <>
+            <Button variante="secundario" onClick={() => setGerandoLink(true)}>
+              <Link2 className="size-5" aria-hidden /> Link de cadastro
+            </Button>
             <Button variante="secundario" onClick={() => setCriandoOperador(true)}>
               <HardHat className="size-5" aria-hidden /> Novo operador
             </Button>
@@ -102,170 +111,240 @@ export function UsuariosPage() {
       {usuarios.isPending && <Carregando />}
       {usuarios.isError && <Aviso tipo="erro">{mensagemDeErro(usuarios.error)}</Aviso>}
 
+      <SolicitacoesDeAcesso
+        pendentes={usuarios.data?.filter((u) => u.aguardando_aprovacao) ?? []}
+        aoTerminar={(mensagem) => {
+          setErro(null)
+          setSucesso(mensagem)
+        }}
+        aoErrar={(mensagem) => {
+          setSucesso(null)
+          setErro(mensagem)
+        }}
+      />
+
       <ul className="divide-y divide-borda overflow-hidden rounded-2xl border border-borda bg-white">
-        {usuarios.data?.map((u) => {
-          const souEu = u.id === eu.id
-          const clientes = carteiras.data?.get(u.id) ?? 0
-          return (
-            <li key={u.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-              <div className="min-w-0 flex-1">
-                <p className="flex flex-wrap items-center gap-2 font-semibold">
-                  {u.nome}
-                  <BotaoIcone
-                    rotulo={`Editar o nome de ${u.nome}`}
-                    onClick={() => {
-                      const nome = window.prompt('Nome do usuário:', u.nome)?.trim()
-                      if (!nome || nome === u.nome) return
-                      void executar(
-                        () => alterarNome.mutateAsync({ usuarioId: u.id, nome }),
-                        `Nome alterado para ${nome}.`,
-                      )
-                    }}
-                  >
-                    <Pencil className="size-4" />
-                  </BotaoIcone>
-                  {souEu && <Etiqueta cor="verde">Você</Etiqueta>}
-                  {!u.ativo && <Etiqueta cor="perigo">Desativado</Etiqueta>}
-                </p>
-                <p className="truncate text-sm text-texto-suave">{u.email}</p>
-                {clientes > 0 && (
-                  <p className="text-sm text-texto-suave">
-                    {clientes} {clientes === 1 ? 'cliente' : 'clientes'} na carteira
-                  </p>
-                )}
-                {!PAPEIS_FORA_DO_COMERCIAL.includes(u.papel) && (
-                  <button
-                    type="button"
-                    className="text-sm text-texto-suave underline"
-                    onClick={() => {
-                      const resposta = window.prompt(
-                        'Comissão própria deste usuário, em % (vazio = padrão da empresa para vendedores; outros perfis sem % não recebem comissão):',
-                        u.comissao_percentual?.toString() ?? '',
-                      )
-                      if (resposta === null) return
-                      const texto = resposta.trim().replace(',', '.')
-                      const percentual = texto === '' ? null : Number(texto)
-                      if (
-                        percentual !== null &&
-                        (Number.isNaN(percentual) || percentual < 0 || percentual > 100)
-                      ) {
-                        setErro('Informe um percentual entre 0 e 100.')
-                        return
-                      }
-                      void executar(
-                        () => alterarComissao.mutateAsync({ usuarioId: u.id, percentual }),
-                        `Comissão de ${u.nome} atualizada.`,
-                      )
-                    }}
-                  >
-                    Comissão:{' '}
-                    {u.comissao_percentual != null
-                      ? `${Number(u.comissao_percentual).toLocaleString('pt-BR')}% (própria)`
-                      : u.papel === 'vendedor'
-                        ? 'padrão da empresa'
-                        : 'não recebe'}
-                  </button>
-                )}
-                {UNIDADE.crm && u.papel !== 'operador' && (
-                  <label className="mt-1 flex min-h-9 items-center gap-2 text-sm text-texto-suave">
-                    <input
-                      type="checkbox"
-                      className="size-4 accent-verde"
-                      checked={u.papel === 'admin' || u.atende_whatsapp}
-                      disabled={u.papel === 'admin' || !u.ativo || alterarAtende.isPending}
-                      onChange={(e) => {
-                        const atende = e.target.checked
+        {usuarios.data
+          ?.filter((u) => !u.aguardando_aprovacao)
+          .map((u) => {
+            const souEu = u.id === eu.id
+            const clientes = carteiras.data?.get(u.id) ?? 0
+            // Operadores com login curto têm um e-mail de mentira: não dá para mandar nada.
+            const temEmailDeVerdade = !u.email.endsWith(`@${DOMINIO_OPERADOR}`)
+            return (
+              <li key={u.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+                <div className="min-w-0 flex-1">
+                  <p className="flex flex-wrap items-center gap-2 font-semibold">
+                    {u.nome}
+                    <BotaoIcone
+                      rotulo={`Editar o nome de ${u.nome}`}
+                      onClick={() => {
+                        const nome = window.prompt('Nome do usuário:', u.nome)?.trim()
+                        if (!nome || nome === u.nome) return
                         void executar(
-                          () => alterarAtende.mutateAsync({ usuarioId: u.id, atende }),
-                          atende
-                            ? `${u.nome} agora atende pelo WhatsApp.`
-                            : `${u.nome} não atende mais pelo WhatsApp.`,
+                          () => alterarNome.mutateAsync({ usuarioId: u.id, nome }),
+                          `Nome alterado para ${nome}.`,
                         )
                       }}
-                    />
-                    Atende WhatsApp
-                    {u.papel === 'admin' && ' (o administrador sempre atende)'}
-                  </label>
-                )}
-              </div>
+                    >
+                      <Pencil className="size-4" />
+                    </BotaoIcone>
+                    {souEu && <Etiqueta cor="verde">Você</Etiqueta>}
+                    {!u.ativo && <Etiqueta cor="perigo">Desativado</Etiqueta>}
+                  </p>
+                  <p className="flex min-w-0 items-center gap-1 text-sm text-texto-suave">
+                    <span className="truncate">
+                      {temEmailDeVerdade ? u.email : `login: ${u.email.split('@')[0]}`}
+                    </span>
+                    {temEmailDeVerdade && (
+                      <BotaoIcone
+                        rotulo={`Alterar o e-mail de ${u.nome}`}
+                        onClick={() => {
+                          const email = window
+                            .prompt(`Novo e-mail de acesso de ${u.nome}:`, u.email)
+                            ?.trim()
+                            .toLowerCase()
+                          if (!email || email === u.email) return
+                          void executar(async () => {
+                            await alterarEmail.mutateAsync({ usuarioId: u.id, email })
+                            if (
+                              u.ativo &&
+                              window.confirm(
+                                `E-mail alterado. Enviar agora para ${email} o link para ${u.nome} criar a senha?`,
+                              )
+                            ) {
+                              await reenviarAcesso.mutateAsync(u.id)
+                            }
+                          }, `E-mail de ${u.nome} alterado para ${email}.`)
+                        }}
+                      >
+                        <Pencil className="size-4" />
+                      </BotaoIcone>
+                    )}
+                  </p>
+                  {clientes > 0 && (
+                    <p className="text-sm text-texto-suave">
+                      {clientes} {clientes === 1 ? 'cliente' : 'clientes'} na carteira
+                    </p>
+                  )}
+                  {!PAPEIS_FORA_DO_COMERCIAL.includes(u.papel) && (
+                    <button
+                      type="button"
+                      className="text-sm text-texto-suave underline"
+                      onClick={() => {
+                        const resposta = window.prompt(
+                          'Comissão própria deste usuário, em % (vazio = padrão da empresa para vendedores; outros perfis sem % não recebem comissão):',
+                          u.comissao_percentual?.toString() ?? '',
+                        )
+                        if (resposta === null) return
+                        const texto = resposta.trim().replace(',', '.')
+                        const percentual = texto === '' ? null : Number(texto)
+                        if (
+                          percentual !== null &&
+                          (Number.isNaN(percentual) || percentual < 0 || percentual > 100)
+                        ) {
+                          setErro('Informe um percentual entre 0 e 100.')
+                          return
+                        }
+                        void executar(
+                          () => alterarComissao.mutateAsync({ usuarioId: u.id, percentual }),
+                          `Comissão de ${u.nome} atualizada.`,
+                        )
+                      }}
+                    >
+                      Comissão:{' '}
+                      {u.comissao_percentual != null
+                        ? `${Number(u.comissao_percentual).toLocaleString('pt-BR')}% (própria)`
+                        : u.papel === 'vendedor'
+                          ? 'padrão da empresa'
+                          : 'não recebe'}
+                    </button>
+                  )}
+                  {UNIDADE.crm && u.papel !== 'operador' && (
+                    <label className="mt-1 flex min-h-9 items-center gap-2 text-sm text-texto-suave">
+                      <input
+                        type="checkbox"
+                        className="size-4 accent-verde"
+                        checked={u.papel === 'admin' || u.atende_whatsapp}
+                        disabled={u.papel === 'admin' || !u.ativo || alterarAtende.isPending}
+                        onChange={(e) => {
+                          const atende = e.target.checked
+                          void executar(
+                            () => alterarAtende.mutateAsync({ usuarioId: u.id, atende }),
+                            atende
+                              ? `${u.nome} agora atende pelo WhatsApp.`
+                              : `${u.nome} não atende mais pelo WhatsApp.`,
+                          )
+                        }}
+                      />
+                      Atende WhatsApp
+                      {u.papel === 'admin' && ' (o administrador sempre atende)'}
+                    </label>
+                  )}
+                </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <Select
-                  aria-label={`Perfil de ${u.nome}`}
-                  className="w-auto"
-                  value={u.papel}
-                  disabled={souEu || !u.ativo || alterarPapel.isPending}
-                  onChange={(e) => {
-                    const papel = e.target.value as Papel
-                    void executar(
-                      () => alterarPapel.mutateAsync({ usuarioId: u.id, papel }),
-                      `${u.nome} agora é ${NOME_DO_PAPEL[papel]}.`,
-                    )
-                  }}
-                >
-                  {PAPEIS.map((p) => (
-                    <option key={p} value={p}>
-                      {NOME_DO_PAPEL[p]}
-                    </option>
-                  ))}
-                </Select>
-
-                {u.papel === 'operador' && u.ativo && (
-                  <Button
-                    variante="secundario"
-                    disabled={definirSenha.isPending}
-                    onClick={() => {
-                      const senha = window.prompt(
-                        `Nova senha de ${u.nome} (mínimo ${SENHA_MINIMA} caracteres):`,
-                      )
-                      if (senha === null) return
-                      if (senha.length < SENHA_MINIMA) {
-                        setErro(`A senha precisa ter pelo menos ${SENHA_MINIMA} caracteres.`)
-                        return
-                      }
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select
+                    aria-label={`Perfil de ${u.nome}`}
+                    className="w-auto"
+                    value={u.papel}
+                    disabled={souEu || !u.ativo || alterarPapel.isPending}
+                    onChange={(e) => {
+                      const papel = e.target.value as Papel
                       void executar(
-                        () => definirSenha.mutateAsync({ usuarioId: u.id, senha }),
-                        `Senha de ${u.nome} alterada. Passe a nova senha para ele pessoalmente.`,
+                        () => alterarPapel.mutateAsync({ usuarioId: u.id, papel }),
+                        `${u.nome} agora é ${NOME_DO_PAPEL[papel]}.`,
                       )
                     }}
                   >
-                    <KeyRound className="size-4" aria-hidden /> Definir senha
-                  </Button>
-                )}
+                    {PAPEIS.map((p) => (
+                      <option key={p} value={p}>
+                        {NOME_DO_PAPEL[p]}
+                      </option>
+                    ))}
+                  </Select>
 
-                {clientes > 0 && (
-                  <Button variante="secundario" onClick={() => setTransferindoDe(u)}>
-                    <Repeat className="size-4" aria-hidden /> Transferir carteira
-                  </Button>
-                )}
+                  {u.papel === 'operador' && u.ativo && (
+                    <Button
+                      variante="secundario"
+                      disabled={definirSenha.isPending}
+                      onClick={() => {
+                        const senha = window.prompt(
+                          `Nova senha de ${u.nome} (mínimo ${SENHA_MINIMA} caracteres):`,
+                        )
+                        if (senha === null) return
+                        if (senha.length < SENHA_MINIMA) {
+                          setErro(`A senha precisa ter pelo menos ${SENHA_MINIMA} caracteres.`)
+                          return
+                        }
+                        void executar(
+                          () => definirSenha.mutateAsync({ usuarioId: u.id, senha }),
+                          `Senha de ${u.nome} alterada. Passe a nova senha para ele pessoalmente.`,
+                        )
+                      }}
+                    >
+                      <KeyRound className="size-4" aria-hidden /> Definir senha
+                    </Button>
+                  )}
 
-                {!souEu && (
-                  <Button
-                    variante={u.ativo ? 'fantasma' : 'secundario'}
-                    disabled={alternarAtivo.isPending}
-                    onClick={() => {
-                      const aviso = u.ativo
-                        ? `Desativar ${u.nome}? A pessoa não vai mais conseguir entrar no sistema.${
-                            clientes > 0
-                              ? `\n\nEla ainda tem ${clientes} cliente(s). Lembre de transferir a carteira.`
-                              : ''
-                          }`
-                        : `Reativar o acesso de ${u.nome}?`
-                      if (!window.confirm(aviso)) return
-                      void executar(
-                        () => alternarAtivo.mutateAsync({ usuarioId: u.id, ativo: !u.ativo }),
-                        u.ativo ? `${u.nome} foi desativado.` : `${u.nome} foi reativado.`,
-                      )
-                    }}
-                  >
-                    {u.ativo ? 'Desativar' : 'Reativar'}
-                  </Button>
-                )}
-              </div>
-            </li>
-          )
-        })}
+                  {temEmailDeVerdade && u.ativo && !souEu && (
+                    <Button
+                      variante="secundario"
+                      disabled={reenviarAcesso.isPending}
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            `Enviar para ${u.email} um link para ${u.nome} criar (ou trocar) a senha?`,
+                          )
+                        )
+                          return
+                        void executar(
+                          () => reenviarAcesso.mutateAsync(u.id),
+                          `Link para criar a senha enviado para ${u.email}. Peça para conferir o spam.`,
+                        )
+                      }}
+                    >
+                      <Mail className="size-4" aria-hidden /> Enviar link de senha
+                    </Button>
+                  )}
+
+                  {clientes > 0 && (
+                    <Button variante="secundario" onClick={() => setTransferindoDe(u)}>
+                      <Repeat className="size-4" aria-hidden /> Transferir carteira
+                    </Button>
+                  )}
+
+                  {!souEu && (
+                    <Button
+                      variante={u.ativo ? 'fantasma' : 'secundario'}
+                      disabled={alternarAtivo.isPending}
+                      onClick={() => {
+                        const aviso = u.ativo
+                          ? `Desativar ${u.nome}? A pessoa não vai mais conseguir entrar no sistema.${
+                              clientes > 0
+                                ? `\n\nEla ainda tem ${clientes} cliente(s). Lembre de transferir a carteira.`
+                                : ''
+                            }`
+                          : `Reativar o acesso de ${u.nome} (${u.email})?\n\nSe o e-mail estiver errado, cancele e corrija no lápis ao lado do e-mail antes.`
+                        if (!window.confirm(aviso)) return
+                        void executar(
+                          () => alternarAtivo.mutateAsync({ usuarioId: u.id, ativo: !u.ativo }),
+                          u.ativo ? `${u.nome} foi desativado.` : `${u.nome} foi reativado.`,
+                        )
+                      }}
+                    >
+                      {u.ativo ? 'Desativar' : 'Reativar'}
+                    </Button>
+                  )}
+                </div>
+              </li>
+            )
+          })}
       </ul>
+
+      <Modal aberto={gerandoLink} aoFechar={() => setGerandoLink(false)} titulo="Link de cadastro">
+        <LinksCadastro />
+      </Modal>
 
       <Modal aberto={convidando} aoFechar={() => setConvidando(false)} titulo="Convidar usuário">
         <FormConvite

@@ -7,6 +7,7 @@ import { AssinaturaPage } from '@/features/administrativo/assinatura/AssinaturaP
 import { AvisosPage } from '@/features/avisos/AvisosPage'
 import { CrmPage } from '@/features/crm/CrmPage'
 import { NotificacoesPage } from '@/features/crm/NotificacoesPage'
+import { CadastroPage } from '@/features/auth/CadastroPage'
 import { DefinirSenhaPage } from '@/features/auth/DefinirSenhaPage'
 import { EntrarPage } from '@/features/auth/EntrarPage'
 import { EsqueciSenhaPage } from '@/features/auth/EsqueciSenhaPage'
@@ -76,6 +77,8 @@ export const router = createBrowserRouter([
   { path: '/entrar', element: <EntrarPage /> },
   { path: '/esqueci-senha', element: <EsqueciSenhaPage /> },
   { path: '/definir-senha', element: <DefinirSenhaPage /> },
+  // Link de cadastro que o admin manda no grupo; a conta só entra depois de aprovada.
+  { path: '/cadastro/:codigo', element: <CadastroPage /> },
 
   // Agenda do dia na TV: tela cheia, sem o menu do sistema.
   {
