@@ -13,6 +13,7 @@ const comum = {
   hora_saida: '2026-11-05T09:05:00-03:00',
   operador_nome: 'Operador',
   responsavel_nome: 'Fulana',
+  responsavel_setor: 'Manutenção',
   assinatura_cliente_id: 'a',
   assinatura_operador_id: 'b',
 }
@@ -29,8 +30,24 @@ describe('pendenciasLocais', () => {
       'nome do operador',
       'visto do operador',
       'nome de quem acompanhou',
+      'setor de quem acompanhou',
       'assinatura de quem acompanhou',
     ])
+  })
+
+  it('quem acompanhou: setor obrigatório, ou "não houve acompanhamento"', () => {
+    const semSetor = { ...comum, resultado: 'ok', responsavel_setor: ' ' }
+    expect(pendenciasLocais('generico', semSetor, [])).toEqual(['setor de quem acompanhou'])
+    const ninguem = {
+      ...comum,
+      resultado: 'ok',
+      responsavel_nome: null,
+      responsavel_setor: null,
+      assinatura_cliente_id: null,
+      sem_acompanhamento: true,
+    }
+    expect(pendenciasLocais('generico', ninguem, [])).toEqual([])
+    expect(etapaDaPendencia('setor de quem acompanhou')).toBe('Quem acompanhou (cliente)')
   })
 
   it('genérica completa não tem pendências', () => {

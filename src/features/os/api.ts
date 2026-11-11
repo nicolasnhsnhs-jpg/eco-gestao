@@ -351,7 +351,7 @@ export type CamposExecucao = Omit<
 
 /**
  * O que o operador pode gravar na execução: a mesma lista do "grant update" do
- * banco (migration 20261103120200_ordens_servico.sql). Um campo fora dela faz o
+ * banco (migrations 20261103120200_ordens_servico.sql e 20261217120000_os_sem_acompanhamento.sql). Um campo fora dela faz o
  * banco recusar a gravação inteira ("permission denied for table os_execucao").
  */
 export const CAMPOS_EDITAVEIS_EXECUCAO = [
@@ -367,6 +367,7 @@ export const CAMPOS_EDITAVEIS_EXECUCAO = [
   'operador_nome',
   'responsavel_nome',
   'responsavel_setor',
+  'sem_acompanhamento',
   'assinatura_cliente_id',
   'assinatura_operador_id',
   'checklist',

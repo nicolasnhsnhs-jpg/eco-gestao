@@ -6,7 +6,9 @@
 --   - a coifa da entrega de telas pode ser cadastrada sem material;
 --   - a OS recebe as coifas com a quantidade de telas;
 --   - concluir exige a liberação ("autorizada a instalação?") e a conferência
---     ("instaladas?"), e não pede nada da limpeza de coifa (sujidade, produto).
+--     ("instaladas?"), e não pede nada da limpeza de coifa (sujidade, produto);
+--   - o setor de quem acompanhou é obrigatório, e "não houve acompanhamento"
+--     dispensa nome, setor e assinatura do cliente.
 -- Transação desfeita no final (rollback).
 --
 -- Rodar:  npm run test:db
@@ -76,7 +78,7 @@ select public.iniciar_os((select id from ids where nome = 'os'));
 update public.os_execucao e
    set data = '2026-11-12', hora_chegada = '2026-11-12 08:50-03', hora_inicio = '2026-11-12 08:55-03',
        hora_termino = '2026-11-12 09:30-03', hora_saida = '2026-11-12 09:40-03',
-       operador_nome = 'Operador Telas', responsavel_nome = 'Sr. Alex', responsavel_setor = 'Cozinha',
+       operador_nome = 'Operador Telas', responsavel_nome = 'Sr. Alex', responsavel_setor = '  ',
        assinatura_cliente_id = (select a.id from public.arquivos a where a.os_id = e.os_id and a.nome_original = 'cliente.png'),
        assinatura_operador_id = (select a.id from public.arquivos a where a.os_id = e.os_id and a.nome_original = 'operador.png')
  where os_id = (select id from ids where nome = 'os');
@@ -90,7 +92,8 @@ begin
   exception when check_violation then
     get stacked diagnostics v_msg = message_text;
     if v_msg not like '%liberação para instalação de telas%'
-       or v_msg not like '%conferência com o cliente%' then
+       or v_msg not like '%conferência com o cliente%'
+       or v_msg not like '%setor de quem acompanhou%' then
       raise exception 'FALHOU: pendências da entrega de telas incompletas: %', v_msg;
     end if;
     if v_msg like '%sujidade%' or v_msg like '%produto%' or v_msg like '%resultado%' then
@@ -99,10 +102,13 @@ begin
   end;
 end $$;
 
+-- Ninguém acompanhou: conclui sem nome, setor e assinatura do cliente.
 update public.os_execucao set checklist = '{
   "autorizado": {"sim": true},
   "instaladas": {"sim": false, "texto": "Fritadeira em uso, volta amanhã"}
-}' where os_id = (select id from ids where nome = 'os');
+}', sem_acompanhamento = true, responsavel_nome = null, responsavel_setor = null,
+    assinatura_cliente_id = null
+ where os_id = (select id from ids where nome = 'os');
 select public.concluir_os((select id from ids where nome = 'os'));
 reset role;
 

@@ -6,7 +6,7 @@ import type { ChecklistTelas } from '../tipos/telas'
 
 /*
  * O que falta para concluir a OS — a MESMA regra de privado.pendencias_os no banco
- * (migration 20261215130100_os_entrega_telas.sql). O celular usa esta cópia para concluir
+ * (migration 20261217120000_os_sem_acompanhamento.sql). O celular usa esta cópia para concluir
  * sem internet; quando o sinal volta, o banco confere de novo e é quem garante.
  * Se mudar uma, mude a outra (os testes de pendencias.test.ts e de os*.sql ajudam).
  */
@@ -79,8 +79,12 @@ export function pendenciasLocais(
   if (formulario === 'generico' && vazio(e.resultado)) falta.push('resultado do serviço')
   if (vazio(e.operador_nome)) falta.push('nome do operador')
   if (!e.assinatura_operador_id) falta.push('visto do operador')
-  if (vazio(e.responsavel_nome)) falta.push('nome de quem acompanhou')
-  if (!e.assinatura_cliente_id) falta.push('assinatura de quem acompanhou')
+  // Quem acompanhou: nome, setor e assinatura, a não ser que ninguém tenha acompanhado.
+  if (!e.sem_acompanhamento) {
+    if (vazio(e.responsavel_nome)) falta.push('nome de quem acompanhou')
+    if (vazio(e.responsavel_setor)) falta.push('setor de quem acompanhou')
+    if (!e.assinatura_cliente_id) falta.push('assinatura de quem acompanhou')
+  }
 
   if (formulario === 'pragas') {
     const c = (e.checklist ?? {}) as ChecklistPragas

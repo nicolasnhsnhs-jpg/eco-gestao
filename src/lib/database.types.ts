@@ -3060,6 +3060,7 @@ export type Database = {
           os_id: string
           responsavel_nome: string | null
           responsavel_setor: string | null
+          sem_acompanhamento: boolean
           resultado: string | null
           veiculo_id: string | null
         }
@@ -3082,6 +3083,7 @@ export type Database = {
           os_id: string
           responsavel_nome?: string | null
           responsavel_setor?: string | null
+          sem_acompanhamento?: boolean
           resultado?: string | null
           veiculo_id?: string | null
         }
@@ -3104,6 +3106,7 @@ export type Database = {
           os_id?: string
           responsavel_nome?: string | null
           responsavel_setor?: string | null
+          sem_acompanhamento?: boolean
           resultado?: string | null
           veiculo_id?: string | null
         }

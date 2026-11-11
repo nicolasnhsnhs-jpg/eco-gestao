@@ -246,8 +246,14 @@ export function OsPage() {
                 {e.assinatura_operador_id && <Etiqueta cor="verde">Visto</Etiqueta>}
               </Linha>
               <Linha rotulo="Acompanhou">
-                {[e.responsavel_nome, e.responsavel_setor].filter(Boolean).join(' · ') || '—'}{' '}
-                {e.assinatura_cliente_id && <Etiqueta cor="verde">Assinado</Etiqueta>}
+                {e.sem_acompanhamento ? (
+                  'Não houve acompanhamento'
+                ) : (
+                  <>
+                    {[e.responsavel_nome, e.responsavel_setor].filter(Boolean).join(' · ') || '—'}{' '}
+                    {e.assinatura_cliente_id && <Etiqueta cor="verde">Assinado</Etiqueta>}
+                  </>
+                )}
               </Linha>
               {o.concluida_em && (
                 <Linha rotulo="Concluída em">{formatarDataHora(o.concluida_em)}</Linha>

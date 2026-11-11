@@ -400,12 +400,11 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
   // pronto, com a assinatura escaneada (o operador nem vê esse quadro).
   const rt = UNIDADE.responsavelTecnico
   const quadros: { imagem: PDFImage | null; nome: string; rotulo: string; extra?: string }[] = []
+  const acompanhou = e?.sem_acompanhamento
+    ? 'Não houve acompanhamento'
+    : [e?.responsavel_nome, e?.responsavel_setor].filter(Boolean).join(' · ')
   for (const [arquivo, rotulo, nome] of [
-    [
-      assinaturaCliente,
-      'Acompanhou pelo cliente',
-      [e?.responsavel_nome, e?.responsavel_setor].filter(Boolean).join(' · '),
-    ],
+    [e?.sem_acompanhamento ? undefined : assinaturaCliente, 'Acompanhou pelo cliente', acompanhou],
     [assinaturaOperador, 'Operador', e?.operador_nome ?? ''],
   ] as const) {
     const bytes = arquivo && imagens.get(arquivo.id)

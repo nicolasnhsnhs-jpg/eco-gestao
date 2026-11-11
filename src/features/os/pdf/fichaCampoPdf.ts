@@ -759,6 +759,7 @@ export async function gerarFichaCampo(os: OsCompleta) {
     { rotulo: 'Acompanhou (nome)', largura: 3 },
     { rotulo: 'Setor', largura: 2 },
   ])
+  f.opcoes('Se ninguém acompanhou', ['Não houve acompanhamento'])
   f.y -= 6
   f.assinaturas([
     { rotulo: 'Assinatura de quem acompanhou pelo cliente' },
