@@ -1,9 +1,8 @@
-import { Download, ExternalLink, FileText, Mail, MessageCircle, Share2 } from 'lucide-react'
+import { Download, ExternalLink, FileText } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
-import { linkWhatsapp, soNumeros } from '@/lib/documentos'
 import { mensagemDeErro } from '@/lib/erros'
 import { UNIDADE } from '@/lib/unidade'
 
@@ -27,6 +26,28 @@ function baixar(blob: Blob, nome: string) {
   a.click()
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+
+type JanelaComSalvar = Window & {
+  showSaveFilePicker?: (opcoes: {
+    suggestedName?: string
+    types?: { description: string; accept: Record<string, string[]> }[]
+  }) => Promise<{
+    createWritable: () => Promise<{ write: (b: Blob) => Promise<void>; close: () => Promise<void> }>
+  }>
+}
+
+/**
+ * Pergunta onde salvar (Chrome/Edge). Tem de ser chamado direto no clique.
+ * Devolve null quando o navegador não oferece a janela de salvar.
+ */
+async function escolherOndeSalvar(nome: string) {
+  const w = window as JanelaComSalvar
+  if (!w.showSaveFilePicker) return null
+  return w.showSaveFilePicker({
+    suggestedName: nome,
+    types: [{ description: 'PDF', accept: { 'application/pdf': ['.pdf'] } }],
+  })
 }
 
 // -----------------------------------------------------------------------------
@@ -106,7 +127,7 @@ export function PreviaPdf({ gerar, chave }: { gerar: () => Promise<Blob>; chave:
 }
 
 // -----------------------------------------------------------------------------
-// Botões da proposta salva: abrir, baixar, enviar
+// Botões da proposta salva: abrir e baixar
 // -----------------------------------------------------------------------------
 
 export function AcoesPdfProposta({
@@ -121,15 +142,6 @@ export function AcoesPdfProposta({
   const [ocupado, setOcupado] = useState(false)
   const nomeCliente = p.cliente?.nome_fantasia || p.cliente?.nome || ''
   const nome = nomeArquivoProposta(p.numero, nomeCliente)
-  const podeCompartilhar =
-    typeof navigator !== 'undefined' &&
-    !!navigator.canShare?.({ files: [new File([''], nome, { type: 'application/pdf' })] })
-
-  const telefone = p.contato_telefone || cliente?.whatsapp || cliente?.telefone || ''
-  const email = p.contato_email || cliente?.email || ''
-  const mensagem =
-    `Olá${p.contato_nome ? `, ${p.contato_nome.replace(/^(sr|sra|srª)\.?\s*/i, '')}` : ''}! ` +
-    `Segue a proposta nº ${p.numero} da ${UNIDADE.nome} para ${nomeCliente}. Fico à disposição para qualquer dúvida.`
 
   async function comPdf(acao: (blob: Blob) => Promise<void> | void, aba?: Window | null) {
     setErro(null)
@@ -161,6 +173,23 @@ export function AcoesPdfProposta({
     }, aba)
   }
 
+  async function salvar() {
+    let destino: Awaited<ReturnType<typeof escolherOndeSalvar>>
+    try {
+      // A janela de salvar abre já no clique; o PDF é montado depois.
+      destino = await escolherOndeSalvar(nome)
+    } catch (e) {
+      if ((e as Error)?.name === 'AbortError') return // cancelou
+      destino = null
+    }
+    await comPdf(async (b) => {
+      if (!destino) return baixar(b, nome)
+      const arquivo = await destino.createWritable()
+      await arquivo.write(b)
+      await arquivo.close()
+    })
+  }
+
   const pronto = !vendedor.isPending && cliente !== undefined
 
   // Proposta salva (nova ou alterada): a cópia vai para o Drive sem ninguém clicar.
@@ -190,70 +219,12 @@ export function AcoesPdfProposta({
         </Button>
         <Button
           variante="secundario"
-          onClick={() => void comPdf((b) => baixar(b, nome))}
+          onClick={() => void salvar()}
           disabled={!pronto || ocupado}
         >
           <Download className="size-4" aria-hidden /> Baixar
         </Button>
-        {podeCompartilhar && (
-          <Button
-            variante="secundario"
-            onClick={() =>
-              void comPdf(async (b) => {
-                await navigator.share({
-                  files: [new File([b], nome, { type: 'application/pdf' })],
-                  title: `Proposta ${p.numero}`,
-                  text: mensagem,
-                })
-              })
-            }
-            disabled={!pronto || ocupado}
-          >
-            <Share2 className="size-4" aria-hidden /> Enviar
-          </Button>
-        )}
-        {soNumeros(telefone).length >= 10 && (
-          <Button
-            variante="secundario"
-            onClick={() =>
-              void comPdf((b) => {
-                baixar(b, nome)
-                window.open(
-                  `${linkWhatsapp(telefone)}?text=${encodeURIComponent(mensagem)}`,
-                  '_blank',
-                )
-              })
-            }
-            disabled={!pronto || ocupado}
-          >
-            <MessageCircle className="size-4" aria-hidden /> WhatsApp
-          </Button>
-        )}
-        {email && (
-          <Button
-            variante="secundario"
-            onClick={() =>
-              void comPdf((b) => {
-                baixar(b, nome)
-                const destino = email
-                  .split(/[;,/\s]+/)
-                  .filter(Boolean)
-                  .join(',')
-                window.location.href =
-                  `mailto:${destino}?subject=${encodeURIComponent(`Proposta ${p.numero} - ${UNIDADE.nome}`)}` +
-                  `&body=${encodeURIComponent(mensagem)}`
-              })
-            }
-            disabled={!pronto || ocupado}
-          >
-            <Mail className="size-4" aria-hidden /> E-mail
-          </Button>
-        )}
       </div>
-      <p className="text-sm text-texto-suave">
-        WhatsApp e e-mail baixam o PDF e abrem a conversa: é só anexar o arquivo baixado.
-        {podeCompartilhar && ' No celular, “Enviar” já manda o PDF junto.'}
-      </p>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
     </div>
   )
