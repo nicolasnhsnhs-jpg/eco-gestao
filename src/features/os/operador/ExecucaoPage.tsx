@@ -1,3 +1,4 @@
+import { nomeVeiculo } from '../nomeVeiculo'
 import { CheckCircle2, CloudOff, MapPin, Phone, RefreshCw } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router'
@@ -334,7 +335,7 @@ function Execucao({ os }: { os: OsCompleta }) {
             <option value="">Escolha…</option>
             {veiculos.data?.map((v) => (
               <option key={v.id} value={v.id}>
-                {v.placa} · {v.descricao}
+                {nomeVeiculo(v)}
               </option>
             ))}
           </Select>

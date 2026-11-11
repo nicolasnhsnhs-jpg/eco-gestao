@@ -19,6 +19,7 @@ import { horaCurta, useProposta } from '../propostas/api'
 import { ClienteSeletor, type ClienteEscolhido } from '../clientes/ClienteSeletor'
 import { useTiposServico } from '../servicos/api'
 import { useAgendarOs, useModelo, useOperadores, useVeiculos } from './api'
+import { nomeVeiculo } from './nomeVeiculo'
 import { EscolherProposta, PainelProposta } from './PropostaParaOs'
 
 /**
@@ -340,7 +341,7 @@ function FormAgendamento({
             <option value="">Sem veículo definido</option>
             {veiculos.data?.map((v) => (
               <option key={v.id} value={v.id}>
-                {v.placa} · {v.descricao}
+                {nomeVeiculo(v)}
               </option>
             ))}
           </Select>

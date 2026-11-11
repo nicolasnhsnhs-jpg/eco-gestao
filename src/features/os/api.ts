@@ -76,7 +76,7 @@ export function enderecoDaFicha(ficha: FichaCliente) {
 
 const RELACOES = `
   tipo:tipos_servico(id, nome, formulario_os, fotos_antes_depois),
-  veiculo:veiculos(id, placa, descricao),
+  veiculo:veiculos(id, placa, descricao, sigla),
   operadores:os_operadores(operador:perfis(id, nome))
 `
 
@@ -163,7 +163,11 @@ export const consultaVeiculos = (incluirInativos = false) =>
     queryKey: ['veiculos', incluirInativos],
     staleTime: 5 * 60_000,
     queryFn: async () => {
-      let consulta = supabase.from('veiculos').select('*').order('descricao')
+      let consulta = supabase
+        .from('veiculos')
+        .select('*')
+        .order('sigla', { nullsFirst: false })
+        .order('descricao')
       if (!incluirInativos) consulta = consulta.eq('ativo', true)
       const { data, error } = await consulta
       if (error) throw error

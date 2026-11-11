@@ -26,6 +26,7 @@ import {
   useOrdemServico,
   useReabrirOs,
 } from './api'
+import { nomeVeiculo } from './nomeVeiculo'
 import { ConferenciaOs } from './ConferenciaOs'
 import { EscopoBebedouro } from './EscopoBebedouro'
 import { EscopoCoifa } from './EscopoCoifa'
@@ -173,9 +174,7 @@ export function OsPage() {
           <Linha rotulo="Operadores">
             {o.operadores.map((x) => x.operador?.nome).join(', ') || '—'}
           </Linha>
-          <Linha rotulo="Veículo">
-            {o.veiculo ? `${o.veiculo.placa} · ${o.veiculo.descricao}` : '—'}
-          </Linha>
+          <Linha rotulo="Veículo">{o.veiculo ? nomeVeiculo(o.veiculo) : '—'}</Linha>
           <Linha rotulo="CPF/CNPJ">
             {ficha.cpf_cnpj
               ? formatarDocumento(ficha.cpf_cnpj, ficha.cpf_cnpj.length === 11 ? 'PF' : 'PJ')

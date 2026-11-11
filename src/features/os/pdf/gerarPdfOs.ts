@@ -1,3 +1,4 @@
+import { nomeVeiculo } from '../nomeVeiculo'
 import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFImage, type PDFPage } from 'pdf-lib'
 
 import type { Arquivo } from '@/features/arquivos/api'
@@ -349,7 +350,7 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
 
   w.secao('Execução')
   w.campo('Data', formatarData(e?.data))
-  w.campo('Veículo', os.veiculo ? `${os.veiculo.placa} · ${os.veiculo.descricao}` : '')
+  w.campo('Veículo', os.veiculo ? nomeVeiculo(os.veiculo) : '')
   w.campo('KM na chegada', e?.km_chegada?.toLocaleString('pt-BR'))
   w.campo(
     'Horários',

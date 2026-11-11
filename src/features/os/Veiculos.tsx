@@ -44,7 +44,7 @@ export function Veiculos() {
         {veiculos.data?.map((v) => (
           <li key={v.id} className="flex items-center gap-3 p-3">
             <span className={v.ativo ? 'font-semibold' : 'text-texto-suave line-through'}>
-              {v.placa}
+              {v.sigla ? ` · ` : v.placa}
             </span>
             <span className="flex-1 truncate text-texto-suave">{v.descricao}</span>
             <Button

@@ -4322,6 +4322,7 @@ export type Database = {
           descricao: string
           id: string
           placa: string
+          sigla: string | null
         }
         Insert: {
           ativo?: boolean
@@ -4332,6 +4333,7 @@ export type Database = {
           descricao: string
           id?: string
           placa: string
+          sigla?: string | null
         }
         Update: {
           ativo?: boolean
@@ -4342,6 +4344,7 @@ export type Database = {
           descricao?: string
           id?: string
           placa?: string
+          sigla?: string | null
         }
         Relationships: [
           {

@@ -24,6 +24,7 @@ import {
   type ModeloCompleto,
   type ModeloResumo,
 } from './api'
+import { nomeVeiculo } from './nomeVeiculo'
 import { EscopoBebedouro } from './EscopoBebedouro'
 import { EscopoCoifa } from './EscopoCoifa'
 import { EscopoPragas } from './EscopoPragas'
@@ -378,7 +379,7 @@ function DadosPadrao({ modelo }: { modelo: ModeloCompleto }) {
           <option value="">Sem veículo definido</option>
           {veiculos.data?.map((v) => (
             <option key={v.id} value={v.id}>
-              {v.placa} · {v.descricao}
+              {nomeVeiculo(v)}
             </option>
           ))}
         </Select>
