@@ -3814,6 +3814,7 @@ export type Database = {
           proposta_id: string
           quantidade: number
           recursos: string | null
+          taxas_adicionais: Json
           tipo_servico_id: string | null
           titulo: string | null
           valor_unitario: number
@@ -3831,6 +3832,7 @@ export type Database = {
           proposta_id: string
           quantidade?: number
           recursos?: string | null
+          taxas_adicionais?: Json
           tipo_servico_id?: string | null
           titulo?: string | null
           valor_unitario: number
@@ -3848,6 +3850,7 @@ export type Database = {
           proposta_id?: string
           quantidade?: number
           recursos?: string | null
+          taxas_adicionais?: Json
           tipo_servico_id?: string | null
           titulo?: string | null
           valor_unitario?: number

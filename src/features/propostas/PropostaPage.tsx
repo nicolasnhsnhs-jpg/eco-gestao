@@ -27,6 +27,7 @@ import {
 import { JanelaExecucao } from './JanelaExecucao'
 import { nomeFrequencia } from './modelos'
 import { AcoesPdfProposta } from './pdf/PdfProposta'
+import { taxasDoItem } from './pdf/usoPdf'
 
 export function PropostaPage() {
   const { id } = useParams()
@@ -178,12 +179,13 @@ function Detalhe({ p }: { p: PropostaCompleta }) {
                       ? ` · ${nomeFrequencia(i.frequencia).toLowerCase()}`
                       : i.periodicidade_meses && ` · repetir a cada ${i.periodicidade_meses} meses`}
                   </p>
+                  {taxasDoItem(i.taxas_adicionais).map((t, k) => (
+                    <p key={k} className="text-sm text-texto-suave">
+                      + {t.descricao}: {formatarReais(t.valor)}
+                    </p>
+                  ))}
                 </div>
-                <strong>
-                  {formatarReais(
-                    Math.round(Number(i.quantidade) * Number(i.valor_unitario) * 100) / 100,
-                  )}
-                </strong>
+                <strong>{formatarReais(valorComTaxas(i))}</strong>
               </li>
             ))}
           </ul>
@@ -257,6 +259,13 @@ function Detalhe({ p }: { p: PropostaCompleta }) {
   )
 }
 
+/** Valor do serviço: quantidade × valor + taxas adicionais. */
+function valorComTaxas(i: PropostaCompleta['itens'][number]) {
+  const base = Math.round(Number(i.quantidade) * Number(i.valor_unitario) * 100)
+  const taxas = taxasDoItem(i.taxas_adicionais).reduce((s, t) => s + Math.round(t.valor * 100), 0)
+  return (base + taxas) / 100
+}
+
 function Dado({ rotulo, valor }: { rotulo: string; valor: string | null | undefined }) {
   return (
     <div>
@@ -278,7 +287,7 @@ function ServicosDaProposta({ p }: { p: PropostaCompleta }) {
       cliente: p.cliente_id!,
       cliente_nome: nomeCliente,
       proposta: p.id!,
-      valor: String(Math.round(Number(item.quantidade) * Number(item.valor_unitario) * 100) / 100),
+      valor: String(valorComTaxas(item)),
       ...(item.tipo_servico_id ? { tipo: item.tipo_servico_id } : {}),
       ...(item.periodicidade_meses ? { periodicidade: String(item.periodicidade_meses) } : {}),
       ...(p.endereco_id ? { endereco: p.endereco_id } : {}),

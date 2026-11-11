@@ -6,7 +6,7 @@ import { UNIDADE } from '@/lib/unidade'
 
 import type { ClienteCompleto } from '../../clientes/api'
 import type { PropostaCompleta } from '../api'
-import { montarDadosPdf, type PropostaBase, type VendedorBase } from './dadosPdf'
+import { montarDadosPdf, type PropostaBase, type TaxaBase, type VendedorBase } from './dadosPdf'
 import { gerarPdfProposta } from './gerarPdfProposta'
 
 /** Nome e telefone do vendedor, para a assinatura do PDF. */
@@ -56,6 +56,7 @@ export function propostaGravadaParaBase(p: PropostaCompleta): PropostaBase {
       periodicidade_meses: i.periodicidade_meses,
       frequencia: i.frequencia,
       cobranca: i.cobranca,
+      taxas_adicionais: taxasDoItem(i.taxas_adicionais),
     })),
   }
 }
@@ -102,4 +103,15 @@ export function copiarPropostaNoDrive(propostaId: string | null, pdf: Blob) {
   })()
     .catch(() => {})
     .finally(() => enviandoProposta.delete(propostaId))
+}
+
+/** As taxas adicionais gravadas no item (jsonb), já como números. */
+export function taxasDoItem(taxas: unknown): TaxaBase[] {
+  if (!Array.isArray(taxas)) return []
+  return taxas
+    .map((t: { descricao?: unknown; valor?: unknown }) => ({
+      descricao: String(t?.descricao ?? '').trim(),
+      valor: Number(t?.valor) || 0,
+    }))
+    .filter((t) => t.descricao && t.valor > 0)
 }

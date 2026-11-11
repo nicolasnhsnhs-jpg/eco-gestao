@@ -32,7 +32,11 @@ export type ItemBase = {
   /** "semanal" / "quinzenal" (aí periodicidade_meses fica vazio). */
   frequencia: string | null
   cobranca: string | null
+  /** Ex.: "Adicional para trabalho ao domingo". Somam uma vez no valor do serviço. */
+  taxas_adicionais?: TaxaBase[]
 }
+
+export type TaxaBase = { descricao: string; valor: number }
 
 export type PropostaBase = {
   numero?: string | null
@@ -91,7 +95,14 @@ export type DadosPdfProposta = {
   vendedor: VendedorBase
 }
 
-const valorItem = (i: ItemBase) => Math.round(i.quantidade * i.valor_unitario * 100) / 100
+const centavos = (v: number) => Math.round(v * 100)
+/** Só quantidade × valor, sem as taxas. */
+const valorBase = (i: ItemBase) => centavos(i.quantidade * i.valor_unitario) / 100
+/** Valor do serviço com as taxas adicionais. */
+const valorItem = (i: ItemBase) =>
+  (centavos(i.quantidade * i.valor_unitario) +
+    (i.taxas_adicionais ?? []).reduce((s, t) => s + centavos(t.valor), 0)) /
+  100
 
 export function montarDadosPdf(
   p: PropostaBase,
@@ -142,11 +153,12 @@ export function montarDadosPdf(
 
   // ---- Custos ----
   const custos: LinhaCusto[] = []
-  const total = p.itens.reduce((s, i) => s + valorItem(i), 0)
+  const total = p.itens.reduce((s, i) => s + centavos(valorItem(i)), 0) / 100
   const cobrancas = new Set(p.itens.map((i) => i.cobranca || 'unica'))
   const sufixoTotal = cobrancas.size === 1 ? sufixoCobranca([...cobrancas][0]) : ''
   const variosItens = p.itens.length > 1
-  if (p.custos_detalhados && variosItens) {
+  const comTaxas = p.itens.some((i) => (i.taxas_adicionais ?? []).length > 0)
+  if (p.custos_detalhados && (variosItens || comTaxas)) {
     custos.push({ tipo: 'linha', texto: '**Valor dos serviços conforme segue abaixo:**' })
     for (const i of p.itens) {
       const qtd =
@@ -155,8 +167,14 @@ export function montarDadosPdf(
           : ''
       custos.push({
         tipo: 'marcador',
-        texto: `${i.descricao}${qtd} - **${formatarReais(valorItem(i))}${sufixoCobranca(i.cobranca)}**`,
+        texto: `${i.descricao}${qtd} - **${formatarReais(valorBase(i))}${sufixoCobranca(i.cobranca)}**`,
       })
+      for (const t of i.taxas_adicionais ?? []) {
+        custos.push({
+          tipo: 'marcador',
+          texto: `${t.descricao} - **${formatarReais(t.valor)}${sufixoCobranca(i.cobranca)}**`,
+        })
+      }
     }
     if (cobrancas.size === 1) {
       custos.push({ tipo: 'espaco', texto: '' })
@@ -170,7 +188,7 @@ export function montarDadosPdf(
       ? 'Valor total para execução dos serviços'
       : `Valor para ${minusculaInicial(p.itens[0]?.descricao || 'o serviço')}`
     const qtd =
-      !variosItens && p.itens[0] && p.itens[0].quantidade !== 1
+      !variosItens && !comTaxas && p.itens[0] && p.itens[0].quantidade !== 1
         ? ` (${p.itens[0].quantidade.toLocaleString('pt-BR')} × ${formatarReais(p.itens[0].valor_unitario)})`
         : ''
     custos.push({ tipo: 'linha', texto: `${rotulo}${qtd}:` })

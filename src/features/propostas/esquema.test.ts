@@ -16,6 +16,21 @@ describe('totalDosItens', () => {
   it('aceita quantidade com vírgula', () => {
     expect(totalDosItens([{ quantidade: '1,5', valor_unitario: '100,00' }])).toBe(150)
   })
+
+  it('soma as taxas adicionais uma vez, sem multiplicar pela quantidade', () => {
+    expect(
+      totalDosItens([
+        {
+          quantidade: '2',
+          valor_unitario: '500,00',
+          taxas_adicionais: [
+            { descricao: 'Adicional para trabalho ao domingo', valor: '150,00' },
+            { descricao: 'Adicional noturno', valor: '80,50' },
+          ],
+        },
+      ]),
+    ).toBe(1230.5)
+  })
 })
 
 describe('esquemaProposta', () => {

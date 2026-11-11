@@ -168,6 +168,48 @@ describe('montarDadosPdf', () => {
     expect(custos).not.toContain('acréscimo')
   })
 
+  it('mostra as taxas adicionais e soma no total', () => {
+    const d = montarDadosPdf(
+      base({
+        itens: [
+          item({
+            descricao: 'Limpeza de coifa',
+            valor_unitario: 500,
+            taxas_adicionais: [{ descricao: 'Adicional para trabalho ao domingo', valor: 150 }],
+          }),
+        ],
+      }),
+      cliente,
+      null,
+      vendedor,
+    )
+    const custos = d.custos.map((c) => c.texto).join('\n')
+    expect(custos).toContain('Limpeza de coifa - **R$ 500,00**')
+    expect(custos).toContain('Adicional para trabalho ao domingo - **R$ 150,00**')
+    expect(custos).toContain('R$ 650,00 (seiscentos e cinquenta reais)')
+  })
+
+  it('só o total, já com as taxas, quando não detalha', () => {
+    const d = montarDadosPdf(
+      base({
+        custos_detalhados: false,
+        itens: [
+          item({
+            descricao: 'Limpeza de coifa',
+            valor_unitario: 500,
+            taxas_adicionais: [{ descricao: 'Adicional noturno', valor: 100 }],
+          }),
+        ],
+      }),
+      cliente,
+      null,
+      vendedor,
+    )
+    const custos = d.custos.map((c) => c.texto).join('\n')
+    expect(custos).not.toContain('Adicional noturno')
+    expect(custos).toContain('R$ 600,00')
+  })
+
   it('não repete a frequência no título', () => {
     expect(tituloComFrequencia('Limpeza de coifa / semestral', 6)).toBe(
       'Limpeza de coifa / semestral',

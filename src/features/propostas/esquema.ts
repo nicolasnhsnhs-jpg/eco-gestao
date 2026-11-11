@@ -13,6 +13,12 @@ const inteiroOpcional = (min: number, max: number, mensagem: string) =>
 
 const textoAte = (max: number) => z.string().max(max, `Até ${max} caracteres.`)
 
+/** Taxa adicional de um serviço. Ex.: "Adicional para trabalho ao domingo". */
+export const esquemaTaxa = z.object({
+  descricao: z.string().trim().min(2, 'Escreva o que é a taxa.').max(200, 'Até 200 caracteres.'),
+  valor: z.string().refine((v) => (lerValor(v) ?? 0) > 0, 'Informe o valor.'),
+})
+
 export const esquemaItem = z.object({
   modelo: z.string(),
   tipo_servico_id: z.string(),
@@ -35,6 +41,7 @@ export const esquemaItem = z.object({
       'Entre 1 e 60 meses.',
     ),
   cobranca: z.enum(['unica', 'mensal', 'por_visita']),
+  taxas_adicionais: z.array(esquemaTaxa),
 })
 
 export const esquemaProposta = z
@@ -65,6 +72,9 @@ export const esquemaProposta = z
 
 export type FormProposta = z.infer<typeof esquemaProposta>
 export type FormItem = z.infer<typeof esquemaItem>
+export type FormTaxa = z.infer<typeof esquemaTaxa>
+
+export const TAXA_VAZIA: FormTaxa = { descricao: '', valor: '' }
 
 export const ITEM_VAZIO: FormItem = {
   modelo: '',
@@ -78,6 +88,7 @@ export const ITEM_VAZIO: FormItem = {
   valor_unitario: '',
   periodicidade_meses: '',
   cobranca: 'unica',
+  taxas_adicionais: [],
 }
 
 const ouNulo = (v: string) => (v.trim() === '' ? null : v.trim())
@@ -86,15 +97,37 @@ export function quantidadeDe(texto: string): number {
   return Number(texto.replace(',', '.')) || 0
 }
 
-/** Total em reais, somando em centavos para não errar o arredondamento. */
-export function totalDosItens(itens: Pick<FormItem, 'quantidade' | 'valor_unitario'>[]): number {
-  const centavos = itens.reduce(
-    (soma, i) =>
-      soma + Math.round(quantidadeDe(i.quantidade) * paraCentavos(lerValor(i.valor_unitario) ?? 0)),
+type ItemParaTotal = Pick<FormItem, 'quantidade' | 'valor_unitario'> & {
+  taxas_adicionais?: Partial<FormTaxa>[]
+}
+
+/** Valor de um serviço em centavos: quantidade × valor + taxas adicionais. */
+function centavosDoItem(i: ItemParaTotal): number {
+  const taxas = (i.taxas_adicionais ?? []).reduce(
+    (s, t) => s + paraCentavos(lerValor(t.valor ?? '') ?? 0),
     0,
   )
-  return centavos / 100
+  return (
+    Math.round(
+      quantidadeDe(i.quantidade ?? '') * paraCentavos(lerValor(i.valor_unitario ?? '') ?? 0),
+    ) + taxas
+  )
 }
+
+/** Valor de um serviço (com as taxas adicionais), em reais. */
+export function totalDoItem(i: ItemParaTotal): number {
+  return centavosDoItem(i) / 100
+}
+
+/** Total em reais, somando em centavos para não errar o arredondamento. */
+export function totalDosItens(itens: ItemParaTotal[]): number {
+  return itens.reduce((soma, i) => soma + centavosDoItem(i), 0) / 100
+}
+
+const taxasParaBase = (taxas: Partial<FormTaxa>[] | undefined) =>
+  (taxas ?? [])
+    .map((t) => ({ descricao: (t.descricao ?? '').trim(), valor: lerValor(t.valor ?? '') ?? 0 }))
+    .filter((t) => t.descricao || t.valor)
 
 export function propostaParaBanco(f: FormProposta) {
   const acrescimo = f.acrescimo_fora_horario.trim() ? lerValor(f.acrescimo_fora_horario) : null
@@ -127,6 +160,7 @@ export function propostaParaBanco(f: FormProposta) {
       valor_unitario: lerValor(i.valor_unitario)!,
       ...separarFrequencia(i.periodicidade_meses),
       cobranca: i.cobranca,
+      taxas_adicionais: taxasParaBase(i.taxas_adicionais),
     })),
   }
 }
@@ -161,6 +195,10 @@ export function formParaBase(f: FormProposta, numero?: string | null): PropostaB
       valor_unitario: lerValor(i.valor_unitario ?? '') ?? 0,
       ...separarFrequencia(i.periodicidade_meses),
       cobranca: i.cobranca ?? 'unica',
+      taxas_adicionais: taxasParaBase(i.taxas_adicionais).map((t) => ({
+        descricao: t.descricao || 'Taxa adicional',
+        valor: t.valor,
+      })),
     })),
   }
 }

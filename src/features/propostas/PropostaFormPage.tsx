@@ -27,6 +27,8 @@ import {
   formParaBase,
   ITEM_VAZIO,
   propostaParaBanco,
+  TAXA_VAZIA,
+  totalDoItem,
   totalDosItens,
   type FormItem,
   type FormProposta,
@@ -43,7 +45,7 @@ import {
   type ChaveModelo,
 } from './modelos'
 import { PreviaPdf } from './pdf/PdfProposta'
-import { pdfDaProposta, useVendedorPdf } from './pdf/usoPdf'
+import { pdfDaProposta, taxasDoItem, useVendedorPdf } from './pdf/usoPdf'
 
 /** /propostas/nova e /propostas/:id/editar */
 export function PropostaFormPage() {
@@ -100,6 +102,10 @@ function valoresIniciais(
         valor_unitario: valorParaCampo(i.valor_unitario),
         periodicidade_meses: valorFrequencia(i.periodicidade_meses, i.frequencia),
         cobranca: (i.cobranca as FormItem['cobranca']) ?? 'unica',
+        taxas_adicionais: taxasDoItem(i.taxas_adicionais).map((t) => ({
+          descricao: t.descricao,
+          valor: valorParaCampo(t.valor),
+        })),
       })),
     }
   }
@@ -603,6 +609,8 @@ function ItemServico({
         </SelectForm>
       </Campo>
 
+      <TaxasAdicionais form={form} i={i} />
+
       <div className="sm:col-span-12">
         <button
           type="button"
@@ -634,6 +642,76 @@ function ItemServico({
         )}
       </div>
     </fieldset>
+  )
+}
+
+/** Taxas adicionais do serviço (ex.: trabalho ao domingo, noturno). Somam no valor do serviço. */
+function TaxasAdicionais({ form, i }: { form: UseFormReturn<FormProposta>; i: number }) {
+  const taxas = useFieldArray({ control: form.control, name: `itens.${i}.taxas_adicionais` })
+  const item = useWatch({ control: form.control, name: `itens.${i}` })
+  const erros = form.formState.errors.itens?.[i]?.taxas_adicionais
+  const temTaxas = taxas.fields.length > 0
+
+  return (
+    <div className="flex flex-col gap-3 rounded-xl bg-fundo-suave p-3 sm:col-span-12">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-bold">Taxas adicionais</p>
+        <Button variante="fantasma" onClick={() => taxas.append({ ...TAXA_VAZIA })}>
+          <Plus className="size-4" aria-hidden /> Adicionar taxa
+        </Button>
+      </div>
+      {!temTaxas && (
+        <p className="text-sm text-texto-suave">
+          Ex.: adicional para trabalho ao domingo, adicional noturno. Soma no valor do serviço.
+        </p>
+      )}
+      {taxas.fields.map((campo, j) => {
+        const registroValor = form.register(`itens.${i}.taxas_adicionais.${j}.valor`)
+        return (
+          <div key={campo.id} className="grid gap-3 sm:grid-cols-12">
+            <Campo
+              rotulo="O que é a taxa"
+              htmlFor={`taxa-${i}-${j}`}
+              className="sm:col-span-7"
+              erro={erros?.[j]?.descricao?.message}
+            >
+              <Input
+                id={`taxa-${i}-${j}`}
+                placeholder="Adicional para trabalho ao domingo"
+                {...form.register(`itens.${i}.taxas_adicionais.${j}.descricao`)}
+              />
+            </Campo>
+            <Campo
+              rotulo="Valor (R$)"
+              htmlFor={`taxa-valor-${i}-${j}`}
+              className="sm:col-span-4"
+              erro={erros?.[j]?.valor?.message}
+            >
+              <Input
+                id={`taxa-valor-${i}-${j}`}
+                inputMode="numeric"
+                placeholder="0,00"
+                {...registroValor}
+                onChange={(e) => {
+                  e.target.value = mascaraValor(e.target.value)
+                  void registroValor.onChange(e)
+                }}
+              />
+            </Campo>
+            <div className="flex items-end justify-end sm:col-span-1">
+              <BotaoIcone rotulo={`Remover taxa ${j + 1}`} onClick={() => taxas.remove(j)}>
+                <Trash2 className="size-4" />
+              </BotaoIcone>
+            </div>
+          </div>
+        )
+      })}
+      {temTaxas && item && (
+        <p className="text-right text-sm">
+          Valor do serviço com as taxas: <strong>{formatarReais(totalDoItem(item))}</strong>
+        </p>
+      )}
+    </div>
   )
 }
 
