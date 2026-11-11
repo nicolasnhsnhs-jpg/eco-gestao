@@ -770,7 +770,6 @@ function Linhas({
                 <CampoAuto
                   aria-label="Técnicos"
                   placeholder="Técnicos: 3, 4"
-                  inputMode="numeric"
                   valor={escreverTecnicos(item.tecnicos)}
                   onSalvar={(v) => salvarCampo({ tecnicos: lerTecnicos(v) })}
                 />
