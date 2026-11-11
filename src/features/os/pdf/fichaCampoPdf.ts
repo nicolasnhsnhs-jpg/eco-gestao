@@ -719,11 +719,6 @@ export async function gerarFichaCampo(os: OsCompleta) {
     f.escrita('Observações:', 4)
   }
 
-  if (os.tipo?.fotos_antes_depois) {
-    f.secao('Fotos', 30)
-    f.opcoes('', ['Fotos de antes tiradas', 'Fotos de depois tiradas'])
-  }
-
   f.secao('Quem acompanhou e assinaturas', 120)
   f.camposLinha([
     { rotulo: 'Acompanhou (nome)', largura: 3 },
