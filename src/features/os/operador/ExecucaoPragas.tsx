@@ -42,6 +42,7 @@ import {
   type EscopoPragas,
   type Nivel,
 } from '../tipos/pragas'
+import { capturasCompletas } from '../offline/pendencias'
 import { ConferenciaPortaIscas } from './ConferenciaPortaIscas'
 
 type Props = {
@@ -446,6 +447,7 @@ function AplicadosPorArea({ pontos }: { pontos: PontoOs[] }) {
 function Armadilha({ osId, ponto, aberta }: { osId: string; ponto: PontoOs; aberta: boolean }) {
   const anotar = useAnotarPontos(osId)
   const capturas = (ponto.capturas ?? {}) as Record<string, number>
+  const completas = capturasCompletas(capturas)
   const gravar = (campos: Parameters<typeof anotar.mutate>[0]['campos']) =>
     anotar.mutate({ ids: [ponto.id], campos })
 
@@ -492,22 +494,51 @@ function Armadilha({ osId, ponto, aberta }: { osId: string; ponto: PontoOs; aber
           aoMudar={(v) => gravar({ higiene: v })}
         />
       </Linha>
-      <div className="grid grid-cols-4 gap-2">
-        {Object.entries(ESPECIES).map(([codigo, nome]) => (
-          <Campo key={codigo} rotulo={nome} htmlFor={`cap-${ponto.id}-${codigo}`}>
-            <Input
-              id={`cap-${ponto.id}-${codigo}`}
-              inputMode="numeric"
-              disabled={!aberta}
-              defaultValue={capturas[codigo]?.toString() ?? ''}
-              onBlur={(e) => {
-                const n = e.target.value.replace(/\D/g, '')
-                const novo = { ...capturas, [codigo]: n ? Number(n) : 0 }
-                if (novo[codigo] !== (capturas[codigo] ?? 0)) gravar({ capturas: novo })
-              }}
-            />
-          </Campo>
-        ))}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-sm font-semibold">Capturas *</span>
+          {aberta && !completas && (
+            <Button
+              variante="secundario"
+              onClick={() =>
+                gravar({
+                  capturas: Object.fromEntries(
+                    Object.keys(ESPECIES).map((codigo) => [codigo, capturas[codigo] ?? 0]),
+                  ),
+                })
+              }
+            >
+              {Object.keys(capturas).length ? 'Zerar o que falta' : 'Nenhuma captura'}
+            </Button>
+          )}
+        </div>
+        <div className="grid grid-cols-4 gap-2">
+          {Object.entries(ESPECIES).map(([codigo, nome]) => (
+            <Campo key={codigo} rotulo={nome} htmlFor={`cap-${ponto.id}-${codigo}`}>
+              <Input
+                // Remonta quando o valor muda por fora (botão "Nenhuma captura").
+                key={capturas[codigo] ?? 'vazio'}
+                id={`cap-${ponto.id}-${codigo}`}
+                inputMode="numeric"
+                disabled={!aberta}
+                defaultValue={capturas[codigo]?.toString() ?? ''}
+                className={aberta && capturas[codigo] == null ? 'border-alerta' : undefined}
+                onBlur={(e) => {
+                  const n = e.target.value.replace(/\D/g, '')
+                  const novo = { ...capturas }
+                  if (n) novo[codigo] = Number(n)
+                  else delete novo[codigo]
+                  if (novo[codigo] !== capturas[codigo]) gravar({ capturas: novo })
+                }}
+              />
+            </Campo>
+          ))}
+        </div>
+        {aberta && !completas && (
+          <p className="text-xs text-texto-suave">
+            Anote a quantidade de cada inseto. Se não pegou nada, coloque 0.
+          </p>
+        )}
       </div>
     </div>
   )

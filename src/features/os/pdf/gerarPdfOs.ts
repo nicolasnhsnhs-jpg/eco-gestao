@@ -1,6 +1,7 @@
 import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFImage, type PDFPage } from 'pdf-lib'
 
 import type { Arquivo } from '@/features/arquivos/api'
+import { baixarAssinatura } from '@/features/certificados/api'
 import { formatarData } from '@/lib/datas'
 import { formatarCnpj, formatarCpf, formatarTelefone } from '@/lib/documentos'
 import { UNIDADE } from '@/lib/unidade'
@@ -282,6 +283,8 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
       (a): a is Arquivo => !!a,
     ),
   )
+  // Sem a assinatura escaneada da responsável técnica enviada, o PDF sai sem ela.
+  const assinaturaRt = await baixarAssinatura('responsavel').catch(() => null)
   const logo = await pdf.embedJpg(await (await fetch('/logo-pdf.jpg')).arrayBuffer())
 
   const w = new Escritor(
@@ -390,30 +393,67 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
   await grade('Relatório fotográfico — após o serviço', fotosDepois, 'Depois')
   await grade(fotosAntes.length || fotosDepois.length ? 'Outras fotos' : 'Fotos', fotos)
 
-  w.secao('Assinaturas')
-  w.garantir(110)
-  const metade = (LARGURA_UTIL - 20) / 2
-  const quadros: [Arquivo | undefined, string, string][] = [
+  // Cliente e operador assinam no celular; a responsável técnica entra sozinha no PDF
+  // pronto, com a assinatura escaneada (o operador nem vê esse quadro).
+  const rt = UNIDADE.responsavelTecnico
+  const quadros: { imagem: PDFImage | null; nome: string; rotulo: string; extra?: string }[] = []
+  for (const [arquivo, rotulo, nome] of [
     [
       assinaturaCliente,
       'Acompanhou pelo cliente',
       [e?.responsavel_nome, e?.responsavel_setor].filter(Boolean).join(' · '),
     ],
     [assinaturaOperador, 'Operador', e?.operador_nome ?? ''],
-  ]
-  for (const [i, [arquivo]] of quadros.entries()) {
+  ] as const) {
     const bytes = arquivo && imagens.get(arquivo.id)
-    if (bytes) w.imagem(await pdf.embedJpg(bytes), MARGEM + i * (metade + 20), metade, 70)
+    quadros.push({ imagem: bytes ? await pdf.embedJpg(bytes) : null, nome, rotulo })
+  }
+  if (assinaturaRt) {
+    quadros.push({
+      imagem: await pdf.embedPng(assinaturaRt),
+      nome: rt?.nome ?? '',
+      rotulo: 'Responsável técnica',
+      extra: rt?.registro,
+    })
+  }
+
+  w.secao('Assinaturas')
+  w.garantir(124)
+  const espaco = 16
+  const coluna = (LARGURA_UTIL - espaco * (quadros.length - 1)) / quadros.length
+  const xDe = (i: number) => MARGEM + i * (coluna + espaco)
+  for (const [i, q] of quadros.entries()) {
+    if (!q.imagem) continue
+    if (i < 2) {
+      w.imagem(q.imagem, xDe(i), coluna, 70)
+    } else {
+      // Assinatura escaneada: sem moldura, com a linha embaixo.
+      const escala = Math.min((coluna - 10) / q.imagem.width, 62 / q.imagem.height)
+      const iw = q.imagem.width * escala
+      const ih = q.imagem.height * escala
+      w.pagina.drawImage(q.imagem, {
+        x: xDe(i) + (coluna - iw) / 2,
+        y: w.y - 66,
+        width: iw,
+        height: ih,
+      })
+      w.pagina.drawLine({
+        start: { x: xDe(i), y: w.y - 70 },
+        end: { x: xDe(i) + coluna, y: w.y - 70 },
+        thickness: 0.6,
+        color: CINZA,
+      })
+    }
   }
   w.y -= 76
-  for (const [i, [, , nome]] of quadros.entries()) {
-    w.texto(nome || '—', MARGEM + i * (metade + 20), 9.5, true)
-  }
+  for (const [i, q] of quadros.entries()) w.texto(q.nome || '—', xDe(i), 9.5, true)
   w.y -= 12
-  for (const [i, [, rotulo]] of quadros.entries()) {
-    w.texto(rotulo, MARGEM + i * (metade + 20), 8.5)
-  }
+  for (const [i, q] of quadros.entries()) w.texto(q.rotulo, xDe(i), 8.5)
   w.y -= 12
+  if (quadros.some((q) => q.extra)) {
+    for (const [i, q] of quadros.entries()) if (q.extra) w.texto(q.extra, xDe(i), 8.5)
+    w.y -= 12
+  }
 
   return pdf.save()
 }

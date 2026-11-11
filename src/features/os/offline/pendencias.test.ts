@@ -45,10 +45,17 @@ describe('pendenciasLocais', () => {
     expect(pendenciasLocais('pragas', comum, pontos)).toEqual([
       'nível de infestação de roedores',
       'situação das armadilhas 1',
+      'capturas das armadilhas 1',
     ])
+    // Faltando uma espécie ainda não conclui; 0 vale como preenchido.
     expect(
       pendenciasLocais('pragas', { ...comum, checklist: { nivel_infestacao: 'B' } }, [
-        { ...pontos[1], situacao_armadilha: 'F' },
+        { ...pontos[1], situacao_armadilha: 'F', capturas: { M: 3, MQ: 0, MA: 0 } },
+      ]),
+    ).toEqual(['capturas das armadilhas 1'])
+    expect(
+      pendenciasLocais('pragas', { ...comum, checklist: { nivel_infestacao: 'B' } }, [
+        { ...pontos[1], situacao_armadilha: 'F', capturas: { M: 3, MQ: 0, MA: 0, B: 0 } },
       ]),
     ).toEqual([])
   })

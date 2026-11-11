@@ -1,11 +1,11 @@
 import type { CamposExecucao } from '../api'
 import type { ChecklistBebedouro } from '../tipos/bebedouro'
 import type { ChecklistCoifa } from '../tipos/coifa'
-import type { ChecklistPragas } from '../tipos/pragas'
+import { ESPECIES, type ChecklistPragas } from '../tipos/pragas'
 
 /*
  * O que falta para concluir a OS — a MESMA regra de privado.pendencias_os no banco
- * (migration 20261207120100_os_bebedouro.sql). O celular usa esta cópia para concluir
+ * (migration 20261212130000_os_armadilhas_assinatura_rt.sql). O celular usa esta cópia para concluir
  * sem internet; quando o sinal volta, o banco confere de novo e é quem garante.
  * Se mudar uma, mude a outra (os testes de pendencias.test.ts e de os*.sql ajudam).
  */
@@ -15,8 +15,15 @@ type Ponto = {
   numero: number
   area: string
   situacao_armadilha?: string | null
+  capturas?: unknown
   sujidade?: string | null
   limpo?: boolean | null
+}
+
+/** Todas as espécies da ficha com número (0 quando a armadilha não pegou nada). */
+export function capturasCompletas(capturas: unknown) {
+  const c = (capturas ?? {}) as Record<string, unknown>
+  return Object.keys(ESPECIES).every((codigo) => typeof c[codigo] === 'number')
 }
 
 const vazio = (texto: unknown) => typeof texto !== 'string' || texto.trim() === ''
@@ -84,6 +91,11 @@ export function pendenciasLocais(
       .map((p) => p.numero)
       .sort((a, b) => a - b)
     if (semSituacao.length) falta.push(`situação das armadilhas ${semSituacao.join(', ')}`)
+    const semCapturas = pontos
+      .filter((p) => p.tipo === 'armadilha_luminosa' && !capturasCompletas(p.capturas))
+      .map((p) => p.numero)
+      .sort((a, b) => a - b)
+    if (semCapturas.length) falta.push(`capturas das armadilhas ${semCapturas.join(', ')}`)
   }
 
   if (formulario === 'coifa') {
@@ -150,7 +162,12 @@ export function etapaDaPendencia(pendencia: string): string | null {
   if (pendencia === 'nome do operador' || pendencia === 'visto do operador') return 'Operador'
   if (pendencia.includes('quem acompanhou')) return 'Quem acompanhou (cliente)'
   if (pendencia === 'nível de infestação de roedores') return 'Porta-iscas'
-  if (pendencia.startsWith('situação das armadilhas')) return 'Armadilhas luminosas'
+  if (
+    pendencia.startsWith('situação das armadilhas') ||
+    pendencia.startsWith('capturas das armadilhas')
+  ) {
+    return 'Armadilhas luminosas'
+  }
   if (
     pendencia === 'liberação para trabalho' ||
     pendencia === 'condições do ambiente' ||

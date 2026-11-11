@@ -72,26 +72,37 @@ const CORES_PIZZA: Record<string, ReturnType<typeof rgb>> = {
   NE: rgb(0.8, 0.3, 0.3),
 }
 
-/** Pizza do consumo da isca parafinada (MS / MC / CT), como na ficha de papel. */
-function desenharPizza(w: EscritorPdf, fonte: PDFFont, pontos: PontoOs[]) {
-  const parafinadas = pontos.filter((p) => p.tipo_isca === 'IP')
-  const total = parafinadas.length
-  if (total === 0) return
-  // Todas as situações das iscas parafinadas, para a pizza fechar 100%.
-  const fatias = (Object.keys(SITUACOES_ISCA) as (keyof typeof SITUACOES_ISCA)[])
-    .map((codigo) => ({ codigo, n: parafinadas.filter((p) => p.situacao === codigo).length }))
-    .filter((f) => f.n > 0)
-  if (fatias.length === 0) return
+type Fatia = { rotulo: string; n: number; cor: ReturnType<typeof rgb> }
 
-  w.garantir(110)
+const VERDE_ESCURO = rgb(0.122, 0.302, 0.102)
+const CINZA = rgb(0.4, 0.4, 0.4)
+const LINHA = rgb(0.82, 0.86, 0.8)
+
+/**
+ * Pizza com a tabela ao lado (cor · item · quantidade · %), como na ficha de papel.
+ * Fatias zeradas ficam fora da pizza, mas continuam na tabela.
+ */
+function desenharPizza(
+  w: EscritorPdf,
+  fonte: PDFFont,
+  titulo: string,
+  fatias: Fatia[],
+  rodape?: string,
+) {
+  const total = fatias.reduce((soma, f) => soma + f.n, 0)
+  if (total === 0) return
+
+  const altLinha = 15
+  const altTabela = 18 + (fatias.length + 1) * altLinha + (rodape ? 14 : 0)
   const raio = 42
+  w.garantir(Math.max(raio * 2 + 18, altTabela + 10))
   const cx = 40 + raio + 10
   const cy = w.y - raio - 6
   let inicio = -Math.PI / 2
-  for (const f of fatias) {
+  for (const f of fatias.filter((f) => f.n > 0)) {
     const angulo = (f.n / total) * Math.PI * 2
     if (f.n === total) {
-      w.pagina.drawCircle({ x: cx, y: cy, size: raio, color: CORES_PIZZA[f.codigo] })
+      w.pagina.drawCircle({ x: cx, y: cy, size: raio, color: f.cor })
     } else {
       const fim = inicio + angulo
       const x1 = raio * Math.cos(inicio)
@@ -102,33 +113,125 @@ function desenharPizza(w: EscritorPdf, fonte: PDFFont, pontos: PontoOs[]) {
       w.pagina.drawSvgPath(`M 0 0 L ${x1} ${y1} A ${raio} ${raio} 0 ${grande} 1 ${x2} ${y2} Z`, {
         x: cx,
         y: cy,
-        color: CORES_PIZZA[f.codigo],
+        color: f.cor,
       })
     }
     inicio += angulo
   }
-  w.pagina.drawText('Consumo da isca parafinada', {
-    x: cx + raio + 24,
-    y: cy + 30,
-    size: 9.5,
-    font: fonte,
-    color: rgb(0.122, 0.302, 0.102),
-  })
-  for (const [i, f] of fatias.entries()) {
-    const y = cy + 12 - i * 16
-    w.pagina.drawRectangle({
-      x: cx + raio + 24,
-      y: y - 1,
-      width: 9,
-      height: 9,
-      color: CORES_PIZZA[f.codigo],
+
+  // Tabela: item à esquerda, quantidade e % alinhadas à direita.
+  const x = cx + raio + 24
+  const xQtd = x + 250
+  const xPct = x + 300
+  const topo = w.y - 4
+  const direita = (texto: string, xFim: number, y: number) =>
+    w.pagina.drawText(texto, {
+      x: xFim - fonte.widthOfTextAtSize(texto, 9),
+      y,
+      size: 9,
+      font: fonte,
     })
-    w.pagina.drawText(
-      `${f.codigo} · ${SITUACOES_ISCA[f.codigo]}: ${Math.round((f.n / total) * 100)}% (${f.n} de ${total})`,
-      { x: cx + raio + 38, y, size: 9, font: fonte },
-    )
+  w.pagina.drawText(titulo, { x, y: topo - 10, size: 9.5, font: fonte, color: VERDE_ESCURO })
+  let y = topo - 10 - altLinha
+  w.pagina.drawText('Qtd.', {
+    x: xQtd - fonte.widthOfTextAtSize('Qtd.', 8),
+    y,
+    size: 8,
+    font: fonte,
+    color: CINZA,
+  })
+  w.pagina.drawText('%', {
+    x: xPct - fonte.widthOfTextAtSize('%', 8),
+    y,
+    size: 8,
+    font: fonte,
+    color: CINZA,
+  })
+  for (const f of fatias) {
+    y -= altLinha
+    w.pagina.drawRectangle({ x, y: y - 1, width: 9, height: 9, color: f.cor })
+    w.pagina.drawText(f.rotulo, { x: x + 14, y, size: 9, font: fonte })
+    direita(f.n.toLocaleString('pt-BR'), xQtd, y)
+    direita(`${Math.round((f.n / total) * 100)}%`, xPct, y)
   }
-  w.y -= raio * 2 + 18
+  w.pagina.drawLine({
+    start: { x, y: y - 4 },
+    end: { x: xPct, y: y - 4 },
+    thickness: 0.6,
+    color: LINHA,
+  })
+  y -= altLinha + 2
+  w.pagina.drawText('Total', { x: x + 14, y, size: 9, font: fonte, color: VERDE_ESCURO })
+  direita(total.toLocaleString('pt-BR'), xQtd, y)
+  direita('100%', xPct, y)
+  if (rodape) {
+    y -= 14
+    w.pagina.drawText(rodape, { x, y, size: 8, font: fonte, color: CINZA })
+  }
+  w.y = Math.min(cy - raio - 12, y - 10)
+}
+
+/** Pizza do consumo da isca parafinada (MS / MC / CT…). */
+function pizzaIscas(w: EscritorPdf, fonte: PDFFont, pontos: PontoOs[]) {
+  const parafinadas = pontos.filter((p) => p.tipo_isca === 'IP')
+  // Todas as situações das iscas parafinadas, para a pizza fechar 100%.
+  const fatias = (Object.keys(SITUACOES_ISCA) as (keyof typeof SITUACOES_ISCA)[])
+    .map((codigo) => ({
+      rotulo: `${codigo} · ${SITUACOES_ISCA[codigo]}`,
+      n: parafinadas.filter((p) => p.situacao === codigo).length,
+      cor: CORES_PIZZA[codigo] ?? rgb(0.75, 0.75, 0.75),
+    }))
+    .filter((f) => f.n > 0)
+  desenharPizza(
+    w,
+    fonte,
+    'Consumo da isca parafinada',
+    fatias,
+    `${parafinadas.length} iscas parafinadas`,
+  )
+}
+
+const CORES_INSETOS: Record<keyof typeof ESPECIES, ReturnType<typeof rgb>> = {
+  M: rgb(0.243, 0.482, 0.122),
+  MQ: rgb(0.45, 0.65, 0.85),
+  MA: rgb(0.8, 0.55, 0.15),
+  B: rgb(0.55, 0.35, 0.2),
+}
+
+/** Soma das capturas de todas as armadilhas, por espécie. */
+export function totalCapturas(armadilhas: PontoOs[]) {
+  const codigos = Object.keys(ESPECIES) as (keyof typeof ESPECIES)[]
+  return codigos.map((codigo) => ({
+    codigo,
+    n: armadilhas.reduce(
+      (soma, a) => soma + (Number(((a.capturas ?? {}) as Record<string, unknown>)[codigo]) || 0),
+      0,
+    ),
+  }))
+}
+
+/** Pizza e tabela do geral de insetos capturados nas armadilhas luminosas. */
+function pizzaInsetos(w: EscritorPdf, fonte: PDFFont, armadilhas: PontoOs[]) {
+  const fatias = totalCapturas(armadilhas).map(({ codigo, n }) => ({
+    rotulo: ESPECIES[codigo],
+    n,
+    cor: CORES_INSETOS[codigo],
+  }))
+  const total = fatias.reduce((soma, f) => soma + f.n, 0)
+  if (total === 0) {
+    w.campo('Capturas', `Nenhum inseto capturado nas ${armadilhas.length} armadilhas.`)
+    return
+  }
+  const comCaptura = armadilhas.filter((a) =>
+    Object.values((a.capturas ?? {}) as Record<string, number>).some((n) => n > 0),
+  ).length
+  desenharPizza(
+    w,
+    fonte,
+    'Insetos capturados — geral das armadilhas',
+    fatias,
+    `${comCaptura} de ${armadilhas.length} armadilhas com captura`,
+  )
 }
 
 export function escreverPragas(w: EscritorPdf, fonte: PDFFont, os: OsCompleta, dados: DadosPragas) {
@@ -148,7 +251,7 @@ export function escreverPragas(w: EscritorPdf, fonte: PDFFont, os: OsCompleta, d
   )
   w.campo('Porta-iscas', `${portaIscas.length} no total`)
   for (const linha of resumoPorArea(portaIscas)) w.campo(linha.area, linha.texto)
-  desenharPizza(w, fonte, portaIscas)
+  pizzaIscas(w, fonte, portaIscas)
   w.campo('Sem acesso', checklist.sem_acesso)
   w.campo('Quebrados', checklist.quebrados)
   w.campo('Comentários', checklist.comentarios_roedores)
@@ -193,6 +296,8 @@ export function escreverPragas(w: EscritorPdf, fonte: PDFFont, os: OsCompleta, d
       )
     }
     w.campo('Observação', 'Troca de lâmpada com custo à parte.')
+    w.secao('Capturas nas armadilhas luminosas')
+    pizzaInsetos(w, fonte, armadilhas)
   }
 
   if (escopo.subtipo === 'insetos_roedores') {

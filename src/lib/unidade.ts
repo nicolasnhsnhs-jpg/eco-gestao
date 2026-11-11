@@ -16,6 +16,11 @@ export const UNIDADES = {
     crm: true,
     /** Cópia automática dos PDFs no Google Drive (pasta SC). Veja docs/CONFIGURACAO-DRIVE.md. */
     drive: true,
+    /**
+     * Responsável técnica que assina no final do PDF da OS (a assinatura escaneada é a
+     * mesma do certificado, em Administrativo). Sem nome aqui, sai só a assinatura.
+     */
+    responsavelTecnico: null,
     /** Dados da empresa no rodapé de todas as páginas do PDF da OS. */
     rodape: [
       'Eco Ambiental Serviços Ambientais LTDA · CNPJ 69.636.469/0001-18',
@@ -92,6 +97,10 @@ export const UNIDADES = {
     crm: false,
     /** Cópia automática dos PDFs no Google Drive (pasta RS), além do servidor próprio. */
     drive: true,
+    responsavelTecnico: {
+      nome: 'Andréia S. H. Semensato',
+      registro: 'CRQ Nº 05407339 - 5ª Região',
+    },
     rodape: [
       'Eco-Ambiental Controle de Pragas e Higienização Ltda · CNPJ 07.125.516/0001-01',
       'Rua Santo Ângelo, 136 - Olímpica, Esteio/RS · Fone/Fax (51) 3458-4133 · atendimento@ecoambientalrs.com.br',

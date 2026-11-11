@@ -5,7 +5,7 @@
 --   - a OS recebe a cópia dos pontos do modelo, com MS (isca) e M (placa de cola);
 --   - o operador anota a situação, mas não muda o escopo nem vê o modelo;
 --   - códigos errados para o tipo de isca são recusados;
---   - concluir exige o nível de infestação e a situação das armadilhas;
+--   - concluir exige o nível de infestação, a situação e as capturas das armadilhas;
 --   - a próxima visita traz a data da última troca de lâmpada.
 -- Transação desfeita no final (rollback).
 --
@@ -134,6 +134,22 @@ update public.os_execucao set checklist = '{"nivel_infestacao": "B"}'
  where os_id = (select id from ids where nome = 'os1');
 update public.os_pontos set situacao_armadilha = 'LT', lampadas_trocadas = true, refil = 'T',
        higiene = 'S', capturas = '{"M": 3, "MQ": 2}'
+ where os_id = (select id from ids where nome = 'os1') and tipo = 'armadilha_luminosa';
+-- Faltam mariposa e besouro: ainda não conclui (0 também precisa ser anotado)
+do $$
+declare v_msg text;
+begin
+  begin
+    perform public.concluir_os((select id from ids where nome = 'os1'));
+    raise exception 'FALHOU: concluiu sem todas as capturas da armadilha';
+  exception when check_violation then
+    get stacked diagnostics v_msg = message_text;
+    if v_msg not like '%capturas das armadilhas 1%' then
+      raise exception 'FALHOU: mensagem sem as capturas pendentes: %', v_msg;
+    end if;
+  end;
+end $$;
+update public.os_pontos set capturas = '{"M": 3, "MQ": 2, "MA": 0, "B": 0}'
  where os_id = (select id from ids where nome = 'os1') and tipo = 'armadilha_luminosa';
 select public.concluir_os((select id from ids where nome = 'os1'));
 
