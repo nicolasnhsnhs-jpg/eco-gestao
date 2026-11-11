@@ -374,11 +374,24 @@ async function concluir(
   // Enviar.
   const cfgBoleto = await configuracaoBoleto(admin)
   const banco = bancoAoEmitir(cfgBoleto, nota)
+  // Marcado para sair com boleto, mas sem banco valendo para gerar: o e-mail espera, para a
+  // nota não chegar sozinha quando o financeiro mandou "nota e boleto".
+  const querBoleto =
+    nota.forma_pagamento === 'boleto' &&
+    nota.boleto_na_emissao &&
+    !nota.arquivo_boleto_id &&
+    !nota.boleto_cobranca_id
+  if (querBoleto && !banco) {
+    const motivo =
+      'O boleto não foi gerado: nenhum banco valendo para esta nota. Gere ou anexe o boleto na nota e clique em Enviar nota e boleto.'
+    await admin.from('notas_fiscais').update({ erro_envio: motivo }).eq('id', nota.id)
+    return { numero, chave, envio: { enviada: false as const, motivo } }
+  }
   if (banco) {
     try {
       await gerarBoletoDaNota(admin, nota.id, usuarioId, banco)
     } catch (e) {
-      const motivo = `O boleto não foi gerado (${(e as Error).message}). Gere ou anexe o boleto na nota e clique em Enviar.`
+      const motivo = `O boleto não foi gerado (${(e as Error).message}). Gere ou anexe o boleto na nota e clique em Enviar nota e boleto.`
       await admin.from('notas_fiscais').update({ erro_envio: motivo }).eq('id', nota.id)
       return { numero, chave, envio: { enviada: false as const, motivo } }
     }

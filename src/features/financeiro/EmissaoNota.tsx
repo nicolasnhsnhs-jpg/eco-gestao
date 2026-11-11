@@ -37,11 +37,19 @@ export function EmissaoNota({
   if (ambiente.data !== 'producao' && ambiente.data !== 'homologacao') return null
   if (modelo && ambiente.data !== 'homologacao') return null
 
+  // O boleto vai no mesmo e-mail: já anexado, ou marcado para ser gerado na emissão (se a
+  // geração falhar, o servidor segura o e-mail; a nota nunca segue sozinha).
+  const comBoleto =
+    !!nota.boleto ||
+    (nota.forma_pagamento === 'boleto' && !!nota.boleto_na_emissao && !nota.boleto_cobranca_id)
+
   async function confirmarEEmitir(enviar: boolean) {
     if (
       !window.confirm(
         enviar
-          ? 'Emitir esta nota agora? Ela vai para o Sistema Nacional NFS-e e o PDF segue ao cliente.'
+          ? comBoleto
+            ? 'Emitir esta nota agora? Ela vai para o Sistema Nacional NFS-e e a nota e o boleto seguem juntos ao cliente, no mesmo e-mail.'
+            : 'Emitir esta nota agora? Ela vai para o Sistema Nacional NFS-e e o PDF segue ao cliente.'
           : 'Emitir esta nota agora, sem mandar ao cliente? Depois anexe o boleto e clique em Enviar.',
       )
     )
@@ -92,9 +100,22 @@ export function EmissaoNota({
         </p>
       ) : (
         <p className="text-sm text-texto-suave">
-          Confira os dados acima. <strong>Emitir e enviar</strong>: o sistema emite a nota no
-          Sistema Nacional NFS-e, guarda o PDF e o XML e já manda ao e-mail do cliente.{' '}
-          <strong>Só emitir</strong>: emite e para aí; você anexa o boleto e clica em Enviar.
+          Confira os dados acima.{' '}
+          {comBoleto ? (
+            <>
+              <strong>Emitir e enviar nota e boleto</strong>: o sistema emite a nota no Sistema
+              Nacional NFS-e{nota.boleto ? '' : ', gera o boleto'} e manda os dois juntos, no mesmo
+              e-mail ao cliente. Se o boleto não sair, nada é enviado e fica o aviso de envio
+              pendente.{' '}
+            </>
+          ) : (
+            <>
+              <strong>Emitir e enviar</strong>: o sistema emite a nota no Sistema Nacional NFS-e,
+              guarda o PDF e o XML e já manda só a nota ao e-mail do cliente.{' '}
+            </>
+          )}
+          <strong>Só emitir</strong>: emite e para aí; você anexa o boleto e clica em Enviar nota e
+          boleto.
         </p>
       )}
       {!modelo && nota.erro_emissao && !mensagem && (
@@ -106,7 +127,11 @@ export function EmissaoNota({
           <>
             <Button disabled={ocupado} onClick={() => void confirmarEEmitir(true)}>
               <Send className="size-4" aria-hidden />
-              {emitir.isPending ? 'Emitindo…' : 'Emitir e enviar ao cliente'}
+              {emitir.isPending
+                ? 'Emitindo…'
+                : comBoleto
+                  ? 'Emitir e enviar nota e boleto'
+                  : 'Emitir e enviar só a nota'}
             </Button>
             <Button
               variante="secundario"

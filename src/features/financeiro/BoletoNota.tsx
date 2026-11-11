@@ -59,7 +59,7 @@ const pago = (situacao: string | null) => /^(LIQUIDADO|RECEIVED|CONFIRMED)/i.tes
 /**
  * Boleto da cobrança: gerado pelo sistema (um botão por banco da unidade: no RS, Asaas e
  * Sicredi; em SC, só Asaas) ou anexado à mão. Segue no mesmo e-mail que leva a nota ao
- * cliente, logo depois da emissão; gerado depois, "Enviar boleto" manda a nota e o boleto.
+ * cliente, logo depois da emissão; gerado depois, "Enviar nota e boleto" manda os dois.
  */
 export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
   const config = useConfigBoleto()
@@ -134,7 +134,7 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
 
   const aposGerar =
     nota.status === 'emitida' && nota.pdf
-      ? ' Clique em "Enviar boleto" para o cliente receber a nota e o boleto.'
+      ? ' Clique em "Enviar nota e boleto" para o cliente receber os dois.'
       : ''
 
   const semBoleto = !nota.boleto && !registrado
@@ -165,7 +165,7 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
   function marcarNaEmissao(gerar: boolean) {
     setNaEmissaoLocal(gerar)
     void acao(async () => {
-      await marcarEmissao.mutateAsync({ notaId: nota.id, gerar })
+      await marcarEmissao.mutateAsync({ notaId: nota.id, gerar, banco: escolhido })
       return null
     })
   }
@@ -178,7 +178,7 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
           ? nota.status === 'rascunho'
             ? 'O boleto vai junto com a nota no e-mail ao cliente, logo depois da emissão.'
             : nota.enviada_em
-              ? 'Boleto pronto. Para o cliente receber, clique em "Enviar boleto": vão a nota e o boleto.'
+              ? 'Boleto pronto. Para o cliente receber, clique em "Enviar nota e boleto": vão os dois no mesmo e-mail.'
               : 'O boleto vai junto com a nota no e-mail ao cliente.'
           : naEmissao
             ? `Na emissão, o sistema gera o boleto pelo ${NOME_BANCO[escolhido]} e manda junto com a nota. Dá para trocar o banco aqui.`
@@ -309,7 +309,7 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
         {podeEnviar && (
           <Button disabled={ocupado} onClick={enviarBoleto}>
             <Mail className="size-4" aria-hidden />
-            {enviar.isPending ? 'Enviando…' : 'Enviar boleto'}
+            {enviar.isPending ? 'Enviando…' : 'Enviar nota e boleto'}
           </Button>
         )}
 

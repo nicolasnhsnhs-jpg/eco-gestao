@@ -718,14 +718,29 @@ export function useEscolherBancoBoleto() {
   })
 }
 
-/** No rascunho: se a emissão já gera o boleto no banco (desmarcado = nota sai sem). */
+/**
+ * No rascunho: se a emissão já gera o boleto no banco (desmarcado = nota sai sem). Ao
+ * marcar, grava também o banco mostrado na tela: é por ele que o servidor gera o boleto.
+ */
 export function useBoletoNaEmissao() {
   const atualizar = useAtualizarNotas()
   return useMutation({
-    mutationFn: async ({ notaId, gerar }: { notaId: string; gerar: boolean }) => {
+    mutationFn: async ({
+      notaId,
+      gerar,
+      banco,
+    }: {
+      notaId: string
+      gerar: boolean
+      banco?: BancoBoleto | null
+    }) => {
       const { error } = await supabase
         .from('notas_fiscais')
-        .update({ boleto_na_emissao: gerar })
+        .update(
+          gerar && banco
+            ? { boleto_na_emissao: true, boleto_banco: banco }
+            : { boleto_na_emissao: gerar },
+        )
         .eq('id', notaId)
         .eq('status', 'rascunho')
       if (error) throw error
