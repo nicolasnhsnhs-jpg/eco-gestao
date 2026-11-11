@@ -267,6 +267,8 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
             {linhas.length === 0 && <div className="aq-vazio">Nenhum serviço na agenda ainda</div>}
             {linhasComGrupo.map(({ x, novoTurno }, i) => {
               const partes = partesDaDescricao(x.descricao)
+              // Horário do campo, ao lado do cliente (antes do período e da observação).
+              const foraDoTexto = horarioForaDoTexto(x.descricao, x.chegada)
               return (
                 <Fragment key={x.id}>
                   {novoTurno && <div className="aq-turno">{turnoDe(x.hora)}</div>}
@@ -303,6 +305,12 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
                                 <span className="aq-chip aq-avulso">Avulso</span>
                               </>
                             )}
+                            {i === 0 && foraDoTexto && (
+                              <>
+                                {' '}
+                                <HorarioBrilhando texto={foraDoTexto} />
+                              </>
+                            )}
                           </span>
                         </Fragment>
                       ))}
@@ -317,9 +325,6 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
                           {ICONE_NOTA}
                           {x.nota.trim()}
                         </span>
-                      )}
-                      {horarioForaDoTexto(x.descricao, x.chegada) && (
-                        <HorarioBrilhando texto={horarioForaDoTexto(x.descricao, x.chegada)} />
                       )}
                     </div>
                     <div className="aq-tecs">

@@ -136,7 +136,10 @@ export function resumoDoDia(itens: readonly AgendaItem[]) {
 }
 
 /** Horário escrito no texto: "às 6h", "14h", "9h30", "09:00". */
-const HORARIO = /(?<![\p{L}\d])(?:às\s+)?\d{1,2}(?:h(?:\d{2})?|:\d{2}h?)(?![\p{L}\d])/giu
+const HORARIO = /(?<![\p{L}\d])(?:[aàá]s\s+)?\d{1,2}(?:h(?:\d{2})?|:\d{2}h?)(?![\p{L}\d])/giu
+
+/** "às", "ás" ou "as" antes do horário (escrevem de vários jeitos). */
+const PREFIXO = /^[aàá]s\s+/i
 
 /** Separa o texto em pedaços, marcando os horários (que aparecem brilhando com estrela). */
 export function trechosComHorario(texto: string): { texto: string; horario: boolean }[] {
@@ -145,7 +148,7 @@ export function trechosComHorario(texto: string): { texto: string; horario: bool
   for (const m of texto.matchAll(HORARIO)) {
     const i = m.index ?? 0
     if (i > desde) saida.push({ texto: texto.slice(desde, i), horario: false })
-    saida.push({ texto: m[0], horario: true })
+    saida.push({ texto: m[0].replace(PREFIXO, 'às '), horario: true })
     desde = i + m[0].length
   }
   if (desde < texto.length) saida.push({ texto: texto.slice(desde), horario: false })
@@ -155,19 +158,16 @@ export function trechosComHorario(texto: string): { texto: string; horario: bool
 /** "9h" → "às 9h". */
 export function textoHorarioCliente(chegada: string): string {
   const h = chegada.trim()
-  return !h ? '' : /^às\s/i.test(h) ? h : `às ${h}`
+  return !h ? '' : `às ${h.replace(PREFIXO, '')}`
 }
 
-/** Horário do campo que ainda não está escrito no texto (vira selo no fim da linha). */
+/** Horário do campo que ainda não está escrito no texto (vira selo ao lado do cliente). */
 export function horarioForaDoTexto(descricao: string, chegada: string): string {
-  const h = chegada
-    .trim()
-    .replace(/^às\s+/i, '')
-    .toLowerCase()
+  const h = chegada.trim().replace(PREFIXO, '').toLowerCase()
   if (!h) return ''
   const noTexto = trechosComHorario(descricao)
     .filter((t) => t.horario)
-    .some((t) => t.texto.replace(/^às\s+/i, '').toLowerCase() === h)
+    .some((t) => t.texto.replace(PREFIXO, '').toLowerCase() === h)
   return noTexto ? '' : textoHorarioCliente(chegada)
 }
 

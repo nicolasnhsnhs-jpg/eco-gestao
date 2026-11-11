@@ -138,6 +138,8 @@ describe('quadro', () => {
     expect(textoHorarioCliente('')).toBe('')
     expect(textoHorarioCliente('9h')).toBe('às 9h')
     expect(textoHorarioCliente('às 12h')).toBe('às 12h')
+    expect(textoHorarioCliente('ás 14h')).toBe('às 14h')
+    expect(horarioForaDoTexto('Atlântica: LC ás 23h', 'às 23h')).toBe('')
     expect(horarioForaDoTexto('Vitlog: Rota e LC às 14h', '14h')).toBe('')
     expect(horarioForaDoTexto('Vitlog: Rota', '14h')).toBe('às 14h')
     expect(horarioForaDoTexto('Vitlog: Rota', '')).toBe('')
