@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { FileDown, Printer } from 'lucide-react'
+import { FileDown, Pencil, Printer } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 
@@ -28,6 +28,7 @@ import {
 } from './api'
 import { nomeVeiculo } from './nomeVeiculo'
 import { ConferenciaOs } from './ConferenciaOs'
+import { EditarOs } from './EditarOs'
 import { EscopoBebedouro } from './EscopoBebedouro'
 import { EscopoCoifa } from './EscopoCoifa'
 import { EscopoPragas } from './EscopoPragas'
@@ -52,6 +53,7 @@ export function OsPage() {
   const [erro, setErro] = useState<string | null>(null)
   const [gerandoPdf, setGerandoPdf] = useState(false)
   const [gerandoFicha, setGerandoFicha] = useState(false)
+  const [editando, setEditando] = useState(false)
   const queryClient = useQueryClient()
 
   if (os.isPending) return <Carregando />
@@ -62,13 +64,9 @@ export function OsPage() {
   const ficha = fichaDaOs(o.ficha_cliente)
   const e = o.execucao
   const escritorio = PAPEIS_ESCRITORIO_OS.includes(perfil.papel)
+  const antesDeComecar = o.status === 'rascunho' || o.status === 'agendada'
   const alvo: AlvoEscopo | null = o.modelo_id
-    ? {
-        modeloId: o.modelo_id,
-        escopo: o.escopo,
-        osId: o.id,
-        antesDeComecar: o.status === 'rascunho' || o.status === 'agendada',
-      }
+    ? { modeloId: o.modelo_id, escopo: o.escopo, osId: o.id, antesDeComecar }
     : null
 
   async function baixarPdf() {
@@ -158,7 +156,14 @@ export function OsPage() {
                 <Button variante="secundario">Preencher execução</Button>
               </Link>
             )}
-            {escritorio && (o.status === 'agendada' || o.status === 'rascunho') && (
+            {/* Antes de começar dá para trocar técnicos, data, veículo… (de última hora). */}
+            {escritorio && antesDeComecar && (
+              <Button variante="secundario" onClick={() => setEditando(true)}>
+                <Pencil className="size-5" aria-hidden />
+                Editar OS
+              </Button>
+            )}
+            {escritorio && antesDeComecar && (
               <Button
                 variante="fantasma"
                 onClick={() => {
@@ -184,6 +189,10 @@ export function OsPage() {
           </div>
         }
       />
+
+      {escritorio && antesDeComecar && (
+        <EditarOs os={o} aberto={editando} aoFechar={() => setEditando(false)} />
+      )}
 
       {erro && (
         <div className="mb-4">
