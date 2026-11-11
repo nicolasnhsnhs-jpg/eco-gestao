@@ -5643,7 +5643,7 @@ export type Database = {
         | 'boleto'
       forma_pagamento:
         'pix' | 'boleto' | 'transferencia' | 'cartao' | 'dinheiro' | 'debito_automatico' | 'outro'
-      formulario_os: 'generico' | 'pragas' | 'coifa' | 'bebedouro'
+      formulario_os: 'generico' | 'pragas' | 'coifa' | 'bebedouro' | 'telas'
       papel: 'admin' | 'financeiro' | 'vendedor' | 'recepcao' | 'operador' | 'administrativo'
       setor_atendimento: 'administrativo' | 'comercial' | 'financeiro' | 'operacional'
       status_comissao: 'prevista' | 'paga' | 'cancelada'
@@ -5810,7 +5810,7 @@ export const Constants = {
         'debito_automatico',
         'outro',
       ],
-      formulario_os: ['generico', 'pragas', 'coifa', 'bebedouro'],
+      formulario_os: ['generico', 'pragas', 'coifa', 'bebedouro', 'telas'],
       papel: ['admin', 'financeiro', 'vendedor', 'recepcao', 'operador', 'administrativo'],
       setor_atendimento: ['administrativo', 'comercial', 'financeiro', 'operacional'],
       status_comissao: ['prevista', 'paga', 'cancelada'],

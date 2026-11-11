@@ -269,6 +269,11 @@ export function OsPage() {
           <EscopoCoifa alvo={alvo} />
         </div>
       )}
+      {escritorio && alvo && o.tipo?.formulario_os === 'telas' && (
+        <div className="mt-4">
+          <EscopoCoifa alvo={alvo} entregaTelas />
+        </div>
+      )}
       {escritorio && alvo && o.tipo?.formulario_os === 'bebedouro' && (
         <div className="mt-4">
           <EscopoBebedouro alvo={alvo} />

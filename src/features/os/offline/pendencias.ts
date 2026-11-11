@@ -2,10 +2,11 @@ import type { CamposExecucao } from '../api'
 import type { ChecklistBebedouro } from '../tipos/bebedouro'
 import type { ChecklistCoifa } from '../tipos/coifa'
 import { ESPECIES, type ChecklistPragas } from '../tipos/pragas'
+import type { ChecklistTelas } from '../tipos/telas'
 
 /*
  * O que falta para concluir a OS — a MESMA regra de privado.pendencias_os no banco
- * (migration 20261212130000_os_armadilhas_assinatura_rt.sql). O celular usa esta cópia para concluir
+ * (migration 20261215130100_os_entrega_telas.sql). O celular usa esta cópia para concluir
  * sem internet; quando o sinal volta, o banco confere de novo e é quem garante.
  * Se mudar uma, mude a outra (os testes de pendencias.test.ts e de os*.sql ajudam).
  */
@@ -64,7 +65,7 @@ export function horariosForaDeOrdem(e: CamposExecucao): string | null {
 export type FotosDaOs = { exigidas: boolean; antes: number; depois: number }
 
 export function pendenciasLocais(
-  formulario: 'generico' | 'pragas' | 'coifa' | 'bebedouro' | string | undefined,
+  formulario: 'generico' | 'pragas' | 'coifa' | 'bebedouro' | 'telas' | string | undefined,
   e: CamposExecucao,
   pontos: Ponto[],
   fotos?: FotosDaOs,
@@ -144,6 +145,12 @@ export function pendenciasLocais(
     }
   }
 
+  if (formulario === 'telas') {
+    const c = (e.checklist ?? {}) as ChecklistTelas
+    if (typeof c.autorizado?.sim !== 'boolean') falta.push('liberação para instalação de telas')
+    if (typeof c.instaladas?.sim !== 'boolean') falta.push('conferência com o cliente')
+  }
+
   // Serviços de limpeza: pelo menos uma foto de antes e uma de depois.
   if (fotos?.exigidas) {
     if (fotos.antes === 0) falta.push('foto antes do serviço')
@@ -174,6 +181,9 @@ export function etapaDaPendencia(pendencia: string): string | null {
     pendencia === 'escoamento do piso'
   ) {
     return 'Liberação para trabalho'
+  }
+  if (pendencia === 'liberação para instalação de telas') {
+    return 'Liberação para instalação de telas'
   }
   if (pendencia.startsWith('sujidade de')) return 'Coifas'
   if (pendencia === 'quantidade de produto') return 'Produto utilizado'

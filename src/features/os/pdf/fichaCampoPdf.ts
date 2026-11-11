@@ -43,6 +43,7 @@ import {
   SITUACOES_PLACA,
   type EscopoPragas,
 } from '../tipos/pragas'
+import { PERGUNTA_INSTALADAS, PERGUNTA_LIBERACAO_TELAS, totalTelas } from '../tipos/telas'
 import { EMPRESA_RODAPE, quebrarLinhas, textoSeguro } from './gerarPdfOs'
 import { buscarDadosPragas } from './pragasPdf'
 
@@ -574,6 +575,35 @@ function escreverCoifa(f: Folha, os: OsCompleta, pontos: PontoOs[]) {
   for (const linha of INFORMACOES_TECNICAS) f.paragrafo(`• ${linha}`, 8)
 }
 
+function escreverTelas(f: Folha, pontos: PontoOs[]) {
+  const coifas = pontos.filter((p) => p.tipo === 'coifa').sort((a, b) => a.numero - b.numero)
+
+  f.secao('Liberação para instalação de telas')
+  f.simNao(PERGUNTA_LIBERACAO_TELAS.texto, PERGUNTA_LIBERACAO_TELAS.detalhe)
+
+  f.secao('Entrega de telas')
+  f.tabela(
+    [
+      { titulo: 'Qtd coifa', largura: 1 },
+      { titulo: 'Localização da coifa', largura: 5 },
+      { titulo: 'Qtde de telas', largura: 1.3 },
+    ],
+    [
+      ...coifas.map((c) => [
+        String(c.quantidade ?? 1).padStart(2, '0'),
+        c.area,
+        String(c.quantidade_telas ?? 0),
+      ]),
+      ...(coifas.length ? [['', 'Total', String(totalTelas(coifas))]] : []),
+    ],
+    coifas.length === 0 ? 3 : 0,
+  )
+
+  f.secao('Conferência com o cliente')
+  f.simNao(PERGUNTA_INSTALADAS.texto, PERGUNTA_INSTALADAS.detalhe)
+  f.escrita('Observações:', 4)
+}
+
 function escreverBebedouro(f: Folha, pontos: PontoOs[]) {
   f.secao('Trabalho a ser realizado')
   f.opcoes('Trabalho', Object.values(TRABALHO))
@@ -626,7 +656,11 @@ function escreverBebedouro(f: Folha, pontos: PontoOs[]) {
 /** Monta a OS física (em branco para o técnico) e devolve o PDF. */
 export async function gerarFichaCampo(os: OsCompleta) {
   const formulario = os.tipo?.formulario_os
-  const comPontos = formulario === 'pragas' || formulario === 'coifa' || formulario === 'bebedouro'
+  const comPontos =
+    formulario === 'pragas' ||
+    formulario === 'coifa' ||
+    formulario === 'bebedouro' ||
+    formulario === 'telas'
   const pontos = comPontos ? (await buscarDadosPragas(os.id)).pontos : []
 
   const ficha = fichaDaOs(os.ficha_cliente)
@@ -713,6 +747,7 @@ export async function gerarFichaCampo(os: OsCompleta) {
   if (formulario === 'pragas') escreverPragas(f, os, pontos)
   else if (formulario === 'coifa') escreverCoifa(f, os, pontos)
   else if (formulario === 'bebedouro') escreverBebedouro(f, pontos)
+  else if (formulario === 'telas') escreverTelas(f, pontos)
   else {
     f.secao('Serviço realizado')
     f.escrita('Resultado:', 6)

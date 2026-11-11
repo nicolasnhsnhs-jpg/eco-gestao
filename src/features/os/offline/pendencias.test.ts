@@ -126,6 +126,19 @@ describe('pendenciasLocais', () => {
     expect(etapaDaPendencia('limpeza de: Solda')).toBe('Bebedouros')
     expect(etapaDaPendencia('preventivo ou corretivo')).toBe('Trabalho a ser realizado')
   })
+
+  it('entrega de telas: liberação e conferência (sem nada da limpeza de coifa)', () => {
+    const coifas = [{ tipo: 'coifa', numero: 1, area: 'Coifa do fogão', sujidade: null }]
+    expect(pendenciasLocais('telas', comum, coifas)).toEqual([
+      'liberação para instalação de telas',
+      'conferência com o cliente',
+    ])
+    const checklist = { autorizado: { sim: true }, instaladas: { sim: false, texto: 'Em uso' } }
+    expect(pendenciasLocais('telas', { ...comum, checklist }, coifas)).toEqual([])
+    expect(etapaDaPendencia('liberação para instalação de telas')).toBe(
+      'Liberação para instalação de telas',
+    )
+  })
 })
 
 describe('horariosForaDeOrdem', () => {

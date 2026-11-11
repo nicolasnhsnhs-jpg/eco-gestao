@@ -12,6 +12,7 @@ import { enderecoDaFicha, fichaDaOs, type OsCompleta } from '../api'
 import { escreverBebedouro } from './bebedouroPdf'
 import { escreverCoifa } from './coifaPdf'
 import { buscarDadosPragas, escreverPragas, type DadosPragas } from './pragasPdf'
+import { escreverTelas } from './telasPdf'
 
 /*
  * PDF da OS para enviar ao cliente e arquivar. Feito no navegador com pdf-lib
@@ -361,6 +362,7 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
   if (pragas && os.tipo?.formulario_os === 'pragas') escreverPragas(w, normal, os, pragas)
   if (pragas && os.tipo?.formulario_os === 'coifa') escreverCoifa(w, os, pragas.pontos)
   if (pragas && os.tipo?.formulario_os === 'bebedouro') escreverBebedouro(w, os, pragas.pontos)
+  if (pragas && os.tipo?.formulario_os === 'telas') escreverTelas(w, os, pragas.pontos)
 
   /** Grade de fotos, 3 por linha; com legenda, cada uma leva "<legenda> 1, 2…" embaixo. */
   async function grade(titulo: string, lista: Arquivo[], legenda?: string) {
@@ -472,7 +474,8 @@ export async function gerarESalvarPdfOs(os: OsCompleta) {
   const pragas =
     os.tipo?.formulario_os === 'pragas' ||
     os.tipo?.formulario_os === 'coifa' ||
-    os.tipo?.formulario_os === 'bebedouro'
+    os.tipo?.formulario_os === 'bebedouro' ||
+    os.tipo?.formulario_os === 'telas'
       ? await buscarDadosPragas(os.id)
       : undefined
   const bytes = await gerarPdfOs(os, arquivos, pragas)

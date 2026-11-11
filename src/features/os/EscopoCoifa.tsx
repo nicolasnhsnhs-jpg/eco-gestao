@@ -14,8 +14,15 @@ import { MATERIAIS, PRODUTO_PADRAO, type EscopoCoifa as Escopo } from './tipos/c
 /**
  * Escopo da limpeza de coifa (escritório): as coifas do local e o produto padrão.
  * Como os porta-iscas, as coifas ficam no modelo e valem para as próximas visitas.
+ * Na entrega de telas é o mesmo cadastro, só com localização, quantidade e telas.
  */
-export function EscopoCoifa({ alvo }: { alvo: AlvoEscopo }) {
+export function EscopoCoifa({
+  alvo,
+  entregaTelas = false,
+}: {
+  alvo: AlvoEscopo
+  entregaTelas?: boolean
+}) {
   const { modeloId, antesDeComecar } = alvo
   const pontos = usePontosModelo(modeloId)
   const salvarPontos = useSalvarPontos(alvo.osId, antesDeComecar)
@@ -37,7 +44,7 @@ export function EscopoCoifa({ alvo }: { alvo: AlvoEscopo }) {
   return (
     <Card className="flex flex-col gap-4">
       <h2 className="font-titulo text-lg font-bold text-verde-escuro">
-        Escopo da limpeza de coifa
+        {entregaTelas ? 'Escopo da entrega de telas' : 'Escopo da limpeza de coifa'}
       </h2>
       {alvo.osId && !antesDeComecar && (
         <Aviso tipo="info">A execução já começou: mudanças valem a partir da próxima visita.</Aviso>
@@ -45,9 +52,13 @@ export function EscopoCoifa({ alvo }: { alvo: AlvoEscopo }) {
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       {sucesso && <Aviso tipo="sucesso">{sucesso}</Aviso>}
 
-      <Produto alvo={alvo} aoSalvar={executar} />
+      {!entregaTelas && <Produto alvo={alvo} aoSalvar={executar} />}
 
-      <section className="flex flex-col gap-2 border-t border-borda pt-3">
+      <section
+        className={
+          entregaTelas ? 'flex flex-col gap-2' : 'flex flex-col gap-2 border-t border-borda pt-3'
+        }
+      >
         <h3 className="font-semibold text-verde-escuro">Coifas ({coifas.length})</h3>
         {pontos.isPending && <Carregando />}
         <ul className="flex flex-col gap-1">
@@ -55,8 +66,8 @@ export function EscopoCoifa({ alvo }: { alvo: AlvoEscopo }) {
             <li key={c.id} className="flex items-center gap-2">
               <span className="flex-1">
                 {c.quantidade ?? 1}× <strong>{c.area}</strong> ·{' '}
-                {MATERIAIS[c.material as keyof typeof MATERIAIS]} · {c.quantidade_telas ?? 0}{' '}
-                tela(s)
+                {c.material && <>{MATERIAIS[c.material as keyof typeof MATERIAIS]} · </>}
+                {c.quantidade_telas ?? 0} tela(s)
               </span>
               <Button
                 variante="fantasma"
@@ -85,6 +96,7 @@ export function EscopoCoifa({ alvo }: { alvo: AlvoEscopo }) {
             ) + 1
           }
           ocupado={salvarPontos.isPending}
+          comMaterial={!entregaTelas}
           aoAdicionar={(nova) =>
             executar(
               () =>
@@ -138,14 +150,16 @@ function Produto({
 function NovaCoifa({
   proximoNumero,
   ocupado,
+  comMaterial,
   aoAdicionar,
 }: {
   proximoNumero: number
   ocupado: boolean
+  comMaterial: boolean
   aoAdicionar: (nova: {
     numero: number
     area: string
-    material: string
+    material: string | null
     quantidade: number
     quantidade_telas: number
   }) => Promise<void>
@@ -156,21 +170,33 @@ function NovaCoifa({
   const [telas, setTelas] = useState('0')
 
   return (
-    <div className="grid grid-cols-2 gap-2 rounded-xl bg-fundo-suave p-3 sm:grid-cols-[1fr_8rem_6rem_6rem_auto] sm:items-end">
+    <div
+      className={
+        comMaterial
+          ? 'grid grid-cols-2 gap-2 rounded-xl bg-fundo-suave p-3 sm:grid-cols-[1fr_8rem_6rem_6rem_auto] sm:items-end'
+          : 'grid grid-cols-2 gap-2 rounded-xl bg-fundo-suave p-3 sm:grid-cols-[1fr_6rem_6rem_auto] sm:items-end'
+      }
+    >
       <div className="col-span-2 sm:col-span-1">
         <Campo rotulo="Localização da coifa" htmlFor="coifa-area" dica='Ex.: "Coifa do fogão".'>
           <Input id="coifa-area" value={area} onChange={(e) => setArea(e.target.value)} />
         </Campo>
       </div>
-      <Campo rotulo="Material" htmlFor="coifa-material">
-        <Select id="coifa-material" value={material} onChange={(e) => setMaterial(e.target.value)}>
-          {Object.entries(MATERIAIS).map(([codigo, nome]) => (
-            <option key={codigo} value={codigo}>
-              {nome}
-            </option>
-          ))}
-        </Select>
-      </Campo>
+      {comMaterial && (
+        <Campo rotulo="Material" htmlFor="coifa-material">
+          <Select
+            id="coifa-material"
+            value={material}
+            onChange={(e) => setMaterial(e.target.value)}
+          >
+            {Object.entries(MATERIAIS).map(([codigo, nome]) => (
+              <option key={codigo} value={codigo}>
+                {nome}
+              </option>
+            ))}
+          </Select>
+        </Campo>
+      )}
       <Campo rotulo="Qtde" htmlFor="coifa-quantidade">
         <Input
           id="coifa-quantidade"
@@ -193,7 +219,7 @@ function NovaCoifa({
           void aoAdicionar({
             numero: proximoNumero,
             area: area.trim(),
-            material,
+            material: comMaterial ? material : null,
             quantidade: Math.max(1, Number(quantidade) || 1),
             quantidade_telas: Number(telas) || 0,
           }).then(() => setArea(''))
