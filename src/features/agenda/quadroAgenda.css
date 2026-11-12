@@ -635,6 +635,10 @@
   min-height: 0;
   overflow: hidden;
 }
+/* A mensagem é o último cartão: nunca encolhe (quem encolhe são as observações). */
+.aq-lateral > .aq-cartao:not(.aq-obs) {
+  flex-shrink: 0;
+}
 .aq-obs .aq-titulo {
   color: var(--verde);
 }
@@ -758,4 +762,122 @@
   background: rgba(255, 255, 255, 0.55);
   color: var(--escuro);
   border: 2px dashed var(--escuro);
+}
+
+/* -----------------------------------------------------------------------------
+   Coluna da direita apertada (data-aperto 1 a 4), quando a escala é grande e o
+   conteúdo não cabe na altura do quadro. Ver useApertoDaLateral.
+   ----------------------------------------------------------------------------- */
+.aq-lateral[data-aperto='1'],
+.aq-lateral[data-aperto='2'],
+.aq-lateral[data-aperto='3'],
+.aq-lateral[data-aperto='4'] {
+  gap: 14px;
+}
+/* Sem observações, o cartão vazio sai para dar lugar. */
+.aq-lateral[data-aperto][data-sem-obs='sim']:not([data-aperto='0']) .aq-obs {
+  display: none;
+}
+.aq-lateral:not([data-aperto='0']) .aq-veiculos p {
+  display: none;
+}
+.aq-lateral:not([data-aperto='0']) .aq-cartao {
+  padding: 18px 24px;
+}
+.aq-lateral:not([data-aperto='0']) .aq-titulo {
+  margin-bottom: 10px;
+}
+.aq-lateral:not([data-aperto='0']) .aq-turma + .aq-turma {
+  margin-top: 12px;
+  padding-top: 12px;
+}
+.aq-lateral:not([data-aperto='0']) .aq-placas {
+  gap: 8px;
+}
+
+.aq-lateral[data-aperto='2'] .aq-turma-hora,
+.aq-lateral[data-aperto='3'] .aq-turma-hora,
+.aq-lateral[data-aperto='4'] .aq-turma-hora {
+  font-size: 25px;
+}
+.aq-lateral[data-aperto='2'] .aq-turma .aq-tecs,
+.aq-lateral[data-aperto='3'] .aq-turma .aq-tecs,
+.aq-lateral[data-aperto='4'] .aq-turma .aq-tecs {
+  margin-top: 6px;
+}
+.aq-lateral[data-aperto='2'] .aq-escala .aq-tec {
+  width: 36px;
+  height: 36px;
+  font-size: 16px;
+}
+.aq-lateral[data-aperto='2'] .aq-mensagem b,
+.aq-lateral[data-aperto='3'] .aq-mensagem b,
+.aq-lateral[data-aperto='4'] .aq-mensagem b {
+  font-size: 28px;
+}
+.aq-lateral[data-aperto='2'] .aq-mensagem-icone,
+.aq-lateral[data-aperto='3'] .aq-mensagem-icone,
+.aq-lateral[data-aperto='4'] .aq-mensagem-icone {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+}
+.aq-lateral[data-aperto='2'] .aq-obs li,
+.aq-lateral[data-aperto='3'] .aq-obs li,
+.aq-lateral[data-aperto='4'] .aq-obs li {
+  font-size: 19px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
+.aq-lateral[data-aperto='3'],
+.aq-lateral[data-aperto='4'] {
+  gap: 10px;
+}
+.aq-lateral[data-aperto='3'] .aq-cartao,
+.aq-lateral[data-aperto='4'] .aq-cartao {
+  padding: 14px 20px;
+}
+.aq-lateral[data-aperto='3'] .aq-turma-hora,
+.aq-lateral[data-aperto='4'] .aq-turma-hora {
+  font-size: 22px;
+}
+.aq-lateral[data-aperto='3'] .aq-turma + .aq-turma,
+.aq-lateral[data-aperto='4'] .aq-turma + .aq-turma {
+  margin-top: 8px;
+  padding-top: 8px;
+}
+.aq-lateral[data-aperto='3'] .aq-escala .aq-tec,
+.aq-lateral[data-aperto='4'] .aq-escala .aq-tec {
+  width: 31px;
+  height: 31px;
+  font-size: 14px;
+}
+.aq-lateral[data-aperto='3'] .aq-ausencia-nome,
+.aq-lateral[data-aperto='4'] .aq-ausencia-nome {
+  font-size: 16px;
+}
+.aq-lateral[data-aperto='3'] .aq-ausencia-nome small,
+.aq-lateral[data-aperto='4'] .aq-ausencia-nome small {
+  font-size: 12px;
+}
+.aq-lateral[data-aperto='3'] .aq-mensagem b,
+.aq-lateral[data-aperto='4'] .aq-mensagem b {
+  font-size: 24px;
+}
+
+/* Último nível: o horário fica ao lado dos técnicos, na mesma linha. */
+.aq-lateral[data-aperto='4'] .aq-escala .aq-turma:not(.aq-ausentes) {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.aq-lateral[data-aperto='4'] .aq-escala .aq-turma-hora {
+  flex-shrink: 0;
+  width: 150px;
+  font-size: 20px;
+  line-height: 31px;
+}
+.aq-lateral[data-aperto='4'] .aq-escala .aq-turma .aq-tecs {
+  margin-top: 0;
 }

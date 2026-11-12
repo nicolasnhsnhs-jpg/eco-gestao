@@ -212,6 +212,16 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
     .map((o) => o.trim())
     .filter(Boolean)
 
+  const { ref: refLateral, aperto } = useApertoDaLateral([
+    dia.escalas,
+    dia.faltas,
+    dia.folgas,
+    dia.folgas_horas,
+    dia.observacoes,
+    dia.mensagem,
+    listaSemParar,
+  ])
+
   // Hora da última mudança (aparece no lugar do relógio na prévia e na imagem).
   const ultima = [dia.atualizado_em, ...itens.map((i) => i.atualizado_em)].sort().at(-1)
 
@@ -420,7 +430,12 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
           </div>
         </section>
 
-        <aside className="aq-lateral">
+        <aside
+          ref={refLateral}
+          className="aq-lateral"
+          data-aperto={aperto}
+          data-sem-obs={observacoes.length ? undefined : 'sim'}
+        >
           <div className="aq-cartao aq-escala">
             <div className="aq-titulo">Escala operacional</div>
             {escalas.map((e, i) => (
@@ -504,6 +519,33 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
       </main>
     </div>
   )
+}
+
+/** Até quantos níveis a coluna da direita aperta para tudo caber. */
+const APERTO_MAXIMO = 4
+
+/**
+ * A coluna da direita (escala, veículos, observações e mensagem) tem a altura do
+ * quadro. Com muitas escalas, falta e folga, ela não cabe e o último cartão (a
+ * mensagem) era cortado na imagem. Aqui ela é medida e, se passar do fim, aperta
+ * um nível de cada vez (data-aperto 1 a 4 no CSS) até caber.
+ */
+function useApertoDaLateral(conteudo: unknown[]) {
+  const ref = useRef<HTMLElement>(null)
+  const chave = JSON.stringify(conteudo)
+  // O nível vale para aquele conteúdo; conteúdo novo começa folgado de novo.
+  const [medido, setMedido] = useState({ chave, nivel: 0 })
+  const aperto = medido.chave === chave ? medido.nivel : 0
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el || aperto >= APERTO_MAXIMO) return
+    const passou = (x: Element) => x.scrollHeight > x.clientHeight + 1
+    const obs = el.querySelector('.aq-obs.aq-tem')
+    if (passou(el) || (obs && passou(obs))) setMedido({ chave, nivel: aperto + 1 })
+  }, [aperto, chave])
+
+  return { ref, aperto }
 }
 
 /**
