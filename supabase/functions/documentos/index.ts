@@ -23,7 +23,7 @@ import {
   type DadosEmailDocumentos,
 } from '../_shared/emailDocumentos.ts'
 import { emailDosDocumentos, enderecosEmail } from '../_shared/enviarNota.ts'
-import { clienteAdmin, CORS, resposta } from '../_shared/servidor.ts'
+import { clienteAdmin, CORS, nomeDaEmpresa, resposta } from '../_shared/servidor.ts'
 
 /** O Resend aceita até 40 MB por e-mail (já em base64); fica uma folga. */
 const LIMITE_BASE64 = 35 * 1024 * 1024
@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
 
   const dados: DadosEmailDocumentos = {
     site: (segredo('SITE_URL') || req.headers.get('origin') || '').replace(/\/+$/, ''),
-    empresa: de.split('<')[0].replace(/"/g, '').trim() || 'Eco Ambiental',
+    empresa: nomeDaEmpresa(),
     cliente: cliente?.nome_fantasia || cliente?.nome || '',
     certificado: cert.numero,
     servico: tipo?.nome || cert.titulo || 'Serviço',

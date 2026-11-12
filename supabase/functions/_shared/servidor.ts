@@ -53,3 +53,15 @@ export async function conferirFinanceiro(
   }
   return { usuarioId: quem.user.id }
 }
+
+/** Banco de cada unidade (o projeto do Supabase onde a função está rodando). */
+const UNIDADE_DO_PROJETO: Record<string, string> = {
+  pauwepzrvlpdhjqeafkr: 'Eco Ambiental RS',
+  qteahjezxiregnaomoqz: 'Eco Ambiental SC',
+}
+
+/** "Eco Ambiental RS" ou "Eco Ambiental SC", para o texto dos e-mails ao cliente. */
+export function nomeDaEmpresa(): string {
+  const projeto = /https:\/\/([a-z0-9]+)\./.exec(Deno.env.get('SUPABASE_URL') ?? '')?.[1] ?? ''
+  return UNIDADE_DO_PROJETO[projeto] ?? 'Eco Ambiental'
+}

@@ -15,6 +15,7 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { encodeBase64 } from 'jsr:@std/encoding@1/base64'
 
 import { assuntoNota, htmlNota, textoNota, type DadosEmailNota } from './emailNota.ts'
+import { nomeDaEmpresa } from './servidor.ts'
 
 const FORMAS: Record<string, string> = {
   pix: 'PIX',
@@ -172,7 +173,7 @@ export async function enviarNotaPorEmail(
 
   const dados: DadosEmailNota = {
     site: (Deno.env.get('SITE_URL') || origem || '').replace(/\/+$/, ''),
-    empresa: de.split('<')[0].replace(/"/g, '').trim() || 'Eco Ambiental',
+    empresa: nomeDaEmpresa(),
     cliente: nota.cliente?.nome_fantasia || nota.cliente?.nome || '',
     numero: nota.numero,
     competencia: nota.competencia,
