@@ -721,9 +721,11 @@ export function useRotas() {
         .from('os_rotas')
         .select('id, nome, observacoes, ativo, itens:os_rota_modelos(id)')
         .eq('ativo', true)
-        .order('nome')
       if (error) throw error
-      return data
+      // Ordem "natural": SUSEPE 2 antes de SUSEPE 10.
+      return [...data].sort((a, b) =>
+        a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true, sensitivity: 'base' }),
+      )
     },
   })
 }
