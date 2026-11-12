@@ -113,19 +113,21 @@ export function RotaPage() {
 
 function Rota({ rota }: { rota: RotaCompleta }) {
   const itens = rota.itens.filter((i) => i.modelo?.ativo)
-  const [marcados, setMarcados] = useState<Set<string>>(
-    () => new Set(itens.map((i) => i.modelo!.id)),
-  )
+  // Guarda só as desmarcadas: toda O.S da rota (inclusive as adicionadas agora) já vem marcada.
+  const [desmarcados, setDesmarcados] = useState<Set<string>>(() => new Set())
+  const marcados = new Set(itens.map((i) => i.modelo!.id).filter((id) => !desmarcados.has(id)))
+  const setMarcados = (novos: Set<string>) =>
+    setDesmarcados(new Set(itens.map((i) => i.modelo!.id).filter((id) => !novos.has(id))))
   const [obs, setObs] = useState<Record<string, string>>({})
   const tirar = useTirarDaRota()
   const trocar = useTrocarOrdemRota()
   const [erro, setErro] = useState<string | null>(null)
 
   const alternar = (modeloId: string, sim: boolean) =>
-    setMarcados((atual) => {
+    setDesmarcados((atual) => {
       const novo = new Set(atual)
-      if (sim) novo.add(modeloId)
-      else novo.delete(modeloId)
+      if (sim) novo.delete(modeloId)
+      else novo.add(modeloId)
       return novo
     })
 
