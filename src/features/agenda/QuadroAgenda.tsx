@@ -38,7 +38,7 @@ import {
 
 /*
  * O quadro da agenda (1920x1080), igual na prévia, na TV e na imagem do WhatsApp.
- *   modo "tela"   prévia enquanto preenche (as linhas são clicáveis)
+ *   modo "tela"   prévia enquanto preenche (as linhas são clicáveis; cresce como a imagem)
  *   modo "tv"     relógio ao vivo
  *   modo "imagem" sem R e F: é conferência interna do ADM, não vai para os operadores
  */
@@ -553,6 +553,7 @@ function useApertoDaLateral(conteudo: unknown[]) {
 /**
  * Encaixa o quadro de 1920x1080 no espaço disponível.
  * "largura": ocupa a largura (prévia); "tela": cabe inteiro (TV).
+ * Na prévia, se o quadro cresceu para baixo (muitos serviços), a caixa cresce junto.
  */
 export function QuadroAjustado({
   ajuste,
@@ -562,7 +563,9 @@ export function QuadroAjustado({
   children: (escala: number) => ReactNode
 }) {
   const caixa = useRef<HTMLDivElement>(null)
+  const dentro = useRef<HTMLDivElement>(null)
   const [escala, setEscala] = useState(0.5)
+  const [altura, setAltura] = useState(ALTURA_QUADRO)
 
   useLayoutEffect(() => {
     const el = caixa.current
@@ -577,16 +580,28 @@ export function QuadroAjustado({
     medir()
     const obs = new ResizeObserver(medir)
     obs.observe(el)
-    return () => obs.disconnect()
+    // A altura do quadro sem a escala (o transform não muda o tamanho medido).
+    const quadro = dentro.current
+    const medirQuadro = () => quadro && setAltura(Math.max(ALTURA_QUADRO, quadro.offsetHeight))
+    const obsQuadro = ajuste === 'largura' && quadro ? new ResizeObserver(medirQuadro) : null
+    if (quadro && obsQuadro) {
+      medirQuadro()
+      obsQuadro.observe(quadro)
+    }
+    return () => {
+      obs.disconnect()
+      obsQuadro?.disconnect()
+    }
   }, [ajuste])
 
   return (
     <div
       ref={caixa}
       className="relative w-full overflow-hidden"
-      style={ajuste === 'largura' ? { height: ALTURA_QUADRO * escala } : { height: '100%' }}
+      style={ajuste === 'largura' ? { height: altura * escala } : { height: '100%' }}
     >
       <div
+        ref={dentro}
         style={
           ajuste === 'tela'
             ? {
