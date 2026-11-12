@@ -7,7 +7,8 @@
 --   no quadro e na contagem do mês, quem está na falta ou na folga sai da escala.
 --
 -- Quem pode o quê:
---   admin e vendedor   montam a agenda (criam, alteram e apagam)
+--   admin              monta a agenda (cria, altera e apaga)
+--   vendedor           só olha
 --   ADM                só olha; marca o R (realizado)
 --   financeiro         só olha; marca o F (faturado)
 --   operador           só olha, de qualquer dia até 30 dias para a frente
@@ -18,13 +19,13 @@ alter table public.agenda_dias
   add column faltas int[] not null default '{}',
   add column folgas int[] not null default '{}';
 
--- Quem monta a agenda: sai o financeiro (agora só confere o F).
+-- Quem monta a agenda: só o administrador (o financeiro confere o F, o vendedor só olha).
 create or replace function privado.pode_editar_agenda()
 returns boolean
 language sql stable security definer
 set search_path = ''
 as $$
-  select coalesce(privado.meu_papel() in ('admin', 'vendedor'), false)
+  select coalesce(privado.meu_papel() = 'admin', false)
 $$;
 
 -- Quem vê a agenda de um dia: quem tem a aba e, agora, o operador (até 30 dias à frente).

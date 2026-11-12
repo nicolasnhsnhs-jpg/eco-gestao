@@ -44,10 +44,11 @@ export const PAPEIS_ESCRITORIO_OS: readonly Papel[] = [
 ]
 
 /**
- * Quem monta a Agenda do dia. Os outros só consultam (veem ao vivo): o ADM marca o R
- * (realizado), o financeiro marca o F (faturado) e o operador só olha.
+ * Quem monta a Agenda do dia: só o administrador. Os outros só consultam (veem ao
+ * vivo): o ADM marca o R (realizado), o financeiro marca o F (faturado), o vendedor
+ * e o operador só olham.
  */
-export const PAPEIS_EDITAR_AGENDA: readonly Papel[] = ['admin', 'vendedor']
+export const PAPEIS_EDITAR_AGENDA: readonly Papel[] = ['admin']
 export const PAPEIS_CONFERIR_REALIZADO: readonly Papel[] = ['admin', 'administrativo']
 export const PAPEIS_CONFERIR_FATURADO: readonly Papel[] = ['admin', 'financeiro']
 /** Quem vê a Agenda do dia (o operador, até 30 dias para a frente). */
