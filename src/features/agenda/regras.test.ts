@@ -126,6 +126,8 @@ describe('textoDaTaxa', () => {
       'Taxa de deslocamento: serviço não realizado',
     )
     expect(textoDaTaxa('Taxa noturna', '')).toBe('Taxa noturna')
+    expect(textoDaTaxa('Sábado', '')).toBe('Taxa de sábado')
+    expect(textoDaTaxa('Após o horário', 'saída às 19h')).toBe('Taxa após o horário: saída às 19h')
     expect(textoDaTaxa('', 'cliente ausente')).toBe('Taxa: cliente ausente')
     expect(textoDaTaxa(' ', '')).toBe('')
   })

@@ -59,18 +59,32 @@ export function parteDaLinha(parte: number | null, qtd: number): number | null {
 }
 
 /** Taxas que mais aparecem (sugestões do campo). */
-export const TAXAS_COMUNS = ['Deslocamento', 'Domingo', 'Noturno', 'Feriado', 'Urgência']
+export const TAXAS_COMUNS = [
+  'Deslocamento',
+  'Sábado',
+  'Domingo',
+  'Feriado',
+  'Noturno',
+  'Após o horário',
+  'Urgência',
+]
 
-/** "Deslocamento" + "não realizado" → "Taxa de deslocamento: não realizado" */
+/**
+ * "Deslocamento" + "não realizado" → "Taxa de deslocamento: não realizado"
+ * "Após o horário" → "Taxa após o horário"
+ */
 export function textoDaTaxa(taxa: string, motivo: string): string {
   const t = taxa.trim()
   const m = motivo.trim()
   if (!t && !m) return ''
+  const minusculo = `${t.charAt(0).toLowerCase()}${t.slice(1)}`
   const nome = !t
     ? 'Taxa'
     : /^taxa\b/i.test(t)
       ? t
-      : `Taxa de ${t.charAt(0).toLowerCase()}${t.slice(1)}`
+      : /^(ap[oó]s|fora|antes)\b/i.test(t)
+        ? `Taxa ${minusculo}`
+        : `Taxa de ${minusculo}`
   return m ? `${nome}: ${m}` : nome
 }
 
