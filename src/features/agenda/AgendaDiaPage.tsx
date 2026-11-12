@@ -34,6 +34,7 @@ import {
   PAPEIS_CONFERIR_FATURADO,
   PAPEIS_CONFERIR_REALIZADO,
   PAPEIS_EDITAR_AGENDA,
+  PAPEIS_IMAGEM_AGENDA,
 } from '@/lib/papeis'
 import { cn } from '@/lib/utils'
 
@@ -226,8 +227,8 @@ export function AgendaDiaPage() {
                     <Tv className="size-5" aria-hidden /> Abrir na TV
                   </Link>
                 )}
-                {/* Gerar a imagem (e mandar para o Drive) é só de quem monta a agenda. */}
-                {podeEditar && (
+                {/* Gerar a imagem (e guardar no Drive): o administrador e o ADM, que manda nos grupos. */}
+                {PAPEIS_IMAGEM_AGENDA.includes(perfil.papel) && (
                   <ExportarImagem
                     dia={agenda.data.dia}
                     itens={agenda.data.itens}

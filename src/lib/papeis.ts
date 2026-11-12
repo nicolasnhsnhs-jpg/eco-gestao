@@ -49,6 +49,8 @@ export const PAPEIS_ESCRITORIO_OS: readonly Papel[] = [
  * e o operador só olham.
  */
 export const PAPEIS_EDITAR_AGENDA: readonly Papel[] = ['admin']
+/** Quem gera a imagem da agenda (e a guarda no Drive): o ADM manda nos grupos dos operadores. */
+export const PAPEIS_IMAGEM_AGENDA: readonly Papel[] = ['admin', 'administrativo']
 export const PAPEIS_CONFERIR_REALIZADO: readonly Papel[] = ['admin', 'administrativo']
 export const PAPEIS_CONFERIR_FATURADO: readonly Papel[] = ['admin', 'financeiro']
 /** Quem vê a Agenda do dia (o operador, até 30 dias para a frente). */
