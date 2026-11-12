@@ -313,10 +313,10 @@ do $$ begin
 end $$;
 
 -- 7. Falta e folga: ficam no dia; o dia seguinte copia a escala e começa sem ninguém faltando.
-update public.agenda_dias set escalas = '[{"inicio":"07:30","fim":"17h","tecnicos":[5,7]}]', faltas = '{7}', folgas = '{9}'
+update public.agenda_dias set escalas = '[{"inicio":"07:30","fim":"17h","tecnicos":[5,7]}]', faltas = '{7}', folgas = '{9}', folgas_horas = '{3}'
  where data = '2099-04-06';
 do $$ begin
-  if (select faltas::text || folgas::text from public.agenda_dias where data = '2099-04-06') <> '{7}{9}' then
+  if (select faltas::text || folgas::text || folgas_horas::text from public.agenda_dias where data = '2099-04-06') <> '{7}{9}{3}' then
     raise exception 'falta e folga deveriam ficar gravadas no dia';
   end if;
 end $$;

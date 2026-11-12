@@ -19,6 +19,8 @@ import {
   lerEscalas,
   partesDaDescricao,
   ausentesDoDia,
+  AUSENCIAS,
+  NOME_CURTO_AUSENCIA,
   escalasDoDia,
   valorDaParte,
   parteDaLinha,
@@ -437,32 +439,23 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
                 </div>
               </div>
             ))}
-            {(ausentes.faltas.length > 0 || ausentes.folgas.length > 0) && (
+            {AUSENCIAS.some((t) => ausentes[t].length > 0) && (
               <div className="aq-turma aq-ausentes">
-                {ausentes.faltas.length > 0 && (
-                  <div className="aq-ausencia">
-                    <span className="aq-ausencia-nome">Falta</span>
+                {AUSENCIAS.filter((t) => ausentes[t].length > 0).map((t) => (
+                  <div className="aq-ausencia" key={t}>
+                    <span className="aq-ausencia-nome">{NOME_CURTO_AUSENCIA[t]}</span>
                     <div className="aq-tecs">
-                      {ausentes.faltas.map((n) => (
-                        <span key={n} className="aq-tec aq-falta">
+                      {ausentes[t].map((n) => (
+                        <span
+                          key={n}
+                          className={t === 'falta' ? 'aq-tec aq-falta' : 'aq-tec aq-folga'}
+                        >
                           {n}
                         </span>
                       ))}
                     </div>
                   </div>
-                )}
-                {ausentes.folgas.length > 0 && (
-                  <div className="aq-ausencia">
-                    <span className="aq-ausencia-nome">Folga</span>
-                    <div className="aq-tecs">
-                      {ausentes.folgas.map((n) => (
-                        <span key={n} className="aq-tec aq-folga">
-                          {n}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                ))}
               </div>
             )}
           </div>

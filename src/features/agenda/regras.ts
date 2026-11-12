@@ -276,39 +276,69 @@ export function compararVeiculos(a: string, b: string): number {
 // Falta e folga
 // -----------------------------------------------------------------------------
 
-export type Ausencia = 'falta' | 'folga'
+/**
+ * Por que o técnico não está na escala no dia:
+ *   falta         faltou
+ *   folga         folga porque trabalhará no domingo
+ *   folga_horas   folga descontada das horas em haver
+ */
+export type Ausencia = 'falta' | 'folga' | 'folga_horas'
 
-/** Quem faltou e quem está de folga no dia. */
-export function ausentesDoDia(dia: Pick<AgendaDia, 'faltas' | 'folgas'>) {
-  return { faltas: dia.faltas ?? [], folgas: dia.folgas ?? [] }
+export const AUSENCIAS: Ausencia[] = ['falta', 'folga', 'folga_horas']
+
+/** Coluna do dia onde cada tipo fica. */
+const COLUNA = { falta: 'faltas', folga: 'folgas', folga_horas: 'folgas_horas' } as const
+
+export const NOME_AUSENCIA: Record<Ausencia, string> = {
+  falta: 'Falta',
+  folga: 'Folga · trabalhará domingo',
+  folga_horas: 'Folga · descontar horas em haver',
+}
+
+/** Nome curto, no quadro. */
+export const NOME_CURTO_AUSENCIA: Record<Ausencia, string> = {
+  falta: 'Falta',
+  folga: 'Folga domingo',
+  folga_horas: 'Folga horas',
+}
+
+type DiaAusencias = Pick<AgendaDia, 'faltas' | 'folgas' | 'folgas_horas'>
+
+/** Quem faltou e quem está de folga (de cada tipo) no dia. */
+export function ausentesDoDia(dia: Partial<DiaAusencias>): Record<Ausencia, number[]> {
+  return {
+    falta: dia.faltas ?? [],
+    folga: dia.folgas ?? [],
+    folga_horas: dia.folgas_horas ?? [],
+  }
 }
 
 /**
  * A escala que vale no dia: sem quem está na falta ou na folga. (Eles continuam
  * gravados na escala para o dia seguinte começar com todo mundo.)
  */
-export function escalasDoDia(
-  escalas: readonly Escala[],
-  dia: Pick<AgendaDia, 'faltas' | 'folgas'>,
-): Escala[] {
-  const { faltas, folgas } = ausentesDoDia(dia)
-  const fora = new Set([...faltas, ...folgas])
+export function escalasDoDia(escalas: readonly Escala[], dia: Partial<DiaAusencias>): Escala[] {
+  const fora = new Set(Object.values(ausentesDoDia(dia)).flat())
   return escalas.map((e) => ({ ...e, tecnicos: e.tecnicos.filter((n) => !fora.has(n)) }))
 }
 
 /**
- * Põe os técnicos na falta ou na folga (e tira da outra lista, se estavam lá).
- * Devolve as duas listas novas.
+ * Põe os técnicos num tipo (falta ou uma das folgas) e tira das outras listas, se
+ * estavam lá. Devolve as três listas novas, prontas para gravar.
  */
 export function marcarAusencia(
-  dia: Pick<AgendaDia, 'faltas' | 'folgas'>,
+  dia: Partial<DiaAusencias>,
   tipo: Ausencia,
   tecnicos: readonly number[],
-): { faltas: number[]; folgas: number[] } {
-  const { faltas, folgas } = ausentesDoDia(dia)
+): DiaAusencias {
+  const atual = ausentesDoDia(dia)
   const novos = [...new Set(tecnicos)]
-  const outra = (tipo === 'falta' ? folgas : faltas).filter((n) => !novos.includes(n))
-  return tipo === 'falta' ? { faltas: novos, folgas: outra } : { faltas: outra, folgas: novos }
+  const lista = (t: Ausencia) => (t === tipo ? novos : atual[t].filter((n) => !novos.includes(n)))
+  return {
+    [COLUNA.falta]: lista('falta'),
+    [COLUNA.folga]: lista('folga'),
+    [COLUNA.folga_horas]: lista('folga_horas'),
+  } as DiaAusencias
 }
 
 export type Presenca = {
@@ -316,12 +346,14 @@ export type Presenca = {
   nome: string
   presencas: number
   faltas: number
+  /** Folgas porque trabalhará no domingo. */
   folgas: number
+  /** Folgas descontadas das horas em haver. */
+  folgasHoras: number
   /** Dias da agenda em que o técnico não estava em escala, falta nem folga. */
   semRegistro: number
   /** Datas de cada falta e folga, para conferir. */
-  diasFalta: string[]
-  diasFolga: string[]
+  dias: Record<Ausencia, string[]>
 }
 
 /**
@@ -329,7 +361,7 @@ export type Presenca = {
  * presença = estava numa escala (e não faltou nem folgou).
  */
 export function presencaDoMes(
-  dias: readonly Pick<AgendaDia, 'data' | 'escalas' | 'faltas' | 'folgas'>[],
+  dias: readonly (Pick<AgendaDia, 'data' | 'escalas'> & Partial<DiaAusencias>)[],
   tecnicos: readonly Pick<Tecnico, 'numero' | 'nome' | 'ativo'>[],
 ): Presenca[] {
   const por = new Map<number, Presenca>()
@@ -343,9 +375,9 @@ export function presencaDoMes(
         presencas: 0,
         faltas: 0,
         folgas: 0,
+        folgasHoras: 0,
         semRegistro: 0,
-        diasFalta: [],
-        diasFolga: [],
+        dias: { falta: [], folga: [], folga_horas: [] },
       }
       por.set(n, p)
     }
@@ -355,21 +387,19 @@ export function presencaDoMes(
 
   const ordenados = [...dias].sort((a, b) => a.data.localeCompare(b.data))
   for (const d of ordenados) {
-    const { faltas, folgas } = ausentesDoDia(d)
+    const ausentes = ausentesDoDia(d)
     const naEscala = new Set(lerEscalas(d.escalas).flatMap((e) => e.tecnicos))
     const vistos = new Set<number>()
-    for (const n of faltas) {
-      const p = linha(n)
-      p.faltas++
-      p.diasFalta.push(d.data)
-      vistos.add(n)
-    }
-    for (const n of folgas) {
-      if (vistos.has(n)) continue
-      const p = linha(n)
-      p.folgas++
-      p.diasFolga.push(d.data)
-      vistos.add(n)
+    for (const tipo of AUSENCIAS) {
+      for (const n of ausentes[tipo]) {
+        if (vistos.has(n)) continue
+        const p = linha(n)
+        if (tipo === 'falta') p.faltas++
+        else if (tipo === 'folga') p.folgas++
+        else p.folgasHoras++
+        p.dias[tipo].push(d.data)
+        vistos.add(n)
+      }
     }
     for (const n of naEscala) {
       if (vistos.has(n)) continue

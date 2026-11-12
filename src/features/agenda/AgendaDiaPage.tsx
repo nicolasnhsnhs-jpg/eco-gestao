@@ -78,7 +78,8 @@ import {
   comValorNaParte,
   ausentesDoDia,
   marcarAusencia,
-  type Ausencia,
+  AUSENCIAS,
+  NOME_AUSENCIA,
   TAXAS_COMUNS,
   escreverTecnicos,
   lerEscalas,
@@ -1404,28 +1405,28 @@ function DadosDoDia({ dia, tecnicos }: { dia: AgendaDia; tecnicos: Tecnico[] }) 
 
         {/* Falta e folga do dia: saem da escala no quadro (o dia seguinte volta com todos). */}
         <div className="flex flex-col gap-2 rounded-xl border border-borda bg-fundo-suave p-3">
-          {(['falta', 'folga'] as Ausencia[]).map((tipo) => {
-            const lista = tipo === 'falta' ? ausentes.faltas : ausentes.folgas
+          {AUSENCIAS.map((tipo) => {
+            const lista = ausentes[tipo]
             return (
-              <div key={tipo} className="grid grid-cols-[4.5rem_1fr] items-center gap-2">
+              <div key={tipo} className="flex flex-col gap-1">
                 <span
                   className={cn(
                     'text-sm font-bold',
                     tipo === 'falta' ? 'text-perigo' : 'text-texto-suave',
                   )}
                 >
-                  {tipo === 'falta' ? 'Falta' : 'Folga'}
+                  {NOME_AUSENCIA[tipo]}
                 </span>
                 <CampoAuto
-                  aria-label={tipo === 'falta' ? 'Técnicos que faltaram' : 'Técnicos de folga'}
-                  placeholder={tipo === 'falta' ? 'Quem faltou: 7, 12' : 'Quem está de folga: 3, 9'}
+                  aria-label={NOME_AUSENCIA[tipo]}
+                  placeholder={tipo === 'falta' ? 'Quem faltou: 7, 12' : 'Técnicos de folga: 3, 9'}
                   valor={escreverTecnicos(lista)}
                   onSalvar={(v) =>
                     salvar.salvarAtual((atual) => marcarAusencia(atual, tipo, lerTecnicos(v)))
                   }
                 />
                 {lista.length > 0 && (
-                  <p className="col-start-2 text-sm text-texto-suave">
+                  <p className="text-sm text-texto-suave">
                     {lista.map((n) => `${n} ${nomeDe.get(n) ?? ''}`.trim()).join(', ')}
                   </p>
                 )}
@@ -1443,8 +1444,7 @@ function DadosDoDia({ dia, tecnicos }: { dia: AgendaDia; tecnicos: Tecnico[] }) 
         {(() => {
           const naEscala = new Set([
             ...escalas.flatMap((e) => e.tecnicos),
-            ...ausentes.faltas,
-            ...ausentes.folgas,
+            ...Object.values(ausentes).flat(),
           ])
           const fora = ativos.filter((t) => !naEscala.has(t.numero))
           return fora.length > 0 ? (

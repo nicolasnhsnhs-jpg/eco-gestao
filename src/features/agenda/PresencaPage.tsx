@@ -10,10 +10,11 @@ import { mensagemDeErro } from '@/lib/erros'
 import { cn } from '@/lib/utils'
 
 import { useCadastroAgenda, useDiasDoMes } from './api'
-import { presencaDoMes } from './regras'
+import { AUSENCIAS, NOME_AUSENCIA, presencaDoMes } from './regras'
 
 /*
- * Presença do mês: quantos dias cada técnico esteve na escala, faltou ou folgou,
+ * Presença do mês: quantos dias cada técnico esteve na escala, faltou ou folgou
+ * (folga porque trabalhará domingo ou descontada das horas em haver),
  * pelas agendas do dia. O mês atual vai se atualizando conforme a agenda muda.
  */
 
@@ -45,7 +46,8 @@ export function PresencaPage() {
 
   const linhas = dias.data && cadastro.data ? presencaDoMes(dias.data, cadastro.data.tecnicos) : []
   const totalDias = dias.data?.length ?? 0
-  const soma = (k: 'presencas' | 'faltas' | 'folgas') => linhas.reduce((t, l) => t + l[k], 0)
+  const soma = (k: 'presencas' | 'faltas' | 'folgas' | 'folgasHoras') =>
+    linhas.reduce((t, l) => t + l[k], 0)
 
   return (
     <div className="flex flex-col gap-4">
@@ -87,11 +89,12 @@ export function PresencaPage() {
 
       {dias.data && cadastro.data && (
         <>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
             <Resumo rotulo="Dias com agenda" valor={totalDias} />
             <Resumo rotulo="Presenças" valor={soma('presencas')} cor="verde" />
             <Resumo rotulo="Faltas" valor={soma('faltas')} cor="vermelho" />
-            <Resumo rotulo="Folgas" valor={soma('folgas')} />
+            <Resumo rotulo="Folgas · trabalhará domingo" valor={soma('folgas')} />
+            <Resumo rotulo="Folgas · horas em haver" valor={soma('folgasHoras')} />
           </div>
 
           <Card className="overflow-x-auto p-0">
@@ -104,13 +107,24 @@ export function PresencaPage() {
             {totalDias === 0 ? (
               <p className="p-4 text-sm text-texto-suave">Nenhuma agenda do dia neste mês.</p>
             ) : (
-              <table className="w-full min-w-[34rem] text-sm">
+              <table className="w-full min-w-[40rem] text-sm">
                 <thead>
                   <tr className="text-left text-xs tracking-wide text-texto-suave uppercase">
                     <th className="px-4 py-2">Técnico</th>
                     <th className="px-2 py-2 text-center">Presenças</th>
                     <th className="px-2 py-2 text-center">Faltas</th>
-                    <th className="px-2 py-2 text-center">Folgas</th>
+                    <th
+                      className="px-2 py-2 text-center"
+                      title="Folga porque trabalhará no domingo"
+                    >
+                      Folgas domingo
+                    </th>
+                    <th
+                      className="px-2 py-2 text-center"
+                      title="Folga descontada das horas em haver"
+                    >
+                      Folgas horas
+                    </th>
                     <th
                       className="px-2 py-2 text-center"
                       title="Dias com agenda em que o técnico não estava em escala, falta nem folga"
@@ -121,7 +135,7 @@ export function PresencaPage() {
                 </thead>
                 <tbody>
                   {linhas.map((l) => {
-                    const temDias = l.diasFalta.length + l.diasFolga.length > 0
+                    const temDias = AUSENCIAS.some((t) => l.dias[t].length > 0)
                     const mostrar = aberto === l.numero
                     return (
                       <tr key={l.numero} className="border-t border-borda align-top">
@@ -143,22 +157,21 @@ export function PresencaPage() {
                           </button>
                           {mostrar && (
                             <div className="mt-1 flex flex-col gap-0.5 text-xs">
-                              {l.diasFalta.length > 0 && (
-                                <span className="text-perigo">
-                                  Faltas: {l.diasFalta.map(diaCurto).join(', ')}
+                              {AUSENCIAS.filter((t) => l.dias[t].length > 0).map((t) => (
+                                <span
+                                  key={t}
+                                  className={t === 'falta' ? 'text-perigo' : 'text-texto-suave'}
+                                >
+                                  {NOME_AUSENCIA[t]}: {l.dias[t].map(diaCurto).join(', ')}
                                 </span>
-                              )}
-                              {l.diasFolga.length > 0 && (
-                                <span className="text-texto-suave">
-                                  Folgas: {l.diasFolga.map(diaCurto).join(', ')}
-                                </span>
-                              )}
+                              ))}
                             </div>
                           )}
                         </td>
                         <Numero valor={l.presencas} cor="verde" />
                         <Numero valor={l.faltas} cor="vermelho" />
                         <Numero valor={l.folgas} />
+                        <Numero valor={l.folgasHoras} />
                         <Numero valor={l.semRegistro} apagado />
                       </tr>
                     )

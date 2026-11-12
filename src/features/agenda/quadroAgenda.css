@@ -731,6 +731,8 @@
 }
 .aq-ausencia-nome {
   min-width: 62px;
+  max-width: 96px;
+  line-height: 1.05;
   font-size: 19px;
   font-weight: 800;
   color: var(--noite);

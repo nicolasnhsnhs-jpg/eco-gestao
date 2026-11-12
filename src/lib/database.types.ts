@@ -18,6 +18,7 @@ export type Database = {
           escalas: Json
           faltas: number[]
           folgas: number[]
+          folgas_horas: number[]
           mensagem: string
           observacoes: string
         }
@@ -30,6 +31,7 @@ export type Database = {
           escalas?: Json
           faltas?: number[]
           folgas?: number[]
+          folgas_horas?: number[]
           mensagem?: string
           observacoes?: string
         }
@@ -42,6 +44,7 @@ export type Database = {
           escalas?: Json
           faltas?: number[]
           folgas?: number[]
+          folgas_horas?: number[]
           mensagem?: string
           observacoes?: string
         }
