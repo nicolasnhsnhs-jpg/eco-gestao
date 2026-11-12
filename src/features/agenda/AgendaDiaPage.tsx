@@ -844,22 +844,6 @@ function Linhas({
                   onSalvar={(v) => salvarCampo({ periodo: v })}
                   className="min-h-9 w-52 text-sm"
                 />
-                <span className="inline-flex min-w-48 flex-1 items-center gap-1">
-                  <CampoAuto
-                    aria-label="Observação da linha"
-                    placeholder="Observação em vermelho (ex.: Luciano irá junto)"
-                    valor={item.nota}
-                    onSalvar={(v) => salvarCampo({ nota: v })}
-                    className="min-h-9 min-w-0 flex-1 text-sm"
-                  />
-                  <EscolherCliente
-                    rotulo="De qual cliente é a observação"
-                    clientes={clientes}
-                    valor={item.nota_parte}
-                    linhaToda
-                    onMudar={(nota_parte) => salvarCampo({ nota_parte })}
-                  />
-                </span>
                 <AvulsoPorCliente
                   descricao={item.descricao}
                   marcados={item.avulso_partes}
@@ -889,6 +873,26 @@ function Linhas({
                   clientes={clientes}
                   onSalvar={(patch) => salvarCampo(patch)}
                 />
+              </div>
+
+              {/* Observação numa linha só dela, larga, para ler tudo o que foi escrito. */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="flex min-w-64 flex-1 items-center gap-1">
+                  <CampoAuto
+                    aria-label="Observação da linha"
+                    placeholder="Observação em vermelho (ex.: Luciano irá junto)"
+                    valor={item.nota}
+                    onSalvar={(v) => salvarCampo({ nota: v })}
+                    className="min-h-9 min-w-0 flex-1 text-sm"
+                  />
+                  <EscolherCliente
+                    rotulo="De qual cliente é a observação"
+                    clientes={clientes}
+                    valor={item.nota_parte}
+                    linhaToda
+                    onMudar={(nota_parte) => salvarCampo({ nota_parte })}
+                  />
+                </span>
 
                 <div className="ml-auto flex items-center gap-1">
                   <button
