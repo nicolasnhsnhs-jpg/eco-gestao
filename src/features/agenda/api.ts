@@ -48,7 +48,11 @@ export function useCadastroAgenda() {
       ])
       if (tecnicos.error) throw tecnicos.error
       if (veiculos.error) throw veiculos.error
-      return { tecnicos: tecnicos.data, veiculos: veiculos.data }
+      // Veículos em ordem alfabética, com o número na ordem certa (G6 antes de G16).
+      const porCodigo = [...veiculos.data].sort((a, b) =>
+        a.codigo.localeCompare(b.codigo, 'pt-BR', { numeric: true }),
+      )
+      return { tecnicos: tecnicos.data, veiculos: porCodigo }
     },
     staleTime: 5 * 60_000,
   })
@@ -224,7 +228,7 @@ export function useCopiarItens(data: string) {
       const { data: origem, error: e1 } = await supabase
         .from('agenda_itens')
         .select(
-          'ordem, hora, descricao, periodo, nota, avulso_partes, horario_cliente, chegada, tecnicos, veiculo, almoco',
+          'ordem, hora, descricao, periodo, nota, nota_parte, avulso_partes, horario_cliente, chegada, chegada_parte, tecnicos, veiculo, almoco',
         )
         .eq('data', deData)
       if (e1) throw e1

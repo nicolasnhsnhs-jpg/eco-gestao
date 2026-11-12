@@ -6,7 +6,8 @@
 --  3. Operador e recepção não veem nem mexem.
 --  4. Apagar o dia leva as linhas junto.
 --  5. Cadastro de técnicos e veículos: administrador cadastra; ADM e vendedor só veem.
---  6. Viagem de vários dias: a linha aparece nos dias seguintes e acompanha as mudanças.
+--  6. Viagem de vários dias: a linha aparece nos dias seguintes e acompanha as mudanças
+--     (menos a taxa, que é de cada dia).
 --
 -- Rodar:  npm run test:db   (transação desfeita no final)
 -- =============================================================================
@@ -200,6 +201,16 @@ do $$ begin
   if (select veiculo || '|' || nota from public.agenda_itens
        where data = '2099-03-03' and descricao = 'SUSEPE 14: Rota') <> 'ON11|Levar EPI' then
     raise exception 'só o campo que mudou deveria ir para os outros dias';
+  end if;
+end $$;
+
+-- A observação e o horário dizem de qual cliente são e vão junto; a taxa é só daquele dia.
+update public.agenda_itens set nota_parte = 1, chegada_parte = 1, taxa = 'Domingo', taxa_parte = 0
+ where id = '00000000-0000-0000-0000-0000000a9201';
+do $$ begin
+  if (select nota_parte || '|' || chegada_parte || '|' || taxa from public.agenda_itens
+       where data = '2099-03-03' and descricao = 'SUSEPE 14: Rota') <> '1|1|' then
+    raise exception 'o cliente da observação e do horário vão junto, a taxa não';
   end if;
 end $$;
 

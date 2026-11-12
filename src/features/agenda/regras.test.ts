@@ -8,6 +8,8 @@ import {
   lerTecnicos,
   ordenarItens,
   partesDaDescricao,
+  parteDaLinha,
+  textoDaTaxa,
   alternarAvulso,
   coresDasEscalas,
   almocoPadrao,
@@ -33,6 +35,11 @@ function item(p: Partial<AgendaItem>): AgendaItem {
     descricao: 'Cliente: Rota',
     periodo: '',
     nota: '',
+    nota_parte: null,
+    chegada_parte: 0,
+    taxa: '',
+    taxa_motivo: '',
+    taxa_parte: null,
     avulso: false,
     avulso_partes: [],
     viagem: null,
@@ -86,6 +93,34 @@ describe('partesDaDescricao', () => {
   })
   it('sem ":" fica tudo como empresa', () => {
     expect(partesDaDescricao('Reunião interna')).toEqual([['Reunião interna', '']])
+  })
+  it('sem ":", cada barra é um cliente (menos a de data)', () => {
+    expect(partesDaDescricao('GHC / IBIS/Unimed')).toEqual([
+      ['GHC', ''],
+      ['IBIS', ''],
+      ['Unimed', ''],
+    ])
+    expect(partesDaDescricao('Reunião 09/11')).toEqual([['Reunião 09/11', '']])
+  })
+})
+
+describe('parteDaLinha', () => {
+  it('só vale um cliente que existe numa linha com vários', () => {
+    expect(parteDaLinha(1, 3)).toBe(1)
+    expect(parteDaLinha(0, 1)).toBeNull()
+    expect(parteDaLinha(3, 3)).toBeNull()
+    expect(parteDaLinha(null, 3)).toBeNull()
+  })
+})
+
+describe('textoDaTaxa', () => {
+  it('monta o nome e o motivo', () => {
+    expect(textoDaTaxa('Deslocamento', 'serviço não realizado')).toBe(
+      'Taxa de deslocamento: serviço não realizado',
+    )
+    expect(textoDaTaxa('Taxa noturna', '')).toBe('Taxa noturna')
+    expect(textoDaTaxa('', 'cliente ausente')).toBe('Taxa: cliente ausente')
+    expect(textoDaTaxa(' ', '')).toBe('')
   })
 })
 

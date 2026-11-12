@@ -312,6 +312,11 @@
   background: var(--vermelho-claro);
   color: var(--vermelho);
 }
+.aq-chip.aq-taxa {
+  background: #fff3c4;
+  color: #7a4b00;
+  box-shadow: inset 0 0 0 1.5px #f0c24a;
+}
 .aq-chip.aq-avulso {
   background: linear-gradient(150deg, #d9ff3a, #a6e22a 60%, #8fd11f);
   color: var(--noite);

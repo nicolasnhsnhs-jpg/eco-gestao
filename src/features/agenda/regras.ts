@@ -35,16 +35,43 @@ export const NOME_ALMOCO: Record<Almoco, string> = {
  * "SUSEPE 14 e 20: Rota / Santa Maria" → [["SUSEPE 14 e 20", "Rota / Santa Maria"]]
  * "GHC: LR / IBIS Aeroporto: CI aptos" → [["GHC", "LR"], ["IBIS Aeroporto", "CI aptos"]]
  * Só separa no " / " quando o pedaço seguinte também tem "Empresa:".
+ * Sem nenhum ":", cada barra separa um cliente: "GHC / IBIS / Unimed" → 3 clientes
+ * (menos a barra de data, como em 09/11).
  */
 export function partesDaDescricao(descricao: string): [string, string][] {
+  const separador = descricao.includes(':') ? /\s+\/\s+(?=[^/]*:)/ : /\s*(?<!\d)\/(?!\d)\s*/
   return descricao
-    .split(/\s+\/\s+(?=[^/]*:)/)
+    .split(separador)
     .map((p) => p.trim())
     .filter(Boolean)
     .map((p) => {
       const i = p.indexOf(':')
       return i < 0 ? [p, ''] : [p.slice(0, i).trim(), p.slice(i + 1).trim()]
     })
+}
+
+/**
+ * De qual cliente da linha é a observação, o horário ou a taxa. Com um cliente só,
+ * ou se o escolhido saiu do texto, vale para a linha toda (null).
+ */
+export function parteDaLinha(parte: number | null, qtd: number): number | null {
+  return parte !== null && qtd > 1 && parte >= 0 && parte < qtd ? parte : null
+}
+
+/** Taxas que mais aparecem (sugestões do campo). */
+export const TAXAS_COMUNS = ['Deslocamento', 'Domingo', 'Noturno', 'Feriado', 'Urgência']
+
+/** "Deslocamento" + "não realizado" → "Taxa de deslocamento: não realizado" */
+export function textoDaTaxa(taxa: string, motivo: string): string {
+  const t = taxa.trim()
+  const m = motivo.trim()
+  if (!t && !m) return ''
+  const nome = !t
+    ? 'Taxa'
+    : /^taxa\b/i.test(t)
+      ? t
+      : `Taxa de ${t.charAt(0).toLowerCase()}${t.slice(1)}`
+  return m ? `${nome}: ${m}` : nome
 }
 
 /** Liga ou desliga o avulso do cliente na posição i da linha. */

@@ -64,6 +64,7 @@ export type Database = {
           avulso: boolean
           avulso_partes: number[]
           chegada: string
+          chegada_parte: number
           criado_em: string
           criado_por: string | null
           data: string
@@ -73,10 +74,14 @@ export type Database = {
           horario_cliente: boolean
           id: string
           nota: string
+          nota_parte: number | null
           ordem: number
           periodo: string
           realizado: boolean
           tecnicos: number[]
+          taxa: string
+          taxa_motivo: string
+          taxa_parte: number | null
           veiculo: string
           viagem: string | null
         }
@@ -87,6 +92,7 @@ export type Database = {
           avulso?: boolean
           avulso_partes?: number[]
           chegada?: string
+          chegada_parte?: number
           criado_em?: string
           criado_por?: string | null
           data: string
@@ -96,10 +102,14 @@ export type Database = {
           horario_cliente?: boolean
           id?: string
           nota?: string
+          nota_parte?: number | null
           ordem?: number
           periodo?: string
           realizado?: boolean
           tecnicos?: number[]
+          taxa?: string
+          taxa_motivo?: string
+          taxa_parte?: number | null
           veiculo?: string
           viagem?: string | null
         }
@@ -110,6 +120,7 @@ export type Database = {
           avulso?: boolean
           avulso_partes?: number[]
           chegada?: string
+          chegada_parte?: number
           criado_em?: string
           criado_por?: string | null
           data?: string
@@ -119,10 +130,14 @@ export type Database = {
           horario_cliente?: boolean
           id?: string
           nota?: string
+          nota_parte?: number | null
           ordem?: number
           periodo?: string
           realizado?: boolean
           tecnicos?: number[]
+          taxa?: string
+          taxa_motivo?: string
+          taxa_parte?: number | null
           veiculo?: string
           viagem?: string | null
         }

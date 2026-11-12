@@ -18,6 +18,8 @@ import {
   itensDoQuadro,
   lerEscalas,
   partesDaDescricao,
+  parteDaLinha,
+  textoDaTaxa,
   resumoDoDia,
   horarioForaDoTexto,
   trechosComHorario,
@@ -78,6 +80,20 @@ function ComHorario({ texto }: { texto: string }) {
       <Fragment key={i}>{t.texto}</Fragment>
     ),
   )
+}
+
+function Nota({ texto }: { texto: string }) {
+  return (
+    <span className="aq-chip aq-nota">
+      {ICONE_NOTA}
+      {texto}
+    </span>
+  )
+}
+
+/** Taxa a cobrar (só na prévia e na TV: é do faturamento, não vai na imagem). */
+function Taxa({ texto }: { texto: string }) {
+  return <span className="aq-chip aq-taxa">$ {texto}</span>
 }
 
 const ICONE_PERIODO = (
@@ -269,6 +285,12 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
               const partes = partesDaDescricao(x.descricao)
               // Horário do campo, ao lado do cliente (antes do período e da observação).
               const foraDoTexto = horarioForaDoTexto(x.descricao, x.chegada)
+              // De qual cliente é o horário, a observação e a taxa (null = linha toda).
+              const parteHorario = parteDaLinha(x.chegada_parte, partes.length) ?? 0
+              const parteNota = parteDaLinha(x.nota_parte, partes.length)
+              const taxa = interno ? textoDaTaxa(x.taxa, x.taxa_motivo) : ''
+              const parteTaxa = parteDaLinha(x.taxa_parte, partes.length)
+              const nota = x.nota.trim()
               return (
                 <Fragment key={x.id}>
                   {novoTurno && <div className="aq-turno">{turnoDe(x.hora)}</div>}
@@ -305,10 +327,22 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
                                 <span className="aq-chip aq-avulso">Avulso</span>
                               </>
                             )}
-                            {i === 0 && foraDoTexto && (
+                            {i === parteHorario && foraDoTexto && (
                               <>
                                 {' '}
                                 <HorarioBrilhando texto={foraDoTexto} />
+                              </>
+                            )}
+                            {nota && parteNota === i && (
+                              <>
+                                {' '}
+                                <Nota texto={nota} />
+                              </>
+                            )}
+                            {taxa && parteTaxa === i && (
+                              <>
+                                {' '}
+                                <Taxa texto={taxa} />
                               </>
                             )}
                           </span>
@@ -320,12 +354,8 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
                           {x.periodo.trim()}
                         </span>
                       )}
-                      {x.nota.trim() && (
-                        <span className="aq-chip aq-nota">
-                          {ICONE_NOTA}
-                          {x.nota.trim()}
-                        </span>
-                      )}
+                      {nota && parteNota === null && <Nota texto={nota} />}
+                      {taxa && parteTaxa === null && <Taxa texto={taxa} />}
                     </div>
                     <div className="aq-tecs">
                       {x.tecnicos.map((n) => (
@@ -374,6 +404,11 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
             <span>
               <span className="aq-chip aq-avulso">Avulso</span> Atendimento avulso
             </span>
+            {interno && linhas.some((x) => textoDaTaxa(x.taxa, x.taxa_motivo)) && (
+              <span>
+                <span className="aq-chip aq-taxa">$ Taxa</span> Taxa a cobrar
+              </span>
+            )}
             {interno && <span>R realizado · F faturado</span>}
           </div>
         </section>

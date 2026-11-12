@@ -12,6 +12,7 @@ import {
   EyeOff,
   ImageDown,
   Plus,
+  Receipt,
   Star,
   Trash2,
   Tv,
@@ -24,7 +25,7 @@ import { Link, useSearchParams } from 'react-router'
 
 import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
-import { Input, Textarea } from '@/components/ui/Campo'
+import { Input, Select, Textarea } from '@/components/ui/Campo'
 import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
 import { formatarData, hojeISO, somarDias } from '@/lib/datas'
@@ -65,6 +66,8 @@ import {
   alternarAvulso,
   conferirComCadastro,
   partesDaDescricao,
+  parteDaLinha,
+  TAXAS_COMUNS,
   escreverTecnicos,
   lerEscalas,
   lerTecnicos,
@@ -727,6 +730,12 @@ function Linhas({
         </Card>
       )}
 
+      <datalist id="agenda-taxas">
+        {TAXAS_COMUNS.map((t) => (
+          <option key={t} value={t} />
+        ))}
+      </datalist>
+
       {/* Sugestões do campo Veículo, a partir do cadastro. */}
       <datalist id="agenda-veiculos">
         {veiculos
@@ -744,6 +753,7 @@ function Linhas({
           const pos = grupo.findIndex((g) => g.id === item.id)
           const conferencia = conferirComCadastro(item, tecnicos, veiculos)
           const codigo = item.veiculo.trim().toUpperCase()
+          const clientes = partesDaDescricao(item.descricao).map(([nome]) => nome)
           const salvarCampo = (patch: Parameters<typeof salvar.mutate>[0]['patch']) =>
             salvar.mutate({ id: item.id, patch })
           return (
@@ -834,13 +844,22 @@ function Linhas({
                   onSalvar={(v) => salvarCampo({ periodo: v })}
                   className="min-h-9 w-52 text-sm"
                 />
-                <CampoAuto
-                  aria-label="Observação da linha"
-                  placeholder="Observação em vermelho (ex.: Luciano irá junto)"
-                  valor={item.nota}
-                  onSalvar={(v) => salvarCampo({ nota: v })}
-                  className="min-h-9 min-w-48 flex-1 text-sm"
-                />
+                <span className="inline-flex min-w-48 flex-1 items-center gap-1">
+                  <CampoAuto
+                    aria-label="Observação da linha"
+                    placeholder="Observação em vermelho (ex.: Luciano irá junto)"
+                    valor={item.nota}
+                    onSalvar={(v) => salvarCampo({ nota: v })}
+                    className="min-h-9 min-w-0 flex-1 text-sm"
+                  />
+                  <EscolherCliente
+                    rotulo="De qual cliente é a observação"
+                    clientes={clientes}
+                    valor={item.nota_parte}
+                    linhaToda
+                    onMudar={(nota_parte) => salvarCampo({ nota_parte })}
+                  />
+                </span>
                 <AvulsoPorCliente
                   descricao={item.descricao}
                   marcados={item.avulso_partes}
@@ -859,6 +878,17 @@ function Linhas({
                     className="min-h-9 w-40 text-sm"
                   />
                 </label>
+                <EscolherCliente
+                  rotulo="De qual cliente é o horário"
+                  clientes={clientes}
+                  valor={item.chegada_parte}
+                  onMudar={(v) => salvarCampo({ chegada_parte: v ?? 0 })}
+                />
+                <TaxaDaLinha
+                  item={item}
+                  clientes={clientes}
+                  onSalvar={(patch) => salvarCampo(patch)}
+                />
 
                 <div className="ml-auto flex items-center gap-1">
                   <button
@@ -918,6 +948,110 @@ function Linhas({
         })}
       </ul>
     </section>
+  )
+}
+
+/**
+ * Escolhe de qual cliente da linha é a observação, o horário ou a taxa. Só aparece
+ * quando a linha tem mais de um cliente (separados por "/").
+ */
+function EscolherCliente({
+  rotulo,
+  clientes,
+  valor,
+  linhaToda,
+  onMudar,
+}: {
+  rotulo: string
+  clientes: string[]
+  valor: number | null
+  /** Tem a opção "Linha toda" (null). Sem ela, o padrão é o primeiro cliente. */
+  linhaToda?: boolean
+  onMudar: (v: number | null) => void
+}) {
+  if (clientes.length <= 1) return null
+  const atual = parteDaLinha(valor, clientes.length) ?? (linhaToda ? null : 0)
+  return (
+    <Select
+      aria-label={rotulo}
+      title={rotulo}
+      value={atual === null ? '' : String(atual)}
+      onChange={(e) => onMudar(e.target.value === '' ? null : Number(e.target.value))}
+      className="min-h-9 w-auto max-w-40 text-sm"
+    >
+      {linhaToda && <option value="">Linha toda</option>}
+      {clientes.map((nome, i) => (
+        <option key={i} value={i}>
+          {nome || `Cliente ${i + 1}`}
+        </option>
+      ))}
+    </Select>
+  )
+}
+
+/**
+ * Taxa a cobrar que não é avulso (deslocamento quando o serviço não foi feito,
+ * domingo, noturno...): o botão abre a taxa, o motivo e de qual cliente é.
+ */
+function TaxaDaLinha({
+  item,
+  clientes,
+  onSalvar,
+}: {
+  item: AgendaItem
+  clientes: string[]
+  onSalvar: (patch: Pick<Partial<AgendaItem>, 'taxa' | 'taxa_motivo' | 'taxa_parte'>) => void
+}) {
+  const tem = item.taxa.trim() !== '' || item.taxa_motivo.trim() !== ''
+  const [aberta, setAberta] = useState(false)
+  const mostrar = aberta || tem
+  return (
+    <>
+      <Alternar
+        ligado={tem}
+        titulo="Taxa a cobrar (deslocamento, domingo, noturno...)"
+        onClick={() => {
+          if (!mostrar) {
+            setAberta(true)
+            return
+          }
+          if (tem && !confirm('Tirar a taxa desta linha?')) return
+          onSalvar({ taxa: '', taxa_motivo: '', taxa_parte: null })
+          setAberta(false)
+        }}
+      >
+        <Receipt className="size-4" aria-hidden />
+        Taxa
+      </Alternar>
+      {mostrar && (
+        <div className="flex basis-full flex-wrap items-center gap-2 rounded-xl bg-amber-50 p-2">
+          <span className="text-sm font-semibold text-amber-900">Taxa:</span>
+          <CampoAuto
+            aria-label="Taxa"
+            placeholder="Qual taxa (ex.: Deslocamento)"
+            list="agenda-taxas"
+            valor={item.taxa}
+            onSalvar={(v) => onSalvar({ taxa: v.trim() })}
+            className="min-h-9 w-52 text-sm"
+            autoFocus={aberta && !tem}
+          />
+          <CampoAuto
+            aria-label="Motivo da taxa"
+            placeholder="Motivo (ex.: serviço não realizado)"
+            valor={item.taxa_motivo}
+            onSalvar={(v) => onSalvar({ taxa_motivo: v.trim() })}
+            className="min-h-9 min-w-48 flex-1 text-sm"
+          />
+          <EscolherCliente
+            rotulo="De qual cliente é a taxa"
+            clientes={clientes}
+            valor={item.taxa_parte}
+            linhaToda
+            onMudar={(taxa_parte) => onSalvar({ taxa_parte })}
+          />
+        </div>
+      )}
+    </>
   )
 }
 
