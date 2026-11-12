@@ -126,7 +126,10 @@ function Execucao({ os }: { os: OsCompleta }) {
   // Cada toque em "Concluir" que não deu certo volta a tela até o aviso.
   const [tentativa, setTentativa] = useState(0)
   const [assinando, setAssinando] = useState<'cliente' | 'operador' | null>(null)
-  const dataServico = campos.data ?? hojeISO()
+  // A data já vem com o dia agendado pelo escritório; o operador muda se for outro dia.
+  // Fica gravada junto com o primeiro horário (ou quando ele mexe nela).
+  const dataServico = campos.data ?? os.data_agendada ?? hojeISO()
+  const comData = campos.data ? campos : { ...campos, data: dataServico }
   const pragas = os.tipo?.formulario_os === 'pragas'
   const pontos = usePontosOs(os.id)
   // Etapas: 1 chegada, depois as do tipo de serviço, depois fotos, cliente e operador.
@@ -162,6 +165,8 @@ function Execucao({ os }: { os: OsCompleta }) {
     // mesmo minuto não o deixa "antes" do anterior por causa dos segundos.
     const agora = new Date()
     agora.setSeconds(0, 0)
+    // "Agora" é hoje: sem data escolhida à mão, vale o dia de hoje (mesmo que a
+    // visita tenha sido agendada para outro dia).
     alterar({ [campo]: agora.toISOString(), data: campos.data ?? hojeISO() })
   }
 
@@ -186,7 +191,7 @@ function Execucao({ os }: { os: OsCompleta }) {
     setErro(null)
     setTentativa((t) => t + 1)
     // Confere no próprio celular (funciona sem sinal); o banco confere de novo ao receber.
-    const pendencias = pendenciasLocais(os.tipo?.formulario_os, campos, pontos.data ?? [], fotos)
+    const pendencias = pendenciasLocais(os.tipo?.formulario_os, comData, pontos.data ?? [], fotos)
     setMostrarFalta(pendencias.length > 0)
     if (pendencias.length > 0) return
     if (foraDeOrdem) {
@@ -205,7 +210,7 @@ function Execucao({ os }: { os: OsCompleta }) {
 
   const foraDeOrdem = horariosForaDeOrdem(campos)
   const falta = mostrarFalta
-    ? pendenciasLocais(os.tipo?.formulario_os, campos, pontos.data ?? [], fotos)
+    ? pendenciasLocais(os.tipo?.formulario_os, comData, pontos.data ?? [], fotos)
     : []
   // Preencheu tudo: a lista some de vez (até o próximo toque em "Concluir").
   if (mostrarFalta && falta.length === 0) setMostrarFalta(false)
@@ -308,12 +313,17 @@ function Execucao({ os }: { os: OsCompleta }) {
 
       <Etapa numero={1} titulo="Chegada e horários">
         <div className="grid grid-cols-2 gap-3">
-          <Campo rotulo="Data" htmlFor="ex-data">
+          <Campo
+            rotulo="Data"
+            htmlFor="ex-data"
+            dica={aberta && !campos.data ? 'Dia agendado. Mude se for outro dia.' : undefined}
+          >
             <Input
               id="ex-data"
               type="date"
+              required
               disabled={!aberta}
-              value={campo('data')}
+              value={dataServico}
               onChange={(e) => alterar({ data: e.target.value || null })}
             />
           </Campo>
@@ -360,6 +370,7 @@ function Execucao({ os }: { os: OsCompleta }) {
                   onChange={(e) =>
                     alterar({
                       [nome]: e.target.value ? comporHora(dataServico, e.target.value) : null,
+                      data: dataServico,
                     })
                   }
                 />
