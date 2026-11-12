@@ -6,7 +6,7 @@ import type { ChecklistTelas } from '../tipos/telas'
 
 /*
  * O que falta para concluir a OS — a MESMA regra de privado.pendencias_os no banco
- * (migration 20261217120000_os_sem_acompanhamento.sql). O celular usa esta cópia para concluir
+ * (migration 20261220130000_os_ocorrencia.sql). O celular usa esta cópia para concluir
  * sem internet; quando o sinal volta, o banco confere de novo e é quem garante.
  * Se mudar uma, mude a outra (os testes de pendencias.test.ts e de os*.sql ajudam).
  */
@@ -69,6 +69,8 @@ export function pendenciasLocais(
   e: CamposExecucao,
   pontos: Ponto[],
   fotos?: FotosDaOs,
+  /** Ocorrência que o escritório escreveu na OS (o técnico confirma que resolveu). */
+  ocorrencia?: string | null,
 ): string[] {
   const falta: string[] = []
   if (!e.data) falta.push('data')
@@ -85,6 +87,7 @@ export function pendenciasLocais(
     if (vazio(e.responsavel_setor)) falta.push('setor de quem acompanhou')
     if (!e.assinatura_cliente_id) falta.push('assinatura de quem acompanhou')
   }
+  if (!vazio(ocorrencia) && !e.ocorrencia_resolvida) falta.push('confirmação da ocorrência')
 
   if (formulario === 'pragas') {
     const c = (e.checklist ?? {}) as ChecklistPragas
@@ -172,6 +175,7 @@ export function etapaDaPendencia(pendencia: string): string | null {
   if (pendencia === 'resultado do serviço') return 'Serviço realizado'
   if (pendencia === 'nome do operador' || pendencia === 'visto do operador') return 'Operador'
   if (pendencia.includes('quem acompanhou')) return 'Quem acompanhou (cliente)'
+  if (pendencia === 'confirmação da ocorrência') return 'Ocorrência'
   if (pendencia === 'nível de infestação de roedores') return 'Porta-iscas'
   if (
     pendencia.startsWith('situação das armadilhas') ||

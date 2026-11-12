@@ -41,6 +41,7 @@ function Formulario({ os, aoFechar }: { os: OsCompleta; aoFechar: () => void }) 
   const [veiculoId, setVeiculoId] = useState(os.veiculo_id ?? '')
   const [descricao, setDescricao] = useState(os.descricao ?? '')
   const [observacoes, setObservacoes] = useState(os.observacoes_adm ?? '')
+  const [ocorrencia, setOcorrencia] = useState(os.ocorrencia ?? '')
   const [erro, setErro] = useState<string | null>(null)
 
   async function salvar(e: React.FormEvent) {
@@ -62,6 +63,7 @@ function Formulario({ os, aoFechar }: { os: OsCompleta; aoFechar: () => void }) 
           veiculo_id: veiculoId || null,
           descricao: descricao.trim(),
           observacoes_adm: observacoes.trim() || null,
+          ocorrencia: ocorrencia.trim() || null,
         },
         operadores: escolhidos,
       })
@@ -137,6 +139,19 @@ function Formulario({ os, aoFechar }: { os: OsCompleta; aoFechar: () => void }) 
           rows={3}
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
+        />
+      </Campo>
+
+      <Campo
+        rotulo="Ocorrência (o técnico precisa confirmar)"
+        htmlFor="ed-ocorrencia"
+        dica="Só quando houver. O técnico só conclui a OS depois de confirmar que resolveu."
+      >
+        <Textarea
+          id="ed-ocorrencia"
+          rows={2}
+          value={ocorrencia}
+          onChange={(e) => setOcorrencia(e.target.value)}
         />
       </Campo>
 

@@ -228,6 +228,7 @@ function FormAgendamento({
   const [veiculoId, setVeiculoId] = useState(modelo?.veiculo_padrao_id ?? '')
   const [descricao, setDescricao] = useState(modelo?.descricao || sugestao?.descricao || '')
   const [observacoes, setObservacoes] = useState(modelo?.observacoes_adm_padrao ?? '')
+  const [ocorrencia, setOcorrencia] = useState('')
   const [salvarComoPadrao, setSalvarComoPadrao] = useState(!modelo)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -253,6 +254,7 @@ function FormAgendamento({
         veiculoId: veiculoId || null,
         descricao: descricao.trim(),
         observacoesAdm: observacoes.trim(),
+        ocorrencia: ocorrencia.trim(),
         salvarComoPadrao,
       })
       navigate(`/os/${id}`)
@@ -366,6 +368,19 @@ function FormAgendamento({
             rows={3}
             value={observacoes}
             onChange={(e) => setObservacoes(e.target.value)}
+          />
+        </Campo>
+
+        <Campo
+          rotulo="Ocorrência (o técnico precisa confirmar)"
+          htmlFor="os-ocorrencia"
+          dica='Só quando houver. Ex.: "Ocorrência com roedores no setor de expedição". O técnico só conclui a OS depois de confirmar que resolveu.'
+        >
+          <Textarea
+            id="os-ocorrencia"
+            rows={2}
+            value={ocorrencia}
+            onChange={(e) => setOcorrencia(e.target.value)}
           />
         </Campo>
 

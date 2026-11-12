@@ -191,7 +191,13 @@ function Execucao({ os }: { os: OsCompleta }) {
     setErro(null)
     setTentativa((t) => t + 1)
     // Confere no próprio celular (funciona sem sinal); o banco confere de novo ao receber.
-    const pendencias = pendenciasLocais(os.tipo?.formulario_os, comData, pontos.data ?? [], fotos)
+    const pendencias = pendenciasLocais(
+      os.tipo?.formulario_os,
+      comData,
+      pontos.data ?? [],
+      fotos,
+      os.ocorrencia,
+    )
     setMostrarFalta(pendencias.length > 0)
     if (pendencias.length > 0) return
     if (foraDeOrdem) {
@@ -210,7 +216,7 @@ function Execucao({ os }: { os: OsCompleta }) {
 
   const foraDeOrdem = horariosForaDeOrdem(campos)
   const falta = mostrarFalta
-    ? pendenciasLocais(os.tipo?.formulario_os, comData, pontos.data ?? [], fotos)
+    ? pendenciasLocais(os.tipo?.formulario_os, comData, pontos.data ?? [], fotos, os.ocorrencia)
     : []
   // Preencheu tudo: a lista some de vez (até o próximo toque em "Concluir").
   if (mostrarFalta && falta.length === 0) setMostrarFalta(false)
@@ -227,6 +233,13 @@ function Execucao({ os }: { os: OsCompleta }) {
         {os.numero} · {formatarData(os.data_agendada)}
         {os.hora_agendada && ` às ${os.hora_agendada.slice(0, 5)}`}
       </p>
+
+      {os.treinamento && (
+        <Aviso tipo="info">
+          <strong>OS de teste (treinamento).</strong> Preencha como se fosse de verdade para
+          aprender. Nada disto vai para o cliente.
+        </Aviso>
+      )}
 
       {falta.length > 0 && (
         <Aviso tipo="erro" tentativa={tentativa}>
@@ -264,7 +277,11 @@ function Execucao({ os }: { os: OsCompleta }) {
             Concluída no celular, aguardando envio. Ela sobe sozinha quando houver sinal.
           </Aviso>
         ) : (
-          <Aviso tipo="sucesso">OS concluída. Para mudar algo, fale com o escritório.</Aviso>
+          <Aviso tipo="sucesso">
+            {os.treinamento
+              ? 'Teste concluído! Você preencheu tudo certo.'
+              : 'OS concluída. Para mudar algo, fale com o escritório.'}
+          </Aviso>
         ))}
 
       {/* Escopo: o que o escritório combinou (só leitura) */}
@@ -301,6 +318,33 @@ function Execucao({ os }: { os: OsCompleta }) {
           <div className="rounded-xl bg-alerta/10 p-3">
             <p className="text-sm font-semibold">Observações do escritório</p>
             <p className="whitespace-pre-line">{os.observacoes_adm}</p>
+          </div>
+        )}
+        {os.ocorrencia?.trim() && (
+          // Ocorrência do escritório: o técnico só conclui depois de confirmar que resolveu.
+          <div
+            className="flex scroll-mt-20 flex-col gap-2 rounded-xl border-2 border-perigo/40 bg-red-50 p-3"
+            data-etapa="Ocorrência"
+          >
+            <p className="text-sm font-bold text-perigo">
+              Ocorrência <span aria-hidden>*</span>
+            </p>
+            <p className="whitespace-pre-line">{os.ocorrencia}</p>
+            <button
+              type="button"
+              disabled={!aberta}
+              aria-pressed={!!campos.ocorrencia_resolvida}
+              onClick={() => alterar({ ocorrencia_resolvida: !campos.ocorrencia_resolvida })}
+              className={
+                campos.ocorrencia_resolvida
+                  ? 'min-h-12 rounded-xl border-2 border-verde bg-verde px-4 font-bold text-white'
+                  : 'min-h-12 rounded-xl border-2 border-perigo bg-white px-4 font-bold text-perigo'
+              }
+            >
+              {campos.ocorrencia_resolvida
+                ? 'Ocorrência resolvida (toque para desmarcar)'
+                : 'Confirmar que resolvi a ocorrência'}
+            </button>
           </div>
         )}
         {os.descricao && (

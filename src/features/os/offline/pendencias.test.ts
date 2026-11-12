@@ -50,6 +50,18 @@ describe('pendenciasLocais', () => {
     expect(etapaDaPendencia('setor de quem acompanhou')).toBe('Quem acompanhou (cliente)')
   })
 
+  it('ocorrência do escritório: só conclui depois de o técnico confirmar', () => {
+    const completa = { ...comum, resultado: 'ok' }
+    const texto = 'Roedores na expedição'
+    expect(pendenciasLocais('generico', completa, [], undefined, texto)).toEqual([
+      'confirmação da ocorrência',
+    ])
+    const confirmada = { ...completa, ocorrencia_resolvida: true }
+    expect(pendenciasLocais('generico', confirmada, [], undefined, texto)).toEqual([])
+    expect(pendenciasLocais('generico', completa, [], undefined, '  ')).toEqual([])
+    expect(etapaDaPendencia('confirmação da ocorrência')).toBe('Ocorrência')
+  })
+
   it('genérica completa não tem pendências', () => {
     expect(pendenciasLocais('generico', { ...comum, resultado: 'ok' }, [])).toEqual([])
   })

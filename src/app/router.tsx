@@ -48,6 +48,7 @@ import { InicioPage } from '@/features/inicio/InicioPage'
 import { ExecucaoPage } from '@/features/os/operador/ExecucaoPage'
 import { OsFormPage } from '@/features/os/OsFormPage'
 import { OsListaPage } from '@/features/os/OsListaPage'
+import { TreinamentoOsPage } from '@/features/os/TreinamentoOsPage'
 import { OsPage } from '@/features/os/OsPage'
 import { ModeloNovoPage, ModeloOsPage, ModelosOsPage } from '@/features/os/ModelosOsPages'
 import { CalculadoraPage } from '@/features/orcamentos/CalculadoraPage'
@@ -140,6 +141,14 @@ export const router = createBrowserRouter([
             element: (
               <ExigePapel papeis={PAPEIS_ESCRITORIO_OS}>
                 <OsFormPage />
+              </ExigePapel>
+            ),
+          },
+          {
+            path: 'treinamento',
+            element: (
+              <ExigePapel papeis={PAPEIS_GESTAO}>
+                <TreinamentoOsPage />
               </ExigePapel>
             ),
           },

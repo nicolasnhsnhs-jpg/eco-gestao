@@ -1,4 +1,4 @@
-import { Car, ClipboardList, Plus } from 'lucide-react'
+import { Car, ClipboardList, GraduationCap, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 
@@ -40,7 +40,11 @@ export function OsListaPage() {
   const [periodo, setPeriodo] = useState<Periodo>('semana')
   const [status, setStatus] = useState<StatusOs | ''>('')
   const [veiculosAberto, setVeiculosAberto] = useState(false)
-  const lista = useOrdensServico({ ...filtroDoPeriodo(periodo), status: status || undefined })
+  const lista = useOrdensServico({
+    ...filtroDoPeriodo(periodo),
+    status: status || undefined,
+    treinamento: false,
+  })
 
   return (
     <>
@@ -53,6 +57,13 @@ export function OsListaPage() {
               <Button variante="secundario" onClick={() => setVeiculosAberto(true)}>
                 <Car className="size-5" aria-hidden /> Veículos
               </Button>
+            )}
+            {PAPEIS_GESTAO.includes(perfil.papel) && (
+              <Link to="/os/treinamento">
+                <Button variante="secundario">
+                  <GraduationCap className="size-5" aria-hidden /> Treinamento
+                </Button>
+              </Link>
             )}
             <Link to="/os/modelos">
               <Button variante="secundario">
@@ -133,6 +144,7 @@ export function CartaoOs({ os, para }: { os: OsResumo; para: string }) {
           {os.hora_agendada && ` às ${os.hora_agendada.slice(0, 5)}`}
         </span>
         <Etiqueta cor={COR_STATUS_OS[os.status]}>{NOME_STATUS_OS[os.status]}</Etiqueta>
+        {os.treinamento && <Etiqueta cor="perigo">Teste (treinamento)</Etiqueta>}
         <span className="ml-auto text-sm text-texto-suave">{os.numero}</span>
       </div>
       <p className="font-semibold">

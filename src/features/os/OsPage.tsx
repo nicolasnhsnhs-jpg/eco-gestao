@@ -63,7 +63,8 @@ export function OsPage() {
   const o = os.data
   const ficha = fichaDaOs(o.ficha_cliente)
   const e = o.execucao
-  const escritorio = PAPEIS_ESCRITORIO_OS.includes(perfil.papel)
+  // No teste de treinamento o escritório só acompanha o que o técnico preencheu.
+  const escritorio = PAPEIS_ESCRITORIO_OS.includes(perfil.papel) && !o.treinamento
   const antesDeComecar = o.status === 'rascunho' || o.status === 'agendada'
   const alvo: AlvoEscopo | null = o.modelo_id
     ? { modeloId: o.modelo_id, escopo: o.escopo, osId: o.id, antesDeComecar }
@@ -141,6 +142,7 @@ export function OsPage() {
               </Button>
             )}
             {PAPEIS_CERTIFICADOS.includes(perfil.papel) &&
+              !o.treinamento &&
               (o.status === 'concluida' || o.status === 'conferida') && (
                 <Link to={`/certificados/novo?os=${o.id}`}>
                   <Button variante="secundario">Emitir certificado</Button>
@@ -174,24 +176,35 @@ export function OsPage() {
                 Cancelar OS
               </Button>
             )}
-            {perfil.papel === 'admin' && (o.status === 'concluida' || o.status === 'conferida') && (
-              <Button
-                variante="fantasma"
-                onClick={() => {
-                  const motivo = window.prompt('Motivo da reabertura (fica registrado):')?.trim()
-                  if (!motivo) return
-                  void executar(() => reabrir.mutateAsync(motivo))
-                }}
-              >
-                Reabrir OS
-              </Button>
-            )}
+            {perfil.papel === 'admin' &&
+              !o.treinamento &&
+              (o.status === 'concluida' || o.status === 'conferida') && (
+                <Button
+                  variante="fantasma"
+                  onClick={() => {
+                    const motivo = window.prompt('Motivo da reabertura (fica registrado):')?.trim()
+                    if (!motivo) return
+                    void executar(() => reabrir.mutateAsync(motivo))
+                  }}
+                >
+                  Reabrir OS
+                </Button>
+              )}
           </div>
         }
       />
 
       {escritorio && antesDeComecar && (
         <EditarOs os={o} aberto={editando} aoFechar={() => setEditando(false)} />
+      )}
+
+      {o.treinamento && (
+        <div className="mb-4">
+          <Aviso tipo="info">
+            OS de teste (treinamento): só para o técnico aprender. Não vai para o cliente, não gera
+            PDF nem serviço realizado. Apague em Ordens de serviço → Treinamento.
+          </Aviso>
+        </div>
       )}
 
       {erro && (
@@ -222,6 +235,7 @@ export function OsPage() {
           <Linha rotulo="Endereço">{enderecoDaFicha(ficha) || '—'}</Linha>
           <Linha rotulo="Descrição">{o.descricao || '—'}</Linha>
           <Linha rotulo="Observações ADM">{o.observacoes_adm || '—'}</Linha>
+          {o.ocorrencia && <Linha rotulo="Ocorrência">{o.ocorrencia}</Linha>}
           {o.motivo_reabertura && (
             <Aviso tipo="info">
               Reaberta em {formatarDataHora(o.reaberta_em)}: {o.motivo_reabertura}
@@ -241,6 +255,13 @@ export function OsPage() {
               <Linha rotulo="KM na chegada">{e.km_chegada?.toLocaleString('pt-BR') ?? '—'}</Linha>
               <Linha rotulo="Resultado">{e.resultado || '—'}</Linha>
               <Linha rotulo="Observações">{e.observacoes || '—'}</Linha>
+              {o.ocorrencia && (
+                <Linha rotulo="Ocorrência">
+                  {e.ocorrencia_resolvida
+                    ? 'Técnico confirmou que resolveu'
+                    : 'Ainda não confirmada'}
+                </Linha>
+              )}
               <Linha rotulo="Operador">
                 {e.operador_nome || '—'}{' '}
                 {e.assinatura_operador_id && <Etiqueta cor="verde">Visto</Etiqueta>}

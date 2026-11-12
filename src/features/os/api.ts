@@ -80,7 +80,14 @@ const RELACOES = `
   operadores:os_operadores(operador:perfis(id, nome))
 `
 
-export type FiltroOs = { de?: string; ate?: string; status?: StatusOs; clienteId?: string }
+export type FiltroOs = {
+  de?: string
+  ate?: string
+  status?: StatusOs
+  clienteId?: string
+  /** true: só os testes de treinamento; false: só as OS de verdade; sem valor: todas. */
+  treinamento?: boolean
+}
 
 export function useOrdensServico(filtro: FiltroOs) {
   return useQuery({
@@ -89,7 +96,7 @@ export function useOrdensServico(filtro: FiltroOs) {
       let consulta = supabase
         .from('ordens_servico')
         .select(
-          `id, numero, status, data_agendada, hora_agendada, ficha_cliente, cliente_id, ${RELACOES}`,
+          `id, numero, status, data_agendada, hora_agendada, ficha_cliente, cliente_id, treinamento, ${RELACOES}`,
         )
         .order('data_agendada', { ascending: true })
         .order('hora_agendada', { ascending: true, nullsFirst: false })
@@ -98,6 +105,8 @@ export function useOrdensServico(filtro: FiltroOs) {
       if (filtro.ate) consulta = consulta.lte('data_agendada', filtro.ate)
       if (filtro.status) consulta = consulta.eq('status', filtro.status)
       if (filtro.clienteId) consulta = consulta.eq('cliente_id', filtro.clienteId)
+      if (filtro.treinamento !== undefined)
+        consulta = consulta.eq('treinamento', filtro.treinamento)
       const { data, error } = await consulta
       if (error) throw error
       return data
@@ -226,6 +235,8 @@ export type DadosAgendamento = {
   veiculoId: string | null
   descricao: string
   observacoesAdm: string
+  /** Ocorrência que o técnico precisa confirmar que resolveu (vazio: nenhuma). */
+  ocorrencia?: string
   /** Gravar operadores, veículo e observações como padrão das próximas visitas. */
   salvarComoPadrao: boolean
 }
@@ -282,6 +293,13 @@ export function useAgendarOs() {
         observacoes_adm: d.observacoesAdm || undefined,
       })
       if (error) throw error
+      if (d.ocorrencia) {
+        const r = await supabase
+          .from('ordens_servico')
+          .update({ ocorrencia: d.ocorrencia })
+          .eq('id', osId)
+        if (r.error) throw r.error
+      }
       return osId
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
@@ -351,7 +369,7 @@ export type CamposExecucao = Omit<
 
 /**
  * O que o operador pode gravar na execução: a mesma lista do "grant update" do
- * banco (migrations 20261103120200_ordens_servico.sql e 20261217120000_os_sem_acompanhamento.sql). Um campo fora dela faz o
+ * banco (migrations 20261103120200_ordens_servico.sql, 20261217120000_os_sem_acompanhamento.sql e 20261220130000_os_ocorrencia.sql). Um campo fora dela faz o
  * banco recusar a gravação inteira ("permission denied for table os_execucao").
  */
 export const CAMPOS_EDITAVEIS_EXECUCAO = [
@@ -368,6 +386,7 @@ export const CAMPOS_EDITAVEIS_EXECUCAO = [
   'responsavel_nome',
   'responsavel_setor',
   'sem_acompanhamento',
+  'ocorrencia_resolvida',
   'assinatura_cliente_id',
   'assinatura_operador_id',
   'checklist',
@@ -630,6 +649,37 @@ export function useSalvarModelo(id: string) {
     mutationFn: async (dados: TablesUpdate<'os_modelos'>) => {
       const { error } = await supabase.from('os_modelos').update(dados).eq('id', id)
       if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
+  })
+}
+
+// -----------------------------------------------------------------------------
+// Treinamento: cópias de uma OS para os técnicos aprenderem (nada vai para o cliente)
+// -----------------------------------------------------------------------------
+
+/** Uma cópia da OS escolhida para cada técnico, para hoje. Devolve quantas criou. */
+export function useCriarTreinamento() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ origem, operadores }: { origem: string; operadores: string[] }) => {
+      const { data, error } = await supabase.rpc('criar_treinamento_os', { origem, operadores })
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
+  })
+}
+
+/** Apaga um teste (ou todos, sem id), com as fotos e assinaturas. */
+export function useApagarTreinamentos() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (os?: string) => {
+      const { data, error } = await supabase.rpc('apagar_treinamentos_os', os ? { os } : {})
+      if (error) throw error
+      // O registro já saiu; se o Storage falhar, sobra só um arquivo órfão (sem acesso pela tela).
+      if (data?.length) await supabase.storage.from('arquivos').remove(data)
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
   })

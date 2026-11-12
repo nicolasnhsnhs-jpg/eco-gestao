@@ -729,6 +729,10 @@ export async function gerarFichaCampo(os: OsCompleta) {
   )
   if (os.descricao) f.dado('Descrição', os.descricao)
   if (os.observacoes_adm) f.dado('Observações ADM', os.observacoes_adm)
+  if (os.ocorrencia) {
+    f.dado('Ocorrência', os.ocorrencia)
+    f.opcoes('Ocorrência resolvida', ['Sim'])
+  }
 
   f.secao('Chegada e horários')
   f.camposLinha([

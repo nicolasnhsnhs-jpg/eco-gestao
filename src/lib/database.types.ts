@@ -2873,11 +2873,13 @@ export type Database = {
           motivo_reabertura: string | null
           numero: string
           observacoes_adm: string | null
+          ocorrencia: string | null
           reaberta_em: string | null
           reaberta_por: string | null
           servico_id: string | null
           status: Database['public']['Enums']['status_os']
           tipo_servico_id: string
+          treinamento: boolean
           veiculo_id: string | null
         }
         Insert: {
@@ -2899,11 +2901,13 @@ export type Database = {
           motivo_reabertura?: string | null
           numero: string
           observacoes_adm?: string | null
+          ocorrencia?: string | null
           reaberta_em?: string | null
           reaberta_por?: string | null
           servico_id?: string | null
           status?: Database['public']['Enums']['status_os']
           tipo_servico_id: string
+          treinamento?: boolean
           veiculo_id?: string | null
         }
         Update: {
@@ -2925,11 +2929,13 @@ export type Database = {
           motivo_reabertura?: string | null
           numero?: string
           observacoes_adm?: string | null
+          ocorrencia?: string | null
           reaberta_em?: string | null
           reaberta_por?: string | null
           servico_id?: string | null
           status?: Database['public']['Enums']['status_os']
           tipo_servico_id?: string
+          treinamento?: boolean
           veiculo_id?: string | null
         }
         Relationships: [
@@ -3135,6 +3141,7 @@ export type Database = {
           hora_termino: string | null
           km_chegada: number | null
           observacoes: string | null
+          ocorrencia_resolvida: boolean
           operador_nome: string | null
           os_id: string
           responsavel_nome: string | null
@@ -3158,6 +3165,7 @@ export type Database = {
           hora_termino?: string | null
           km_chegada?: number | null
           observacoes?: string | null
+          ocorrencia_resolvida?: boolean
           operador_nome?: string | null
           os_id: string
           responsavel_nome?: string | null
@@ -3181,6 +3189,7 @@ export type Database = {
           hora_termino?: string | null
           km_chegada?: number | null
           observacoes?: string | null
+          ocorrencia_resolvida?: boolean
           operador_nome?: string | null
           os_id?: string
           responsavel_nome?: string | null
@@ -5467,6 +5476,7 @@ export type Database = {
         }
         Returns: string
       }
+      apagar_treinamentos_os: { Args: { os?: string }; Returns: string[] }
       atualizar_avisos: { Args: never; Returns: number }
       atualizar_pontos_os: { Args: { os: string }; Returns: undefined }
       buscar_clientes: {
@@ -5507,6 +5517,10 @@ export type Database = {
         Returns: undefined
       }
       conferir_os: { Args: { os: string }; Returns: undefined }
+      criar_treinamento_os: {
+        Args: { operadores: string[]; origem: string }
+        Returns: number
+      }
       crm_assumir: { Args: { conversa: string }; Returns: undefined }
       crm_atualizar_status: {
         Args: {
