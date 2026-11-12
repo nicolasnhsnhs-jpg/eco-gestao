@@ -282,15 +282,21 @@ export function compararVeiculos(a: string, b: string): number {
  *   folga         folga porque trabalhará no domingo
  *   folga_horas   folga descontada das horas em haver
  */
-export type Ausencia = 'falta' | 'folga' | 'folga_horas'
+export type Ausencia = 'falta' | 'folga_simples' | 'folga' | 'folga_horas'
 
-export const AUSENCIAS: Ausencia[] = ['falta', 'folga', 'folga_horas']
+export const AUSENCIAS: Ausencia[] = ['falta', 'folga_simples', 'folga', 'folga_horas']
 
 /** Coluna do dia onde cada tipo fica. */
-const COLUNA = { falta: 'faltas', folga: 'folgas', folga_horas: 'folgas_horas' } as const
+const COLUNA = {
+  falta: 'faltas',
+  folga_simples: 'folgas_simples',
+  folga: 'folgas',
+  folga_horas: 'folgas_horas',
+} as const
 
 export const NOME_AUSENCIA: Record<Ausencia, string> = {
   falta: 'Falta',
+  folga_simples: 'Folga',
   folga: 'Folga · trabalhará domingo',
   folga_horas: 'Folga · descontar horas em haver',
 }
@@ -298,17 +304,19 @@ export const NOME_AUSENCIA: Record<Ausencia, string> = {
 /** Nome curto, no quadro. */
 export const NOME_CURTO_AUSENCIA: Record<Ausencia, { nome: string; detalhe: string }> = {
   falta: { nome: 'Falta', detalhe: '' },
+  folga_simples: { nome: 'Folga', detalhe: '' },
   // A folga é no dia da agenda (ex.: sábado), para trabalhar no domingo.
   folga: { nome: 'Folga', detalhe: 'trabalhará domingo' },
   folga_horas: { nome: 'Folga', detalhe: 'horas em haver' },
 }
 
-type DiaAusencias = Pick<AgendaDia, 'faltas' | 'folgas' | 'folgas_horas'>
+type DiaAusencias = Pick<AgendaDia, 'faltas' | 'folgas_simples' | 'folgas' | 'folgas_horas'>
 
 /** Quem faltou e quem está de folga (de cada tipo) no dia. */
 export function ausentesDoDia(dia: Partial<DiaAusencias>): Record<Ausencia, number[]> {
   return {
     falta: dia.faltas ?? [],
+    folga_simples: dia.folgas_simples ?? [],
     folga: dia.folgas ?? [],
     folga_horas: dia.folgas_horas ?? [],
   }
@@ -325,7 +333,7 @@ export function escalasDoDia(escalas: readonly Escala[], dia: Partial<DiaAusenci
 
 /**
  * Põe os técnicos num tipo (falta ou uma das folgas) e tira das outras listas, se
- * estavam lá. Devolve as três listas novas, prontas para gravar.
+ * estavam lá. Devolve as listas novas, prontas para gravar.
  */
 export function marcarAusencia(
   dia: Partial<DiaAusencias>,
@@ -337,6 +345,7 @@ export function marcarAusencia(
   const lista = (t: Ausencia) => (t === tipo ? novos : atual[t].filter((n) => !novos.includes(n)))
   return {
     [COLUNA.falta]: lista('falta'),
+    [COLUNA.folga_simples]: lista('folga_simples'),
     [COLUNA.folga]: lista('folga'),
     [COLUNA.folga_horas]: lista('folga_horas'),
   } as DiaAusencias
@@ -347,14 +356,16 @@ export type Presenca = {
   nome: string
   presencas: number
   faltas: number
+  /** Folgas comuns (ex.: domingo). */
+  folgasSimples: number
   /** Folgas porque trabalhará no domingo. */
   folgas: number
   /** Folgas descontadas das horas em haver. */
   folgasHoras: number
   /** Dias da agenda em que o técnico não estava em escala, falta nem folga. */
   semRegistro: number
-  /** Datas de cada falta e folga, para conferir. */
-  dias: Record<Ausencia, string[]>
+  /** Datas de cada falta e folga (e dos dias sem registro), para conferir. */
+  dias: Record<Ausencia | 'sem_registro', string[]>
 }
 
 /**
@@ -375,10 +386,11 @@ export function presencaDoMes(
         nome: t?.nome ?? '',
         presencas: 0,
         faltas: 0,
+        folgasSimples: 0,
         folgas: 0,
         folgasHoras: 0,
         semRegistro: 0,
-        dias: { falta: [], folga: [], folga_horas: [] },
+        dias: { falta: [], folga_simples: [], folga: [], folga_horas: [], sem_registro: [] },
       }
       por.set(n, p)
     }
@@ -396,6 +408,7 @@ export function presencaDoMes(
         if (vistos.has(n)) continue
         const p = linha(n)
         if (tipo === 'falta') p.faltas++
+        else if (tipo === 'folga_simples') p.folgasSimples++
         else if (tipo === 'folga') p.folgas++
         else p.folgasHoras++
         p.dias[tipo].push(d.data)
@@ -407,7 +420,11 @@ export function presencaDoMes(
       linha(n).presencas++
       vistos.add(n)
     }
-    for (const p of por.values()) if (!vistos.has(p.numero)) p.semRegistro++
+    for (const p of por.values()) {
+      if (vistos.has(p.numero)) continue
+      p.semRegistro++
+      p.dias.sem_registro.push(d.data)
+    }
   }
   return [...por.values()].sort((a, b) => a.numero - b.numero)
 }

@@ -19,6 +19,7 @@ export type Database = {
           faltas: number[]
           folgas: number[]
           folgas_horas: number[]
+          folgas_simples: number[]
           mensagem: string
           observacoes: string
         }
@@ -32,6 +33,7 @@ export type Database = {
           faltas?: number[]
           folgas?: number[]
           folgas_horas?: number[]
+          folgas_simples?: number[]
           mensagem?: string
           observacoes?: string
         }
@@ -45,6 +47,7 @@ export type Database = {
           faltas?: number[]
           folgas?: number[]
           folgas_horas?: number[]
+          folgas_simples?: number[]
           mensagem?: string
           observacoes?: string
         }

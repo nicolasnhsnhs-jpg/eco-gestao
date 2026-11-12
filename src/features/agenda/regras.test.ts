@@ -279,29 +279,32 @@ describe('compararVeiculos', () => {
 })
 
 describe('falta e folga', () => {
-  const dia = { faltas: [7], folgas: [9], folgas_horas: [3] }
+  const dia = { faltas: [7], folgas_simples: [4], folgas: [9], folgas_horas: [3] }
   it('quem faltou ou folgou sai da escala do dia', () => {
-    expect(escalasDoDia([{ inicio: '07:30', fim: '17h', tecnicos: [3, 5, 7, 9] }], dia)).toEqual([
-      { inicio: '07:30', fim: '17h', tecnicos: [5] },
-    ])
+    expect(escalasDoDia([{ inicio: '07:30', fim: '17h', tecnicos: [3, 4, 5, 7, 9] }], dia)).toEqual(
+      [{ inicio: '07:30', fim: '17h', tecnicos: [5] }],
+    )
   })
   it('passar para um tipo tira dos outros', () => {
     expect(marcarAusencia(dia, 'falta', [7, 9])).toEqual({
       faltas: [7, 9],
+      folgas_simples: [4],
       folgas: [],
       folgas_horas: [3],
     })
     expect(marcarAusencia(dia, 'folga_horas', [3, 7])).toEqual({
       faltas: [],
+      folgas_simples: [4],
       folgas: [9],
       folgas_horas: [3, 7],
     })
   })
-  it('conta presença, falta e os dois tipos de folga no mês', () => {
+  it('conta presença, falta e os tipos de folga no mês', () => {
     const escalas = [{ inicio: '07:30', fim: '17h', tecnicos: [5, 7] }]
     const r = presencaDoMes(
       [
         { data: '2026-11-02', escalas, faltas: [], folgas: [] },
+        { data: '2026-11-08', escalas, folgas_simples: [5, 7] },
         { data: '2026-11-03', escalas, faltas: [7], folgas: [] },
         { data: '2026-11-07', escalas, faltas: [], folgas: [5], folgas_horas: [7] },
       ],
@@ -312,13 +315,22 @@ describe('falta e folga', () => {
       ],
     )
     expect(
-      r.map((p) => [p.numero, p.presencas, p.faltas, p.folgas, p.folgasHoras, p.semRegistro]),
+      r.map((p) => [
+        p.numero,
+        p.presencas,
+        p.faltas,
+        p.folgasSimples,
+        p.folgas,
+        p.folgasHoras,
+        p.semRegistro,
+      ]),
     ).toEqual([
-      [5, 2, 0, 1, 0, 0],
-      [7, 1, 1, 0, 1, 0],
-      [9, 0, 0, 0, 0, 3],
+      [5, 2, 0, 1, 1, 0, 0],
+      [7, 1, 1, 1, 0, 1, 0],
+      [9, 0, 0, 0, 0, 0, 4],
     ])
     expect(r[1].dias.falta).toEqual(['2026-11-03'])
     expect(r[1].dias.folga_horas).toEqual(['2026-11-07'])
+    expect(r[2].dias.sem_registro).toEqual(['2026-11-02', '2026-11-03', '2026-11-07', '2026-11-08'])
   })
 })

@@ -215,6 +215,7 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
   const { ref: refLateral, aperto } = useApertoDaLateral([
     dia.escalas,
     dia.faltas,
+    dia.folgas_simples,
     dia.folgas,
     dia.folgas_horas,
     dia.observacoes,

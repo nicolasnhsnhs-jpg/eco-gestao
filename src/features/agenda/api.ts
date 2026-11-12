@@ -400,7 +400,7 @@ export function useDiasDoMes(mes: string) {
       const ultimo = new Date(ano, m, 0).getDate()
       const { data, error } = await supabase
         .from('agenda_dias')
-        .select('data, escalas, faltas, folgas, folgas_horas')
+        .select('data, escalas, faltas, folgas_simples, folgas, folgas_horas')
         .gte('data', `${mes}-01`)
         .lte('data', `${mes}-${String(ultimo).padStart(2, '0')}`)
         .order('data')

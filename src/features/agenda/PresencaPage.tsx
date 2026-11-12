@@ -14,7 +14,7 @@ import { AUSENCIAS, NOME_AUSENCIA, presencaDoMes } from './regras'
 
 /*
  * Presença do mês: quantos dias cada técnico esteve na escala, faltou ou folgou
- * (folga porque trabalhará domingo ou descontada das horas em haver),
+ * (folga comum, folga porque trabalhará domingo ou descontada das horas em haver),
  * pelas agendas do dia. O mês atual vai se atualizando conforme a agenda muda.
  */
 
@@ -23,6 +23,9 @@ const NOME_MES = new Intl.DateTimeFormat('pt-BR', {
   year: 'numeric',
   timeZone: 'UTC',
 })
+
+/** O que aparece em "ver dias": cada falta e folga e os dias sem registro. */
+const TIPOS_DE_DIA = [...AUSENCIAS, 'sem_registro'] as const
 
 function nomeDoMes(mes: string): string {
   const t = NOME_MES.format(new Date(`${mes}-01T12:00:00Z`))
@@ -46,7 +49,7 @@ export function PresencaPage() {
 
   const linhas = dias.data && cadastro.data ? presencaDoMes(dias.data, cadastro.data.tecnicos) : []
   const totalDias = dias.data?.length ?? 0
-  const soma = (k: 'presencas' | 'faltas' | 'folgas' | 'folgasHoras') =>
+  const soma = (k: 'presencas' | 'faltas' | 'folgasSimples' | 'folgas' | 'folgasHoras') =>
     linhas.reduce((t, l) => t + l[k], 0)
 
   return (
@@ -89,10 +92,11 @@ export function PresencaPage() {
 
       {dias.data && cadastro.data && (
         <>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
             <Resumo rotulo="Dias com agenda" valor={totalDias} />
             <Resumo rotulo="Presenças" valor={soma('presencas')} cor="verde" />
             <Resumo rotulo="Faltas" valor={soma('faltas')} cor="vermelho" />
+            <Resumo rotulo="Folgas" valor={soma('folgasSimples')} />
             <Resumo rotulo="Folgas · trabalhará domingo" valor={soma('folgas')} />
             <Resumo rotulo="Folgas · horas em haver" valor={soma('folgasHoras')} />
           </div>
@@ -107,27 +111,30 @@ export function PresencaPage() {
             {totalDias === 0 ? (
               <p className="p-4 text-sm text-texto-suave">Nenhuma agenda do dia neste mês.</p>
             ) : (
-              <table className="w-full min-w-[40rem] text-sm">
+              <table className="w-full min-w-[48rem] text-sm">
                 <thead>
                   <tr className="text-left text-xs tracking-wide text-texto-suave uppercase">
                     <th className="px-4 py-2">Técnico</th>
                     <th className="px-2 py-2 text-center">Presenças</th>
                     <th className="px-2 py-2 text-center">Faltas</th>
+                    <th className="px-2 py-2 text-center" title="Folga comum (ex.: domingo)">
+                      Folgas
+                    </th>
                     <th
                       className="px-2 py-2 text-center"
                       title="Folga porque trabalhará no domingo"
                     >
-                      Folgas domingo
+                      Folgas · trab. domingo
                     </th>
                     <th
                       className="px-2 py-2 text-center"
                       title="Folga descontada das horas em haver"
                     >
-                      Folgas horas
+                      Folgas · horas em haver
                     </th>
                     <th
                       className="px-2 py-2 text-center"
-                      title="Dias com agenda em que o técnico não estava em escala, falta nem folga"
+                      title="Dias com agenda em que o técnico não estava em nenhuma escala, nem na falta ou na folga"
                     >
                       Sem registro
                     </th>
@@ -135,7 +142,7 @@ export function PresencaPage() {
                 </thead>
                 <tbody>
                   {linhas.map((l) => {
-                    const temDias = AUSENCIAS.some((t) => l.dias[t].length > 0)
+                    const temDias = TIPOS_DE_DIA.some((t) => l.dias[t].length > 0)
                     const mostrar = aberto === l.numero
                     return (
                       <tr key={l.numero} className="border-t border-borda align-top">
@@ -145,7 +152,9 @@ export function PresencaPage() {
                             disabled={!temDias}
                             onClick={() => setAberto(mostrar ? null : l.numero)}
                             className="text-left disabled:cursor-default"
-                            title={temDias ? 'Ver os dias de falta e folga' : undefined}
+                            title={
+                              temDias ? 'Ver os dias de falta, folga e sem registro' : undefined
+                            }
                           >
                             <strong>{String(l.numero).padStart(2, '0')}</strong>{' '}
                             {l.nome || <span className="text-texto-suave">sem cadastro</span>}
@@ -157,12 +166,13 @@ export function PresencaPage() {
                           </button>
                           {mostrar && (
                             <div className="mt-1 flex flex-col gap-0.5 text-xs">
-                              {AUSENCIAS.filter((t) => l.dias[t].length > 0).map((t) => (
+                              {TIPOS_DE_DIA.filter((t) => l.dias[t].length > 0).map((t) => (
                                 <span
                                   key={t}
                                   className={t === 'falta' ? 'text-perigo' : 'text-texto-suave'}
                                 >
-                                  {NOME_AUSENCIA[t]}: {l.dias[t].map(diaCurto).join(', ')}
+                                  {t === 'sem_registro' ? 'Sem registro' : NOME_AUSENCIA[t]}:{' '}
+                                  {l.dias[t].map(diaCurto).join(', ')}
                                 </span>
                               ))}
                             </div>
@@ -170,6 +180,7 @@ export function PresencaPage() {
                         </td>
                         <Numero valor={l.presencas} cor="verde" />
                         <Numero valor={l.faltas} cor="vermelho" />
+                        <Numero valor={l.folgasSimples} />
                         <Numero valor={l.folgas} />
                         <Numero valor={l.folgasHoras} />
                         <Numero valor={l.semRegistro} apagado />
