@@ -35,6 +35,7 @@ export function ServicosLayout() {
   const abas = [
     { rotulo: 'Agenda', caminho: '/servicos', fim: true },
     { rotulo: 'Agenda do dia', caminho: '/servicos/dia', fim: false },
+    { rotulo: 'Presença', caminho: '/servicos/presenca', fim: false },
     { rotulo: 'Vencimentos', caminho: '/servicos/vencimentos', fim: false },
     ...(PAPEIS_GESTAO.includes(perfil.papel)
       ? [{ rotulo: 'Tipos de serviço', caminho: '/servicos/tipos', fim: false }]

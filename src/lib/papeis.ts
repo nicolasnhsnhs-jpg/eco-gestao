@@ -43,8 +43,21 @@ export const PAPEIS_ESCRITORIO_OS: readonly Papel[] = [
   'recepcao',
 ]
 
-/** Quem mexe na Agenda do dia. O ADM só consulta (vê ao vivo, mas não altera). */
-export const PAPEIS_EDITAR_AGENDA: readonly Papel[] = ['admin', 'financeiro', 'vendedor']
+/**
+ * Quem monta a Agenda do dia. Os outros só consultam (veem ao vivo): o ADM marca o R
+ * (realizado), o financeiro marca o F (faturado) e o operador só olha.
+ */
+export const PAPEIS_EDITAR_AGENDA: readonly Papel[] = ['admin', 'vendedor']
+export const PAPEIS_CONFERIR_REALIZADO: readonly Papel[] = ['admin', 'administrativo']
+export const PAPEIS_CONFERIR_FATURADO: readonly Papel[] = ['admin', 'financeiro']
+/** Quem vê a Agenda do dia (o operador, até 30 dias para a frente). */
+export const PAPEIS_VER_AGENDA: readonly Papel[] = [
+  'admin',
+  'financeiro',
+  'administrativo',
+  'vendedor',
+  'operador',
+]
 
 /** Quem emite certificados de serviço. */
 export const PAPEIS_CERTIFICADOS: readonly Papel[] = ['admin', 'administrativo']

@@ -8,6 +8,11 @@ import {
   lerTecnicos,
   ordenarItens,
   partesDaDescricao,
+  comValorNaParte,
+  compararVeiculos,
+  escalasDoDia,
+  marcarAusencia,
+  presencaDoMes,
   parteDaLinha,
   textoDaTaxa,
   alternarAvulso,
@@ -37,6 +42,8 @@ function item(p: Partial<AgendaItem>): AgendaItem {
     nota: '',
     nota_parte: null,
     chegada_parte: 0,
+    horarios: [],
+    notas: [],
     taxa: '',
     taxa_motivo: '',
     taxa_parte: null,
@@ -224,7 +231,7 @@ describe('cadastro de técnicos e veículos', () => {
     { ...base, codigo: 'ON14', placa: '', tem_sem_parar: false, ativo: false },
   ]
   it('lista os ativos sem Sem Parar, em ordem', () => {
-    expect(veiculosSemSemParar(veiculos)).toEqual(['CM10', 'S3'])
+    expect(veiculosSemSemParar(veiculos)).toEqual(['S3', 'CM10'])
   })
   it('avisa técnico e veículo que não estão no cadastro', () => {
     expect(
@@ -243,5 +250,62 @@ describe('cadastro de técnicos e veículos', () => {
       tecnicosDesconhecidos: [],
       veiculoDesconhecido: false,
     })
+  })
+})
+
+describe('horário de cada cliente', () => {
+  it('cada cliente com o seu horário', () => {
+    expect(comValorNaParte([], 2, '19h')).toEqual(['', '', '19h'])
+    expect(comValorNaParte(['8h', '', '19h'], 2, '')).toEqual(['8h'])
+    expect(comValorNaParte(['8h'], 1, ' 14h ')).toEqual(['8h', '14h'])
+  })
+})
+
+describe('compararVeiculos', () => {
+  it('pela numeração do código', () => {
+    expect(['ON14', 'CM10', 'ON7', 'CM8', 'GO6', 'ON4', 'X'].sort(compararVeiculos)).toEqual([
+      'ON4',
+      'GO6',
+      'ON7',
+      'CM8',
+      'CM10',
+      'ON14',
+      'X',
+    ])
+    expect(['KA21', 'GM22', 'S24'].sort(compararVeiculos)).toEqual(['KA21', 'GM22', 'S24'])
+  })
+})
+
+describe('falta e folga', () => {
+  const dia = { faltas: [7], folgas: [9] }
+  it('quem faltou ou folgou sai da escala do dia', () => {
+    expect(escalasDoDia([{ inicio: '07:30', fim: '17h', tecnicos: [5, 7, 9] }], dia)).toEqual([
+      { inicio: '07:30', fim: '17h', tecnicos: [5] },
+    ])
+  })
+  it('passar para a falta tira da folga', () => {
+    expect(marcarAusencia(dia, 'falta', [7, 9])).toEqual({ faltas: [7, 9], folgas: [] })
+    expect(marcarAusencia(dia, 'folga', [9, 7])).toEqual({ faltas: [], folgas: [9, 7] })
+  })
+  it('conta presença, falta e folga do mês', () => {
+    const escalas = [{ inicio: '07:30', fim: '17h', tecnicos: [5, 7] }]
+    const r = presencaDoMes(
+      [
+        { data: '2026-11-02', escalas, faltas: [], folgas: [] },
+        { data: '2026-11-03', escalas, faltas: [7], folgas: [] },
+        { data: '2026-11-07', escalas, faltas: [], folgas: [5, 7] },
+      ],
+      [
+        { numero: 5, nome: 'Ana', ativo: true },
+        { numero: 7, nome: 'Bia', ativo: true },
+        { numero: 9, nome: 'Caio', ativo: true },
+      ],
+    )
+    expect(r.map((p) => [p.numero, p.presencas, p.faltas, p.folgas, p.semRegistro])).toEqual([
+      [5, 2, 0, 1, 0],
+      [7, 1, 1, 1, 0],
+      [9, 0, 0, 0, 3],
+    ])
+    expect(r[1].diasFalta).toEqual(['2026-11-03'])
   })
 })

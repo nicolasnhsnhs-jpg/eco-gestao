@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import type { TablesUpdate } from '@/lib/database.types'
 import { supabase } from '@/lib/supabase'
 
+import { compararVeiculos } from './regras'
 import type { AgendaDia, AgendaItem, Escala, Tecnico, Veiculo } from './regras'
 
 /*
@@ -48,10 +49,8 @@ export function useCadastroAgenda() {
       ])
       if (tecnicos.error) throw tecnicos.error
       if (veiculos.error) throw veiculos.error
-      // Veículos em ordem alfabética, com o número na ordem certa (G6 antes de G16).
-      const porCodigo = [...veiculos.data].sort((a, b) =>
-        a.codigo.localeCompare(b.codigo, 'pt-BR', { numeric: true }),
-      )
+      // Veículos pela numeração do código (ON4, GO6, ON7, CM8...).
+      const porCodigo = [...veiculos.data].sort((a, b) => compararVeiculos(a.codigo, b.codigo))
       return { tecnicos: tecnicos.data, veiculos: porCodigo }
     },
     staleTime: 5 * 60_000,
@@ -144,14 +143,35 @@ export function useCriarDia() {
   })
 }
 
+/*
+ * Gravações de uma mesma linha (ou do mesmo dia) vão uma de cada vez, na ordem em
+ * que foram feitas. Sem isso, preenchendo vários campos rápido, uma gravação mais
+ * antiga podia chegar ao banco depois da nova e desfazer o que acabou de ser escrito.
+ */
+const filas = new Map<string, Promise<unknown>>()
+
+function emFila<T>(chaveFila: string, fazer: () => Promise<T>): Promise<T> {
+  const antes = filas.get(chaveFila) ?? Promise.resolve()
+  const agora = antes.then(fazer, fazer)
+  filas.set(chaveFila, agora)
+  const limpar = () => {
+    if (filas.get(chaveFila) === agora) filas.delete(chaveFila)
+  }
+  agora.then(limpar, limpar)
+  return agora
+}
+
 export function useSalvarDia(data: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (patch: TablesUpdate<'agenda_dias'>) => {
-      const { error } = await supabase.from('agenda_dias').update(patch).eq('data', data)
-      if (error) throw error
-    },
-    onMutate: (patch) => {
+    mutationFn: (patch: TablesUpdate<'agenda_dias'>) =>
+      emFila(`dia:${data}`, async () => {
+        const { error } = await supabase.from('agenda_dias').update(patch).eq('data', data)
+        if (error) throw error
+      }),
+    onMutate: async (patch) => {
+      // Uma recarga já a caminho traria o dia de antes desta mudança: cancela.
+      await qc.cancelQueries({ queryKey: chave(data) })
       qc.setQueryData<Agenda>(chave(data), (a) =>
         a?.dia ? { ...a, dia: { ...a.dia, ...patch } as AgendaDia } : a,
       )
@@ -184,12 +204,15 @@ export function useCriarItem(data: string) {
 export function useSalvarItem(data: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: TablesUpdate<'agenda_itens'> }) => {
-      const { error } = await supabase.from('agenda_itens').update(patch).eq('id', id)
-      if (error) throw error
-    },
+    mutationFn: ({ id, patch }: { id: string; patch: TablesUpdate<'agenda_itens'> }) =>
+      emFila(`linha:${id}`, async () => {
+        const { error } = await supabase.from('agenda_itens').update(patch).eq('id', id)
+        if (error) throw error
+      }),
     // A tela muda na hora; o banco confirma depois.
-    onMutate: ({ id, patch }) => {
+    onMutate: async ({ id, patch }) => {
+      // Uma recarga já a caminho traria a linha de antes desta mudança: cancela.
+      await qc.cancelQueries({ queryKey: chave(data) })
       qc.setQueryData<Agenda>(chave(data), (a) =>
         a
           ? {
@@ -201,6 +224,32 @@ export function useSalvarItem(data: string) {
     },
     onError: () => qc.invalidateQueries({ queryKey: chave(data) }),
   })
+}
+
+/**
+ * Salva um campo calculado a partir da linha como ela está agora (e não como estava
+ * quando a tela foi desenhada). Para as listas por cliente (horários, observações):
+ * preenchendo vários clientes seguidos, um não apaga o outro.
+ */
+export function useSalvarItemAtual(data: string) {
+  const qc = useQueryClient()
+  const salvar = useSalvarItem(data)
+  const salvarAtual = (id: string, montar: (atual: AgendaItem) => TablesUpdate<'agenda_itens'>) => {
+    const atual = qc.getQueryData<Agenda>(chave(data))?.itens.find((i) => i.id === id)
+    if (atual) salvar.mutate({ id, patch: montar(atual) })
+  }
+  return { ...salvar, salvarAtual }
+}
+
+/** O mesmo para o dia (falta e folga). */
+export function useSalvarDiaAtual(data: string) {
+  const qc = useQueryClient()
+  const salvar = useSalvarDia(data)
+  const salvarAtual = (montar: (atual: AgendaDia) => TablesUpdate<'agenda_dias'>) => {
+    const atual = qc.getQueryData<Agenda>(chave(data))?.dia
+    if (atual) salvar.mutate(montar(atual))
+  }
+  return { ...salvar, salvarAtual }
 }
 
 export function useApagarItem(data: string) {
@@ -267,11 +316,15 @@ export function useAgendaTempoReal(data: string, meuId: string, meuNome: string)
   const [conexao, setConexao] = useState<Conexao>('conectando')
 
   useEffect(() => {
-    const recarregar = () =>
-      Promise.all([
+    // Espera as gravações desta tela terminarem: recarregar no meio traria de volta
+    // um estado antigo (e o próximo campo salvo partiria dele).
+    const recarregar = async () => {
+      while (filas.size) await Promise.allSettled([...filas.values()])
+      return Promise.all([
         qc.invalidateQueries({ queryKey: chave(data) }),
         qc.invalidateQueries({ queryKey: ['agenda-faixa'] }),
       ])
+    }
     const eu: Presente = { id: meuId, nome: meuNome }
     const canal = supabase.channel(`agenda-${data}`, { config: { presence: { key: meuId } } })
     canal
@@ -335,5 +388,26 @@ export function useConferirLembrete(data: string) {
     },
     onSuccess: () =>
       void queryClient.invalidateQueries({ queryKey: ['agenda', 'lembretes', data] }),
+  })
+}
+
+/** Os dias de um mês ("2026-11"), com escala, falta e folga: base do resumo de presença. */
+export function useDiasDoMes(mes: string) {
+  return useQuery({
+    queryKey: ['agenda-mes', mes],
+    queryFn: async () => {
+      const [ano, m] = mes.split('-').map(Number)
+      const ultimo = new Date(ano, m, 0).getDate()
+      const { data, error } = await supabase
+        .from('agenda_dias')
+        .select('data, escalas, faltas, folgas')
+        .gte('data', `${mes}-01`)
+        .lte('data', `${mes}-${String(ultimo).padStart(2, '0')}`)
+        .order('data')
+      if (error) throw error
+      return data
+    },
+    // Mês aberto na tela: confere de novo de tempos em tempos.
+    refetchInterval: 60_000,
   })
 }

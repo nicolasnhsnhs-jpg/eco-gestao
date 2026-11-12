@@ -16,6 +16,8 @@ export type Database = {
           criado_por: string | null
           data: string
           escalas: Json
+          faltas: number[]
+          folgas: number[]
           mensagem: string
           observacoes: string
         }
@@ -26,6 +28,8 @@ export type Database = {
           criado_por?: string | null
           data: string
           escalas?: Json
+          faltas?: number[]
+          folgas?: number[]
           mensagem?: string
           observacoes?: string
         }
@@ -36,6 +40,8 @@ export type Database = {
           criado_por?: string | null
           data?: string
           escalas?: Json
+          faltas?: number[]
+          folgas?: number[]
           mensagem?: string
           observacoes?: string
         }
@@ -72,9 +78,11 @@ export type Database = {
           faturado: boolean
           hora: string
           horario_cliente: boolean
+          horarios: string[]
           id: string
           nota: string
           nota_parte: number | null
+          notas: string[]
           ordem: number
           periodo: string
           realizado: boolean
@@ -100,9 +108,11 @@ export type Database = {
           faturado?: boolean
           hora?: string
           horario_cliente?: boolean
+          horarios?: string[]
           id?: string
           nota?: string
           nota_parte?: number | null
+          notas?: string[]
           ordem?: number
           periodo?: string
           realizado?: boolean
@@ -128,9 +138,11 @@ export type Database = {
           faturado?: boolean
           hora?: string
           horario_cliente?: boolean
+          horarios?: string[]
           id?: string
           nota?: string
           nota_parte?: number | null
+          notas?: string[]
           ordem?: number
           periodo?: string
           realizado?: boolean

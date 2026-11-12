@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate, Outlet } from 'react-router'
 
 import { AgendaDiaPage } from '@/features/agenda/AgendaDiaPage'
+import { PresencaPage } from '@/features/agenda/PresencaPage'
 import { AgendaTvPage } from '@/features/agenda/AgendaTvPage'
 import { AdministrativoLayout } from '@/features/administrativo/AdministrativoLayout'
 import { AssinaturaPage } from '@/features/administrativo/assinatura/AssinaturaPage'
@@ -184,6 +185,15 @@ export const router = createBrowserRouter([
           },
         ],
       },
+      // O operador só olha a agenda do dia (sem as outras abas de Serviços).
+      {
+        path: 'agenda-do-dia',
+        element: (
+          <ExigePapel papeis={['operador']}>
+            <AgendaDiaPage />
+          </ExigePapel>
+        ),
+      },
       {
         path: 'usuarios',
         element: (
@@ -248,6 +258,7 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <AgendaPage /> },
               { path: 'dia', element: <AgendaDiaPage /> },
+              { path: 'presenca', element: <PresencaPage /> },
               { path: 'vencimentos', element: <VencimentosPage /> },
               {
                 path: 'tipos',

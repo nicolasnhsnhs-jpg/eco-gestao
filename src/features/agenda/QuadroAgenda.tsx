@@ -18,6 +18,9 @@ import {
   itensDoQuadro,
   lerEscalas,
   partesDaDescricao,
+  ausentesDoDia,
+  escalasDoDia,
+  valorDaParte,
   parteDaLinha,
   textoDaTaxa,
   resumoDoDia,
@@ -192,7 +195,9 @@ function Relogio() {
 }
 
 export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, style }: Props) {
-  const escalas = lerEscalas(dia.escalas)
+  // Quem faltou ou está de folga sai da escala no quadro.
+  const escalas = escalasDoDia(lerEscalas(dia.escalas), dia)
+  const ausentes = ausentesDoDia(dia)
   const cores = coresDasEscalas(escalas)
   const listaSemParar = veiculosSemSemParar(veiculos)
   const semParar = new Set(listaSemParar)
@@ -284,10 +289,10 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
             {linhasComGrupo.map(({ x, novoTurno }, i) => {
               const partes = partesDaDescricao(x.descricao)
               // Horário do campo, ao lado do cliente (antes do período e da observação).
-              const foraDoTexto = horarioForaDoTexto(x.descricao, x.chegada)
+              // Horário de cada cliente, ao lado dele (o que já está escrito no texto não repete).
+              const horarioDe = (i: number) =>
+                horarioForaDoTexto(x.descricao, valorDaParte(x.horarios, i))
               // De qual cliente é o horário, a observação e a taxa (null = linha toda).
-              const parteHorario = parteDaLinha(x.chegada_parte, partes.length) ?? 0
-              const parteNota = parteDaLinha(x.nota_parte, partes.length)
               const taxa = interno ? textoDaTaxa(x.taxa, x.taxa_motivo) : ''
               const parteTaxa = parteDaLinha(x.taxa_parte, partes.length)
               const nota = x.nota.trim()
@@ -327,16 +332,16 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
                                 <span className="aq-chip aq-avulso">Avulso</span>
                               </>
                             )}
-                            {i === parteHorario && foraDoTexto && (
+                            {horarioDe(i) && (
                               <>
                                 {' '}
-                                <HorarioBrilhando texto={foraDoTexto} />
+                                <HorarioBrilhando texto={horarioDe(i)} />
                               </>
                             )}
-                            {nota && parteNota === i && (
+                            {valorDaParte(x.notas, i) && (
                               <>
                                 {' '}
-                                <Nota texto={nota} />
+                                <Nota texto={valorDaParte(x.notas, i)} />
                               </>
                             )}
                             {taxa && parteTaxa === i && (
@@ -354,7 +359,7 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
                           {x.periodo.trim()}
                         </span>
                       )}
-                      {nota && parteNota === null && <Nota texto={nota} />}
+                      {nota && <Nota texto={nota} />}
                       {taxa && parteTaxa === null && <Taxa texto={taxa} />}
                     </div>
                     <div className="aq-tecs">
@@ -432,6 +437,34 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
                 </div>
               </div>
             ))}
+            {(ausentes.faltas.length > 0 || ausentes.folgas.length > 0) && (
+              <div className="aq-turma aq-ausentes">
+                {ausentes.faltas.length > 0 && (
+                  <div className="aq-ausencia">
+                    <span className="aq-ausencia-nome">Falta</span>
+                    <div className="aq-tecs">
+                      {ausentes.faltas.map((n) => (
+                        <span key={n} className="aq-tec aq-falta">
+                          {n}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {ausentes.folgas.length > 0 && (
+                  <div className="aq-ausencia">
+                    <span className="aq-ausencia-nome">Folga</span>
+                    <div className="aq-tecs">
+                      {ausentes.folgas.map((n) => (
+                        <span key={n} className="aq-tec aq-folga">
+                          {n}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           {listaSemParar.length > 0 && (
             <div className="aq-cartao aq-veiculos">

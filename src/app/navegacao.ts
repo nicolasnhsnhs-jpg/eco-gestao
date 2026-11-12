@@ -119,6 +119,14 @@ export const MENU: readonly ItemMenu[] = [
     grupo: 'administrativo',
   },
   {
+    // O operador só olha a agenda do dia (até 30 dias para a frente).
+    rotulo: 'Agenda do dia',
+    caminho: '/agenda-do-dia',
+    icone: CalendarDays,
+    papeis: ['operador'],
+    barraInferior: ['operador'],
+  },
+  {
     rotulo: 'Ordens de serviço',
     caminho: '/os',
     icone: ClipboardList,

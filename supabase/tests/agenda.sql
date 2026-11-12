@@ -2,8 +2,9 @@
 -- Agenda do dia.
 --
 --  1. Administrador e vendedor criam o dia, linhas e alteram.
---  2. ADM só consulta: vê, mas não cria, altera nem apaga.
---  3. Operador e recepção não veem nem mexem.
+--  2. ADM e financeiro só consultam: o ADM marca só o R e o financeiro só o F.
+--  3. Operador vê (até 30 dias à frente) e não mexe; recepção não vê.
+--  7. Falta e folga do dia.
 --  4. Apagar o dia leva as linhas junto.
 --  5. Cadastro de técnicos e veículos: administrador cadastra; ADM e vendedor só veem.
 --  6. Viagem de vários dias: a linha aparece nos dias seguintes e acompanha as mudanças
@@ -19,12 +20,14 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-0000000a9002', 'vend@agenda.local',  '{"nome":"Vendedor [agenda]"}'),
   ('00000000-0000-0000-0000-0000000a9003', 'op@agenda.local',    '{"nome":"Operador [agenda]"}'),
   ('00000000-0000-0000-0000-0000000a9004', 'rec@agenda.local',   '{"nome":"Recepção [agenda]"}'),
-  ('00000000-0000-0000-0000-0000000a9005', 'adm@agenda.local',   '{"nome":"ADM [agenda]"}');
+  ('00000000-0000-0000-0000-0000000a9005', 'adm@agenda.local',   '{"nome":"ADM [agenda]"}'),
+  ('00000000-0000-0000-0000-0000000a9006', 'fin@agenda.local',   '{"nome":"Financeiro [agenda]"}');
 update public.perfis set papel = 'admin'          where id = '00000000-0000-0000-0000-0000000a9001';
 update public.perfis set papel = 'vendedor'       where id = '00000000-0000-0000-0000-0000000a9002';
 update public.perfis set papel = 'operador'       where id = '00000000-0000-0000-0000-0000000a9003';
 update public.perfis set papel = 'recepcao'       where id = '00000000-0000-0000-0000-0000000a9004';
 update public.perfis set papel = 'administrativo' where id = '00000000-0000-0000-0000-0000000a9005';
+update public.perfis set papel = 'financeiro'     where id = '00000000-0000-0000-0000-0000000a9006';
 
 create function pg_temp.como(usuario text) returns void language sql as $$
   select set_config('request.jwt.claims',
@@ -69,18 +72,75 @@ do $$ begin
   exception when insufficient_privilege then null;
   end;
 end $$;
-update public.agenda_itens set veiculo = 'X', realizado = true where id = '00000000-0000-0000-0000-0000000a9101';
+do $$ begin
+  begin
+    update public.agenda_itens set veiculo = 'X', realizado = true where id = '00000000-0000-0000-0000-0000000a9101';
+    raise exception 'ADM não deveria alterar o veículo';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update public.agenda_itens set faturado = true where id = '00000000-0000-0000-0000-0000000a9101';
+    raise exception 'ADM não deveria marcar o F';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+update public.agenda_itens set realizado = true where id = '00000000-0000-0000-0000-0000000a9101';
 update public.agenda_dias set mensagem = 'X' where data = '2099-01-05';
 delete from public.agenda_itens where id = '00000000-0000-0000-0000-0000000a9101';
 
--- 3. Operador e recepção: não veem e não alteram.
+-- Financeiro: só o F.
+select pg_temp.como('00000000-0000-0000-0000-0000000a9006');
+do $$ begin
+  begin
+    update public.agenda_itens set nota = 'X' where id = '00000000-0000-0000-0000-0000000a9101';
+    raise exception 'financeiro não deveria alterar a linha';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update public.agenda_itens set realizado = false where id = '00000000-0000-0000-0000-0000000a9101';
+    raise exception 'financeiro não deveria marcar o R';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    insert into public.agenda_itens (data, hora, descricao) values ('2099-01-05', '08:00', 'X');
+    raise exception 'financeiro não deveria criar linha';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+update public.agenda_itens set faturado = true where id = '00000000-0000-0000-0000-0000000a9101';
+update public.agenda_dias set mensagem = 'X' where data = '2099-01-05';
+
+-- Vendedor monta a agenda, mas não marca R nem F.
+select pg_temp.como('00000000-0000-0000-0000-0000000a9002');
+do $$ begin
+  begin
+    update public.agenda_itens set faturado = false where id = '00000000-0000-0000-0000-0000000a9101';
+    raise exception 'vendedor não deveria marcar o F';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+
+-- 3. Operador vê até 30 dias à frente e não altera; recepção não vê.
+select pg_temp.como('00000000-0000-0000-0000-0000000a9001');
+insert into public.agenda_dias (data) values
+  ((now() at time zone 'America/Sao_Paulo')::date + 30),
+  ((now() at time zone 'America/Sao_Paulo')::date + 31)
+  on conflict (data) do nothing;
 select pg_temp.como('00000000-0000-0000-0000-0000000a9003');
 do $$ begin
-  if exists (select 1 from public.agenda_itens) or exists (select 1 from public.agenda_dias) then
-    raise exception 'operador não deveria ver a agenda';
+  if not exists (select 1 from public.agenda_dias
+                  where data = (now() at time zone 'America/Sao_Paulo')::date + 30) then
+    raise exception 'operador deveria ver até 30 dias à frente';
+  end if;
+  if exists (select 1 from public.agenda_dias
+              where data = (now() at time zone 'America/Sao_Paulo')::date + 31)
+     or exists (select 1 from public.agenda_dias where data = '2099-01-05')
+     or exists (select 1 from public.agenda_itens where data = '2099-01-05') then
+    raise exception 'operador não deveria ver mais de 30 dias à frente';
   end if;
 end $$;
 update public.agenda_itens set veiculo = 'X' where id = '00000000-0000-0000-0000-0000000a9101';
+update public.agenda_dias set mensagem = 'X' where data = (now() at time zone 'America/Sao_Paulo')::date + 30;
 do $$ begin
   begin
     insert into public.agenda_dias (data) values ('2099-01-06');
@@ -98,12 +158,12 @@ end $$;
 
 select pg_temp.como('00000000-0000-0000-0000-0000000a9001');
 do $$ begin
-  if (select veiculo || realizado::text from public.agenda_itens
-       where id = '00000000-0000-0000-0000-0000000a9101') is distinct from 'ON7false' then
-    raise exception 'ADM ou operador conseguiu alterar a linha';
+  if (select veiculo || realizado::text || faturado::text from public.agenda_itens
+       where id = '00000000-0000-0000-0000-0000000a9101') is distinct from 'ON7truetrue' then
+    raise exception 'só o R (ADM) e o F (financeiro) deveriam ter mudado';
   end if;
-  if (select mensagem from public.agenda_dias where data = '2099-01-05') = 'X' then
-    raise exception 'ADM conseguiu alterar o dia';
+  if exists (select 1 from public.agenda_dias where mensagem = 'X') then
+    raise exception 'ADM, financeiro ou operador conseguiu alterar o dia';
   end if;
 end $$;
 
@@ -138,18 +198,23 @@ update public.agenda_veiculos set placa = 'Mudou' where codigo = 'ZZ99';
 
 select pg_temp.como('00000000-0000-0000-0000-0000000a9003');
 do $$ begin
-  if exists (select 1 from public.agenda_tecnicos) or exists (select 1 from public.agenda_veiculos) then
-    raise exception 'operador não deveria ver o cadastro';
+  if not exists (select 1 from public.agenda_tecnicos where numero = 9901) then
+    raise exception 'operador deveria ver os técnicos (números e nomes do quadro)';
   end if;
 end $$;
+update public.agenda_veiculos set placa = 'Mudou' where codigo = 'ZZ99';
+
+-- Financeiro não muda mais o cadastro.
+select pg_temp.como('00000000-0000-0000-0000-0000000a9006');
+update public.agenda_tecnicos set nome = 'Mudou' where numero = 9901;
 
 select pg_temp.como('00000000-0000-0000-0000-0000000a9001');
 do $$ begin
   if (select nome from public.agenda_tecnicos where numero = 9901) <> 'Técnico [teste]' then
-    raise exception 'vendedor conseguiu alterar o técnico';
+    raise exception 'vendedor ou financeiro conseguiu alterar o técnico';
   end if;
   if (select placa from public.agenda_veiculos where codigo = 'ZZ99') <> 'AAA 0A00' then
-    raise exception 'ADM conseguiu alterar o veículo';
+    raise exception 'ADM ou operador conseguiu alterar o veículo';
   end if;
 end $$;
 
@@ -205,12 +270,12 @@ do $$ begin
 end $$;
 
 -- A observação e o horário dizem de qual cliente são e vão junto; a taxa é só daquele dia.
-update public.agenda_itens set nota_parte = 1, chegada_parte = 1, taxa = 'Domingo', taxa_parte = 0
+update public.agenda_itens set notas = '{"",Levar escada}', horarios = '{9h,14h}', taxa = 'Domingo', taxa_parte = 0
  where id = '00000000-0000-0000-0000-0000000a9201';
 do $$ begin
-  if (select nota_parte || '|' || chegada_parte || '|' || taxa from public.agenda_itens
-       where data = '2099-03-03' and descricao = 'SUSEPE 14: Rota') <> '1|1|' then
-    raise exception 'o cliente da observação e do horário vão junto, a taxa não';
+  if (select array_to_string(notas, ',') || '|' || array_to_string(horarios, ',') || '|' || taxa from public.agenda_itens
+       where data = '2099-03-03' and descricao = 'SUSEPE 14: Rota') <> ',Levar escada|9h,14h|' then
+    raise exception 'a observação e os horários de cada cliente vão junto, a taxa não';
   end if;
 end $$;
 
@@ -233,6 +298,15 @@ insert into public.agenda_itens (data, hora, descricao, periodo)
 do $$ begin
   if (select count(*) from public.agenda_itens where data = '2099-04-07') <> 1 then
     raise exception 'a linha igual deveria ser aproveitada';
+  end if;
+end $$;
+
+-- 7. Falta e folga: ficam no dia; o dia seguinte copia a escala e começa sem ninguém faltando.
+update public.agenda_dias set escalas = '[{"inicio":"07:30","fim":"17h","tecnicos":[5,7]}]', faltas = '{7}', folgas = '{9}'
+ where data = '2099-04-06';
+do $$ begin
+  if (select faltas::text || folgas::text from public.agenda_dias where data = '2099-04-06') <> '{7}{9}' then
+    raise exception 'falta e folga deveriam ficar gravadas no dia';
   end if;
 end $$;
 

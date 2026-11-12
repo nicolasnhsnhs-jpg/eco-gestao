@@ -717,3 +717,34 @@
   opacity: 0.7;
   margin-top: 4px;
 }
+
+/* Falta e folga do dia, no fim da caixa da escala. */
+.aq-ausentes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.aq-ausencia {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.aq-ausencia-nome {
+  min-width: 62px;
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--noite);
+}
+.aq-ausencia .aq-tecs {
+  margin-top: 0;
+}
+.aq-escala .aq-tec.aq-falta {
+  background: #d92d20;
+  color: #fff;
+  border: 2px solid #8f1b12;
+}
+.aq-escala .aq-tec.aq-folga {
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--escuro);
+  border: 2px dashed var(--escuro);
+}

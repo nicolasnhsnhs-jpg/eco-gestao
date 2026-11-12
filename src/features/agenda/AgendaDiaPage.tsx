@@ -30,7 +30,11 @@ import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
 import { formatarData, hojeISO, somarDias } from '@/lib/datas'
 import { mensagemDeErro } from '@/lib/erros'
-import { PAPEIS_EDITAR_AGENDA, PAPEIS_GESTAO } from '@/lib/papeis'
+import {
+  PAPEIS_CONFERIR_FATURADO,
+  PAPEIS_CONFERIR_REALIZADO,
+  PAPEIS_EDITAR_AGENDA,
+} from '@/lib/papeis'
 import { cn } from '@/lib/utils'
 
 import { usePerfil } from '../auth/useAuth'
@@ -49,8 +53,9 @@ import {
   useCriarItem,
   useDiasComAgenda,
   useLembretesAgenda,
-  useSalvarDia,
   useSalvarItem,
+  useSalvarItemAtual,
+  useSalvarDiaAtual,
   type Conexao,
   type Presente,
 } from './api'
@@ -66,7 +71,13 @@ import {
   alternarAvulso,
   conferirComCadastro,
   partesDaDescricao,
+  itensDoQuadro,
   parteDaLinha,
+  valorDaParte,
+  comValorNaParte,
+  ausentesDoDia,
+  marcarAusencia,
+  type Ausencia,
   TAXAS_COMUNS,
   escreverTecnicos,
   lerEscalas,
@@ -98,14 +109,25 @@ function diaAnterior(data: string) {
 export function AgendaDiaPage() {
   const perfil = usePerfil()
   const [params, setParams] = useSearchParams()
-  const data = params.get('data') || hojeISO()
-  const irPara = (d: string) => setParams(d === hojeISO() ? {} : { data: d }, { replace: true })
+  // Operador só olha: qualquer dia para trás e até 30 dias para a frente.
+  const operador = perfil.papel === 'operador'
+  const limite = operador ? somarDias(hojeISO(), DIAS_A_FRENTE_OPERADOR) : undefined
+  const pedida = params.get('data') || hojeISO()
+  const data = limite && pedida > limite ? limite : pedida
+  const irPara = (d: string) => {
+    const dia = limite && d > limite ? limite : d
+    setParams(dia === hojeISO() ? {} : { data: dia }, { replace: true })
+  }
 
   const agenda = useAgenda(data)
   const { presentes, conexao } = useAgendaTempoReal(data, perfil.id, perfil.nome)
   const [mostrarPrevia, setMostrarPrevia] = useState(true)
   const podeEditar = PAPEIS_EDITAR_AGENDA.includes(perfil.papel)
-  const podeConferir = podeEditar && PAPEIS_GESTAO.includes(perfil.papel)
+  // ADM marca o R; financeiro marca o F; o administrador, os dois.
+  const conferir = {
+    r: PAPEIS_CONFERIR_REALIZADO.includes(perfil.papel),
+    f: PAPEIS_CONFERIR_FATURADO.includes(perfil.papel),
+  }
   const cadastro = useCadastroAgenda()
   const tecnicos = cadastro.data?.tecnicos ?? []
   const veiculos = cadastro.data?.veiculos ?? []
@@ -134,6 +156,7 @@ export function AgendaDiaPage() {
               type="date"
               aria-label="Data da agenda"
               value={data}
+              max={limite}
               onChange={(e) => e.target.value && irPara(e.target.value)}
               className="min-h-9 w-auto border-0 px-2 focus:ring-0"
             />
@@ -141,7 +164,8 @@ export function AgendaDiaPage() {
               type="button"
               aria-label="Próximo dia"
               onClick={() => irPara(somarDias(data, 1))}
-              className="grid size-9 place-items-center rounded-lg hover:bg-lima-claro"
+              disabled={!!limite && data >= limite}
+              className="grid size-9 place-items-center rounded-lg hover:bg-lima-claro disabled:opacity-30"
             >
               <ChevronRight className="size-5" aria-hidden />
             </button>
@@ -155,16 +179,20 @@ export function AgendaDiaPage() {
         <QuemEsta presentes={presentes} conexao={conexao} />
       </div>
 
-      <ProximosDias data={data} irPara={irPara} />
+      <ProximosDias data={data} irPara={irPara} limite={limite} />
 
-      <LembretesPropostas data={data} podeConferir={podeEditar} />
+      {!operador && <LembretesPropostas data={data} podeConferir={podeEditar} />}
 
       {agenda.isPending && <Carregando />}
       {agenda.isError && <Aviso tipo="erro">{mensagemDeErro(agenda.error)}</Aviso>}
 
       {!podeEditar && (
         <Aviso tipo="info">
-          Você só consulta a agenda: as mudanças aparecem aqui ao vivo, mas não dá para alterar.
+          {conferir.r
+            ? 'Você só consulta a agenda (as mudanças aparecem ao vivo). Dá para marcar o R de realizado em cada serviço.'
+            : conferir.f
+              ? 'Você só consulta a agenda (as mudanças aparecem ao vivo). Dá para marcar o F de faturado em cada serviço.'
+              : 'Você só consulta a agenda: as mudanças aparecem aqui ao vivo, mas não dá para alterar.'}
         </Aviso>
       )}
 
@@ -189,18 +217,23 @@ export function AgendaDiaPage() {
                   )}
                   {mostrarPrevia ? 'Esconder prévia' : 'Mostrar prévia'}
                 </Button>
-                <Link
-                  to={`/agenda-tv${data === hojeISO() ? '' : `?data=${data}`}`}
-                  target="_blank"
-                  className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-borda bg-white px-4 font-semibold text-verde-escuro hover:bg-lima-claro"
-                >
-                  <Tv className="size-5" aria-hidden /> Abrir na TV
-                </Link>
-                <ExportarImagem
-                  dia={agenda.data.dia}
-                  itens={agenda.data.itens}
-                  veiculos={veiculos}
-                />
+                {!operador && (
+                  <Link
+                    to={`/agenda-tv${data === hojeISO() ? '' : `?data=${data}`}`}
+                    target="_blank"
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-borda bg-white px-4 font-semibold text-verde-escuro hover:bg-lima-claro"
+                  >
+                    <Tv className="size-5" aria-hidden /> Abrir na TV
+                  </Link>
+                )}
+                {/* Gerar a imagem (e mandar para o Drive) é só de quem monta a agenda. */}
+                {podeEditar && (
+                  <ExportarImagem
+                    dia={agenda.data.dia}
+                    itens={agenda.data.itens}
+                    veiculos={veiculos}
+                  />
+                )}
               </div>
             </div>
             {mostrarPrevia && (
@@ -211,7 +244,7 @@ export function AgendaDiaPage() {
                       dia={agenda.data.dia!}
                       itens={agenda.data.itens}
                       veiculos={veiculos}
-                      modo="tela"
+                      modo={operador ? 'imagem' : 'tela'}
                       onClicarItem={podeEditar ? rolarAte : undefined}
                       style={{ transform: `scale(${k})` }}
                     />
@@ -228,16 +261,23 @@ export function AgendaDiaPage() {
                 itens={agenda.data.itens}
                 tecnicos={tecnicos}
                 veiculos={veiculos}
-                podeConferir={podeConferir}
+                conferir={conferir}
               />
               <DadosDoDia dia={agenda.data.dia} tecnicos={tecnicos} />
             </>
           )}
+          {!podeEditar && (conferir.r || conferir.f) && (
+            <ConferenciaDoDia data={data} itens={agenda.data.itens} conferir={conferir} />
+          )}
         </>
       )}
 
-      {cadastro.data && (
-        <CadastroEquipe tecnicos={tecnicos} veiculos={veiculos} podeEditar={podeConferir} />
+      {cadastro.data && !operador && (
+        <CadastroEquipe
+          tecnicos={tecnicos}
+          veiculos={veiculos}
+          podeEditar={perfil.papel === 'admin'}
+        />
       )}
     </div>
   )
@@ -312,12 +352,25 @@ function LembretesPropostas({ data, podeConferir }: { data: string; podeConferir
 // -----------------------------------------------------------------------------
 
 const DIAS_NA_FAIXA = 15
+/** Até quantos dias para a frente o operador vê. */
+const DIAS_A_FRENTE_OPERADOR = 30
 
-function ProximosDias({ data, irPara }: { data: string; irPara: (d: string) => void }) {
+function ProximosDias({
+  data,
+  irPara,
+  limite,
+}: {
+  data: string
+  irPara: (d: string) => void
+  /** Último dia que dá para abrir (operador: 30 dias à frente). */
+  limite?: string
+}) {
   const hoje = hojeISO()
   const ate = somarDias(hoje, DIAS_NA_FAIXA - 1)
   const preenchidos = useDiasComAgenda(hoje, ate)
-  const dias = Array.from({ length: DIAS_NA_FAIXA }, (_, i) => somarDias(hoje, i))
+  const dias = Array.from({ length: DIAS_NA_FAIXA }, (_, i) => somarDias(hoje, i)).filter(
+    (d) => !limite || d <= limite,
+  )
   const selecionado = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -548,6 +601,12 @@ function CampoAuto({ valor, onSalvar, multilinha, className, ...props }: CampoPr
   const focado = useRef(false)
   const enviado = useRef(valor)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  // Sempre a função da última renderização: a gravação que sai depois da pausa na
+  // digitação usa os dados mais novos (e não desfaz o campo que acabou de ser salvo).
+  const onSalvarAtual = useRef(onSalvar)
+  useEffect(() => {
+    onSalvarAtual.current = onSalvar
+  })
 
   // Mudou por outra pessoa: atualiza, menos enquanto eu estiver digitando nele.
   useEffect(() => {
@@ -561,7 +620,7 @@ function CampoAuto({ valor, onSalvar, multilinha, className, ...props }: CampoPr
     clearTimeout(timer.current)
     if (v === enviado.current) return
     enviado.current = v
-    onSalvar(v)
+    onSalvarAtual.current(v)
   }
 
   const comum = {
@@ -616,16 +675,16 @@ function Linhas({
   itens,
   tecnicos,
   veiculos,
-  podeConferir,
+  conferir,
 }: {
   data: string
   itens: AgendaItem[]
   tecnicos: Tecnico[]
   veiculos: Veiculo[]
-  podeConferir: boolean
+  conferir: { r: boolean; f: boolean }
 }) {
   const criar = useCriarItem(data)
-  const salvar = useSalvarItem(data)
+  const salvar = useSalvarItemAtual(data)
   const apagar = useApagarItem(data)
   const copiar = useCopiarItens(data)
   const [copiarDe, setCopiarDe] = useState<string | null>(null)
@@ -754,6 +813,14 @@ function Linhas({
           const conferencia = conferirComCadastro(item, tecnicos, veiculos)
           const codigo = item.veiculo.trim().toUpperCase()
           const clientes = partesDaDescricao(item.descricao).map(([nome]) => nome)
+          // Um campo por cliente; se um cliente saiu do texto, o que ele tinha continua à vista.
+          const porCliente = (lista: readonly string[]) =>
+            Array.from(
+              { length: Math.max(clientes.length > 1 ? clientes.length : 0, lista.length) },
+              (_, i) => clientes[i] || `Cliente ${i + 1}`,
+            )
+          const clientesHorario = porCliente(item.horarios)
+          const clientesNota = porCliente(item.notas)
           const salvarCampo = (patch: Parameters<typeof salvar.mutate>[0]['patch']) =>
             salvar.mutate({ id: item.id, patch })
           return (
@@ -849,25 +916,29 @@ function Linhas({
                   marcados={item.avulso_partes}
                   onMudar={(avulso_partes) => salvarCampo({ avulso_partes })}
                 />
-                <label
-                  className="inline-flex items-center gap-1 text-sm text-texto-suave"
-                  title="Horário marcado com o cliente. Também brilha se for escrito no texto (ex.: às 9h)"
-                >
-                  <Star className="size-4 text-amber-500" aria-hidden />
-                  <CampoAuto
-                    aria-label="Horário do cliente"
-                    placeholder="Horário do cliente"
-                    valor={item.chegada}
-                    onSalvar={(v) => salvarCampo({ chegada: v, horario_cliente: v.trim() !== '' })}
-                    className="min-h-9 w-40 text-sm"
-                  />
-                </label>
-                <EscolherCliente
-                  rotulo="De qual cliente é o horário"
-                  clientes={clientes}
-                  valor={item.chegada_parte}
-                  onMudar={(v) => salvarCampo({ chegada_parte: v ?? 0 })}
-                />
+                {/* Um horário para cada cliente da linha. */}
+                {(clientesHorario.length > 1 ? clientesHorario : ['']).map((nome, i) => (
+                  <label
+                    key={i}
+                    className="inline-flex items-center gap-1 text-sm text-texto-suave"
+                    title="Horário marcado com o cliente. Também brilha se for escrito no texto (ex.: às 9h)"
+                  >
+                    <Star className="size-4 shrink-0 text-amber-500" aria-hidden />
+                    {nome && <span className="max-w-28 truncate font-semibold">{nome}</span>}
+                    <CampoAuto
+                      aria-label={nome ? `Horário de ${nome}` : 'Horário do cliente'}
+                      placeholder={nome ? 'Horário' : 'Horário do cliente'}
+                      valor={valorDaParte(item.horarios, i)}
+                      onSalvar={(v) =>
+                        salvar.salvarAtual(item.id, (atual) => {
+                          const horarios = comValorNaParte(atual.horarios, i, v)
+                          return { horarios, horario_cliente: horarios.some(Boolean) }
+                        })
+                      }
+                      className={cn('min-h-9 text-sm', nome ? 'w-24' : 'w-40')}
+                    />
+                  </label>
+                ))}
                 <TaxaDaLinha
                   item={item}
                   clientes={clientes}
@@ -875,9 +946,36 @@ function Linhas({
                 />
               </div>
 
-              {/* Observação numa linha só dela, larga, para ler tudo o que foi escrito. */}
+              {/* Uma observação em vermelho para cada cliente da linha. */}
+              {clientesNota.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {clientesNota.map((nome, i) => (
+                    <label key={i} className="flex min-w-64 flex-1 items-center gap-1.5 text-sm">
+                      <span className="max-w-32 shrink-0 truncate font-semibold text-perigo">
+                        {nome}
+                      </span>
+                      <CampoAuto
+                        aria-label={`Observação de ${nome}`}
+                        placeholder="Observação em vermelho"
+                        valor={valorDaParte(item.notas, i)}
+                        onSalvar={(v) =>
+                          salvar.salvarAtual(item.id, (atual) => ({
+                            notas: comValorNaParte(atual.notas, i, v),
+                          }))
+                        }
+                        className="min-h-9 min-w-0 flex-1 text-sm"
+                      />
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {/* Observação da linha toda, larga, para ler tudo o que foi escrito. */}
               <div className="flex flex-wrap items-center gap-2">
-                <span className="flex min-w-64 flex-1 items-center gap-1">
+                <label className="flex min-w-64 flex-1 items-center gap-1.5 text-sm">
+                  {clientesNota.length > 0 && (
+                    <span className="shrink-0 font-semibold text-perigo">Linha toda</span>
+                  )}
                   <CampoAuto
                     aria-label="Observação da linha"
                     placeholder="Observação em vermelho (ex.: Luciano irá junto)"
@@ -885,14 +983,7 @@ function Linhas({
                     onSalvar={(v) => salvarCampo({ nota: v })}
                     className="min-h-9 min-w-0 flex-1 text-sm"
                   />
-                  <EscolherCliente
-                    rotulo="De qual cliente é a observação"
-                    clientes={clientes}
-                    valor={item.nota_parte}
-                    linhaToda
-                    onMudar={(nota_parte) => salvarCampo({ nota_parte })}
-                  />
-                </span>
+                </label>
 
                 <div className="ml-auto flex items-center gap-1">
                   <button
@@ -914,14 +1005,16 @@ function Linhas({
                     letra="R"
                     titulo="Realizado"
                     ligado={item.realizado}
-                    pode={podeConferir}
+                    pode={conferir.r}
+                    quem="o ADM"
                     onClick={() => salvarCampo({ realizado: !item.realizado })}
                   />
                   <Conferencia
                     letra="F"
                     titulo="Faturado"
                     ligado={item.faturado}
-                    pode={podeConferir}
+                    pode={conferir.f}
+                    quem="o financeiro"
                     onClick={() => salvarCampo({ faturado: !item.faturado })}
                   />
                   <span className="mx-1 h-6 w-px bg-borda" />
@@ -1128,18 +1221,21 @@ function Conferencia({
   titulo,
   ligado,
   pode,
+  quem,
   onClick,
 }: {
   letra: string
   titulo: string
   ligado: boolean
   pode: boolean
+  /** Quem marca (aparece na dica quando a pessoa não pode). */
+  quem: string
   onClick: () => void
 }) {
   return (
     <button
       type="button"
-      title={`${titulo}${pode ? '' : ' (só o ADM marca)'}`}
+      title={`${titulo}${pode ? '' : ` (só ${quem} marca)`}`}
       aria-label={titulo}
       aria-pressed={ligado}
       disabled={!pode}
@@ -1153,6 +1249,61 @@ function Conferencia({
     >
       {letra}
     </button>
+  )
+}
+
+/**
+ * Para quem só consulta e confere (ADM: R; financeiro: F): os serviços do dia, cada
+ * um com o R e o F. Só o botão da pessoa fica ligado.
+ */
+function ConferenciaDoDia({
+  data,
+  itens,
+  conferir,
+}: {
+  data: string
+  itens: AgendaItem[]
+  conferir: { r: boolean; f: boolean }
+}) {
+  const salvar = useSalvarItem(data)
+  const lista = itensDoQuadro(itens)
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className="text-lg font-bold">Conferência dos serviços</h2>
+      {salvar.isError && <Aviso tipo="erro">{mensagemDeErro(salvar.error)}</Aviso>}
+      {lista.length === 0 && (
+        <Card className="text-sm text-texto-suave">Nenhum serviço neste dia.</Card>
+      )}
+      <ul className="flex flex-col gap-1.5">
+        {lista.map((item) => (
+          <li
+            key={item.id}
+            className="flex items-center gap-3 rounded-xl border border-borda bg-white px-3 py-2"
+          >
+            <span className="w-12 shrink-0 text-sm font-semibold text-texto-suave">
+              {item.hora}
+            </span>
+            <span className="min-w-0 flex-1 font-semibold">{item.descricao}</span>
+            <Conferencia
+              letra="R"
+              titulo="Realizado"
+              ligado={item.realizado}
+              pode={conferir.r}
+              quem="o ADM"
+              onClick={() => salvar.mutate({ id: item.id, patch: { realizado: !item.realizado } })}
+            />
+            <Conferencia
+              letra="F"
+              titulo="Faturado"
+              ligado={item.faturado}
+              pode={conferir.f}
+              quem="o financeiro"
+              onClick={() => salvar.mutate({ id: item.id, patch: { faturado: !item.faturado } })}
+            />
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 
@@ -1194,9 +1345,11 @@ function IconeAcao({
 
 function DadosDoDia({ dia, tecnicos }: { dia: AgendaDia; tecnicos: Tecnico[] }) {
   const ativos = tecnicos.filter((t) => t.ativo)
-  const salvar = useSalvarDia(dia.data)
+  const salvar = useSalvarDiaAtual(dia.data)
   const escalas = lerEscalas(dia.escalas)
   const salvarEscalas = (nova: Escala[]) => salvar.mutate({ escalas: nova })
+  const ausentes = ausentesDoDia(dia)
+  const nomeDe = new Map(tecnicos.map((t) => [t.numero, t.nome]))
 
   return (
     <section className="grid gap-3 md:grid-cols-2">
@@ -1247,11 +1400,51 @@ function DadosDoDia({ dia, tecnicos }: { dia: AgendaDia; tecnicos: Tecnico[] }) 
         >
           <Plus className="size-5" aria-hidden /> Escala
         </Button>
+
+        {/* Falta e folga do dia: saem da escala no quadro (o dia seguinte volta com todos). */}
+        <div className="flex flex-col gap-2 rounded-xl border border-borda bg-fundo-suave p-3">
+          {(['falta', 'folga'] as Ausencia[]).map((tipo) => {
+            const lista = tipo === 'falta' ? ausentes.faltas : ausentes.folgas
+            return (
+              <div key={tipo} className="grid grid-cols-[4.5rem_1fr] items-center gap-2">
+                <span
+                  className={cn(
+                    'text-sm font-bold',
+                    tipo === 'falta' ? 'text-perigo' : 'text-texto-suave',
+                  )}
+                >
+                  {tipo === 'falta' ? 'Falta' : 'Folga'}
+                </span>
+                <CampoAuto
+                  aria-label={tipo === 'falta' ? 'Técnicos que faltaram' : 'Técnicos de folga'}
+                  placeholder={tipo === 'falta' ? 'Quem faltou: 7, 12' : 'Quem está de folga: 3, 9'}
+                  valor={escreverTecnicos(lista)}
+                  onSalvar={(v) =>
+                    salvar.salvarAtual((atual) => marcarAusencia(atual, tipo, lerTecnicos(v)))
+                  }
+                />
+                {lista.length > 0 && (
+                  <p className="col-start-2 text-sm text-texto-suave">
+                    {lista.map((n) => `${n} ${nomeDe.get(n) ?? ''}`.trim()).join(', ')}
+                  </p>
+                )}
+              </div>
+            )
+          })}
+          <p className="text-xs text-texto-suave">
+            Quem está na falta ou na folga sai da escala no quadro e entra na contagem da aba
+            Presença.
+          </p>
+        </div>
         <p className="text-sm text-texto-suave">
           A cor de cada técnico no quadro segue a escala dele.
         </p>
         {(() => {
-          const naEscala = new Set(escalas.flatMap((e) => e.tecnicos))
+          const naEscala = new Set([
+            ...escalas.flatMap((e) => e.tecnicos),
+            ...ausentes.faltas,
+            ...ausentes.folgas,
+          ])
           const fora = ativos.filter((t) => !naEscala.has(t.numero))
           return fora.length > 0 ? (
             <p className="text-sm text-alerta">

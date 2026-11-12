@@ -76,8 +76,8 @@ describe('menuDoPapel', () => {
     expect(caminhos('recepcao')).toEqual(['/', '/clientes', '/os', '/avisos'])
   })
 
-  it('operador só tem as OS dele (no início) e os avisos', () => {
-    expect(caminhos('operador')).toEqual(['/', '/avisos'])
+  it('operador tem as OS dele (no início), a agenda do dia (só olha) e os avisos', () => {
+    expect(caminhos('operador')).toEqual(['/', '/agenda-do-dia', '/avisos'])
   })
 })
 

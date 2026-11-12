@@ -1,0 +1,223 @@
+import { useState } from 'react'
+
+import { Aviso } from '@/components/ui/Aviso'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Campo'
+import { Card } from '@/components/ui/Card'
+import { Carregando } from '@/components/ui/Carregando'
+import { formatarData, hojeISO, mesDe, somarMeses } from '@/lib/datas'
+import { mensagemDeErro } from '@/lib/erros'
+import { cn } from '@/lib/utils'
+
+import { useCadastroAgenda, useDiasDoMes } from './api'
+import { presencaDoMes } from './regras'
+
+/*
+ * Presença do mês: quantos dias cada técnico esteve na escala, faltou ou folgou,
+ * pelas agendas do dia. O mês atual vai se atualizando conforme a agenda muda.
+ */
+
+const NOME_MES = new Intl.DateTimeFormat('pt-BR', {
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'UTC',
+})
+
+function nomeDoMes(mes: string): string {
+  const t = NOME_MES.format(new Date(`${mes}-01T12:00:00Z`))
+  return t.charAt(0).toUpperCase() + t.slice(1)
+}
+
+/** "2026-11-03" → "03/11 (ter)" */
+function diaCurto(iso: string): string {
+  const semana = new Date(`${iso}T12:00:00Z`)
+    .toLocaleDateString('pt-BR', { weekday: 'short', timeZone: 'UTC' })
+    .replace('.', '')
+  return `${formatarData(iso).slice(0, 5)} (${semana})`
+}
+
+export function PresencaPage() {
+  const atual = mesDe(hojeISO())
+  const [mes, setMes] = useState(atual)
+  const dias = useDiasDoMes(mes)
+  const cadastro = useCadastroAgenda()
+  const [aberto, setAberto] = useState<number | null>(null)
+
+  const linhas = dias.data && cadastro.data ? presencaDoMes(dias.data, cadastro.data.tecnicos) : []
+  const totalDias = dias.data?.length ?? 0
+  const soma = (k: 'presencas' | 'faltas' | 'folgas') => linhas.reduce((t, l) => t + l[k], 0)
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Presença da equipe</h1>
+          <p className="text-sm text-texto-suave">
+            Presença, falta e folga de cada técnico, contadas pelas agendas do dia.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            type="month"
+            aria-label="Mês"
+            value={mes}
+            max={atual}
+            onChange={(e) => e.target.value && setMes(e.target.value)}
+            className="min-h-10 w-auto"
+          />
+          <Button
+            variante="fantasma"
+            className="min-h-10"
+            onClick={() => setMes(mesDe(somarMeses(`${atual}-01`, -1)))}
+          >
+            Mês passado
+          </Button>
+          {mes !== atual && (
+            <Button variante="fantasma" className="min-h-10" onClick={() => setMes(atual)}>
+              Este mês
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {(dias.isPending || cadastro.isPending) && <Carregando />}
+      {(dias.isError || cadastro.isError) && (
+        <Aviso tipo="erro">{mensagemDeErro(dias.error ?? cadastro.error)}</Aviso>
+      )}
+
+      {dias.data && cadastro.data && (
+        <>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <Resumo rotulo="Dias com agenda" valor={totalDias} />
+            <Resumo rotulo="Presenças" valor={soma('presencas')} cor="verde" />
+            <Resumo rotulo="Faltas" valor={soma('faltas')} cor="vermelho" />
+            <Resumo rotulo="Folgas" valor={soma('folgas')} />
+          </div>
+
+          <Card className="overflow-x-auto p-0">
+            <div className="flex items-center justify-between border-b border-borda px-4 py-3">
+              <h2 className="font-bold">{nomeDoMes(mes)}</h2>
+              {mes === atual && (
+                <span className="text-xs text-texto-suave">Atualiza sozinho durante o mês</span>
+              )}
+            </div>
+            {totalDias === 0 ? (
+              <p className="p-4 text-sm text-texto-suave">Nenhuma agenda do dia neste mês.</p>
+            ) : (
+              <table className="w-full min-w-[34rem] text-sm">
+                <thead>
+                  <tr className="text-left text-xs tracking-wide text-texto-suave uppercase">
+                    <th className="px-4 py-2">Técnico</th>
+                    <th className="px-2 py-2 text-center">Presenças</th>
+                    <th className="px-2 py-2 text-center">Faltas</th>
+                    <th className="px-2 py-2 text-center">Folgas</th>
+                    <th
+                      className="px-2 py-2 text-center"
+                      title="Dias com agenda em que o técnico não estava em escala, falta nem folga"
+                    >
+                      Sem registro
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {linhas.map((l) => {
+                    const temDias = l.diasFalta.length + l.diasFolga.length > 0
+                    const mostrar = aberto === l.numero
+                    return (
+                      <tr key={l.numero} className="border-t border-borda align-top">
+                        <td className="px-4 py-2">
+                          <button
+                            type="button"
+                            disabled={!temDias}
+                            onClick={() => setAberto(mostrar ? null : l.numero)}
+                            className="text-left disabled:cursor-default"
+                            title={temDias ? 'Ver os dias de falta e folga' : undefined}
+                          >
+                            <strong>{String(l.numero).padStart(2, '0')}</strong>{' '}
+                            {l.nome || <span className="text-texto-suave">sem cadastro</span>}
+                            {temDias && (
+                              <span className="ml-1 text-xs text-verde-escuro underline">
+                                {mostrar ? 'esconder dias' : 'ver dias'}
+                              </span>
+                            )}
+                          </button>
+                          {mostrar && (
+                            <div className="mt-1 flex flex-col gap-0.5 text-xs">
+                              {l.diasFalta.length > 0 && (
+                                <span className="text-perigo">
+                                  Faltas: {l.diasFalta.map(diaCurto).join(', ')}
+                                </span>
+                              )}
+                              {l.diasFolga.length > 0 && (
+                                <span className="text-texto-suave">
+                                  Folgas: {l.diasFolga.map(diaCurto).join(', ')}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        <Numero valor={l.presencas} cor="verde" />
+                        <Numero valor={l.faltas} cor="vermelho" />
+                        <Numero valor={l.folgas} />
+                        <Numero valor={l.semRegistro} apagado />
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+          </Card>
+        </>
+      )}
+    </div>
+  )
+}
+
+function Resumo({
+  rotulo,
+  valor,
+  cor,
+}: {
+  rotulo: string
+  valor: number
+  cor?: 'verde' | 'vermelho'
+}) {
+  return (
+    <Card className="flex flex-col gap-0.5 p-3">
+      <span className="text-xs font-semibold text-texto-suave">{rotulo}</span>
+      <span
+        className={cn(
+          'text-2xl font-bold',
+          cor === 'verde' && 'text-verde-escuro',
+          cor === 'vermelho' && 'text-perigo',
+        )}
+      >
+        {valor}
+      </span>
+    </Card>
+  )
+}
+
+function Numero({
+  valor,
+  cor,
+  apagado,
+}: {
+  valor: number
+  cor?: 'verde' | 'vermelho'
+  apagado?: boolean
+}) {
+  return (
+    <td
+      className={cn(
+        'px-2 py-2 text-center text-base font-bold tabular-nums',
+        valor === 0 && 'font-normal text-texto-suave',
+        valor > 0 && cor === 'verde' && 'text-verde-escuro',
+        valor > 0 && cor === 'vermelho' && 'text-perigo',
+        apagado && 'font-normal text-texto-suave',
+      )}
+    >
+      {valor}
+    </td>
+  )
+}

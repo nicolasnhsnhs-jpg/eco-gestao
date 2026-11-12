@@ -198,6 +198,20 @@ export function horarioForaDoTexto(descricao: string, chegada: string): string {
   return noTexto ? '' : textoHorarioCliente(chegada)
 }
 
+/** O valor (horário ou observação) do cliente i da linha ('' = nada). */
+export function valorDaParte(horarios: readonly string[], i: number): string {
+  return (horarios[i] ?? '').trim()
+}
+
+/** Troca o valor do cliente i (sem deixar vazios sobrando no fim da lista). */
+export function comValorNaParte(horarios: readonly string[], i: number, valor: string): string[] {
+  const nova = [...horarios]
+  while (nova.length <= i) nova.push('')
+  nova[i] = valor.trim()
+  while (nova.length && !nova.at(-1)) nova.pop()
+  return nova
+}
+
 /** Quantas linhas cabem confortáveis; acima disso o quadro aperta. */
 export function densidade(qtd: number): 'normal' | 'compacta' | 'apertada' {
   return qtd <= 13 ? 'normal' : qtd <= 18 ? 'compacta' : 'apertada'
@@ -212,7 +226,7 @@ export function veiculosSemSemParar(veiculos: readonly Veiculo[]): string[] {
   return veiculos
     .filter((v) => v.ativo && !v.tem_sem_parar)
     .map((v) => v.codigo)
-    .sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }))
+    .sort(compararVeiculos)
 }
 
 /**
@@ -231,4 +245,124 @@ export function conferirComCadastro(
     tecnicosDesconhecidos: ativos.size ? item.tecnicos.filter((n) => !ativos.has(n)) : [],
     veiculoDesconhecido: carros.size > 0 && veiculo !== '' && !carros.has(veiculo),
   }
+}
+
+/** Número do código do veículo: "ON14" → 14 (sem número vai para o fim). */
+function numeroDoVeiculo(codigo: string): number {
+  const m = codigo.match(/\d+/)
+  return m ? Number(m[0]) : Number.POSITIVE_INFINITY
+}
+
+/** Veículos pela numeração do código: ON4, GO6, ON7, CM8, ON9, CM10... (empate: pelas letras). */
+export function compararVeiculos(a: string, b: string): number {
+  return numeroDoVeiculo(a) - numeroDoVeiculo(b) || a.localeCompare(b, 'pt-BR')
+}
+
+// -----------------------------------------------------------------------------
+// Falta e folga
+// -----------------------------------------------------------------------------
+
+export type Ausencia = 'falta' | 'folga'
+
+/** Quem faltou e quem está de folga no dia. */
+export function ausentesDoDia(dia: Pick<AgendaDia, 'faltas' | 'folgas'>) {
+  return { faltas: dia.faltas ?? [], folgas: dia.folgas ?? [] }
+}
+
+/**
+ * A escala que vale no dia: sem quem está na falta ou na folga. (Eles continuam
+ * gravados na escala para o dia seguinte começar com todo mundo.)
+ */
+export function escalasDoDia(
+  escalas: readonly Escala[],
+  dia: Pick<AgendaDia, 'faltas' | 'folgas'>,
+): Escala[] {
+  const { faltas, folgas } = ausentesDoDia(dia)
+  const fora = new Set([...faltas, ...folgas])
+  return escalas.map((e) => ({ ...e, tecnicos: e.tecnicos.filter((n) => !fora.has(n)) }))
+}
+
+/**
+ * Põe os técnicos na falta ou na folga (e tira da outra lista, se estavam lá).
+ * Devolve as duas listas novas.
+ */
+export function marcarAusencia(
+  dia: Pick<AgendaDia, 'faltas' | 'folgas'>,
+  tipo: Ausencia,
+  tecnicos: readonly number[],
+): { faltas: number[]; folgas: number[] } {
+  const { faltas, folgas } = ausentesDoDia(dia)
+  const novos = [...new Set(tecnicos)]
+  const outra = (tipo === 'falta' ? folgas : faltas).filter((n) => !novos.includes(n))
+  return tipo === 'falta' ? { faltas: novos, folgas: outra } : { faltas: outra, folgas: novos }
+}
+
+export type Presenca = {
+  numero: number
+  nome: string
+  presencas: number
+  faltas: number
+  folgas: number
+  /** Dias da agenda em que o técnico não estava em escala, falta nem folga. */
+  semRegistro: number
+  /** Datas de cada falta e folga, para conferir. */
+  diasFalta: string[]
+  diasFolga: string[]
+}
+
+/**
+ * Contagem do mês por técnico, a partir dos dias que têm agenda:
+ * presença = estava numa escala (e não faltou nem folgou).
+ */
+export function presencaDoMes(
+  dias: readonly Pick<AgendaDia, 'data' | 'escalas' | 'faltas' | 'folgas'>[],
+  tecnicos: readonly Pick<Tecnico, 'numero' | 'nome' | 'ativo'>[],
+): Presenca[] {
+  const por = new Map<number, Presenca>()
+  const linha = (n: number) => {
+    let p = por.get(n)
+    if (!p) {
+      const t = tecnicos.find((x) => x.numero === n)
+      p = {
+        numero: n,
+        nome: t?.nome ?? '',
+        presencas: 0,
+        faltas: 0,
+        folgas: 0,
+        semRegistro: 0,
+        diasFalta: [],
+        diasFolga: [],
+      }
+      por.set(n, p)
+    }
+    return p
+  }
+  for (const t of tecnicos) if (t.ativo) linha(t.numero)
+
+  const ordenados = [...dias].sort((a, b) => a.data.localeCompare(b.data))
+  for (const d of ordenados) {
+    const { faltas, folgas } = ausentesDoDia(d)
+    const naEscala = new Set(lerEscalas(d.escalas).flatMap((e) => e.tecnicos))
+    const vistos = new Set<number>()
+    for (const n of faltas) {
+      const p = linha(n)
+      p.faltas++
+      p.diasFalta.push(d.data)
+      vistos.add(n)
+    }
+    for (const n of folgas) {
+      if (vistos.has(n)) continue
+      const p = linha(n)
+      p.folgas++
+      p.diasFolga.push(d.data)
+      vistos.add(n)
+    }
+    for (const n of naEscala) {
+      if (vistos.has(n)) continue
+      linha(n).presencas++
+      vistos.add(n)
+    }
+    for (const p of por.values()) if (!vistos.has(p.numero)) p.semRegistro++
+  }
+  return [...por.values()].sort((a, b) => a.numero - b.numero)
 }
