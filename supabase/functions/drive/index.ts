@@ -1,16 +1,19 @@
 // Edge Function "drive": cópia dos PDFs do sistema no Google Drive da unidade.
 //
 //   processar    (pg_cron, a cada minuto, com o cabeçalho x-drive-segredo) manda o que
-//                estiver na drive_fila: nota fiscal e boleto em FINANCEIRO, PDF da OS em GERAL
+//                estiver na drive_fila: nota fiscal e boleto em FINANCEIRO, PDF da OS em
+//                GERAL / ORDENS DE SERVIÇO
 //   certificado  (navegador, Administrador/ADM) recebe o PDF do certificado montado na
-//                tela e manda para ADM
+//                tela e manda para ADM / CERTIFICADOS
 //   agenda       (navegador) recebe a imagem da agenda do dia e guarda em
 //                ADM / AGENDA / ano / mês / dd-mm-aaaa.png
 //   proposta     (navegador) recebe o PDF da proposta e guarda em
 //                VENDAS / ano / vendedor / cliente / Proposta <número> - <data de envio>.pdf
 //   situacao     (Administrador) confere a conta Google conectada e as pastas dos setores
 //
-// Caminho no Drive: <SETOR> / <ano> / <Cliente - CNPJ> / <arquivo>.pdf
+// Caminho no Drive: <SETOR> / [<TIPO>] / <ano> / <Cliente - CNPJ> / <arquivo>.pdf
+//   ADM / CERTIFICADOS / 2026 / …     GERAL / ORDENS DE SERVIÇO / 2026 / …
+//   FINANCEIRO / 2026 / … (sem pasta de tipo: nota e boleto ficam juntos)
 // Veja docs/CONFIGURACAO-DRIVE.md.
 
 import { decodeBase64 } from 'jsr:@std/encoding@1/base64'
@@ -27,6 +30,16 @@ const SETOR_DA_CATEGORIA: Record<string, Setor> = {
   boleto: 'FINANCEIRO',
   relatorio: 'GERAL',
   certificado: 'ADM',
+}
+
+/**
+ * Pasta do tipo de documento entre o setor e o ano, para quem abre o setor ver logo o
+ * que tem (o ADM também guarda a AGENDA). Antes os anos ficavam direto no setor: a
+ * primeira vez, a pasta do ano antiga é movida para dentro desta, com tudo dentro.
+ */
+const TIPO_NO_SETOR: Partial<Record<Setor, string>> = {
+  ADM: 'CERTIFICADOS',
+  GERAL: 'ORDENS DE SERVIÇO',
 }
 
 const MESES = [
@@ -154,7 +167,7 @@ async function pastaDoClienteEm(
   )
 }
 
-/** Acha (ou cria) SETOR / ano / cliente, lembrando no banco o id de cada pasta. */
+/** Acha (ou cria) SETOR / [TIPO] / ano / cliente, lembrando no banco o id de cada pasta. */
 async function pastaDoCliente(
   admin: SupabaseClient,
   drive: Drive,
@@ -164,7 +177,27 @@ async function pastaDoCliente(
   cliente: Cliente,
 ) {
   const pastaSetor = await pastaDoSetor(admin, drive, raiz, setor)
-  const pastaAno = await subpasta(admin, drive, `ano:${setor}:${ano}`, ano, pastaSetor)
+  const tipo = TIPO_NO_SETOR[setor]
+  let pastaAno: string
+  if (tipo) {
+    const pastaTipo = await subpasta(admin, drive, `tipo:${setor}`, tipo, pastaSetor)
+    pastaAno = await lembrar(
+      admin,
+      drive,
+      `ano:${setor}:${tipo}:${ano}`,
+      async () => {
+        const nova = await drive.acharPasta(ano, pastaTipo)
+        if (nova) return nova
+        // A pasta do ano do jeito antigo (direto no setor) vai inteira para o tipo.
+        const antiga = await drive.acharPasta(ano, pastaSetor)
+        if (antiga) await drive.mover(antiga, pastaSetor, pastaTipo)
+        return antiga
+      },
+      () => drive.criarPasta(ano, pastaTipo),
+    )
+  } else {
+    pastaAno = await subpasta(admin, drive, `ano:${setor}:${ano}`, ano, pastaSetor)
+  }
   return await pastaDoClienteEm(
     admin,
     drive,

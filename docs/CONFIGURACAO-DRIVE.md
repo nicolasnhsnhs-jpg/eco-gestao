@@ -2,14 +2,14 @@
 
 Todo PDF que o sistema gera vai sozinho para o "Meu Drive" da conta Gmail do SC, na pasta do cliente:
 
-| PDF                  | Pasta                                         |
-| -------------------- | --------------------------------------------- |
-| Nota fiscal (DANFSe) | `FINANCEIRO / 2026 / Cliente - CNPJ /`        |
-| Boleto               | `FINANCEIRO / 2026 / Cliente - CNPJ /`        |
-| Ordem de serviço     | `GERAL / 2026 / Cliente - CNPJ /`             |
-| Certificado          | `ADM / 2026 / Cliente - CNPJ /`               |
-| Agenda do dia        | `ADM / AGENDA / 2026 / 11 - Novembro /`       |
-| Proposta             | `VENDAS / 2026 / Vendedor / Cliente - CNPJ /` |
+| PDF                  | Pasta                                                 |
+| -------------------- | ----------------------------------------------------- |
+| Nota fiscal (DANFSe) | `FINANCEIRO / 2026 / Cliente - CNPJ /`                |
+| Boleto               | `FINANCEIRO / 2026 / Cliente - CNPJ /`                |
+| Ordem de serviço     | `GERAL / ORDENS DE SERVIÇO / 2026 / Cliente - CNPJ /` |
+| Certificado          | `ADM / CERTIFICADOS / 2026 / Cliente - CNPJ /`        |
+| Agenda do dia        | `ADM / AGENDA / 2026 / 11 - Novembro /`               |
+| Proposta             | `VENDAS / 2026 / Vendedor / Cliente - CNPJ /`         |
 
 - Nome dos arquivos: tipo, número e a data do próprio documento (não a de quando o PDF foi gerado,
   para que gerar de novo troque o arquivo em vez de duplicar):

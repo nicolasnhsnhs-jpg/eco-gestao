@@ -129,6 +129,14 @@ export class Drive {
     })
   }
 
+  /** Muda o arquivo (ou pasta, com tudo dentro) de pasta. O id continua o mesmo. */
+  async mover(id: string, de: string, para: string) {
+    await this.chamar(
+      `${API}/files/${id}?${TODOS}&fields=id&addParents=${encodeURIComponent(para)}&removeParents=${encodeURIComponent(de)}`,
+      { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: '{}' },
+    )
+  }
+
   async etiquetar(id: string, etiquetas: Record<string, string>) {
     await this.chamar(`${API}/files/${id}?${TODOS}&fields=id`, {
       method: 'PATCH',
