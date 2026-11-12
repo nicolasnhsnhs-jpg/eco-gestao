@@ -78,10 +78,10 @@ export type Database = {
           ordem: number
           periodo: string
           realizado: boolean
-          tecnicos: number[]
           taxa: string
           taxa_motivo: string
           taxa_parte: number | null
+          tecnicos: number[]
           veiculo: string
           viagem: string | null
         }
@@ -106,10 +106,10 @@ export type Database = {
           ordem?: number
           periodo?: string
           realizado?: boolean
-          tecnicos?: number[]
           taxa?: string
           taxa_motivo?: string
           taxa_parte?: number | null
+          tecnicos?: number[]
           veiculo?: string
           viagem?: string | null
         }
@@ -134,10 +134,10 @@ export type Database = {
           ordem?: number
           periodo?: string
           realizado?: boolean
-          tecnicos?: number[]
           taxa?: string
           taxa_motivo?: string
           taxa_parte?: number | null
+          tecnicos?: number[]
           veiculo?: string
           viagem?: string | null
         }
@@ -162,6 +162,52 @@ export type Database = {
             isOneToOne: false
             referencedRelation: 'agenda_dias'
             referencedColumns: ['data']
+          },
+        ]
+      }
+      agenda_lembretes_conferidos: {
+        Row: {
+          data: string
+          em: string
+          hora: string | null
+          por: string | null
+          proposta_id: string
+        }
+        Insert: {
+          data: string
+          em?: string
+          hora?: string | null
+          por?: string | null
+          proposta_id: string
+        }
+        Update: {
+          data?: string
+          em?: string
+          hora?: string | null
+          por?: string | null
+          proposta_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'agenda_lembretes_conferidos_por_fkey'
+            columns: ['por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'agenda_lembretes_conferidos_proposta_id_fkey'
+            columns: ['proposta_id']
+            isOneToOne: true
+            referencedRelation: 'propostas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'agenda_lembretes_conferidos_proposta_id_fkey'
+            columns: ['proposta_id']
+            isOneToOne: true
+            referencedRelation: 'v_propostas'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1939,44 +1985,6 @@ export type Database = {
           },
         ]
       }
-      links_cadastro: {
-        Row: {
-          codigo: string
-          criado_em: string
-          criado_por: string | null
-          expira_em: string
-          id: string
-          papel: Database['public']['Enums']['papel']
-          revogado: boolean
-        }
-        Insert: {
-          codigo?: string
-          criado_em?: string
-          criado_por?: string | null
-          expira_em: string
-          id?: string
-          papel: Database['public']['Enums']['papel']
-          revogado?: boolean
-        }
-        Update: {
-          codigo?: string
-          criado_em?: string
-          criado_por?: string | null
-          expira_em?: string
-          id?: string
-          papel?: Database['public']['Enums']['papel']
-          revogado?: boolean
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'links_cadastro_criado_por_fkey'
-            columns: ['criado_por']
-            isOneToOne: false
-            referencedRelation: 'perfis'
-            referencedColumns: ['id']
-          },
-        ]
-      }
       lancamentos: {
         Row: {
           antecipacao_id: string | null
@@ -2277,6 +2285,44 @@ export type Database = {
             columns: ['fornecedor_id']
             isOneToOne: false
             referencedRelation: 'fornecedores'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      links_cadastro: {
+        Row: {
+          codigo: string
+          criado_em: string
+          criado_por: string | null
+          expira_em: string
+          id: string
+          papel: Database['public']['Enums']['papel']
+          revogado: boolean
+        }
+        Insert: {
+          codigo?: string
+          criado_em?: string
+          criado_por?: string | null
+          expira_em: string
+          id?: string
+          papel: Database['public']['Enums']['papel']
+          revogado?: boolean
+        }
+        Update: {
+          codigo?: string
+          criado_em?: string
+          criado_por?: string | null
+          expira_em?: string
+          id?: string
+          papel?: Database['public']['Enums']['papel']
+          revogado?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'links_cadastro_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
             referencedColumns: ['id']
           },
         ]
@@ -3075,8 +3121,8 @@ export type Database = {
           os_id: string
           responsavel_nome: string | null
           responsavel_setor: string | null
-          sem_acompanhamento: boolean
           resultado: string | null
+          sem_acompanhamento: boolean
           veiculo_id: string | null
         }
         Insert: {
@@ -3098,8 +3144,8 @@ export type Database = {
           os_id: string
           responsavel_nome?: string | null
           responsavel_setor?: string | null
-          sem_acompanhamento?: boolean
           resultado?: string | null
+          sem_acompanhamento?: boolean
           veiculo_id?: string | null
         }
         Update: {
@@ -3121,8 +3167,8 @@ export type Database = {
           os_id?: string
           responsavel_nome?: string | null
           responsavel_setor?: string | null
-          sem_acompanhamento?: boolean
           resultado?: string | null
+          sem_acompanhamento?: boolean
           veiculo_id?: string | null
         }
         Relationships: [
@@ -3910,11 +3956,11 @@ export type Database = {
           criado_em: string
           criado_por: string | null
           custos_detalhados: boolean
-          execucao_data: string | null
-          execucao_hora: string | null
           data_envio: string
           data_resposta: string | null
           endereco_id: string | null
+          execucao_data: string | null
+          execucao_hora: string | null
           id: string
           introducao: string | null
           motivo_recusa: string | null
@@ -3938,11 +3984,11 @@ export type Database = {
           criado_em?: string
           criado_por?: string | null
           custos_detalhados?: boolean
-          execucao_data?: string | null
-          execucao_hora?: string | null
           data_envio?: string
           data_resposta?: string | null
           endereco_id?: string | null
+          execucao_data?: string | null
+          execucao_hora?: string | null
           id?: string
           introducao?: string | null
           motivo_recusa?: string | null
@@ -3966,11 +4012,11 @@ export type Database = {
           criado_em?: string
           criado_por?: string | null
           custos_detalhados?: boolean
-          execucao_data?: string | null
-          execucao_hora?: string | null
           data_envio?: string
           data_resposta?: string | null
           endereco_id?: string | null
+          execucao_data?: string | null
+          execucao_hora?: string | null
           id?: string
           introducao?: string | null
           motivo_recusa?: string | null
@@ -5108,12 +5154,12 @@ export type Database = {
           criado_em: string | null
           criado_por: string | null
           custos_detalhados: boolean | null
-          execucao_data: string | null
-          execucao_hora: string | null
           data_envio: string | null
           data_resposta: string | null
           dias_sem_resposta: number | null
           endereco_id: string | null
+          execucao_data: string | null
+          execucao_hora: string | null
           id: string | null
           introducao: string | null
           motivo_recusa: string | null
@@ -5138,12 +5184,12 @@ export type Database = {
           criado_em?: string | null
           criado_por?: string | null
           custos_detalhados?: boolean | null
-          execucao_data?: string | null
-          execucao_hora?: string | null
           data_envio?: string | null
           data_resposta?: string | null
           dias_sem_resposta?: never
           endereco_id?: string | null
+          execucao_data?: string | null
+          execucao_hora?: string | null
           id?: string | null
           introducao?: string | null
           motivo_recusa?: string | null
@@ -5168,12 +5214,12 @@ export type Database = {
           criado_em?: string | null
           criado_por?: string | null
           custos_detalhados?: boolean | null
-          execucao_data?: string | null
-          execucao_hora?: string | null
           data_envio?: string | null
           data_resposta?: string | null
           dias_sem_resposta?: never
           endereco_id?: string | null
+          execucao_data?: string | null
+          execucao_hora?: string | null
           id?: string | null
           introducao?: string | null
           motivo_recusa?: string | null
@@ -5438,6 +5484,10 @@ export type Database = {
         }
       }
       concluir_os: { Args: { os: string }; Returns: undefined }
+      conferir_lembrete_agenda: {
+        Args: { proposta: string }
+        Returns: undefined
+      }
       conferir_os: { Args: { os: string }; Returns: undefined }
       crm_assumir: { Args: { conversa: string }; Returns: undefined }
       crm_atualizar_status: {
@@ -5579,6 +5629,18 @@ export type Database = {
         Returns: string
       }
       iniciar_os: { Args: { os: string }; Returns: undefined }
+      lembretes_agenda: {
+        Args: { dia: string }
+        Returns: {
+          cliente: string
+          endereco: string
+          hora: string
+          numero: string
+          proposta_id: string
+          servicos: string
+          vendedor: string
+        }[]
+      }
       painel_financeiro: { Args: never; Returns: Json }
       pendencias_os: { Args: { os: string }; Returns: string[] }
       reabrir_os: { Args: { motivo: string; os: string }; Returns: undefined }
@@ -5601,19 +5663,6 @@ export type Database = {
           recebido: number
           resultado: number
           saldo_acumulado: number
-        }[]
-      }
-      conferir_lembrete_agenda: { Args: { proposta: string }; Returns: undefined }
-      lembretes_agenda: {
-        Args: { dia: string }
-        Returns: {
-          cliente: string
-          endereco: string | null
-          hora: string | null
-          numero: string
-          proposta_id: string
-          servicos: string | null
-          vendedor: string | null
         }[]
       }
       salvar_itens_proposta: {
