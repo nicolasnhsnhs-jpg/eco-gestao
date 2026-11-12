@@ -51,6 +51,7 @@ import { OsListaPage } from '@/features/os/OsListaPage'
 import { TreinamentoOsPage } from '@/features/os/TreinamentoOsPage'
 import { OsPage } from '@/features/os/OsPage'
 import { ModeloNovoPage, ModeloOsPage, ModelosOsPage } from '@/features/os/ModelosOsPages'
+import { RotaPage } from '@/features/os/RotasPages'
 import { CalculadoraPage } from '@/features/orcamentos/CalculadoraPage'
 import { CustosPage } from '@/features/orcamentos/CustosPage'
 import { OrcamentosLayout } from '@/features/orcamentos/OrcamentosLayout'
@@ -165,6 +166,14 @@ export const router = createBrowserRouter([
             element: (
               <ExigePapel papeis={PAPEIS_ESCRITORIO_OS}>
                 <ModeloNovoPage />
+              </ExigePapel>
+            ),
+          },
+          {
+            path: 'rotas/:id',
+            element: (
+              <ExigePapel papeis={PAPEIS_ESCRITORIO_OS}>
+                <RotaPage />
               </ExigePapel>
             ),
           },

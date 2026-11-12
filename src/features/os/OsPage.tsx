@@ -234,7 +234,17 @@ export function OsPage() {
           </Linha>
           <Linha rotulo="Endereço">{enderecoDaFicha(ficha) || '—'}</Linha>
           <Linha rotulo="Descrição">{o.descricao || '—'}</Linha>
-          <Linha rotulo="Observações ADM">{o.observacoes_adm || '—'}</Linha>
+          <Linha rotulo="Observações ADM">
+            {o.observacoes_adm || '—'}
+            {escritorio && o.modelo_id && (
+              <Link
+                className="mt-1 block text-sm font-semibold text-verde underline"
+                to={`/os/modelos/${o.modelo_id}`}
+              >
+                Alterar as informações fixas das próximas OS
+              </Link>
+            )}
+          </Linha>
           {o.ocorrencia && <Linha rotulo="Ocorrência">{o.ocorrencia}</Linha>}
           {o.motivo_reabertura && (
             <Aviso tipo="info">

@@ -1,6 +1,6 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import type { Database, Json, Tables, TablesUpdate } from '@/lib/database.types'
+import type { Database, Enums, Json, Tables, TablesUpdate } from '@/lib/database.types'
 import { supabase } from '@/lib/supabase'
 
 import { enfileirar } from './offline/fila'
@@ -205,16 +205,29 @@ export function useSalvarVeiculo() {
 // Escritório: modelo + agendamento
 // -----------------------------------------------------------------------------
 
-export function useModelo(clienteId: string, enderecoId: string | null, tipoId: string) {
+export type CategoriaOs = Enums<'categoria_os'>
+
+export const NOME_CATEGORIA_OS: Record<CategoriaOs, string> = {
+  contrato: 'Contrato',
+  avulsa: 'Avulsa',
+}
+
+export function useModelo(
+  clienteId: string,
+  enderecoId: string | null,
+  tipoId: string,
+  categoria: CategoriaOs | '',
+) {
   return useQuery({
-    queryKey: ['os', 'modelo', clienteId, enderecoId, tipoId],
-    enabled: !!clienteId && !!tipoId,
+    queryKey: ['os', 'modelo', clienteId, enderecoId, tipoId, categoria],
+    enabled: !!clienteId && !!tipoId && !!categoria,
     queryFn: async () => {
       let consulta = supabase
         .from('os_modelos')
         .select('*')
         .eq('cliente_id', clienteId)
         .eq('tipo_servico_id', tipoId)
+        .eq('categoria', categoria as CategoriaOs)
       consulta = enderecoId
         ? consulta.eq('endereco_id', enderecoId)
         : consulta.is('endereco_id', null)
@@ -226,6 +239,7 @@ export function useModelo(clienteId: string, enderecoId: string | null, tipoId: 
 }
 
 export type DadosAgendamento = {
+  categoria: CategoriaOs
   clienteId: string
   enderecoId: string | null
   tipoId: string
@@ -253,6 +267,7 @@ export function useAgendarOs() {
       )
         .eq('cliente_id', d.clienteId)
         .eq('tipo_servico_id', d.tipoId)
+        .eq('categoria', d.categoria)
         .maybeSingle()
       if (erroBusca) throw erroBusca
 
@@ -273,6 +288,7 @@ export function useAgendarOs() {
         const { data, error } = await supabase
           .from('os_modelos')
           .insert({
+            categoria: d.categoria,
             cliente_id: d.clienteId,
             endereco_id: d.enderecoId,
             tipo_servico_id: d.tipoId,
@@ -571,19 +587,23 @@ export function useFaturarOs(osId: string) {
 // -----------------------------------------------------------------------------
 
 const RELACOES_MODELO = `
-  cliente:clientes(id, nome, nome_fantasia),
+  cliente:clientes(id, nome, nome_fantasia, cpf_cnpj),
   endereco:enderecos(id, apelido, logradouro, numero, cidade, uf),
   tipo:tipos_servico(id, nome, formulario_os, fotos_antes_depois)
 `
 
-export function useModelos() {
+export function useModelos(categoria?: CategoriaOs) {
   return useQuery({
-    queryKey: ['os', 'modelos'],
+    queryKey: ['os', 'modelos', categoria ?? 'todas'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let consulta = supabase
         .from('os_modelos')
-        .select(`id, ativo, descricao, ${RELACOES_MODELO}, pontos:pontos_controle(tipo, ativo)`)
+        .select(
+          `id, ativo, descricao, categoria, ${RELACOES_MODELO}, pontos:pontos_controle(tipo, ativo)`,
+        )
         .eq('ativo', true)
+      if (categoria) consulta = consulta.eq('categoria', categoria)
+      const { data, error } = await consulta
       if (error) throw error
       const nome = (m: (typeof data)[number]) =>
         `${m.cliente?.nome_fantasia || m.cliente?.nome || ''} ${m.endereco?.apelido ?? ''}`
@@ -617,6 +637,7 @@ export function useCriarModelo() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (m: {
+      categoria: CategoriaOs
       clienteId: string
       enderecoId: string | null
       tipoId: string
@@ -625,6 +646,7 @@ export function useCriarModelo() {
       const { data, error } = await supabase
         .from('os_modelos')
         .insert({
+          categoria: m.categoria,
           cliente_id: m.clienteId,
           endereco_id: m.enderecoId,
           tipo_servico_id: m.tipoId,
@@ -634,7 +656,9 @@ export function useCriarModelo() {
         .single()
       if (error) {
         throw /um_modelo_por_local/.test(error.message)
-          ? new Error('Este local já tem uma O.S de contrato para este serviço.')
+          ? new Error(
+              `Este local já tem uma O.S ${m.categoria === 'contrato' ? 'de contrato' : 'avulsa'} para este serviço.`,
+            )
           : error
       }
       return data.id
@@ -680,6 +704,157 @@ export function useApagarTreinamentos() {
       if (error) throw error
       // O registro já saiu; se o Storage falhar, sobra só um arquivo órfão (sem acesso pela tela).
       if (data?.length) await supabase.storage.from('arquivos').remove(data)
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
+  })
+}
+
+// -----------------------------------------------------------------------------
+// Rotas: modelos de contrato agrupados (ex.: "Gravataí A") para agendar juntos
+// -----------------------------------------------------------------------------
+
+export function useRotas() {
+  return useQuery({
+    queryKey: ['os', 'rotas'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('os_rotas')
+        .select('id, nome, observacoes, ativo, itens:os_rota_modelos(id)')
+        .eq('ativo', true)
+        .order('nome')
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export function useRota(id: string) {
+  return useQuery({
+    queryKey: ['os', 'rota', id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('os_rotas')
+        .select(
+          `id, nome, observacoes, ativo,
+           itens:os_rota_modelos(id, ordem, modelo:os_modelos(id, ativo, descricao, categoria,
+             operadores_padrao, veiculo_padrao_id, observacoes_adm_padrao, ${RELACOES_MODELO},
+             pontos:pontos_controle(tipo, ativo)))`,
+        )
+        .eq('id', id)
+        .maybeSingle()
+      if (error) throw error
+      if (!data) return null
+      return { ...data, itens: [...data.itens].sort((a, b) => a.ordem - b.ordem) }
+    },
+  })
+}
+
+export type RotaCompleta = NonNullable<ReturnType<typeof useRota>['data']>
+
+export function useCriarRota() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (nome: string) => {
+      const { data, error } = await supabase.from('os_rotas').insert({ nome }).select('id').single()
+      if (error) {
+        throw /duplicate key/.test(error.message)
+          ? new Error('Já existe uma rota com esse nome.')
+          : error
+      }
+      return data.id
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os', 'rotas'] }),
+  })
+}
+
+export function useSalvarRota(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (dados: TablesUpdate<'os_rotas'>) => {
+      const { error } = await supabase.from('os_rotas').update(dados).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
+  })
+}
+
+export function usePorNaRota(rotaId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ modeloId, ordem }: { modeloId: string; ordem: number }) => {
+      const { error } = await supabase
+        .from('os_rota_modelos')
+        .insert({ rota_id: rotaId, modelo_id: modeloId, ordem })
+      if (error) {
+        throw /modelo_uma_vez_na_rota/.test(error.message)
+          ? new Error('Esta O.S já está na rota.')
+          : error
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
+  })
+}
+
+export function useTirarDaRota() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (itemId: string) => {
+      const { error } = await supabase.from('os_rota_modelos').delete().eq('id', itemId)
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
+  })
+}
+
+/** Troca a ordem de dois itens da rota. */
+export function useTrocarOrdemRota() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (par: [{ id: string; ordem: number }, { id: string; ordem: number }]) => {
+      const [a, b] = par
+      const r1 = await supabase.from('os_rota_modelos').update({ ordem: b.ordem }).eq('id', a.id)
+      if (r1.error) throw r1.error
+      const r2 = await supabase.from('os_rota_modelos').update({ ordem: a.ordem }).eq('id', b.id)
+      if (r2.error) throw r2.error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
+  })
+}
+
+export type ItemAgendaRota = {
+  modeloId: string
+  observacoesAdm: string
+}
+
+/**
+ * Agenda a rota: gera uma OS de cada modelo escolhido, no mesmo dia, com os
+ * operadores e o veículo da rota (ou os de costume de cada modelo).
+ * Continua mesmo se uma falhar e devolve quantas saíram e os erros.
+ */
+export function useAgendarRota() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (d: {
+      data: string
+      operadores: string[]
+      veiculoId: string | null
+      itens: ItemAgendaRota[]
+    }) => {
+      const criadas: string[] = []
+      const erros: string[] = []
+      for (const item of d.itens) {
+        const { data: osId, error } = await supabase.rpc('gerar_os_do_modelo', {
+          modelo: item.modeloId,
+          data: d.data,
+          operadores: d.operadores.length ? d.operadores : undefined,
+          veiculo: d.veiculoId ?? undefined,
+          observacoes_adm: item.observacoesAdm || undefined,
+        })
+        if (error) erros.push(`${item.modeloId}: ${error.message}`)
+        else criadas.push(osId)
+      }
+      return { criadas, erros }
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
   })

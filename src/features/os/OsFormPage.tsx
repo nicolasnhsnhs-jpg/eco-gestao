@@ -18,9 +18,10 @@ import { useCliente } from '../clientes/api'
 import { horaCurta, useProposta } from '../propostas/api'
 import { ClienteSeletor, type ClienteEscolhido } from '../clientes/ClienteSeletor'
 import { useTiposServico } from '../servicos/api'
-import { useAgendarOs, useModelo, useOperadores, useVeiculos } from './api'
+import { useAgendarOs, useModelo, useOperadores, useVeiculos, type CategoriaOs } from './api'
 import { nomeVeiculo } from './nomeVeiculo'
 import { EscolherProposta, PainelProposta } from './PropostaParaOs'
+import { SeletorCategoria } from './SeletorCategoria'
 
 /**
  * Nova OS: escolhe cliente → unidade → serviço. Se já existe um modelo para esse
@@ -32,6 +33,9 @@ export function OsFormPage() {
   const [cliente, setCliente] = useState<ClienteEscolhido | null>(null)
   const [enderecoId, setEnderecoId] = useState(parametros.get('unidade') ?? '')
   const [tipoId, setTipoId] = useState(parametros.get('tipo') ?? '')
+  const [categoria, setCategoria] = useState<CategoriaOs | ''>(
+    (['contrato', 'avulsa'] as const).find((c) => c === parametros.get('categoria')) ?? '',
+  )
   const tipos = useTiposServico()
 
   // Proposta aprovada aberta ao lado (a recepção não vê propostas: têm valores).
@@ -59,7 +63,7 @@ export function OsFormPage() {
   const enderecos = dadosCliente.data?.enderecos.filter((e) => e.ativo) ?? []
   // Cliente com uma única unidade: a OS fica nela.
   const unidade = enderecoId || (enderecos.length === 1 ? enderecos[0].id : '')
-  const modelo = useModelo(clienteId, unidade || null, tipoId)
+  const modelo = useModelo(clienteId, unidade || null, tipoId, categoria)
 
   return (
     <>
@@ -121,6 +125,10 @@ export function OsFormPage() {
             </Card>
           )}
           <Card className="flex flex-col gap-4">
+            <Campo rotulo="Tipo da O.S" htmlFor="os-categoria" obrigatorio>
+              <SeletorCategoria id="os-categoria" valor={categoria} aoMudar={setCategoria} />
+            </Campo>
+
             <Campo rotulo="Cliente" htmlFor="os-cliente" obrigatorio>
               {clienteId && !cliente && dadosCliente.data ? (
                 <p className="flex min-h-11 items-center font-semibold">{dadosCliente.data.nome}</p>
@@ -173,13 +181,14 @@ export function OsFormPage() {
             </Campo>
           </Card>
 
-          {clienteId && tipoId && (enderecos.length === 0 || unidade) && (
+          {clienteId && tipoId && categoria && (enderecos.length === 0 || unidade) && (
             <>
               {modelo.isPending && <Carregando />}
               {modelo.isError && <Aviso tipo="erro">{mensagemDeErro(modelo.error)}</Aviso>}
               {modelo.isSuccess && (
                 <FormAgendamento
-                  key={`${modelo.data?.id ?? 'novo'}:${p?.id ?? ''}`}
+                  key={`${modelo.data?.id ?? 'novo'}:${p?.id ?? ''}:${categoria}`}
+                  categoria={categoria}
                   clienteId={clienteId}
                   enderecoId={unidade || null}
                   tipoId={tipoId}
@@ -205,12 +214,14 @@ export function OsFormPage() {
 }
 
 function FormAgendamento({
+  categoria,
   clienteId,
   enderecoId,
   tipoId,
   modelo,
   sugestao,
 }: {
+  categoria: CategoriaOs
   clienteId: string
   enderecoId: string | null
   tipoId: string
@@ -245,6 +256,7 @@ function FormAgendamento({
     }
     try {
       const id = await agendar.mutateAsync({
+        categoria,
         clienteId,
         enderecoId,
         tipoId,
@@ -268,9 +280,11 @@ function FormAgendamento({
       <Card className="flex flex-col gap-4">
         {modelo ? (
           <Aviso tipo="sucesso">
-            Este local já tem a O.S de contrato: a visita sai com os pontos dela.{' '}
+            {categoria === 'contrato'
+              ? 'Este local já tem a O.S de contrato: a visita sai com os pontos dela.'
+              : 'Este local já tem uma O.S avulsa deste serviço: a nova sai igual a ela.'}{' '}
             <Link className="font-semibold underline" to={`/os/modelos/${modelo.id}`}>
-              Ver a O.S de contrato
+              Ver a O.S salva
             </Link>
           </Aviso>
         ) : (
@@ -280,12 +294,13 @@ function FormAgendamento({
             <Link
               className="font-semibold underline"
               to={`/os/modelos/novo?${new URLSearchParams({
+                categoria,
                 cliente: clienteId,
                 unidade: enderecoId ?? '',
                 tipo: tipoId,
               })}`}
             >
-              montar a O.S de contrato antes
+              montar a O.S antes
             </Link>
             . Ou agende agora e cadastre os pontos na tela da OS.
           </Aviso>

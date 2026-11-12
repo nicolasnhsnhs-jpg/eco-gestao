@@ -6,7 +6,7 @@ import { Campo, Input, Select, Textarea } from '@/components/ui/Campo'
 import { Modal } from '@/components/ui/Modal'
 import { mensagemDeErro } from '@/lib/erros'
 
-import { useAtualizarOs, useOperadores, useVeiculos, type OsCompleta } from './api'
+import { useAtualizarOs, useOperadores, useSalvarModelo, useVeiculos, type OsCompleta } from './api'
 import { nomeVeiculo } from './nomeVeiculo'
 
 /**
@@ -33,6 +33,8 @@ function Formulario({ os, aoFechar }: { os: OsCompleta; aoFechar: () => void }) 
   const operadores = useOperadores()
   const veiculos = useVeiculos()
   const atualizar = useAtualizarOs(os.id)
+  const salvarModelo = useSalvarModelo(os.modelo_id ?? '')
+  const [paraProximas, setParaProximas] = useState(false)
   const [data, setData] = useState(os.data_agendada ?? '')
   const [hora, setHora] = useState(os.hora_agendada?.slice(0, 5) ?? '')
   const [escolhidos, setEscolhidos] = useState<string[]>(
@@ -67,6 +69,14 @@ function Formulario({ os, aoFechar }: { os: OsCompleta; aoFechar: () => void }) 
         },
         operadores: escolhidos,
       })
+      if (paraProximas && os.modelo_id) {
+        await salvarModelo.mutateAsync({
+          descricao: descricao.trim() || null,
+          observacoes_adm_padrao: observacoes.trim() || null,
+          operadores_padrao: escolhidos,
+          veiculo_padrao_id: veiculoId || null,
+        })
+      }
       aoFechar()
     } catch (err) {
       setErro(mensagemDeErro(err))
@@ -133,7 +143,11 @@ function Formulario({ os, aoFechar }: { os: OsCompleta; aoFechar: () => void }) 
         />
       </Campo>
 
-      <Campo rotulo="Observações ADM" htmlFor="ed-observacoes">
+      <Campo
+        rotulo="Observações ADM"
+        htmlFor="ed-observacoes"
+        dica="Contato, responsável, horário da portaria… Marque abaixo para ficar fixo nas próximas."
+      >
         <Textarea
           id="ed-observacoes"
           rows={3}
@@ -155,12 +169,30 @@ function Formulario({ os, aoFechar }: { os: OsCompleta; aoFechar: () => void }) 
         />
       </Campo>
 
+      {os.modelo_id && (
+        <label className="flex items-start gap-3 rounded-xl border border-borda bg-fundo-suave p-3">
+          <input
+            type="checkbox"
+            className="mt-0.5 size-5 shrink-0 accent-verde"
+            checked={paraProximas}
+            onChange={(e) => setParaProximas(e.target.checked)}
+          />
+          <span>
+            <span className="font-semibold">Valer também para as próximas OS deste cliente</span>
+            <span className="block text-sm text-texto-suave">
+              Descrição, observações ADM, operadores e veículo ficam fixos na O.S salva e saem nas
+              próximas visitas.
+            </span>
+          </span>
+        </label>
+      )}
+
       <div className="flex flex-wrap justify-end gap-2">
         <Button type="button" variante="fantasma" onClick={aoFechar}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={atualizar.isPending}>
-          {atualizar.isPending ? 'Salvando…' : 'Salvar alterações'}
+        <Button type="submit" disabled={atualizar.isPending || salvarModelo.isPending}>
+          {atualizar.isPending || salvarModelo.isPending ? 'Salvando…' : 'Salvar alterações'}
         </Button>
       </div>
     </form>

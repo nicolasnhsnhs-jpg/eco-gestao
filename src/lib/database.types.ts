@@ -3327,6 +3327,7 @@ export type Database = {
           ativo: boolean
           atualizado_em: string
           atualizado_por: string | null
+          categoria: Database['public']['Enums']['categoria_os']
           cliente_id: string
           criado_em: string
           criado_por: string | null
@@ -3343,6 +3344,7 @@ export type Database = {
           ativo?: boolean
           atualizado_em?: string
           atualizado_por?: string | null
+          categoria?: Database['public']['Enums']['categoria_os']
           cliente_id: string
           criado_em?: string
           criado_por?: string | null
@@ -3359,6 +3361,7 @@ export type Database = {
           ativo?: boolean
           atualizado_em?: string
           atualizado_por?: string | null
+          categoria?: Database['public']['Enums']['categoria_os']
           cliente_id?: string
           criado_em?: string
           criado_por?: string | null
@@ -3644,6 +3647,116 @@ export type Database = {
             columns: ['produto_id']
             isOneToOne: false
             referencedRelation: 'produtos_certificado'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      os_rota_modelos: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          criado_em: string
+          criado_por: string | null
+          id: string
+          modelo_id: string
+          ordem: number
+          rota_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          modelo_id: string
+          ordem?: number
+          rota_id: string
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          modelo_id?: string
+          ordem?: number
+          rota_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'os_rota_modelos_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_rota_modelos_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_rota_modelos_modelo_id_fkey'
+            columns: ['modelo_id']
+            isOneToOne: false
+            referencedRelation: 'os_modelos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_rota_modelos_rota_id_fkey'
+            columns: ['rota_id']
+            isOneToOne: false
+            referencedRelation: 'os_rotas'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      os_rotas: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          criado_em: string
+          criado_por: string | null
+          id: string
+          nome: string
+          observacoes: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'os_rotas_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_rotas_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
             referencedColumns: ['id']
           },
         ]
@@ -5740,6 +5853,7 @@ export type Database = {
         | 'foto_os'
         | 'assinatura'
         | 'boleto'
+      categoria_os: 'contrato' | 'avulsa'
       forma_pagamento:
         'pix' | 'boleto' | 'transferencia' | 'cartao' | 'dinheiro' | 'debito_automatico' | 'outro'
       formulario_os: 'generico' | 'pragas' | 'coifa' | 'bebedouro' | 'telas'
@@ -5900,6 +6014,7 @@ export const Constants = {
         'assinatura',
         'boleto',
       ],
+      categoria_os: ['contrato', 'avulsa'],
       forma_pagamento: [
         'pix',
         'boleto',

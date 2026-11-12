@@ -1,4 +1,4 @@
-import { CalendarPlus, ClipboardList, Plus } from 'lucide-react'
+import { ArrowLeftRight, CalendarPlus, ClipboardList, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 
@@ -21,9 +21,18 @@ import {
   useOperadores,
   useSalvarModelo,
   useVeiculos,
+  type CategoriaOs,
   type ModeloCompleto,
-  type ModeloResumo,
 } from './api'
+import {
+  contagemPontos,
+  filtrarModelos,
+  linkAgendar,
+  nomeCliente,
+  nomeUnidade,
+} from './modelosUtil'
+import { RotasLista } from './RotasPages'
+import { SeletorCategoria } from './SeletorCategoria'
 import { nomeVeiculo } from './nomeVeiculo'
 import { EscopoBebedouro } from './EscopoBebedouro'
 import { EscopoCoifa } from './EscopoCoifa'
@@ -35,52 +44,62 @@ import { EscopoPragas } from './EscopoPragas'
  * copia este modelo; o operador só anota a execução.
  */
 
-const nomeCliente = (c: { nome: string; nome_fantasia: string | null } | null) =>
-  c?.nome_fantasia || c?.nome || '—'
-
-const nomeUnidade = (e: ModeloResumo['endereco']) =>
-  e ? e.apelido || `${e.logradouro}, ${e.numero ?? 's/n'} · ${e.cidade}/${e.uf}` : null
-
-const linkAgendar = (m: {
-  cliente_id?: string
-  endereco_id?: string | null
-  tipo_servico_id?: string
-}) =>
-  `/os/nova?${new URLSearchParams({
-    cliente: m.cliente_id ?? '',
-    unidade: m.endereco_id ?? '',
-    tipo: m.tipo_servico_id ?? '',
-  })}`
+type Aba = CategoriaOs | 'rotas'
+const ABAS: { valor: Aba; nome: string }[] = [
+  { valor: 'contrato', nome: 'O.S de contrato' },
+  { valor: 'avulsa', nome: 'O.S avulsas' },
+  { valor: 'rotas', nome: 'Rotas' },
+]
 
 export function ModelosOsPage() {
-  const modelos = useModelos()
-  const [busca, setBusca] = useState('')
-  const termo = busca.trim().toLowerCase()
-  const lista =
-    modelos.data?.filter(
-      (m) =>
-        !termo ||
-        [m.cliente?.nome, m.cliente?.nome_fantasia, m.endereco?.apelido, m.tipo?.nome]
-          .filter(Boolean)
-          .some((t) => t!.toLowerCase().includes(termo)),
-    ) ?? []
+  const [parametros, setParametros] = useSearchParams()
+  const aba: Aba = ABAS.find((a) => a.valor === parametros.get('aba'))?.valor ?? 'contrato'
 
   return (
     <>
       <PageHeader
-        titulo="O.S de contrato"
-        descricao="Monte a O.S de cada cliente uma vez (porta-iscas, armadilhas, coifas). Cada visita agendada sai pronta dela."
+        titulo="O.S salvas"
+        descricao="Procure o cliente pelo nome fantasia, razão social ou CNPJ e agende a próxima visita a partir da O.S dele."
         acoes={
-          <Link to="/os/modelos/novo">
-            <Button>
-              <Plus className="size-5" aria-hidden /> Montar O.S
-            </Button>
-          </Link>
+          aba !== 'rotas' && (
+            <Link to={`/os/modelos/novo?categoria=${aba}`}>
+              <Button>
+                <Plus className="size-5" aria-hidden /> Montar O.S
+              </Button>
+            </Link>
+          )
         }
       />
+      <div role="tablist" className="mb-4 flex gap-1 overflow-x-auto rounded-xl bg-white p-1">
+        {ABAS.map((a) => (
+          <button
+            key={a.valor}
+            role="tab"
+            aria-selected={aba === a.valor}
+            onClick={() => setParametros({ aba: a.valor }, { replace: true })}
+            className={`min-h-10 flex-1 rounded-lg px-3 font-semibold whitespace-nowrap ${
+              aba === a.valor ? 'bg-verde text-white' : 'text-texto-suave hover:text-verde-escuro'
+            }`}
+          >
+            {a.nome}
+          </button>
+        ))}
+      </div>
+      {aba === 'rotas' ? <RotasLista /> : <ListaModelos key={aba} categoria={aba} />}
+    </>
+  )
+}
+
+function ListaModelos({ categoria }: { categoria: CategoriaOs }) {
+  const modelos = useModelos(categoria)
+  const [busca, setBusca] = useState('')
+  const lista = filtrarModelos(modelos.data ?? [], busca)
+
+  return (
+    <>
       <input
         aria-label="Buscar"
-        placeholder="Buscar cliente, unidade ou serviço…"
+        placeholder="Buscar por nome fantasia, razão social, CNPJ ou serviço…"
         className="mb-4 min-h-11 w-full rounded-xl border border-borda bg-white px-3"
         value={busca}
         onChange={(e) => setBusca(e.target.value)}
@@ -89,29 +108,19 @@ export function ModelosOsPage() {
       {modelos.isError && <Aviso tipo="erro">{mensagemDeErro(modelos.error)}</Aviso>}
       {modelos.isSuccess && lista.length === 0 && (
         <p className="rounded-2xl border border-borda bg-white p-6 text-center text-texto-suave">
-          Nenhuma O.S de contrato montada.
+          {busca
+            ? 'Nada encontrado.'
+            : `Nenhuma O.S ${categoria === 'contrato' ? 'de contrato' : 'avulsa'} salva.`}
         </p>
       )}
       <ul className="flex flex-col gap-2">
         {lista.map((m) => {
-          const ativos = m.pontos.filter((p) => p.ativo)
-          const iscas = ativos.filter((p) => p.tipo === 'porta_isca').length
-          const armadilhas = ativos.filter((p) => p.tipo === 'armadilha_luminosa').length
-          const coifas = ativos.filter((p) => p.tipo === 'coifa').length
-          const bebedouros = ativos.filter(
-            (p) => p.tipo === 'bebedouro' || p.tipo === 'bebedouro_garrafao',
-          ).length
-          const contagem = [
-            iscas && `${iscas} porta-iscas`,
-            armadilhas && `${armadilhas} armadilhas`,
-            coifas && `${coifas} coifas`,
-            bebedouros && `${bebedouros} bebedouros`,
-          ].filter(Boolean)
+          const contagem = contagemPontos(m.pontos)
           return (
-            <li key={m.id}>
+            <li key={m.id} className="flex items-stretch gap-2">
               <Link
                 to={`/os/modelos/${m.id}`}
-                className="flex flex-col gap-1 rounded-2xl border border-borda bg-white p-4 hover:border-verde"
+                className="flex min-w-0 flex-1 flex-col gap-1 rounded-2xl border border-borda bg-white p-4 hover:border-verde"
               >
                 <p className="font-semibold text-verde-escuro">
                   {nomeCliente(m.cliente)}
@@ -121,6 +130,19 @@ export function ModelosOsPage() {
                   {m.tipo?.nome}
                   {contagem.length > 0 && ` · ${contagem.join(' · ')}`}
                 </p>
+              </Link>
+              <Link
+                to={linkAgendar({
+                  categoria: m.categoria,
+                  cliente_id: m.cliente?.id,
+                  endereco_id: m.endereco?.id ?? null,
+                  tipo_servico_id: m.tipo?.id,
+                })}
+                title="Agendar nova visita com esta O.S"
+                className="grid w-14 shrink-0 place-items-center rounded-2xl border border-borda bg-white text-verde hover:border-verde"
+              >
+                <CalendarPlus className="size-5" aria-hidden />
+                <span className="sr-only">Agendar nova visita</span>
               </Link>
             </li>
           )
@@ -137,6 +159,9 @@ export function ModeloNovoPage() {
   const [cliente, setCliente] = useState<ClienteEscolhido | null>(null)
   const [enderecoId, setEnderecoId] = useState(parametros.get('unidade') ?? '')
   const [tipoId, setTipoId] = useState(parametros.get('tipo') ?? '')
+  const [categoria, setCategoria] = useState<CategoriaOs | ''>(
+    (['contrato', 'avulsa'] as const).find((c) => c === parametros.get('categoria')) ?? '',
+  )
   const [descricao, setDescricao] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const tipos = useTiposServico()
@@ -146,13 +171,15 @@ export function ModeloNovoPage() {
   const dadosCliente = useCliente(clienteId)
   const enderecos = dadosCliente.data?.enderecos.filter((e) => e.ativo) ?? []
   const unidade = enderecoId || (enderecos.length === 1 ? enderecos[0].id : '')
-  const existente = useModelo(clienteId, unidade || null, tipoId)
-  const pronto = !!clienteId && !!tipoId && (enderecos.length === 0 || !!unidade)
+  const existente = useModelo(clienteId, unidade || null, tipoId, categoria)
+  const pronto = !!categoria && !!clienteId && !!tipoId && (enderecos.length === 0 || !!unidade)
 
   async function montar() {
     setErro(null)
+    if (!categoria) return
     try {
       const id = await criar.mutateAsync({
+        categoria,
         clienteId,
         enderecoId: unidade || null,
         tipoId,
@@ -167,11 +194,14 @@ export function ModeloNovoPage() {
   return (
     <>
       <PageHeader
-        titulo="Montar O.S de contrato"
+        titulo="Montar O.S"
         descricao="Para clientes que já têm a O.S pronta: cadastre aqui os pontos e agende as visitas depois."
       />
       <Card className="flex flex-col gap-4">
         {erro && <Aviso tipo="erro">{erro}</Aviso>}
+        <Campo rotulo="Tipo da O.S" htmlFor="mod-categoria" obrigatorio>
+          <SeletorCategoria id="mod-categoria" valor={categoria} aoMudar={setCategoria} />
+        </Campo>
         <Campo rotulo="Cliente" htmlFor="mod-cliente" obrigatorio>
           {clienteId && !cliente && dadosCliente.data ? (
             <p className="flex min-h-11 items-center font-semibold">{dadosCliente.data.nome}</p>
@@ -224,7 +254,8 @@ export function ModeloNovoPage() {
         {pronto && existente.isPending && <Carregando />}
         {pronto && existente.data && (
           <Aviso tipo="info">
-            Este local já tem uma O.S de contrato para este serviço.{' '}
+            Este local já tem uma O.S {categoria === 'contrato' ? 'de contrato' : 'avulsa'} para
+            este serviço.{' '}
             <Link className="font-semibold underline" to={`/os/modelos/${existente.data.id}`}>
               Abrir
             </Link>
@@ -269,7 +300,11 @@ export function ModeloOsPage() {
     <>
       <PageHeader
         titulo={nomeCliente(m.cliente)}
-        descricao={[nomeUnidade(m.endereco), m.tipo?.nome, 'O.S de contrato']
+        descricao={[
+          nomeUnidade(m.endereco),
+          m.tipo?.nome,
+          m.categoria === 'contrato' ? 'O.S de contrato' : 'O.S avulsa',
+        ]
           .filter(Boolean)
           .join(' · ')}
         acoes={
@@ -284,6 +319,7 @@ export function ModeloOsPage() {
         O que for cadastrado aqui vale para as próximas visitas agendadas. Uma OS que já está
         agendada recebe os pontos novos quando você mexer no escopo dela.
       </Aviso>
+      <TrocarCategoria modelo={m} />
       <div className="mt-4">
         <DadosPadrao key={m.id} modelo={m} />
       </div>
@@ -331,7 +367,7 @@ function DadosPadrao({ modelo }: { modelo: ModeloCompleto }) {
         operadores_padrao: escolhidos,
         veiculo_padrao_id: veiculoId || null,
       })
-      setAviso({ tipo: 'sucesso', texto: 'Dados das visitas salvos.' })
+      setAviso({ tipo: 'sucesso', texto: 'Salvo. As próximas OS já saem assim.' })
     } catch (e) {
       setAviso({ tipo: 'erro', texto: mensagemDeErro(e) })
     }
@@ -339,7 +375,9 @@ function DadosPadrao({ modelo }: { modelo: ModeloCompleto }) {
 
   return (
     <Card className="flex flex-col gap-4">
-      <h2 className="font-titulo text-lg font-bold text-verde-escuro">Dados das visitas</h2>
+      <h2 className="font-titulo text-lg font-bold text-verde-escuro">
+        Informações fixas das próximas OS
+      </h2>
       {aviso && <Aviso tipo={aviso.tipo}>{aviso.texto}</Aviso>}
       <Campo rotulo="Descrição do serviço" htmlFor="pad-descricao">
         <Textarea
@@ -350,9 +388,9 @@ function DadosPadrao({ modelo }: { modelo: ModeloCompleto }) {
         />
       </Campo>
       <Campo
-        rotulo="Observações ADM"
+        rotulo="Observações ADM fixas"
         htmlFor="pad-observacoes"
-        dica="Contatos, horário da portaria, o que o operador precisa saber."
+        dica="Saem em todas as próximas OS: contato, responsável, horário da portaria, avisos."
       >
         <Textarea
           id="pad-observacoes"
@@ -390,8 +428,39 @@ function DadosPadrao({ modelo }: { modelo: ModeloCompleto }) {
         </Select>
       </Campo>
       <Button variante="secundario" disabled={salvar.isPending} onClick={() => void enviar()}>
-        Salvar dados das visitas
+        Salvar para as próximas OS
       </Button>
     </Card>
+  )
+}
+
+/** Corrige uma O.S que ficou na aba errada (contrato ↔ avulsa). */
+function TrocarCategoria({ modelo }: { modelo: ModeloCompleto }) {
+  const salvar = useSalvarModelo(modelo.id)
+  const [erro, setErro] = useState<string | null>(null)
+  const outra: CategoriaOs = modelo.categoria === 'contrato' ? 'avulsa' : 'contrato'
+
+  async function trocar() {
+    setErro(null)
+    try {
+      await salvar.mutateAsync({ categoria: outra })
+    } catch (e) {
+      const msg = mensagemDeErro(e)
+      setErro(
+        /um_modelo_por_local/.test(msg)
+          ? `Este local já tem uma O.S ${outra === 'contrato' ? 'de contrato' : 'avulsa'} deste serviço.`
+          : msg,
+      )
+    }
+  }
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      <Button variante="fantasma" disabled={salvar.isPending} onClick={() => void trocar()}>
+        <ArrowLeftRight className="size-4" aria-hidden /> Passar para{' '}
+        {outra === 'contrato' ? 'contrato' : 'avulsa'}
+      </Button>
+      {erro && <Aviso tipo="erro">{erro}</Aviso>}
+    </div>
   )
 }

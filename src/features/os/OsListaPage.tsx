@@ -67,7 +67,7 @@ export function OsListaPage() {
             )}
             <Link to="/os/modelos">
               <Button variante="secundario">
-                <ClipboardList className="size-5" aria-hidden /> O.S de contrato
+                <ClipboardList className="size-5" aria-hidden /> O.S salvas e rotas
               </Button>
             </Link>
             <Link to="/os/nova">
