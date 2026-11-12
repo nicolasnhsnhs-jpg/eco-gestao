@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Campo, Input, Select } from '@/components/ui/Campo'
 import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
+import type { TablesUpdate } from '@/lib/database.types'
 import { mensagemDeErro } from '@/lib/erros'
 
 import {
@@ -81,6 +82,18 @@ export function EscopoPragas({ alvo }: { alvo: AlvoEscopo }) {
             )
           }
         />
+        <FormEditar
+          pontos={portaIscas}
+          ocupado={salvarPontos.isPending}
+          aoSalvar={(ids, dados) =>
+            executar(
+              () => salvarPontos.mutateAsync({ alterar: { id: ids, dados } }),
+              ids.length === 1
+                ? 'Porta-isca alterado. Vale para as próximas O.S deste local.'
+                : `${ids.length} porta-iscas alterados. Vale para as próximas O.S deste local.`,
+            )
+          }
+        />
         <FormRemover
           pontos={portaIscas}
           ocupado={salvarPontos.isPending}
@@ -104,6 +117,21 @@ export function EscopoPragas({ alvo }: { alvo: AlvoEscopo }) {
                 {String(a.numero).padStart(2, '0')} · {a.area} ·{' '}
                 {a.modelo_armadilha === 'P' ? 'Branca (P)' : 'Inox (G)'}
               </span>
+              <Button
+                variante="fantasma"
+                disabled={salvarPontos.isPending}
+                onClick={() => {
+                  const area = window.prompt(`Novo local da armadilha ${a.numero}:`, a.area)?.trim()
+                  if (area && area !== a.area) {
+                    void executar(
+                      () => salvarPontos.mutateAsync({ alterar: { id: a.id, dados: { area } } }),
+                      `Armadilha ${a.numero} alterada. Vale para as próximas O.S deste local.`,
+                    )
+                  }
+                }}
+              >
+                Editar
+              </Button>
               <Button
                 variante="fantasma"
                 disabled={salvarPontos.isPending}
@@ -323,6 +351,108 @@ function FormLote({
         Adicionar
       </Button>
     </div>
+  )
+}
+
+/**
+ * Muda a área (nome), a iscagem ou o tipo de isca de um porta-isca ou de vários
+ * ("1-10"). Fica gravado no local e vale para as próximas O.S.
+ */
+function FormEditar({
+  pontos,
+  ocupado,
+  aoSalvar,
+}: {
+  pontos: PontoControle[]
+  ocupado: boolean
+  aoSalvar: (ids: string[], dados: TablesUpdate<'pontos_controle'>) => Promise<void>
+}) {
+  const [numeros, setNumeros] = useState('')
+  const [area, setArea] = useState('')
+  const [forma, setForma] = useState('')
+  const [tipo, setTipo] = useState('')
+  const [erro, setErro] = useState<string | null>(null)
+  if (pontos.length === 0) return null
+
+  const { numeros: lista, invalidos } = lerFaixas(numeros)
+  const escolhidos = pontos.filter((p) => lista.includes(p.numero))
+  const faltando = lista.filter((n) => !pontos.some((p) => p.numero === n))
+
+  function escolher(texto: string) {
+    setNumeros(texto)
+    setErro(null)
+    // Com um número só, já mostra o que ele tem hoje para facilitar a correção.
+    const um = lerFaixas(texto).numeros
+    const p = um.length === 1 ? pontos.find((x) => x.numero === um[0]) : undefined
+    if (p) {
+      setArea(p.area)
+      setForma(p.forma_iscagem ?? '')
+      setTipo(p.tipo_isca ?? '')
+    }
+  }
+
+  async function salvar() {
+    setErro(null)
+    if (invalidos.length) return setErro(`Não entendi: ${invalidos.join(', ')}.`)
+    if (escolhidos.length === 0) return setErro('Informe o número do porta-isca (ex.: 5 ou 1-10).')
+    if (faltando.length) return setErro(`Não há porta-isca com o número ${faltando.join(', ')}.`)
+    const dados: TablesUpdate<'pontos_controle'> = {}
+    if (area.trim()) dados.area = area.trim()
+    if (forma) dados.forma_iscagem = forma
+    if (tipo) dados.tipo_isca = tipo
+    if (Object.keys(dados).length === 0) return setErro('Informe o que vai mudar.')
+    await aoSalvar(
+      escolhidos.map((p) => p.id),
+      dados,
+    )
+    setNumeros('')
+    setArea('')
+    setForma('')
+    setTipo('')
+  }
+
+  return (
+    <details className="rounded-xl bg-fundo-suave p-3">
+      <summary className="cursor-pointer font-semibold">
+        Alterar porta-isca (nome da área, isca)
+      </summary>
+      <div className="mt-2 grid gap-2 sm:grid-cols-[7rem_1fr_9rem_9rem_auto] sm:items-end">
+        {erro && (
+          <div className="sm:col-span-5">
+            <Aviso tipo="erro">{erro}</Aviso>
+          </div>
+        )}
+        <Campo rotulo="Números" htmlFor="editar-numeros" dica="Ex.: 5 ou 1-10">
+          <Input id="editar-numeros" value={numeros} onChange={(e) => escolher(e.target.value)} />
+        </Campo>
+        <Campo rotulo="Nova área" htmlFor="editar-area">
+          <Input id="editar-area" value={area} onChange={(e) => setArea(e.target.value)} />
+        </Campo>
+        <Campo rotulo="Iscagem" htmlFor="editar-forma">
+          <Select id="editar-forma" value={forma} onChange={(e) => setForma(e.target.value)}>
+            <option value="">Manter</option>
+            {Object.entries(FORMAS_ISCAGEM).map(([codigo, nome]) => (
+              <option key={codigo} value={codigo}>
+                {codigo} · {nome}
+              </option>
+            ))}
+          </Select>
+        </Campo>
+        <Campo rotulo="Tipo de isca" htmlFor="editar-tipo">
+          <Select id="editar-tipo" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+            <option value="">Manter</option>
+            {Object.entries(TIPOS_ISCA).map(([codigo, nome]) => (
+              <option key={codigo} value={codigo}>
+                {codigo} · {nome}
+              </option>
+            ))}
+          </Select>
+        </Campo>
+        <Button onClick={() => void salvar()} disabled={ocupado}>
+          Salvar
+        </Button>
+      </div>
+    </details>
   )
 }
 

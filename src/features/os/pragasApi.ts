@@ -64,7 +64,8 @@ export function useSalvarPontos(osId: string | undefined, podeAtualizarOs: boole
   return useMutation({
     mutationFn: async (acao: {
       novos?: TablesInsert<'pontos_controle'>[]
-      alterar?: { id: string; dados: TablesUpdate<'pontos_controle'> }
+      /** Um ponto ou vários de uma vez (ex.: renomear a área de 1-10). */
+      alterar?: { id: string | string[]; dados: TablesUpdate<'pontos_controle'> }
     }) => {
       if (acao.novos?.length) {
         const { error } = await supabase.from('pontos_controle').insert(acao.novos)
@@ -75,10 +76,11 @@ export function useSalvarPontos(osId: string | undefined, podeAtualizarOs: boole
         }
       }
       if (acao.alterar) {
+        const ids = ([] as string[]).concat(acao.alterar.id)
         const { error } = await supabase
           .from('pontos_controle')
           .update(acao.alterar.dados)
-          .eq('id', acao.alterar.id)
+          .in('id', ids)
         if (error) throw error
       }
       if (osId && podeAtualizarOs) {
