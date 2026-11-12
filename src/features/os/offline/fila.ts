@@ -233,6 +233,14 @@ export async function descartar(chave: string) {
   await salvar()
 }
 
+/** Tira da fila uma foto que ainda não subiu (o operador apagou a foto errada). */
+export async function desistirDoArquivo(id: string) {
+  await carregar()
+  itens = itens.filter((i) => !(i.tipo === 'arquivo' && i.registro.id === id))
+  await salvar()
+  await del(chaveArquivo(id))
+}
+
 // Envia sozinho: ao abrir o app, ao voltar o sinal e enquanto houver pendências.
 if (typeof window !== 'undefined') {
   window.addEventListener('online', () => void processarFila())

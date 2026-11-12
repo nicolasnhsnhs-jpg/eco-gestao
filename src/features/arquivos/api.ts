@@ -116,8 +116,14 @@ export function useRemoverArquivo(clienteId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (arquivo: Arquivo) => {
-      const { error } = await supabase.from('arquivos').delete().eq('id', arquivo.id)
+      const { data, error } = await supabase
+        .from('arquivos')
+        .delete()
+        .eq('id', arquivo.id)
+        .select('id')
       if (error) throw error
+      // Sem permissão o banco não apaga nada e também não dá erro.
+      if (!data?.length) throw new Error('Este arquivo não pode ser apagado por você.')
       // O registro já saiu; se o Storage falhar, sobra só um arquivo órfão (sem acesso pela tela).
       await supabase.storage.from(BUCKET).remove([arquivo.caminho_storage])
     },

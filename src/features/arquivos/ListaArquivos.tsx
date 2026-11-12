@@ -27,6 +27,8 @@ type Props = Vinculo & {
   /** Categoria gravada nos arquivos enviados por aqui. */
   categoria: CategoriaArquivo
   podeEnviar?: boolean
+  /** Mostra a lixeira mesmo sem o botão de enviar (fotos da OS no celular). Padrão: igual a podeEnviar. */
+  podeApagar?: boolean
   textoVazio?: string
   /** Mostra só os arquivos desta categoria (ex.: só as fotos de "antes"). */
   filtrarPorCategoria?: boolean
@@ -53,6 +55,7 @@ export function ListaArquivos({
   osId,
   categoria,
   podeEnviar = true,
+  podeApagar: podeApagarLista = podeEnviar,
   textoVazio = 'Nenhum arquivo.',
   filtrarPorCategoria,
   miniaturas,
@@ -104,7 +107,7 @@ export function ListaArquivos({
 
   // Lista só de leitura (ex.: OS concluída) também não deixa apagar.
   const podeApagar = (a: Arquivo) =>
-    podeEnviar && (a.enviado_por === perfil.id || PAPEIS_GESTAO.includes(perfil.papel))
+    podeApagarLista && (a.enviado_por === perfil.id || PAPEIS_GESTAO.includes(perfil.papel))
   const nomeDe = (id: string) => equipe.data?.find((p) => p.id === id)?.nome ?? ''
 
   return (

@@ -1,15 +1,16 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Camera, Images } from 'lucide-react'
+import { Camera, Images, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { Aviso } from '@/components/ui/Aviso'
+import { BotaoIcone } from '@/components/ui/BotaoIcone'
 import { comprimirSeForFoto } from '@/lib/arquivos'
 import { mensagemDeErro } from '@/lib/erros'
 import { estaOnline } from '@/lib/offline'
 
 import { ListaArquivos } from '../../arquivos/ListaArquivos'
 import { guardarArquivoDaOs, type CategoriaFotoOs } from '../api'
-import { arquivoGuardado, useFila } from './fila'
+import { arquivoGuardado, desistirDoArquivo, useFila } from './fila'
 
 /**
  * Fotos da OS na tela do operador. A foto fica no celular na hora (com ou sem
@@ -79,7 +80,22 @@ export function FotosOs({
           </p>
           <ul className="grid grid-cols-3 gap-2">
             {pendentes.map(
-              (i) => i.tipo === 'arquivo' && <Miniatura key={i.registro.id} id={i.registro.id} />,
+              (i) =>
+                i.tipo === 'arquivo' && (
+                  <Miniatura
+                    key={i.registro.id}
+                    id={i.registro.id}
+                    aoApagar={
+                      aberta
+                        ? () => {
+                            if (window.confirm('Apagar esta foto?')) {
+                              void desistirDoArquivo(i.registro.id)
+                            }
+                          }
+                        : undefined
+                    }
+                  />
+                ),
             )}
           </ul>
         </>
@@ -92,6 +108,7 @@ export function FotosOs({
           filtrarPorCategoria
           miniaturas
           podeEnviar={false}
+          podeApagar={aberta}
           textoVazio={pendentes.length ? '' : textoVazio}
         />
       )}
@@ -138,7 +155,7 @@ function BotaoFoto({
   )
 }
 
-function Miniatura({ id }: { id: string }) {
+function Miniatura({ id, aoApagar }: { id: string; aoApagar?: () => void }) {
   const [url, setUrl] = useState<string | null>(null)
   useEffect(() => {
     let link: string | null = null
@@ -152,8 +169,15 @@ function Miniatura({ id }: { id: string }) {
     }
   }, [id])
   return (
-    <li className="aspect-square overflow-hidden rounded-xl border border-borda bg-fundo-suave">
+    <li className="relative aspect-square overflow-hidden rounded-xl border border-borda bg-fundo-suave">
       {url && <img src={url} alt="Foto guardada no celular" className="size-full object-cover" />}
+      {aoApagar && (
+        <span className="absolute top-1 right-1 rounded-lg bg-white/90">
+          <BotaoIcone rotulo="Apagar foto" onClick={aoApagar}>
+            <Trash2 className="size-4" />
+          </BotaoIcone>
+        </span>
+      )}
     </li>
   )
 }
