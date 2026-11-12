@@ -46,6 +46,12 @@ export const esquemaItem = z.object({
 
 export const esquemaProposta = z
   .object({
+    /** Serviço avulso ou contrato (valor anual pago em parcelas mensais). */
+    tipo: z.enum(['avulsa', 'contrato']),
+    contrato_valor_anual: z
+      .string()
+      .refine((v) => v.trim() === '' || lerValor(v) !== null, 'Valor inválido.'),
+    contrato_parcelas: inteiroOpcional(1, 60, 'Entre 1 e 60 parcelas.'),
     cliente_id: z.string().min(1, 'Escolha o cliente.'),
     cliente_nome: z.string(),
     endereco_id: z.string(),
@@ -93,6 +99,17 @@ export const ITEM_VAZIO: FormItem = {
 
 const ouNulo = (v: string) => (v.trim() === '' ? null : v.trim())
 
+/** Campos do contrato: só valem na proposta de contrato. */
+function camposContrato(f: Partial<FormProposta>) {
+  const contrato = f.tipo === 'contrato'
+  const anual = f.contrato_valor_anual?.trim() ? lerValor(f.contrato_valor_anual) : null
+  return {
+    tipo: contrato ? ('contrato' as const) : ('avulsa' as const),
+    contrato_valor_anual: contrato ? anual : null,
+    contrato_parcelas: contrato ? Number(f.contrato_parcelas) || 12 : null,
+  }
+}
+
 export function quantidadeDe(texto: string): number {
   return Number(texto.replace(',', '.')) || 0
 }
@@ -133,6 +150,7 @@ export function propostaParaBanco(f: FormProposta) {
   const acrescimo = f.acrescimo_fora_horario.trim() ? lerValor(f.acrescimo_fora_horario) : null
   return {
     dados: {
+      ...camposContrato(f),
       cliente_id: f.cliente_id,
       endereco_id: ouNulo(f.endereco_id),
       vendedor_id: f.vendedor_id,
@@ -173,6 +191,7 @@ export function formParaBase(f: FormProposta, numero?: string | null): PropostaB
   const acrescimo = f.acrescimo_fora_horario?.trim() ? lerValor(f.acrescimo_fora_horario) : null
   return {
     numero: numero ?? null,
+    ...camposContrato(f),
     data_envio: f.data_envio || new Date().toISOString().slice(0, 10),
     validade: ouNulo(f.validade ?? ''),
     contato_nome: ouNulo(f.contato_nome ?? ''),

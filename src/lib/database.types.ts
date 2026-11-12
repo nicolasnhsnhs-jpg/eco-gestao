@@ -4093,6 +4093,8 @@ export type Database = {
           contato_email: string | null
           contato_nome: string | null
           contato_telefone: string | null
+          contrato_parcelas: number | null
+          contrato_valor_anual: number | null
           criado_em: string
           criado_por: string | null
           custos_detalhados: boolean
@@ -4108,6 +4110,7 @@ export type Database = {
           observacoes: string | null
           prazo_pagamento_dias: number | null
           status: Database['public']['Enums']['status_proposta']
+          tipo: string
           validade: string | null
           valor_total: number
           vendedor_id: string
@@ -4121,6 +4124,8 @@ export type Database = {
           contato_email?: string | null
           contato_nome?: string | null
           contato_telefone?: string | null
+          contrato_parcelas?: number | null
+          contrato_valor_anual?: number | null
           criado_em?: string
           criado_por?: string | null
           custos_detalhados?: boolean
@@ -4136,6 +4141,7 @@ export type Database = {
           observacoes?: string | null
           prazo_pagamento_dias?: number | null
           status?: Database['public']['Enums']['status_proposta']
+          tipo?: string
           validade?: string | null
           valor_total?: number
           vendedor_id?: string
@@ -4149,6 +4155,8 @@ export type Database = {
           contato_email?: string | null
           contato_nome?: string | null
           contato_telefone?: string | null
+          contrato_parcelas?: number | null
+          contrato_valor_anual?: number | null
           criado_em?: string
           criado_por?: string | null
           custos_detalhados?: boolean
@@ -4164,6 +4172,7 @@ export type Database = {
           observacoes?: string | null
           prazo_pagamento_dias?: number | null
           status?: Database['public']['Enums']['status_proposta']
+          tipo?: string
           validade?: string | null
           valor_total?: number
           vendedor_id?: string
@@ -5291,6 +5300,8 @@ export type Database = {
           contato_email: string | null
           contato_nome: string | null
           contato_telefone: string | null
+          contrato_parcelas: number | null
+          contrato_valor_anual: number | null
           criado_em: string | null
           criado_por: string | null
           custos_detalhados: boolean | null
@@ -5308,6 +5319,7 @@ export type Database = {
           prazo_pagamento_dias: number | null
           situacao: string | null
           status: Database['public']['Enums']['status_proposta'] | null
+          tipo: string | null
           validade: string | null
           valor_total: number | null
           vendedor_id: string | null
@@ -5321,6 +5333,8 @@ export type Database = {
           contato_email?: string | null
           contato_nome?: string | null
           contato_telefone?: string | null
+          contrato_parcelas?: number | null
+          contrato_valor_anual?: number | null
           criado_em?: string | null
           criado_por?: string | null
           custos_detalhados?: boolean | null
@@ -5338,6 +5352,7 @@ export type Database = {
           prazo_pagamento_dias?: number | null
           situacao?: never
           status?: Database['public']['Enums']['status_proposta'] | null
+          tipo?: string | null
           validade?: string | null
           valor_total?: number | null
           vendedor_id?: string | null
@@ -5351,6 +5366,8 @@ export type Database = {
           contato_email?: string | null
           contato_nome?: string | null
           contato_telefone?: string | null
+          contrato_parcelas?: number | null
+          contrato_valor_anual?: number | null
           criado_em?: string | null
           criado_por?: string | null
           custos_detalhados?: boolean | null
@@ -5368,6 +5385,7 @@ export type Database = {
           prazo_pagamento_dias?: number | null
           situacao?: never
           status?: Database['public']['Enums']['status_proposta'] | null
+          tipo?: string | null
           validade?: string | null
           valor_total?: number | null
           vendedor_id?: string | null

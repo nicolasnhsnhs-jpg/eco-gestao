@@ -7,7 +7,7 @@ import {
   tituloComFrequencia,
   valorFrequencia,
 } from '../modelos'
-import { montarDadosPdf, type ItemBase, type PropostaBase } from './dadosPdf'
+import { montarDadosPdf, valorAnualDosItens, type ItemBase, type PropostaBase } from './dadosPdf'
 
 const item = (x: Partial<ItemBase>): ItemBase => ({
   modelo: null,
@@ -241,5 +241,37 @@ describe('montarDadosPdf', () => {
     expect(separarFrequencia('')).toEqual({ periodicidade_meses: null, frequencia: null })
     expect(valorFrequencia(null, 'semanal')).toBe('semanal')
     expect(valorFrequencia(3, null)).toBe('3')
+  })
+
+  it('proposta de contrato: valor anual, o que contempla e as parcelas', () => {
+    const itens = [
+      item({ descricao: 'Limpeza de reservatórios', valor_unitario: 600, periodicidade_meses: 6 }),
+      item({ descricao: 'Controle de pragas', valor_unitario: 200, cobranca: 'mensal' }),
+    ]
+    // 600 × 2 (semestral) + 200 × 12 (por mês)
+    expect(valorAnualDosItens(itens)).toBe(3600)
+
+    const d = montarDadosPdf(
+      base({ tipo: 'contrato', contrato_valor_anual: 6000, contrato_parcelas: 12, itens }),
+      cliente,
+      null,
+      vendedor,
+    )
+    const textos = d.custos.map((c) => c.texto)
+    expect(textos[0]).toContain('Valor anual do contrato: **R$ 6.000,00')
+    expect(textos).toContain('Limpeza de reservatórios - semestral - **R$ 600,00**')
+    expect(textos.some((t) => t.includes('**12 parcelas mensais de R$ 500,00'))).toBe(true)
+    expect(textos.some((t) => t.includes('28 dias'))).toBe(false)
+
+    const semValor = montarDadosPdf(
+      base({ tipo: 'contrato', contrato_parcelas: 10, custos_detalhados: false, itens }),
+      cliente,
+      null,
+      vendedor,
+    )
+    const t2 = semValor.custos.map((c) => c.texto)
+    expect(t2[0]).toContain('R$ 3.600,00')
+    expect(t2).toContain('Controle de pragas')
+    expect(t2.some((t) => t.includes('10 parcelas mensais de R$ 360,00'))).toBe(true)
   })
 })

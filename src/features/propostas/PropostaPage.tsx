@@ -26,8 +26,9 @@ import {
 } from './api'
 import { JanelaExecucao } from './JanelaExecucao'
 import { nomeFrequencia } from './modelos'
+import { valoresDoContrato } from './pdf/dadosPdf'
 import { AcoesPdfProposta } from './pdf/PdfProposta'
-import { taxasDoItem } from './pdf/usoPdf'
+import { propostaGravadaParaBase, taxasDoItem } from './pdf/usoPdf'
 
 export function PropostaPage() {
   const { id } = useParams()
@@ -221,6 +222,11 @@ function Detalhe({ p }: { p: PropostaCompleta }) {
               />
             )}
             <Dado
+              rotulo="Tipo"
+              valor={p.tipo === 'contrato' ? 'Proposta de contrato' : 'Serviço avulso'}
+            />
+            {p.tipo === 'contrato' && <DadosContrato p={p} />}
+            <Dado
               rotulo="Prazo de pagamento"
               valor={
                 p.prazo_pagamento_dias != null
@@ -264,6 +270,17 @@ function valorComTaxas(i: PropostaCompleta['itens'][number]) {
   const base = Math.round(Number(i.quantidade) * Number(i.valor_unitario) * 100)
   const taxas = taxasDoItem(i.taxas_adicionais).reduce((s, t) => s + Math.round(t.valor * 100), 0)
   return (base + taxas) / 100
+}
+
+/** Valor anual e parcelas da proposta de contrato. */
+function DadosContrato({ p }: { p: PropostaCompleta }) {
+  const { anual, parcelas, parcela } = valoresDoContrato(propostaGravadaParaBase(p))
+  return (
+    <>
+      <Dado rotulo="Valor anual do contrato" valor={formatarReais(anual)} />
+      <Dado rotulo="Parcelas" valor={`${parcelas}× de ${formatarReais(parcela)}`} />
+    </>
+  )
 }
 
 function Dado({ rotulo, valor }: { rotulo: string; valor: string | null | undefined }) {

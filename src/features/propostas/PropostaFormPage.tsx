@@ -44,6 +44,7 @@ import {
   valorFrequencia,
   type ChaveModelo,
 } from './modelos'
+import { valoresDoContrato, valorAnualDosItens } from './pdf/dadosPdf'
 import { PreviaPdf } from './pdf/PdfProposta'
 import { pdfDaProposta, taxasDoItem, useVendedorPdf } from './pdf/usoPdf'
 
@@ -72,6 +73,12 @@ function valoresIniciais(
 ): FormProposta {
   if (proposta) {
     return {
+      tipo: proposta.tipo === 'contrato' ? 'contrato' : 'avulsa',
+      contrato_valor_anual:
+        proposta.contrato_valor_anual == null
+          ? ''
+          : valorParaCampo(Number(proposta.contrato_valor_anual)),
+      contrato_parcelas: proposta.contrato_parcelas?.toString() ?? '12',
       cliente_id: proposta.cliente_id!,
       cliente_nome: proposta.cliente?.nome_fantasia || proposta.cliente?.nome || '',
       endereco_id: proposta.endereco_id ?? '',
@@ -111,6 +118,9 @@ function valoresIniciais(
   }
   const hoje = hojeISO()
   return {
+    tipo: parametros.get('tipo') === 'contrato' ? 'contrato' : 'avulsa',
+    contrato_valor_anual: '',
+    contrato_parcelas: '12',
     cliente_id: parametros.get('cliente') ?? '',
     cliente_nome: parametros.get('cliente_nome') ?? '',
     endereco_id: '',
@@ -210,6 +220,9 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
 
   const nomeApresentacao = cliente.data?.nome_fantasia || cliente.data?.nome || clienteNome
   const base = formParaBase(valores, proposta?.numero)
+  const contrato = valores.tipo === 'contrato'
+  const contratoCalculado = valoresDoContrato(base)
+
   const chavePrevia = JSON.stringify([base, cliente.data?.id, valores.endereco_id, vendedor.data])
 
   return (
@@ -242,6 +255,38 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
           noValidate
           className="flex min-w-0 flex-col gap-5"
         >
+          {/* ---- Avulso ou contrato ---- */}
+          <Card className="flex flex-col gap-3">
+            <h2 className="font-bold">Tipo de proposta</h2>
+            <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tipo de proposta">
+              {(
+                [
+                  ['avulsa', 'Serviço avulso', 'Valor do serviço, pago uma vez.'],
+                  ['contrato', 'Contrato', 'Valor anual, pago em parcelas mensais.'],
+                ] as const
+              ).map(([valor, nome, dica]) => {
+                const marcado = valores.tipo === valor
+                return (
+                  <button
+                    key={valor}
+                    type="button"
+                    role="radio"
+                    aria-checked={marcado}
+                    onClick={() => form.setValue('tipo', valor, { shouldDirty: true })}
+                    className={`min-h-11 rounded-xl border-2 p-3 text-left ${
+                      marcado
+                        ? 'border-verde bg-lima-claro text-verde-escuro'
+                        : 'border-borda hover:border-verde'
+                    }`}
+                  >
+                    <strong className="block">{nome}</strong>
+                    <span className="text-sm text-texto-suave">{dica}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </Card>
+
           {/* ---- Cliente ---- */}
           <Card className="grid gap-4 sm:grid-cols-2">
             <h2 className="font-bold sm:col-span-2">Cliente</h2>
@@ -363,6 +408,30 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
           {/* ---- Textos e custos ---- */}
           <Card className="grid gap-4 sm:grid-cols-2">
             <h2 className="font-bold sm:col-span-2">Apresentação e custos</h2>
+            {contrato && (
+              <div className="grid gap-4 rounded-xl bg-fundo-suave p-3 sm:col-span-2 sm:grid-cols-2">
+                <p className="text-sm sm:col-span-2">
+                  <strong>Contrato:</strong> o PDF mostra o valor anual, os serviços que ele
+                  contempla (com a frequência) e as parcelas mensais.
+                </p>
+                <CampoValor
+                  form={form}
+                  nome="contrato_valor_anual"
+                  rotulo="Valor anual do contrato (R$)"
+                  placeholder={valorParaCampo(valorAnualDosItens(base.itens))}
+                  dica="Em branco: a soma dos serviços no ano (o valor em cinza)."
+                  erro={errors.contrato_valor_anual?.message}
+                />
+                <Campo
+                  rotulo="Parcelas mensais"
+                  htmlFor="parcelas"
+                  erro={errors.contrato_parcelas?.message}
+                  dica={`${contratoCalculado.parcelas}× de ${formatarReais(contratoCalculado.parcela)}`}
+                >
+                  <Input id="parcelas" inputMode="numeric" {...form.register('contrato_parcelas')} />
+                </Campo>
+              </div>
+            )}
             <Campo
               rotulo="Apresentação"
               htmlFor="introducao"
@@ -722,10 +791,12 @@ function CampoValor({
   dica,
   erro,
   className,
+  placeholder = '0,00',
 }: {
   form: UseFormReturn<FormProposta>
-  nome: 'acrescimo_fora_horario' | `itens.${number}.valor_unitario`
+  nome: 'acrescimo_fora_horario' | 'contrato_valor_anual' | `itens.${number}.valor_unitario`
   rotulo: string
+  placeholder?: string
   dica?: string
   erro?: string
   className?: string
@@ -736,7 +807,7 @@ function CampoValor({
       <Input
         id={nome}
         inputMode="numeric"
-        placeholder="0,00"
+        placeholder={placeholder}
         {...registro}
         onChange={(e) => {
           e.target.value = mascaraValor(e.target.value)

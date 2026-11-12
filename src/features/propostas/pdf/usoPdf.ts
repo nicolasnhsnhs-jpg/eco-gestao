@@ -32,6 +32,9 @@ export function useVendedorPdf(id: string | null | undefined) {
 export function propostaGravadaParaBase(p: PropostaCompleta): PropostaBase {
   return {
     numero: p.numero,
+    tipo: p.tipo,
+    contrato_valor_anual: p.contrato_valor_anual == null ? null : Number(p.contrato_valor_anual),
+    contrato_parcelas: p.contrato_parcelas,
     data_envio: p.data_envio!,
     validade: p.validade,
     contato_nome: p.contato_nome,

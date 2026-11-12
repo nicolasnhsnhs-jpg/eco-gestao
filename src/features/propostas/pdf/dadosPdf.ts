@@ -7,6 +7,7 @@ import {
   introducaoPadrao,
   juntarLinhas,
   juntarMetodologias,
+  nomeFrequencia,
   sufixoCobranca,
   textoAtendimento,
   textoPagamento,
@@ -40,6 +41,10 @@ export type TaxaBase = { descricao: string; valor: number }
 
 export type PropostaBase = {
   numero?: string | null
+  /** Contrato: valor anual (vazio = soma dos serviços) pago em parcelas mensais. */
+  tipo?: 'avulsa' | 'contrato' | string | null
+  contrato_valor_anual?: number | null
+  contrato_parcelas?: number | null
   data_envio: string
   validade: string | null
   contato_nome: string | null
@@ -158,7 +163,10 @@ export function montarDadosPdf(
   const sufixoTotal = cobrancas.size === 1 ? sufixoCobranca([...cobrancas][0]) : ''
   const variosItens = p.itens.length > 1
   const comTaxas = p.itens.some((i) => (i.taxas_adicionais ?? []).length > 0)
-  if (p.custos_detalhados && (variosItens || comTaxas)) {
+  const contrato = p.tipo === 'contrato'
+  if (contrato) {
+    custos.push(...custosDoContrato(p))
+  } else if (p.custos_detalhados && (variosItens || comTaxas)) {
     custos.push({ tipo: 'linha', texto: '**Valor dos serviços conforme segue abaixo:**' })
     for (const i of p.itens) {
       const qtd =
@@ -194,11 +202,13 @@ export function montarDadosPdf(
     custos.push({ tipo: 'linha', texto: `${rotulo}${qtd}:` })
     custos.push({ tipo: 'linha', texto: `**${valorComExtenso(total)}${sufixoTotal}**.` })
   }
-  custos.push({ tipo: 'espaco', texto: '' })
-  custos.push({
-    tipo: 'linha',
-    texto: `Forma de pagamento: ${textoPagamento(p.prazo_pagamento_dias, p.condicao_pagamento)}.`,
-  })
+  if (!contrato) {
+    custos.push({ tipo: 'espaco', texto: '' })
+    custos.push({
+      tipo: 'linha',
+      texto: `Forma de pagamento: ${textoPagamento(p.prazo_pagamento_dias, p.condicao_pagamento)}.`,
+    })
+  }
   if (p.observacoes?.trim()) {
     custos.push({ tipo: 'espaco', texto: '' })
     for (const l of p.observacoes.split('\n').filter((x) => x.trim())) {
@@ -226,6 +236,65 @@ export function montarDadosPdf(
     custos,
     vendedor: vendedor ?? { nome: '', telefone: null, email: null },
   }
+}
+
+/** Quantas vezes o serviço acontece no ano, pela frequência (avulso = 1). */
+function vezesNoAno(i: ItemBase) {
+  if (i.frequencia === 'semanal') return 52
+  if (i.frequencia === 'quinzenal') return 26
+  return i.periodicidade_meses ? Math.max(1, Math.round(12 / i.periodicidade_meses)) : 1
+}
+
+/**
+ * Valor anual estimado pelos serviços: cobrança por mês × 12; por visita ou valor
+ * do serviço × vezes no ano. É o que vale quando o valor anual fica em branco.
+ */
+export function valorAnualDosItens(itens: ItemBase[]) {
+  return (
+    itens.reduce((s, i) => {
+      const vezes = i.cobranca === 'mensal' ? 12 : vezesNoAno(i)
+      return s + centavos(valorItem(i)) * vezes
+    }, 0) / 100
+  )
+}
+
+/** Valor anual do contrato e das parcelas (em reais, a parcela arredondada nos centavos). */
+export function valoresDoContrato(p: PropostaBase) {
+  const anual = p.contrato_valor_anual ?? valorAnualDosItens(p.itens)
+  const parcelas = p.contrato_parcelas && p.contrato_parcelas > 0 ? p.contrato_parcelas : 12
+  return { anual, parcelas, parcela: Math.round((anual * 100) / parcelas) / 100 }
+}
+
+/**
+ * Custos da proposta de contrato:
+ *   Valor anual do contrato: R$ 6.000,00 (...), contemplando:
+ *   • Limpeza de reservatórios - semestral
+ *   Forma de pagamento: 12 parcelas mensais de R$ 500,00 (...), boleto bancário.
+ */
+function custosDoContrato(p: PropostaBase): LinhaCusto[] {
+  const { anual, parcelas, parcela } = valoresDoContrato(p)
+  const linhas: LinhaCusto[] = [
+    {
+      tipo: 'linha',
+      texto: `Valor anual do contrato: **${valorComExtenso(anual)}**, contemplando:`,
+    },
+  ]
+  for (const i of p.itens) {
+    const freq = i.frequencia ?? i.periodicidade_meses
+    const textoFreq = freq ? ` - ${minusculaInicial(nomeFrequencia(freq))}` : ''
+    const valor = p.custos_detalhados
+      ? ` - **${formatarReais(valorItem(i))}${sufixoCobranca(i.cobranca)}**`
+      : ''
+    linhas.push({ tipo: 'marcador', texto: `${i.descricao}${textoFreq}${valor}` })
+  }
+  const condicao = p.condicao_pagamento?.trim() || 'boleto bancário'
+  const comoPaga =
+    parcelas === 1
+      ? `pagamento único de **${valorComExtenso(parcela)}**`
+      : `**${parcelas} parcelas mensais de ${valorComExtenso(parcela)}**`
+  linhas.push({ tipo: 'espaco', texto: '' })
+  linhas.push({ tipo: 'linha', texto: `Forma de pagamento: ${comoPaga}, ${condicao}.` })
+  return linhas
 }
 
 const minusculaInicial = (t: string) => t.charAt(0).toLowerCase() + t.slice(1)
