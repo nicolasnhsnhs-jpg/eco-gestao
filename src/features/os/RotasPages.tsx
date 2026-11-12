@@ -10,11 +10,12 @@ import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
 import { hojeISO } from '@/lib/datas'
 import { mensagemDeErro } from '@/lib/erros'
+import { useValorAtrasado } from '@/lib/useValorAtrasado'
 
 import {
   useAgendarRota,
   useCriarRota,
-  useModelos,
+  useBuscaModelos,
   useOperadores,
   usePorNaRota,
   useRota,
@@ -24,7 +25,7 @@ import {
   useVeiculos,
   type RotaCompleta,
 } from './api'
-import { contagemPontos, filtrarModelos, nomeCliente, nomeUnidade } from './modelosUtil'
+import { contagemPontos, contarPontos, nomeCliente, nomeUnidade } from './modelosUtil'
 import { nomeVeiculo } from './nomeVeiculo'
 
 /*
@@ -180,7 +181,7 @@ function Rota({ rota }: { rota: RotaCompleta }) {
             <ol className="flex flex-col gap-2">
               {itens.map((item, i) => {
                 const m = item.modelo!
-                const contagem = contagemPontos(m.pontos)
+                const contagem = contagemPontos(contarPontos(m.pontos))
                 const marcado = marcados.has(m.id)
                 return (
                   <li
@@ -277,17 +278,14 @@ function Rota({ rota }: { rota: RotaCompleta }) {
 }
 
 function AdicionarNaRota({ rota }: { rota: RotaCompleta }) {
-  const modelos = useModelos('contrato')
-  const por = usePorNaRota(rota.id)
   const [busca, setBusca] = useState('')
+  const termo = useValorAtrasado(busca.trim())
+  const modelos = useBuscaModelos('contrato', termo)
+  const por = usePorNaRota(rota.id)
   const [erro, setErro] = useState<string | null>(null)
   const naRota = new Set(rota.itens.map((i) => i.modelo?.id))
   const proxima = Math.max(0, ...rota.itens.map((i) => i.ordem)) + 1
-  const lista = busca.trim()
-    ? filtrarModelos(modelos.data ?? [], busca)
-        .filter((m) => !naRota.has(m.id))
-        .slice(0, 15)
-    : []
+  const lista = termo ? (modelos.data ?? []).filter((m) => !naRota.has(m.id)) : []
 
   async function adicionar(modeloId: string) {
     setErro(null)

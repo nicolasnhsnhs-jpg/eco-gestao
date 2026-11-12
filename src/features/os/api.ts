@@ -1,4 +1,11 @@
-import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  queryOptions,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 
 import type { Database, Enums, Json, Tables, TablesUpdate } from '@/lib/database.types'
 import { supabase } from '@/lib/supabase'
@@ -592,27 +599,71 @@ const RELACOES_MODELO = `
   tipo:tipos_servico(id, nome, formulario_os, fotos_antes_depois)
 `
 
-export function useModelos(categoria?: CategoriaOs) {
-  return useQuery({
-    queryKey: ['os', 'modelos', categoria ?? 'todas'],
-    queryFn: async () => {
-      let consulta = supabase
-        .from('os_modelos')
-        .select(
-          `id, ativo, descricao, categoria, ${RELACOES_MODELO}, pontos:pontos_controle(tipo, ativo)`,
-        )
-        .eq('ativo', true)
-      if (categoria) consulta = consulta.eq('categoria', categoria)
-      const { data, error } = await consulta
-      if (error) throw error
-      const nome = (m: (typeof data)[number]) =>
-        `${m.cliente?.nome_fantasia || m.cliente?.nome || ''} ${m.endereco?.apelido ?? ''}`
-      return [...data].sort((a, b) => nome(a).localeCompare(nome(b), 'pt-BR'))
-    },
+/** Quantas O.S salvas a lista carrega de cada vez enquanto a pessoa rola a tela. */
+export const MODELOS_POR_PAGINA = 20
+
+/**
+ * Uma página de O.S salvas: o banco filtra pela busca, ordena pelo nome e já conta
+ * os pontos (baixar todos os pontos de todos os modelos deixava a lista lenta).
+ */
+async function paginaDeModelos(
+  categoria: CategoriaOs,
+  termo: string,
+  pular: number,
+  limite: number,
+) {
+  const ids = await supabase.rpc('buscar_modelos_os', {
+    p_categoria: categoria,
+    p_busca: termo,
+    p_limite: limite,
+    p_pular: pular,
+  })
+  if (ids.error) throw ids.error
+  if (ids.data.length === 0) return []
+  const { data, error } = await supabase
+    .from('os_modelos')
+    .select(`id, ativo, descricao, categoria, ${RELACOES_MODELO}`)
+    .in(
+      'id',
+      ids.data.map((c) => c.modelo_id),
+    )
+  if (error) throw error
+  const porId = new Map(data.map((m) => [m.id, m]))
+  return ids.data.flatMap((c) => {
+    const m = porId.get(c.modelo_id)
+    if (!m) return []
+    const contagem = {
+      porta_iscas: c.porta_iscas,
+      armadilhas: c.armadilhas,
+      coifas: c.coifas,
+      bebedouros: c.bebedouros,
+    }
+    return [{ ...m, contagem }]
   })
 }
 
-export type ModeloResumo = NonNullable<ReturnType<typeof useModelos>['data']>[number]
+export type ModeloResumo = Awaited<ReturnType<typeof paginaDeModelos>>[number]
+
+/** O.S salvas de uma categoria, aos pedaços de 20 (rolagem infinita), com busca no banco. */
+export function useListaModelos(categoria: CategoriaOs, termo: string) {
+  return useInfiniteQuery({
+    queryKey: ['os', 'modelos', categoria, termo],
+    placeholderData: keepPreviousData,
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => paginaDeModelos(categoria, termo, pageParam, MODELOS_POR_PAGINA),
+    getNextPageParam: (ultima, paginas) =>
+      ultima.length < MODELOS_POR_PAGINA ? undefined : paginas.length * MODELOS_POR_PAGINA,
+  })
+}
+
+/** Busca rápida (uma página só), para escolher uma O.S — ex.: adicionar na rota. */
+export function useBuscaModelos(categoria: CategoriaOs, termo: string) {
+  return useQuery({
+    queryKey: ['os', 'modelos', 'busca', categoria, termo],
+    enabled: termo.length > 0,
+    queryFn: () => paginaDeModelos(categoria, termo, 0, 15),
+  })
+}
 
 export function useModeloPorId(id: string) {
   return useQuery({

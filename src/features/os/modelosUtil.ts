@@ -19,30 +19,28 @@ export const linkAgendar = (m: {
     tipo: m.tipo_servico_id ?? '',
   })}`
 
-const soDigitos = (t: string) => t.replace(/\D/g, '')
+export type ContagemPontos = {
+  porta_iscas: number
+  armadilhas: number
+  coifas: number
+  bebedouros: number
+}
 
-/** Busca por nome fantasia, razão social, CNPJ, unidade ou serviço. */
-export function filtrarModelos<T extends ModeloResumo>(lista: T[], busca: string) {
-  const termo = busca.trim().toLowerCase()
-  const digitos = soDigitos(busca)
-  if (!termo) return lista
-  return lista.filter(
-    (m) =>
-      [m.cliente?.nome, m.cliente?.nome_fantasia, m.endereco?.apelido, m.tipo?.nome]
-        .filter(Boolean)
-        .some((t) => t!.toLowerCase().includes(termo)) ||
-      (digitos.length >= 4 && (m.cliente?.cpf_cnpj ?? '').includes(digitos)),
-  )
+/** Conta os pontos ativos (quando já se tem a lista dos pontos, ex.: na rota). */
+export function contarPontos(pontos: { tipo: string; ativo: boolean }[]): ContagemPontos {
+  const ativos = pontos.filter((p) => p.ativo)
+  const n = (f: (t: string) => boolean) => ativos.filter((p) => f(p.tipo)).length
+  return {
+    porta_iscas: n((t) => t === 'porta_isca'),
+    armadilhas: n((t) => t === 'armadilha_luminosa'),
+    coifas: n((t) => t === 'coifa'),
+    bebedouros: n((t) => t === 'bebedouro' || t === 'bebedouro_garrafao'),
+  }
 }
 
 /** "12 porta-iscas · 2 armadilhas" a partir dos pontos do modelo. */
-export function contagemPontos(pontos: { tipo: string; ativo: boolean }[]) {
-  const ativos = pontos.filter((p) => p.ativo)
-  const n = (f: (t: string) => boolean) => ativos.filter((p) => f(p.tipo)).length
-  const iscas = n((t) => t === 'porta_isca')
-  const armadilhas = n((t) => t === 'armadilha_luminosa')
-  const coifas = n((t) => t === 'coifa')
-  const bebedouros = n((t) => t === 'bebedouro' || t === 'bebedouro_garrafao')
+export function contagemPontos(c: ContagemPontos) {
+  const { porta_iscas: iscas, armadilhas, coifas, bebedouros } = c
   return [
     iscas && `${iscas} porta-iscas`,
     armadilhas && `${armadilhas} armadilhas`,

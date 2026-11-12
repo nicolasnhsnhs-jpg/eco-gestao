@@ -1,5 +1,5 @@
 import { ArrowLeftRight, CalendarPlus, ClipboardList, Plus } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 
 import { PageHeader } from '@/components/PageHeader'
@@ -9,6 +9,7 @@ import { Campo, Select, Textarea } from '@/components/ui/Campo'
 import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
 import { mensagemDeErro } from '@/lib/erros'
+import { useValorAtrasado } from '@/lib/useValorAtrasado'
 
 import { useCliente } from '../clientes/api'
 import { ClienteSeletor, type ClienteEscolhido } from '../clientes/ClienteSeletor'
@@ -17,20 +18,14 @@ import {
   useCriarModelo,
   useModelo,
   useModeloPorId,
-  useModelos,
+  useListaModelos,
   useOperadores,
   useSalvarModelo,
   useVeiculos,
   type CategoriaOs,
   type ModeloCompleto,
 } from './api'
-import {
-  contagemPontos,
-  filtrarModelos,
-  linkAgendar,
-  nomeCliente,
-  nomeUnidade,
-} from './modelosUtil'
+import { contagemPontos, linkAgendar, nomeCliente, nomeUnidade } from './modelosUtil'
 import { RotasLista } from './RotasPages'
 import { SeletorCategoria } from './SeletorCategoria'
 import { nomeVeiculo } from './nomeVeiculo'
@@ -91,9 +86,26 @@ export function ModelosOsPage() {
 }
 
 function ListaModelos({ categoria }: { categoria: CategoriaOs }) {
-  const modelos = useModelos(categoria)
   const [busca, setBusca] = useState('')
-  const lista = filtrarModelos(modelos.data ?? [], busca)
+  const termo = useValorAtrasado(busca.trim())
+  const modelos = useListaModelos(categoria, termo)
+  const lista = modelos.data?.pages.flat() ?? []
+
+  // Quando o fim da lista aparece na tela, já pede as próximas 20.
+  const fimDaLista = useRef<HTMLDivElement>(null)
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = modelos
+  useEffect(() => {
+    const alvo = fimDaLista.current
+    if (!alvo || !hasNextPage) return
+    const observador = new IntersectionObserver(
+      ([entrada]) => {
+        if (entrada?.isIntersecting && !isFetchingNextPage) void fetchNextPage()
+      },
+      { rootMargin: '400px' },
+    )
+    observador.observe(alvo)
+    return () => observador.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   return (
     <>
@@ -115,7 +127,7 @@ function ListaModelos({ categoria }: { categoria: CategoriaOs }) {
       )}
       <ul className="flex flex-col gap-2">
         {lista.map((m) => {
-          const contagem = contagemPontos(m.pontos)
+          const contagem = contagemPontos(m.contagem)
           return (
             <li key={m.id} className="flex items-stretch gap-2">
               <Link
@@ -148,6 +160,8 @@ function ListaModelos({ categoria }: { categoria: CategoriaOs }) {
           )
         })}
       </ul>
+      <div ref={fimDaLista} />
+      {isFetchingNextPage && <Carregando />}
     </>
   )
 }

@@ -616,6 +616,7 @@ export type Database = {
       }
       avisos: {
         Row: {
+          certificado_anterior_id: string | null
           certificado_id: string | null
           chave_unica: string
           criado_em: string
@@ -634,6 +635,7 @@ export type Database = {
           vencimento_id: string | null
         }
         Insert: {
+          certificado_anterior_id?: string | null
           certificado_id?: string | null
           chave_unica: string
           criado_em?: string
@@ -652,6 +654,7 @@ export type Database = {
           vencimento_id?: string | null
         }
         Update: {
+          certificado_anterior_id?: string | null
           certificado_id?: string | null
           chave_unica?: string
           criado_em?: string
@@ -670,6 +673,13 @@ export type Database = {
           vencimento_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: 'avisos_certificado_anterior_id_fkey'
+            columns: ['certificado_anterior_id']
+            isOneToOne: false
+            referencedRelation: 'certificados_anteriores'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'avisos_certificado_id_fkey'
             columns: ['certificado_id']
@@ -1040,6 +1050,70 @@ export type Database = {
           },
           {
             foreignKeyName: 'certificados_tipo_servico_id_fkey'
+            columns: ['tipo_servico_id']
+            isOneToOne: false
+            referencedRelation: 'tipos_servico'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      certificados_anteriores: {
+        Row: {
+          cliente_id: string | null
+          criado_em: string
+          emitido_em: string | null
+          endereco_id: string | null
+          id: string
+          nome: string
+          origem: string | null
+          periodicidade: string | null
+          servico: string | null
+          tipo_servico_id: string | null
+          validade: string
+        }
+        Insert: {
+          cliente_id?: string | null
+          criado_em?: string
+          emitido_em?: string | null
+          endereco_id?: string | null
+          id?: string
+          nome: string
+          origem?: string | null
+          periodicidade?: string | null
+          servico?: string | null
+          tipo_servico_id?: string | null
+          validade: string
+        }
+        Update: {
+          cliente_id?: string | null
+          criado_em?: string
+          emitido_em?: string | null
+          endereco_id?: string | null
+          id?: string
+          nome?: string
+          origem?: string | null
+          periodicidade?: string | null
+          servico?: string | null
+          tipo_servico_id?: string | null
+          validade?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'certificados_anteriores_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'certificados_anteriores_endereco_id_fkey'
+            columns: ['endereco_id']
+            isOneToOne: false
+            referencedRelation: 'enderecos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'certificados_anteriores_tipo_servico_id_fkey'
             columns: ['tipo_servico_id']
             isOneToOne: false
             referencedRelation: 'tipos_servico'
@@ -5676,6 +5750,21 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      buscar_modelos_os: {
+        Args: {
+          p_busca?: string
+          p_categoria: Database['public']['Enums']['categoria_os']
+          p_limite?: number
+          p_pular?: number
+        }
+        Returns: {
+          armadilhas: number
+          bebedouros: number
+          coifas: number
+          modelo_id: string
+          porta_iscas: number
+        }[]
       }
       concluir_os: { Args: { os: string }; Returns: undefined }
       conferir_lembrete_agenda: {
