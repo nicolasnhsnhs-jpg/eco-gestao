@@ -174,13 +174,14 @@
 }
 .aq-linha {
   display: grid;
-  grid-template-columns: 112px 1fr 190px 132px 62px 62px 62px;
+  /* minmax(0, 1fr): texto grande quebra de linha em vez de empurrar as outras colunas. */
+  grid-template-columns: 112px minmax(0, 1fr) 190px 132px 62px 62px 62px;
   align-items: center;
   column-gap: 14px;
   padding: 0 26px;
 }
 .aq-palco[data-interno='nao'] .aq-linha {
-  grid-template-columns: 112px 1fr 190px 132px 62px;
+  grid-template-columns: 112px minmax(0, 1fr) 190px 132px 62px;
 }
 .aq-titulos {
   height: 54px;
@@ -270,6 +271,8 @@
 }
 
 .aq-serv {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: var(--serv-fonte);
   line-height: 1.3;
   padding: 6px 0;
@@ -311,6 +314,13 @@
 .aq-chip.aq-nota {
   background: var(--vermelho-claro);
   color: var(--vermelho);
+  /* Observação grande continua na linha de baixo, dentro do mesmo selo. */
+  white-space: normal;
+  border-radius: 14px;
+  max-width: 100%;
+}
+.aq-chip.aq-nota svg {
+  flex-shrink: 0;
 }
 .aq-chip.aq-taxa {
   background: #fff3c4;
