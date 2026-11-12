@@ -786,7 +786,7 @@ export async function abrirPdfCertificado(
 }
 
 /** O PDF como sai para o cliente: com a assinatura digital, quando marcada. */
-async function pdfFinalCertificado(c: CertificadoResumo) {
+export async function pdfFinalCertificado(c: CertificadoResumo) {
   const assinatura = await baixarAssinatura(assinaturaDoCertificado(c))
   const blob = await gerarPdfCertificado(c, assinatura)
   return c.assinatura_digital ? await assinarPdfCertificado(c.id, blob) : blob

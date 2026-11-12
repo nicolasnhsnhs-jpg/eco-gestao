@@ -193,6 +193,22 @@ function Ficha({ cliente }: { cliente: ClienteCompleto }) {
                   {e}
                 </a>
               ))}
+              {cliente.emails_financeiro.length > 0 && (
+                <div className="mt-1 flex flex-col gap-1 rounded-xl bg-fundo-suave p-3 text-sm">
+                  <p className="font-semibold">Nota e boleto só para:</p>
+                  {cliente.emails_financeiro.map((e) => (
+                    <a
+                      key={e}
+                      href={`mailto:${e}`}
+                      className="inline-flex items-center gap-2 break-all"
+                    >
+                      <Mail className="size-4 shrink-0 text-verde" aria-hidden />
+                      {e}
+                    </a>
+                  ))}
+                  <p className="text-texto-suave">Certificado e OS vão para os outros e-mails.</p>
+                </div>
+              )}
               {!cliente.whatsapp && !cliente.telefone && !cliente.email && (
                 <p className="text-sm text-texto-suave">Nenhum telefone ou e-mail cadastrado.</p>
               )}

@@ -416,7 +416,7 @@ export function useSituacaoAssinaturaDigital() {
   })
 }
 
-function paraBase64(bytes: Uint8Array) {
+export function paraBase64(bytes: Uint8Array) {
   let s = ''
   for (let i = 0; i < bytes.length; i += 0x8000)
     s += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
@@ -452,4 +452,72 @@ export async function assinarPdfCertificado(certificadoId: string, pdf: Blob): P
   })
   const volta = Uint8Array.from(atob(assinado), (c) => c.charCodeAt(0))
   return new Blob([volta as BlobPart], { type: 'application/pdf' })
+}
+
+/** E-mails do cliente para certificado e OS (nunca os do financeiro, quando separados). */
+export function useEmailsDocumentos(clienteId: string | undefined) {
+  return useQuery({
+    queryKey: ['clientes', clienteId, 'emails-documentos'],
+    enabled: !!clienteId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('clientes')
+        .select(
+          'email, emails_extras, emails_financeiro, contatos:contatos_cliente(email, principal)',
+        )
+        .eq('id', clienteId!)
+        .single()
+      if (error) throw error
+      const doCliente = [data.email, ...data.emails_extras].filter(Boolean) as string[]
+      const contato = data.contatos
+        .filter((k) => k.email)
+        .sort((a, b) => Number(b.principal) - Number(a.principal))[0]?.email
+      return {
+        emails: doCliente.length ? doCliente : contato ? [contato] : [],
+        financeiroSeparado: data.emails_financeiro.length > 0,
+      }
+    },
+  })
+}
+
+/** OS do cliente que podem ir junto com o certificado (as mais recentes primeiro). */
+export function useOsDoCliente(clienteId: string | undefined) {
+  return useQuery({
+    queryKey: ['os', 'do-cliente', clienteId],
+    enabled: !!clienteId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ordens_servico')
+        .select('id, numero, status, data_agendada, tipo:tipos_servico(nome)')
+        .eq('cliente_id', clienteId!)
+        .eq('treinamento', false)
+        .in('status', ['concluida', 'conferida'])
+        .order('data_agendada', { ascending: false })
+        .limit(30)
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export type ResultadoEnvioDocumentos = { para: string[]; os: string[] }
+
+/** Manda os PDFs (já montados) para a função "documentos", que envia pelo e-mail do ADM. */
+export async function enviarDocumentosAoCliente(corpo: {
+  certificadoId: string
+  para?: string
+  certificado: string
+  os: { id: string; pdf: string }[]
+}): Promise<ResultadoEnvioDocumentos> {
+  const { data, error } = await supabase.functions.invoke('documentos', {
+    body: { acao: 'enviar', ...corpo },
+  })
+  if (error) {
+    if (error instanceof FunctionsHttpError) {
+      const detalhe = (await error.context.json().catch(() => null)) as { erro?: string } | null
+      throw new Error(detalhe?.erro ?? 'O envio do e-mail falhou.')
+    }
+    throw new Error('Não foi possível falar com o servidor de e-mail.')
+  }
+  return data as ResultadoEnvioDocumentos
 }

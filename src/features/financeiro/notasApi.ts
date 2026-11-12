@@ -28,7 +28,7 @@ export const NOME_STATUS_NOTA: Record<StatusNota, string> = {
 }
 
 const RELACOES = `
-  cliente:clientes(id, nome, nome_fantasia, cpf_cnpj, email, emails_extras),
+  cliente:clientes(id, nome, nome_fantasia, cpf_cnpj, email, emails_extras, emails_financeiro),
   pdf:arquivos!arquivo_pdf_id(*),
   boleto:arquivos!arquivo_boleto_id(*),
   contrato:contratos(id, descricao, valor_mensal),

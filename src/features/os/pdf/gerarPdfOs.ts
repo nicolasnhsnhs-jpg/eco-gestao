@@ -460,8 +460,8 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
   return pdf.save()
 }
 
-/** Gera, salva nos arquivos da OS e devolve o PDF para abrir/baixar. */
-export async function gerarESalvarPdfOs(os: OsCompleta) {
+/** Monta o PDF da OS (com fotos e itens próprios do serviço), sem guardar. */
+export async function montarPdfOs(os: OsCompleta) {
   const { data: arquivos, error } = await supabase
     .from('arquivos')
     .select('*')
@@ -478,7 +478,12 @@ export async function gerarESalvarPdfOs(os: OsCompleta) {
       ? await buscarDadosPragas(os.id)
       : undefined
   const bytes = await gerarPdfOs(os, arquivos, pragas)
-  const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' })
+  return new Blob([bytes as BlobPart], { type: 'application/pdf' })
+}
+
+/** Gera, salva nos arquivos da OS e devolve o PDF para abrir/baixar. */
+export async function gerarESalvarPdfOs(os: OsCompleta) {
+  const blob = await montarPdfOs(os)
   const nome = `${os.numero}.pdf`
   const id = crypto.randomUUID()
   const caminho = `clientes/${os.cliente_id}/os/${os.id}/${id}-${nome}`

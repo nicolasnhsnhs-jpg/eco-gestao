@@ -869,6 +869,11 @@ export type Database = {
           data_execucao: string
           descricao: string | null
           endereco_id: string | null
+          enviado_com_os: string | null
+          enviado_em: string | null
+          enviado_para: string | null
+          enviado_por: string | null
+          erro_envio: string | null
           ficha_cliente: Json
           id: string
           modelo: string
@@ -906,6 +911,11 @@ export type Database = {
           data_execucao: string
           descricao?: string | null
           endereco_id?: string | null
+          enviado_com_os?: string | null
+          enviado_em?: string | null
+          enviado_para?: string | null
+          enviado_por?: string | null
+          erro_envio?: string | null
           ficha_cliente?: Json
           id?: string
           modelo?: string
@@ -943,6 +953,11 @@ export type Database = {
           data_execucao?: string
           descricao?: string | null
           endereco_id?: string | null
+          enviado_com_os?: string | null
+          enviado_em?: string | null
+          enviado_para?: string | null
+          enviado_por?: string | null
+          erro_envio?: string | null
           ficha_cliente?: Json
           id?: string
           modelo?: string
@@ -1003,6 +1018,13 @@ export type Database = {
             referencedColumns: ['id']
           },
           {
+            foreignKeyName: 'certificados_enviado_por_fkey'
+            columns: ['enviado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
             foreignKeyName: 'certificados_os_id_fkey'
             columns: ['os_id']
             isOneToOne: false
@@ -1037,6 +1059,7 @@ export type Database = {
           criado_por: string | null
           email: string | null
           emails_extras: string[]
+          emails_financeiro: string[]
           id: string
           inscricao_estadual: string | null
           nome: string
@@ -1060,6 +1083,7 @@ export type Database = {
           criado_por?: string | null
           email?: string | null
           emails_extras?: string[]
+          emails_financeiro?: string[]
           id?: string
           inscricao_estadual?: string | null
           nome: string
@@ -1083,6 +1107,7 @@ export type Database = {
           criado_por?: string | null
           email?: string | null
           emails_extras?: string[]
+          emails_financeiro?: string[]
           id?: string
           inscricao_estadual?: string | null
           nome?: string
@@ -5632,6 +5657,7 @@ export type Database = {
           criado_por: string | null
           email: string | null
           emails_extras: string[]
+          emails_financeiro: string[]
           id: string
           inscricao_estadual: string | null
           nome: string

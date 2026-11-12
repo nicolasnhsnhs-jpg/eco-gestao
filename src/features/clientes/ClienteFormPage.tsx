@@ -76,6 +76,8 @@ function valoresIniciais(cliente: ClienteCompleto): FormCliente {
     inscricao_estadual: cliente.inscricao_estadual ?? '',
     email: cliente.email ?? '',
     emails_extras: cliente.emails_extras.map((valor) => ({ valor })),
+    separar_financeiro: cliente.emails_financeiro.length > 0,
+    emails_financeiro: cliente.emails_financeiro.map((valor) => ({ valor })),
     telefone: formatarTelefone(cliente.telefone),
     telefones_extras: cliente.telefones_extras.map((t) => ({ valor: formatarTelefone(t) })),
     whatsapp: formatarTelefone(cliente.whatsapp),
@@ -334,6 +336,7 @@ function FormularioCliente({ cliente }: { cliente?: ClienteCompleto }) {
             <ListaRepetida form={form} tipo="telefone" />
           </div>
           <ListaRepetida form={form} tipo="email" />
+          <EmailsFinanceiro form={form} />
         </Card>
 
         {!editando && (
@@ -471,6 +474,7 @@ function ListaRepetida({
   const principal = ehTelefone ? 'telefone' : 'email'
   const extras = ehTelefone ? 'telefones_extras' : 'emails_extras'
   const lista = useFieldArray({ control: form.control, name: extras })
+  const separado = useWatch({ control: form.control, name: 'separar_financeiro' })
   const { errors } = form.formState
   const rotulo = ehTelefone ? 'Telefone' : 'E-mail'
 
@@ -497,9 +501,13 @@ function ListaRepetida({
         htmlFor={principal}
         erro={errors[principal]?.message}
         dica={
-          !ehTelefone && lista.fields.length > 0
-            ? 'A nota fiscal vai para todos os e-mails.'
-            : undefined
+          ehTelefone
+            ? undefined
+            : separado
+              ? 'Certificado e OS vão para estes e-mails (a nota não).'
+              : lista.fields.length > 0
+                ? 'A nota fiscal, o certificado e a OS vão para todos os e-mails.'
+                : undefined
         }
       >
         <Input
@@ -545,6 +553,88 @@ function ListaRepetida({
         <Plus className="size-4" aria-hidden />
         {ehTelefone ? 'Adicionar outro telefone' : 'Adicionar outro e-mail'}
       </Button>
+    </div>
+  )
+}
+
+/**
+ * Cliente que recebe a nota e o boleto num e-mail e o certificado e a OS em outro.
+ * Marcado, a nota e o boleto vão SÓ para esta lista (e nunca para os e-mails de cima);
+ * o certificado e a OS vão só para os de cima.
+ */
+function EmailsFinanceiro({ form }: { form: UseFormReturn<FormCliente> }) {
+  const lista = useFieldArray({ control: form.control, name: 'emails_financeiro' })
+  const separado = useWatch({ control: form.control, name: 'separar_financeiro' })
+  const { errors } = form.formState
+  const erroLista = errors.emails_financeiro?.message ?? errors.emails_financeiro?.root?.message
+
+  return (
+    <div className="flex flex-col gap-3 border-t border-borda pt-4">
+      <label className="flex items-start gap-2">
+        <input
+          type="checkbox"
+          className="mt-1 size-4 accent-verde"
+          {...form.register('separar_financeiro', {
+            onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+              if (e.target.checked && lista.fields.length === 0) lista.append({ valor: '' })
+            },
+          })}
+        />
+        <span>
+          <span className="font-bold">O financeiro recebe em outro e-mail</span>
+          <span className="block text-sm text-texto-suave">
+            Nota fiscal e boleto vão só para o e-mail do financeiro; certificado e OS, só para os
+            e-mails de cima.
+          </span>
+        </span>
+      </label>
+
+      {separado && (
+        <>
+          {erroLista && <Aviso tipo="erro">{erroLista}</Aviso>}
+          {lista.fields.map((campo, i) => {
+            const id = `emails_financeiro-${i}`
+            const erro = errors.emails_financeiro?.[i]?.valor?.message
+            return (
+              <Campo
+                key={campo.id}
+                rotulo={
+                  i === 0 ? 'E-mail do financeiro (nota e boleto)' : `E-mail do financeiro ${i + 1}`
+                }
+                htmlFor={id}
+                erro={erro}
+              >
+                <div className="flex gap-2">
+                  <Input
+                    id={id}
+                    type="email"
+                    inputMode="email"
+                    aria-invalid={!!erro}
+                    {...form.register(`emails_financeiro.${i}.valor`)}
+                  />
+                  {lista.fields.length > 1 && (
+                    <Button
+                      variante="fantasma"
+                      className="shrink-0"
+                      aria-label={`Remover e-mail do financeiro ${i + 1}`}
+                      onClick={() => lista.remove(i)}
+                    >
+                      <X className="size-4" aria-hidden />
+                    </Button>
+                  )}
+                </div>
+              </Campo>
+            )
+          })}
+          <Button
+            variante="secundario"
+            className="self-start"
+            onClick={() => lista.append({ valor: '' }, { shouldFocus: true })}
+          >
+            <Plus className="size-4" aria-hidden /> Adicionar outro e-mail do financeiro
+          </Button>
+        </>
+      )}
     </div>
   )
 }

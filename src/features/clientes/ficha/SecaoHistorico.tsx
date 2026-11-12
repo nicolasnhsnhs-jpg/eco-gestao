@@ -49,6 +49,7 @@ const NOME_CAMPO: Record<string, string> = {
   inscricao_estadual: 'Inscrição estadual',
   email: 'E-mail',
   emails_extras: 'Outros e-mails',
+  emails_financeiro: 'E-mails do financeiro',
   telefone: 'Telefone',
   telefones_extras: 'Outros telefones',
   whatsapp: 'WhatsApp',

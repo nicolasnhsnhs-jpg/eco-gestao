@@ -74,15 +74,33 @@ export function enderecosEmail(texto: string | null | undefined): string[] {
 }
 
 /**
- * Todos os e-mails do cliente (o principal e os outros) ou, sem nenhum, o do contato
- * principal (igual a privado.email_do_cliente).
+ * Para onde vão a nota e o boleto: os e-mails do financeiro, quando o cliente separou;
+ * senão todos os e-mails do cliente (o principal e os outros) ou, sem nenhum, o do
+ * contato principal (igual a privado.email_do_cliente).
  */
 export async function emailDoCliente(admin: SupabaseClient, clienteId: string): Promise<string[]> {
   const { data: c } = await admin
     .from('clientes')
-    .select('email, emails_extras')
+    .select('email, emails_extras, emails_financeiro')
     .eq('id', clienteId)
     .single()
+  const financeiro = [...new Set((c?.emails_financeiro ?? []).flatMap((e) => enderecosEmail(e)))]
+  if (financeiro.length) return financeiro
+  return emailDosDocumentos(admin, clienteId, c)
+}
+
+/**
+ * Para onde vão o certificado e a OS: o e-mail principal e os outros ou, sem nenhum, o
+ * do contato principal. Nunca os e-mails do financeiro.
+ */
+export async function emailDosDocumentos(
+  admin: SupabaseClient,
+  clienteId: string,
+  jaLido?: { email: string | null; emails_extras: string[] | null } | null,
+): Promise<string[]> {
+  const c =
+    jaLido ??
+    (await admin.from('clientes').select('email, emails_extras').eq('id', clienteId).single()).data
   const doCliente = [
     ...new Set([c?.email, ...(c?.emails_extras ?? [])].flatMap((e) => enderecosEmail(e))),
   ]

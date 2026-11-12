@@ -112,6 +112,9 @@ export const esquemaCliente = z
     inscricao_estadual: textoOpcional,
     email: emailOpcional,
     emails_extras: listaDe(emailOpcional),
+    // Marcado: nota e boleto vão só para estes; certificado e OS, só para os de cima.
+    separar_financeiro: z.boolean(),
+    emails_financeiro: listaDe(emailOpcional),
     telefone: telefoneOpcional,
     telefones_extras: listaDe(telefoneOpcional),
     whatsapp: telefoneOpcional,
@@ -120,6 +123,13 @@ export const esquemaCliente = z
     observacoes: textoOpcional,
   })
   .superRefine((d, ctx) => {
+    if (d.separar_financeiro && !d.emails_financeiro.some((e) => e.valor.trim())) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['emails_financeiro'],
+        message: 'Informe o e-mail que recebe a nota e o boleto (ou desmarque a opção).',
+      })
+    }
     if (d.cpf_cnpj === '') return
     const valido = d.tipo_pessoa === 'PF' ? cpfValido(d.cpf_cnpj) : cnpjValido(d.cpf_cnpj)
     if (!valido) {
@@ -141,6 +151,8 @@ export const CLIENTE_VAZIO: FormCliente = {
   inscricao_estadual: '',
   email: '',
   emails_extras: [],
+  separar_financeiro: false,
+  emails_financeiro: [],
   telefone: '',
   telefones_extras: [],
   whatsapp: '',
@@ -174,6 +186,9 @@ export function clienteParaBanco(f: FormCliente) {
     inscricao_estadual: pj ? ouNulo(f.inscricao_estadual) : null,
     email,
     emails_extras,
+    emails_financeiro: f.separar_financeiro
+      ? [...new Set(f.emails_financeiro.map((e) => e.valor.trim().toLowerCase()).filter(Boolean))]
+      : [],
     telefone,
     telefones_extras,
     whatsapp: ouNulo(soNumeros(f.whatsapp)),

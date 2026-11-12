@@ -436,6 +436,9 @@ verify_jwt = false
 [functions.assinatura]
 verify_jwt = false
 
+[functions.documentos]
+verify_jwt = false
+
 # Webhook da Meta: não manda login; a função confere a assinatura X-Hub-Signature-256.
 [functions.whatsapp]
 verify_jwt = false

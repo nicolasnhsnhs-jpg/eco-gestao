@@ -36,6 +36,7 @@ import {
   type Origem,
   type ProdutoCatalogo,
 } from './api'
+import { EnviarAoCliente } from './EnviarAoCliente'
 import {
   calcularValidade,
   lerProdutos,
@@ -472,10 +473,20 @@ function Formulario({
           {certificado?.os && <p className="text-texto-suave">Da {certificado.os.numero}.</p>}
         </div>
         {editando && (
-          <Button onClick={() => void baixarPdf()} disabled={gerandoPdf}>
-            <FileDown className="size-5" aria-hidden />
-            {gerandoPdf ? 'Gerando PDF…' : 'Baixar PDF'}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {!cancelado && (
+              <EnviarAoCliente
+                certificado={certificado}
+                bloqueado={
+                  form.formState.isDirty ? 'Salve as alterações antes de enviar ao cliente.' : null
+                }
+              />
+            )}
+            <Button onClick={() => void baixarPdf()} disabled={gerandoPdf}>
+              <FileDown className="size-5" aria-hidden />
+              {gerandoPdf ? 'Gerando PDF…' : 'Baixar PDF'}
+            </Button>
+          </div>
         )}
       </div>
       {cancelado && (
