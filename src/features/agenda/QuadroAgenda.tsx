@@ -443,7 +443,12 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
               <div className="aq-turma aq-ausentes">
                 {AUSENCIAS.filter((t) => ausentes[t].length > 0).map((t) => (
                   <div className="aq-ausencia" key={t}>
-                    <span className="aq-ausencia-nome">{NOME_CURTO_AUSENCIA[t]}</span>
+                    <span className="aq-ausencia-nome">
+                      {NOME_CURTO_AUSENCIA[t].nome}
+                      {NOME_CURTO_AUSENCIA[t].detalhe && (
+                        <small>{NOME_CURTO_AUSENCIA[t].detalhe}</small>
+                      )}
+                    </span>
                     <div className="aq-tecs">
                       {ausentes[t].map((n) => (
                         <span

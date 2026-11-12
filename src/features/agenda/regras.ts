@@ -296,10 +296,11 @@ export const NOME_AUSENCIA: Record<Ausencia, string> = {
 }
 
 /** Nome curto, no quadro. */
-export const NOME_CURTO_AUSENCIA: Record<Ausencia, string> = {
-  falta: 'Falta',
-  folga: 'Folga domingo',
-  folga_horas: 'Folga horas',
+export const NOME_CURTO_AUSENCIA: Record<Ausencia, { nome: string; detalhe: string }> = {
+  falta: { nome: 'Falta', detalhe: '' },
+  // A folga é no dia da agenda (ex.: sábado), para trabalhar no domingo.
+  folga: { nome: 'Folga', detalhe: 'trabalhará domingo' },
+  folga_horas: { nome: 'Folga', detalhe: 'horas em haver' },
 }
 
 type DiaAusencias = Pick<AgendaDia, 'faltas' | 'folgas' | 'folgas_horas'>

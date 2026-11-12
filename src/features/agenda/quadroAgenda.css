@@ -730,12 +730,21 @@
   gap: 10px;
 }
 .aq-ausencia-nome {
+  display: flex;
+  flex-direction: column;
   min-width: 62px;
-  max-width: 96px;
+  max-width: 120px;
   line-height: 1.05;
   font-size: 19px;
   font-weight: 800;
   color: var(--noite);
+}
+/* "trabalhará domingo" / "horas em haver", embaixo de "Folga". */
+.aq-ausencia-nome small {
+  margin-top: 2px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--escuro);
 }
 .aq-ausencia .aq-tecs {
   margin-top: 0;
