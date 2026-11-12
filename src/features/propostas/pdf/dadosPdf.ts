@@ -3,6 +3,14 @@ import { formatarData } from '@/lib/datas'
 import { formatarReais } from '@/lib/dinheiro'
 
 import {
+  introducaoContrato,
+  preencherMarcas,
+  secoesFixas,
+  textoContratoPadrao,
+  textoInvestimento,
+  textoTaxaContrato,
+} from '../contratual'
+import {
   assuntoDosItens,
   introducaoPadrao,
   juntarLinhas,
@@ -35,6 +43,8 @@ export type ItemBase = {
   cobranca: string | null
   /** Ex.: "Adicional para trabalho ao domingo". Somam uma vez no valor do serviço. */
   taxas_adicionais?: TaxaBase[]
+  /** Texto do serviço no contrato completo (vazio = texto padrão do modelo). */
+  texto_contrato?: string | null
 }
 
 export type TaxaBase = { descricao: string; valor: number }
@@ -45,6 +55,8 @@ export type PropostaBase = {
   tipo?: 'avulsa' | 'contrato' | string | null
   contrato_valor_anual?: number | null
   contrato_parcelas?: number | null
+  /** Contrato "completo" = memorial descritivo no molde das propostas contratuais. */
+  contrato_modelo?: 'tradicional' | 'completo' | string | null
   data_envio: string
   validade: string | null
   contato_nome: string | null
@@ -85,10 +97,18 @@ export type ClienteBase = {
 
 export type VendedorBase = { nome: string; telefone: string | null; email: string | null }
 
-export type LinhaCusto = { tipo: 'linha' | 'paragrafo' | 'marcador' | 'espaco'; texto: string }
+export type LinhaCusto = {
+  /** "destaque" sai centralizado, como os valores do investimento no contrato completo. */
+  tipo: 'linha' | 'paragrafo' | 'marcador' | 'espaco' | 'destaque'
+  texto: string
+}
 
 export type DadosPdfProposta = {
   numero: string | null
+  /** "PROPOSTA Nº" ou "MEMORIAL DESCRITIVO Nº". */
+  rotuloNumero: string
+  /** Título da última seção: "Custos" ou "Investimento". */
+  tituloCustos: string
   rascunho: boolean
   data: string
   cliente: { nome: string; linhas: string[] }
@@ -141,6 +161,18 @@ export function montarDadosPdf(
   if (fone) linhas.push(`Fone: ${fone}`)
   const email = p.contato_email?.trim() || cliente?.email
   if (email) linhas.push(`E-mail: ${email}`)
+
+  const nomeApresentacao = cliente?.nome_fantasia?.trim() || nome
+  const comum = {
+    numero: p.numero || null,
+    rascunho: !p.numero,
+    data: p.data_envio,
+    cliente: { nome, linhas },
+    vendedor: vendedor ?? { nome: '', telefone: null, email: null },
+  }
+  if (p.tipo === 'contrato' && p.contrato_modelo === 'completo') {
+    return { ...comum, ...memorialDescritivo(p, nomeApresentacao) }
+  }
 
   // ---- Seções ----
   const itens = p.itens.map((i) => {
@@ -222,21 +254,119 @@ export function montarDadosPdf(
     custos.push({ tipo: 'linha', texto: `Proposta válida até **${formatarData(p.validade)}**.` })
   }
 
-  const nomeApresentacao = cliente?.nome_fantasia?.trim() || nome
   return {
-    numero: p.numero || null,
-    rascunho: !p.numero,
-    data: p.data_envio,
-    cliente: { nome, linhas },
+    ...comum,
+    rotuloNumero: 'PROPOSTA Nº',
+    tituloCustos: 'Custos',
     introducao:
       p.introducao?.trim() || introducaoPadrao(nomeApresentacao, assuntoDosItens(p.itens)),
     itens,
     metodologia,
     recursos,
     custos,
-    vendedor: vendedor ?? { nome: '', telefone: null, email: null },
   }
 }
+
+const freqDe = (i: ItemBase) => i.frequencia ?? i.periodicidade_meses
+
+/**
+ * Proposta contratual completa: uma seção por serviço com o texto técnico dele,
+ * as seções fixas (atendimento, corpo técnico...) e o investimento mensal.
+ */
+function memorialDescritivo(p: PropostaBase, cliente: string) {
+  const itens = p.itens.map((i) => {
+    const base = i.titulo?.trim() || i.descricao
+    const texto = i.texto_contrato?.trim() || textoContratoPadrao(i.modelo, i.metodologia)
+    return {
+      titulo: freqDe(i) ? tituloComFrequencia(base, freqDe(i)) : base,
+      escopo: preencherMarcas(texto, { cliente, escopo: i.escopo ?? '', frequencia: freqDe(i) }),
+    }
+  })
+  itens.push(...secoesFixas(p.itens, cliente))
+
+  const custos: LinhaCusto[] = []
+  const meses = p.contrato_parcelas && p.contrato_parcelas > 0 ? p.contrato_parcelas : 12
+  custos.push({ tipo: 'paragrafo', texto: textoInvestimento(meses) })
+  custos.push({ tipo: 'espaco', texto: '' })
+
+  const cobrancas = new Set(p.itens.map((i) => i.cobranca || 'unica'))
+  const todosMensais = cobrancas.size === 1 && cobrancas.has('mensal')
+  const total = p.itens.reduce((s, i) => s + centavos(valorItem(i)), 0) / 100
+  const nomeServico = (i: ItemBase) => {
+    const f = freqDe(i)
+    return `${minusculaInicial(i.descricao)}${f ? ` / ${minusculaInicial(nomeFrequencia(f))}` : ''}`
+  }
+  const valorCom = (v: number, cobranca: string | null) =>
+    `${valorComExtenso(v)}${
+      cobranca === 'mensal'
+        ? ', mensais'
+        : cobranca === 'por_visita'
+          ? ', por visita'
+          : ', por execução'
+    }.`
+
+  if (!p.custos_detalhados && todosMensais && p.itens.length > 1) {
+    custos.push({
+      tipo: 'destaque',
+      texto: `**Valor total mensal dos serviços de ${juntarComE(p.itens.map(nomeServico))}:**`,
+    })
+    custos.push({ tipo: 'destaque', texto: valorCom(total, 'mensal') })
+  } else {
+    for (const i of p.itens) {
+      const rotulo =
+        i.cobranca === 'mensal'
+          ? 'Valor mensal dos serviços de'
+          : i.cobranca === 'por_visita'
+            ? 'Valor por visita dos serviços de'
+            : 'Valor dos serviços de'
+      custos.push({ tipo: 'destaque', texto: `**${rotulo} ${nomeServico(i)}:**` })
+      custos.push({ tipo: 'destaque', texto: valorCom(valorBase(i), i.cobranca) })
+      for (const t of i.taxas_adicionais ?? []) {
+        custos.push({ tipo: 'destaque', texto: `${t.descricao}: ${valorCom(t.valor, i.cobranca)}` })
+      }
+    }
+    if (todosMensais && p.itens.length > 1) {
+      custos.push({ tipo: 'espaco', texto: '' })
+      custos.push({
+        tipo: 'destaque',
+        texto: `**Totalizando o valor mensal de ${formatarReais(total)}.**`,
+      })
+    }
+  }
+  custos.push({ tipo: 'espaco', texto: '' })
+  custos.push({
+    tipo: 'linha',
+    texto: `Forma de pagamento: ${textoPagamento(p.prazo_pagamento_dias, p.condicao_pagamento)}.`,
+  })
+  if (p.observacoes?.trim()) {
+    custos.push({ tipo: 'espaco', texto: '' })
+    for (const l of p.observacoes.split('\n').filter((x) => x.trim())) {
+      custos.push({ tipo: 'paragrafo', texto: l.trim() })
+    }
+  }
+  if (p.acrescimo_fora_horario != null) {
+    custos.push({ tipo: 'espaco', texto: '' })
+    custos.push({ tipo: 'paragrafo', texto: textoTaxaContrato(p.acrescimo_fora_horario) })
+  }
+  custos.push({ tipo: 'espaco', texto: '' })
+  custos.push({ tipo: 'linha', texto: 'Prazo de entrega: **imediato**.' })
+  if (p.validade) {
+    custos.push({ tipo: 'linha', texto: `Proposta válida até **${formatarData(p.validade)}**.` })
+  }
+
+  return {
+    rotuloNumero: 'MEMORIAL DESCRITIVO Nº',
+    tituloCustos: 'Investimento',
+    introducao: p.introducao?.trim() || introducaoContrato(cliente),
+    itens,
+    metodologia: [],
+    recursos: [],
+    custos,
+  }
+}
+
+const juntarComE = (l: string[]) =>
+  l.length <= 1 ? (l[0] ?? '') : `${l.slice(0, -1).join(', ')} e ${l[l.length - 1]}`
 
 /** Quantas vezes o serviço acontece no ano, pela frequência (avulso = 1). */
 function vezesNoAno(i: ItemBase) {

@@ -217,11 +217,7 @@ export function AcoesPdfProposta({
         <Button onClick={abrir} disabled={!pronto || ocupado}>
           <FileText className="size-4" aria-hidden /> Ver PDF
         </Button>
-        <Button
-          variante="secundario"
-          onClick={() => void salvar()}
-          disabled={!pronto || ocupado}
-        >
+        <Button variante="secundario" onClick={() => void salvar()} disabled={!pronto || ocupado}>
           <Download className="size-4" aria-hidden /> Baixar
         </Button>
       </div>

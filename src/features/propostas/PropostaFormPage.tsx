@@ -22,6 +22,7 @@ import { equipeComercial, useCliente, useEquipe } from '../clientes/api'
 import { ClienteSeletor, type ClienteEscolhido } from '../clientes/ClienteSeletor'
 import { useTiposServico } from '../servicos/api'
 import { useProposta, useSalvarProposta, type PropostaCompleta } from './api'
+import { introducaoContrato, textoContratoPadrao } from './contratual'
 import {
   esquemaProposta,
   formParaBase,
@@ -79,6 +80,7 @@ function valoresIniciais(
           ? ''
           : valorParaCampo(Number(proposta.contrato_valor_anual)),
       contrato_parcelas: proposta.contrato_parcelas?.toString() ?? '12',
+      contrato_modelo: proposta.contrato_modelo === 'completo' ? 'completo' : 'tradicional',
       cliente_id: proposta.cliente_id!,
       cliente_nome: proposta.cliente?.nome_fantasia || proposta.cliente?.nome || '',
       endereco_id: proposta.endereco_id ?? '',
@@ -113,6 +115,7 @@ function valoresIniciais(
           descricao: t.descricao,
           valor: valorParaCampo(t.valor),
         })),
+        texto_contrato: i.texto_contrato ?? '',
       })),
     }
   }
@@ -121,6 +124,7 @@ function valoresIniciais(
     tipo: parametros.get('tipo') === 'contrato' ? 'contrato' : 'avulsa',
     contrato_valor_anual: '',
     contrato_parcelas: '12',
+    contrato_modelo: 'tradicional',
     cliente_id: parametros.get('cliente') ?? '',
     cliente_nome: parametros.get('cliente_nome') ?? '',
     endereco_id: '',
@@ -221,6 +225,7 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
   const nomeApresentacao = cliente.data?.nome_fantasia || cliente.data?.nome || clienteNome
   const base = formParaBase(valores, proposta?.numero)
   const contrato = valores.tipo === 'contrato'
+  const completo = contrato && valores.contrato_modelo === 'completo'
   const contratoCalculado = valoresDoContrato(base)
 
   const chavePrevia = JSON.stringify([base, cliente.data?.id, valores.endereco_id, vendedor.data])
@@ -285,6 +290,43 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
                 )
               })}
             </div>
+            {contrato && (
+              <div
+                className="grid grid-cols-2 gap-2"
+                role="radiogroup"
+                aria-label="Modelo da proposta de contrato"
+              >
+                {(
+                  [
+                    ['tradicional', 'Proposta tradicional', 'O modelo de sempre, com valor anual.'],
+                    [
+                      'completo',
+                      'Proposta contratual completa',
+                      'Memorial descritivo: texto técnico de cada serviço e valor mensal.',
+                    ],
+                  ] as const
+                ).map(([valor, nome, dica]) => {
+                  const marcado = valores.contrato_modelo === valor
+                  return (
+                    <button
+                      key={valor}
+                      type="button"
+                      role="radio"
+                      aria-checked={marcado}
+                      onClick={() => form.setValue('contrato_modelo', valor, { shouldDirty: true })}
+                      className={`min-h-11 rounded-xl border p-3 text-left text-sm ${
+                        marcado
+                          ? 'border-verde bg-lima-claro text-verde-escuro'
+                          : 'border-borda hover:border-verde'
+                      }`}
+                    >
+                      <strong className="block">{nome}</strong>
+                      <span className="text-texto-suave">{dica}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </Card>
 
           {/* ---- Cliente ---- */}
@@ -392,6 +434,7 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
                 tipos={tipos.data ?? []}
                 podeRemover={itens.fields.length > 1}
                 remover={() => itens.remove(i)}
+                completo={completo}
               />
             ))}
 
@@ -408,7 +451,27 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
           {/* ---- Textos e custos ---- */}
           <Card className="grid gap-4 sm:grid-cols-2">
             <h2 className="font-bold sm:col-span-2">Apresentação e custos</h2>
-            {contrato && (
+            {completo && (
+              <div className="grid gap-4 rounded-xl bg-fundo-suave p-3 sm:col-span-2 sm:grid-cols-2">
+                <p className="text-sm sm:col-span-2">
+                  <strong>Contrato completo:</strong> o PDF sai como memorial descritivo, com o
+                  texto técnico de cada serviço, atendimento, corpo técnico e o investimento com o
+                  valor de cada serviço (use a cobrança “Por mês” nos serviços mensais).
+                </p>
+                <Campo
+                  rotulo="Período do contrato (meses)"
+                  htmlFor="parcelas"
+                  erro={errors.contrato_parcelas?.message}
+                >
+                  <Input
+                    id="parcelas"
+                    inputMode="numeric"
+                    {...form.register('contrato_parcelas')}
+                  />
+                </Campo>
+              </div>
+            )}
+            {contrato && !completo && (
               <div className="grid gap-4 rounded-xl bg-fundo-suave p-3 sm:col-span-2 sm:grid-cols-2">
                 <p className="text-sm sm:col-span-2">
                   <strong>Contrato:</strong> o PDF mostra o valor anual, os serviços que ele
@@ -428,7 +491,11 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
                   erro={errors.contrato_parcelas?.message}
                   dica={`${contratoCalculado.parcelas}× de ${formatarReais(contratoCalculado.parcela)}`}
                 >
-                  <Input id="parcelas" inputMode="numeric" {...form.register('contrato_parcelas')} />
+                  <Input
+                    id="parcelas"
+                    inputMode="numeric"
+                    {...form.register('contrato_parcelas')}
+                  />
                 </Campo>
               </div>
             )}
@@ -441,9 +508,12 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
               <Textarea
                 id="introducao"
                 rows={4}
-                placeholder={introducaoPadrao(
-                  nomeApresentacao || '...',
-                  assuntoDosItens(valores.itens ?? []),
+                placeholder={(completo
+                  ? introducaoContrato(nomeApresentacao || '...')
+                  : introducaoPadrao(
+                      nomeApresentacao || '...',
+                      assuntoDosItens(valores.itens ?? []),
+                    )
                 ).replace(/\*\*/g, '')}
                 {...form.register('introducao')}
               />
@@ -534,12 +604,14 @@ function ItemServico({
   tipos,
   podeRemover,
   remover,
+  completo,
 }: {
   form: UseFormReturn<FormProposta>
   i: number
   tipos: Tipo[]
   podeRemover: boolean
   remover: () => void
+  completo: boolean
 }) {
   const erro = form.formState.errors.itens?.[i]
   const modeloAtual = useWatch({ control: form.control, name: `itens.${i}.modelo` })
@@ -680,6 +752,8 @@ function ItemServico({
 
       <TaxasAdicionais form={form} i={i} />
 
+      {completo && <TextoContrato form={form} i={i} modelo={modeloAtual} />}
+
       <div className="sm:col-span-12">
         <button
           type="button"
@@ -711,6 +785,70 @@ function ItemServico({
         )}
       </div>
     </fieldset>
+  )
+}
+
+/**
+ * Texto do serviço no contrato completo. Abre com o texto padrão do modelo; as
+ * marcas {cliente}, {escopo} e {frequencia} o PDF troca sozinho.
+ */
+function TextoContrato({
+  form,
+  i,
+  modelo,
+}: {
+  form: UseFormReturn<FormProposta>
+  i: number
+  modelo: string
+}) {
+  const [aberto, setAberto] = useState(false)
+  const campo = `itens.${i}.texto_contrato` as const
+  const editado = !!useWatch({ control: form.control, name: campo })?.trim()
+  const padrao = () => textoContratoPadrao(modelo, form.getValues(`itens.${i}.metodologia`))
+
+  function abrir() {
+    if (!aberto && !form.getValues(campo).trim()) form.setValue(campo, padrao())
+    setAberto((v) => !v)
+  }
+
+  return (
+    <div className="sm:col-span-12">
+      <button
+        type="button"
+        onClick={abrir}
+        className="text-sm font-semibold text-verde hover:underline"
+        aria-expanded={aberto}
+      >
+        {aberto ? '▾' : '▸'} Texto no contrato completo
+        {!aberto && (
+          <span className="font-normal text-texto-suave">
+            {editado ? ' (editado)' : ' (padrão do modelo)'}
+          </span>
+        )}
+      </button>
+      {aberto && (
+        <div className="mt-3 grid gap-3">
+          <Campo
+            rotulo="Texto do serviço no memorial"
+            htmlFor={`contrato-${i}`}
+            erro={form.formState.errors.itens?.[i]?.texto_contrato?.message}
+            dica="{escopo} vira o “o que será feito”, {cliente} o nome do cliente e {FREQUENCIA} a frequência. Troque os “...” pelos dados do cliente."
+          >
+            <Textarea id={`contrato-${i}`} rows={14} {...form.register(campo)} />
+          </Campo>
+          <Button
+            variante="fantasma"
+            className="self-start"
+            onClick={() => {
+              if (window.confirm('Voltar o texto do contrato para o padrão do modelo?'))
+                form.setValue(campo, padrao())
+            }}
+          >
+            <RotateCcw className="size-4" aria-hidden /> Voltar ao texto padrão
+          </Button>
+        </div>
+      )}
+    </div>
   )
 }
 

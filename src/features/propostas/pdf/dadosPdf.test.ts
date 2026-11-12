@@ -274,4 +274,68 @@ describe('montarDadosPdf', () => {
     expect(t2).toContain('Controle de pragas')
     expect(t2.some((t) => t.includes('10 parcelas mensais de R$ 360,00'))).toBe(true)
   })
+
+  it('contrato completo: memorial com o texto de cada serviço, seções fixas e investimento', () => {
+    const d = montarDadosPdf(
+      base({
+        tipo: 'contrato',
+        contrato_modelo: 'completo',
+        contrato_parcelas: 12,
+        introducao: null,
+        itens: [
+          item({
+            modelo: 'pragas',
+            titulo: 'Controle integrado de pragas urbanas',
+            descricao: 'Controle de pragas urbanas',
+            escopo: 'Galpões 1, 2 e 3, almoxarifado e vestiários.',
+            frequencia: 'quinzenal',
+            cobranca: 'mensal',
+            valor_unitario: 1890,
+          }),
+          item({
+            modelo: 'reservatorio',
+            titulo: 'Limpeza de reservatórios',
+            descricao: "Limpeza e desinfecção de caixas d'água",
+            escopo: '02 reservatórios de 20m³.',
+            periodicidade_meses: 6,
+            cobranca: 'mensal',
+            valor_unitario: 290,
+          }),
+        ],
+      }),
+      cliente,
+      null,
+      vendedor,
+    )
+    expect(d.rotuloNumero).toBe('MEMORIAL DESCRITIVO Nº')
+    expect(d.tituloCustos).toBe('Investimento')
+    expect(d.introducao).toContain('Conforme combinado com V.S.ª')
+    expect(d.itens.map((i) => i.titulo)).toEqual([
+      'Controle integrado de pragas urbanas / Quinzenal',
+      'Limpeza de reservatórios / Semestral',
+      'Atendimento',
+      'Corpo técnico',
+      'Serviços especializados',
+    ])
+    const pragas = d.itens[0].escopo
+    expect(pragas).toContain('**Roedores / atendimento QUINZENAL**')
+    expect(pragas).toContain('Galpões 1, 2 e 3')
+    expect(pragas).toContain('nas áreas da Oderich')
+    expect(pragas).not.toMatch(/\{\w+\}/)
+    expect(d.itens[1].escopo.startsWith('02 reservatórios de 20m³.')).toBe(true)
+    expect(d.itens[2].escopo).toContain('visitas operacionais QUINZENAL')
+    expect(d.metodologia).toEqual([])
+    expect(d.recursos).toEqual([])
+
+    const textos = d.custos.map((c) => c.texto)
+    expect(textos[0]).toContain('**12 (doze) meses**')
+    expect(textos).toContain(
+      '**Valor mensal dos serviços de controle de pragas urbanas / quinzenal:**',
+    )
+    expect(textos.some((t) => /^R\$ 1\.890,00 \(.+\), mensais\.$/.test(t))).toBe(true)
+    expect(textos).toContain('**Totalizando o valor mensal de R$ 2.180,00.**')
+    expect(textos.some((t) => t.includes('taxa adicional no valor de R$ 480,00 por chamado'))).toBe(
+      true,
+    )
+  })
 })

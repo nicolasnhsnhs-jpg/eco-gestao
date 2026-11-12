@@ -35,6 +35,7 @@ export function propostaGravadaParaBase(p: PropostaCompleta): PropostaBase {
     tipo: p.tipo,
     contrato_valor_anual: p.contrato_valor_anual == null ? null : Number(p.contrato_valor_anual),
     contrato_parcelas: p.contrato_parcelas,
+    contrato_modelo: p.contrato_modelo,
     data_envio: p.data_envio!,
     validade: p.validade,
     contato_nome: p.contato_nome,
@@ -60,6 +61,7 @@ export function propostaGravadaParaBase(p: PropostaCompleta): PropostaBase {
       frequencia: i.frequencia,
       cobranca: i.cobranca,
       taxas_adicionais: taxasDoItem(i.taxas_adicionais),
+      texto_contrato: i.texto_contrato,
     })),
   }
 }

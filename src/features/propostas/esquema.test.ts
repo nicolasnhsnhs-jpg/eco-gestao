@@ -41,6 +41,7 @@ describe('esquemaProposta', () => {
     tipo: 'avulsa',
     contrato_valor_anual: '',
     contrato_parcelas: '12',
+    contrato_modelo: 'tradicional',
     vendedor_id: 'v1',
     data_envio: '2026-10-28',
     validade: '2026-11-12',

@@ -4019,6 +4019,7 @@ export type Database = {
           quantidade: number
           recursos: string | null
           taxas_adicionais: Json
+          texto_contrato: string | null
           tipo_servico_id: string | null
           titulo: string | null
           valor_unitario: number
@@ -4037,6 +4038,7 @@ export type Database = {
           quantidade?: number
           recursos?: string | null
           taxas_adicionais?: Json
+          texto_contrato?: string | null
           tipo_servico_id?: string | null
           titulo?: string | null
           valor_unitario: number
@@ -4055,6 +4057,7 @@ export type Database = {
           quantidade?: number
           recursos?: string | null
           taxas_adicionais?: Json
+          texto_contrato?: string | null
           tipo_servico_id?: string | null
           titulo?: string | null
           valor_unitario?: number
@@ -4093,6 +4096,7 @@ export type Database = {
           contato_email: string | null
           contato_nome: string | null
           contato_telefone: string | null
+          contrato_modelo: string | null
           contrato_parcelas: number | null
           contrato_valor_anual: number | null
           criado_em: string
@@ -4124,6 +4128,7 @@ export type Database = {
           contato_email?: string | null
           contato_nome?: string | null
           contato_telefone?: string | null
+          contrato_modelo?: string | null
           contrato_parcelas?: number | null
           contrato_valor_anual?: number | null
           criado_em?: string
@@ -4155,6 +4160,7 @@ export type Database = {
           contato_email?: string | null
           contato_nome?: string | null
           contato_telefone?: string | null
+          contrato_modelo?: string | null
           contrato_parcelas?: number | null
           contrato_valor_anual?: number | null
           criado_em?: string
@@ -5300,6 +5306,7 @@ export type Database = {
           contato_email: string | null
           contato_nome: string | null
           contato_telefone: string | null
+          contrato_modelo: string | null
           contrato_parcelas: number | null
           contrato_valor_anual: number | null
           criado_em: string | null
@@ -5333,6 +5340,7 @@ export type Database = {
           contato_email?: string | null
           contato_nome?: string | null
           contato_telefone?: string | null
+          contrato_modelo?: string | null
           contrato_parcelas?: number | null
           contrato_valor_anual?: number | null
           criado_em?: string | null
@@ -5366,6 +5374,7 @@ export type Database = {
           contato_email?: string | null
           contato_nome?: string | null
           contato_telefone?: string | null
+          contrato_modelo?: string | null
           contrato_parcelas?: number | null
           contrato_valor_anual?: number | null
           criado_em?: string | null

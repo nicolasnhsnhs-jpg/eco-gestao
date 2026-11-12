@@ -209,12 +209,15 @@ export async function gerarPdfProposta(d: DadosPdfProposta): Promise<Blob> {
 
   /** Bloco de texto: linhas com "- " viram marcador; linha vazia vira um respiro. */
   function blocoTexto(textoBloco: string, justificar = true) {
+    const inicio = y
     for (const bruta of textoBloco.split('\n')) {
       const l = bruta.trim()
       if (!l) {
         y -= 4
         continue
       }
+      // Subtítulo (linha toda em negrito) no meio do texto: um respiro antes.
+      if (/^\*\*[^*]+\*\*:?$/.test(l) && y < inicio) y -= 5
       if (/^[-•✓➢>]\s*/.test(l) && l.length > 1)
         marcador(l.replace(/^[-•✓➢>]\s*/, ''), { justificar })
       else rico(partesRicas(l), { justificar })
@@ -273,13 +276,14 @@ export async function gerarPdfProposta(d: DadosPdfProposta): Promise<Blob> {
   }
 
   // Custos
-  secao('Custos')
+  secao(d.tituloCustos)
   for (const l of d.custos) {
     if (l.tipo === 'espaco') {
       y -= 4
       continue
     }
     if (l.tipo === 'marcador') marcador(l.texto)
+    else if (l.tipo === 'destaque') rico(partesRicas(l.texto), { alinhar: 'centro' })
     else rico(partesRicas(l.texto), { justificar: l.tipo === 'paragrafo' })
   }
 
@@ -367,7 +371,9 @@ function cabecalhoPrimeira(p: PDFPage, f: Fontes, logo: PDFImage, d: DadosPdfPro
   )
   escrever(
     p,
-    d.numero ? `PROPOSTA Nº ${d.numero}` : 'PROPOSTA (NÚMERO AO SALVAR)',
+    d.numero
+      ? `${d.rotuloNumero} ${d.numero}`
+      : `${d.rotuloNumero.replace(' Nº', '')} (NÚMERO AO SALVAR)`,
     M,
     y,
     7.5,
@@ -436,7 +442,11 @@ function cabecalhoContinuacao(p: PDFPage, f: Fontes, logo: PDFImage, d: DadosPdf
   p.drawImage(logo, { x: M, y: topo - alturaLogo, width: larguraLogo, height: alturaLogo })
   escrever(
     p,
-    d.numero ? `Proposta nº ${d.numero}` : 'Proposta',
+    // "Proposta nº 2026-0123" ou "Memorial descritivo nº 2026-0123"
+    d.numero
+      ? `${d.rotuloNumero.charAt(0)}${d.rotuloNumero.slice(1).toLowerCase()} ${d.numero}`
+      : d.rotuloNumero.replace(' Nº', '').charAt(0) +
+          d.rotuloNumero.replace(' Nº', '').slice(1).toLowerCase(),
     A4.largura - M,
     topo - 12,
     8.5,

@@ -42,6 +42,8 @@ export const esquemaItem = z.object({
     ),
   cobranca: z.enum(['unica', 'mensal', 'por_visita']),
   taxas_adicionais: z.array(esquemaTaxa),
+  /** Texto do serviço no contrato completo (vazio = padrão do modelo). */
+  texto_contrato: textoAte(12000),
 })
 
 export const esquemaProposta = z
@@ -51,7 +53,9 @@ export const esquemaProposta = z
     contrato_valor_anual: z
       .string()
       .refine((v) => v.trim() === '' || lerValor(v) !== null, 'Valor inválido.'),
-    contrato_parcelas: inteiroOpcional(1, 60, 'Entre 1 e 60 parcelas.'),
+    contrato_parcelas: inteiroOpcional(1, 60, 'Entre 1 e 60 meses.'),
+    /** Contrato tradicional (valor anual + parcelas) ou completo (memorial descritivo). */
+    contrato_modelo: z.enum(['tradicional', 'completo']),
     cliente_id: z.string().min(1, 'Escolha o cliente.'),
     cliente_nome: z.string(),
     endereco_id: z.string(),
@@ -95,6 +99,7 @@ export const ITEM_VAZIO: FormItem = {
   periodicidade_meses: '',
   cobranca: 'unica',
   taxas_adicionais: [],
+  texto_contrato: '',
 }
 
 const ouNulo = (v: string) => (v.trim() === '' ? null : v.trim())
@@ -107,6 +112,7 @@ function camposContrato(f: Partial<FormProposta>) {
     tipo: contrato ? ('contrato' as const) : ('avulsa' as const),
     contrato_valor_anual: contrato ? anual : null,
     contrato_parcelas: contrato ? Number(f.contrato_parcelas) || 12 : null,
+    contrato_modelo: contrato ? (f.contrato_modelo ?? 'tradicional') : null,
   }
 }
 
@@ -179,6 +185,7 @@ export function propostaParaBanco(f: FormProposta) {
       ...separarFrequencia(i.periodicidade_meses),
       cobranca: i.cobranca,
       taxas_adicionais: taxasParaBase(i.taxas_adicionais),
+      texto_contrato: ouNulo(i.texto_contrato),
     })),
   }
 }
@@ -214,6 +221,7 @@ export function formParaBase(f: FormProposta, numero?: string | null): PropostaB
       valor_unitario: lerValor(i.valor_unitario ?? '') ?? 0,
       ...separarFrequencia(i.periodicidade_meses),
       cobranca: i.cobranca ?? 'unica',
+      texto_contrato: ouNulo(i.texto_contrato ?? ''),
       taxas_adicionais: taxasParaBase(i.taxas_adicionais).map((t) => ({
         descricao: t.descricao || 'Taxa adicional',
         valor: t.valor,

@@ -223,9 +223,15 @@ function Detalhe({ p }: { p: PropostaCompleta }) {
             )}
             <Dado
               rotulo="Tipo"
-              valor={p.tipo === 'contrato' ? 'Proposta de contrato' : 'Serviço avulso'}
+              valor={
+                p.tipo !== 'contrato'
+                  ? 'Serviço avulso'
+                  : p.contrato_modelo === 'completo'
+                    ? 'Contrato completo (memorial descritivo)'
+                    : 'Proposta de contrato'
+              }
             />
-            {p.tipo === 'contrato' && <DadosContrato p={p} />}
+            {p.tipo === 'contrato' && p.contrato_modelo !== 'completo' && <DadosContrato p={p} />}
             <Dado
               rotulo="Prazo de pagamento"
               valor={
