@@ -6,12 +6,15 @@ import { UNIDADE } from '@/lib/unidade'
 import { ALTURA_QUADRO, LARGURA_QUADRO } from './QuadroAgenda'
 import { nomeDaImagem } from './regras'
 
-/** Tira a "foto" do quadro (1920x1080, PNG). */
+/**
+ * Tira a "foto" do quadro (PNG, 1920 de largura). Normalmente 1080 de altura; em
+ * dia com tanto serviço que não cabe, a imagem cresce para baixo e mostra tudo.
+ */
 export async function gerarImagem(no: HTMLElement): Promise<Blob> {
   await document.fonts.ready
   const blob = await toBlob(no, {
     width: LARGURA_QUADRO,
-    height: ALTURA_QUADRO,
+    height: Math.max(ALTURA_QUADRO, Math.ceil(no.scrollHeight)),
     pixelRatio: 1,
     cacheBust: true,
     style: { transform: 'none', position: 'static', left: '0', top: '0' },

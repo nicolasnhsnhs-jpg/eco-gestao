@@ -56,6 +56,12 @@
   gap: 26px;
   line-height: normal;
 }
+/* Na imagem o quadro cresce para baixo quando os serviços não cabem em 1080
+   (a imagem sai mais alta, com tudo). Na prévia e na TV fica em 1080. */
+.aq-palco[data-modo='imagem'] {
+  height: auto;
+  min-height: 1080px;
+}
 .aq-palco * {
   box-sizing: border-box;
   margin: 0;

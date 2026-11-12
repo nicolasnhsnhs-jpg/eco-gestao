@@ -238,6 +238,7 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
       className="aq-palco"
       data-densidade={densidade(linhas.length)}
       data-interno={interno ? 'sim' : 'nao'}
+      data-modo={modo}
       style={style}
     >
       <header className="aq-cab">
