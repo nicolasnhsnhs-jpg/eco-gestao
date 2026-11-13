@@ -120,7 +120,7 @@ export function ListaArquivos({
       {miniaturas && !!visiveis?.length && (
         <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {visiveis.map((a) => {
-            const link = links.data?.get(a.caminho_storage)
+            const link = links.data?.[a.caminho_storage]
             return (
               <li key={a.id} className="relative overflow-hidden rounded-xl border border-borda">
                 <button

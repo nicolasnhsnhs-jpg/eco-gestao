@@ -149,7 +149,11 @@ export function useLinksDasImagens(arquivos: Arquivo[] | undefined) {
         300,
       )
       if (error) throw error
-      return new Map(data.map((d) => [d.path, d.signedUrl]))
+      // Objeto simples, não Map: o cache do celular guarda em JSON, e um Map voltava
+      // vazio ({}), quebrando a tela da OS ao reabrir (".get is not a function").
+      const links: Record<string, string> = {}
+      for (const d of data) if (d.path && d.signedUrl) links[d.path] = d.signedUrl
+      return links
     },
   })
 }

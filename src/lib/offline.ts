@@ -28,7 +28,9 @@ export function deveGuardarConsulta(query: Query) {
   return (
     guardarNoCelular &&
     query.state.status === 'success' &&
-    CONSULTAS_DO_OPERADOR.has(String(query.queryKey[0]))
+    CONSULTAS_DO_OPERADOR.has(String(query.queryKey[0])) &&
+    // Links temporários das miniaturas valem 5 minutos: não adianta guardar.
+    !(query.queryKey[0] === 'arquivos' && query.queryKey[1] === 'links')
   )
 }
 
