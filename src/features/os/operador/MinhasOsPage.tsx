@@ -12,14 +12,21 @@ import { CartaoOs } from '../OsListaPage'
 /**
  * Início do operador: as OS dele, da semana passada (para terminar o que ficou
  * aberto) até os próximos 7 dias. O banco só devolve as OS atribuídas a ele.
- * As do dia ficam guardadas no celular para trabalhar sem internet.
+ * As do dia ficam guardadas no celular para trabalhar sem internet. Em
+ * "Concluídas" aparecem só as terminadas hoje.
  */
 export function MinhasOsPage() {
   const perfil = usePerfil()
   const hoje = hojeISO()
   const lista = useOrdensServico({ de: somarDias(hoje, -7), ate: somarDias(hoje, 7) })
   const abertas = lista.data?.filter((os) => osAberta(os.status)) ?? []
-  const concluidas = lista.data?.filter((os) => !osAberta(os.status)) ?? []
+  // Concluídas: só as do dia. Passou da meia-noite, a lista começa vazia.
+  const concluidas =
+    lista.data?.filter(
+      (os) =>
+        !osAberta(os.status) &&
+        (os.concluida_em ? hojeISO(new Date(os.concluida_em)) : os.data_agendada) === hoje,
+    ) ?? []
   const { baixadoEm, baixadoHoje, online } = useBaixarOsDoDia(lista.data)
   const hora = (d: Date) => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 

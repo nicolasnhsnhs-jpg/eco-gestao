@@ -103,7 +103,7 @@ export function useOrdensServico(filtro: FiltroOs) {
       let consulta = supabase
         .from('ordens_servico')
         .select(
-          `id, numero, status, data_agendada, hora_agendada, ficha_cliente, cliente_id, treinamento, ${RELACOES}`,
+          `id, numero, status, data_agendada, hora_agendada, concluida_em, ficha_cliente, cliente_id, treinamento, ${RELACOES}`,
         )
         .order('data_agendada', { ascending: true })
         .order('hora_agendada', { ascending: true, nullsFirst: false })
