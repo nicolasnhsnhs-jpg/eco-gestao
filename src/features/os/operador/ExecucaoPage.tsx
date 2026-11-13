@@ -44,6 +44,7 @@ import { ETAPAS_COIFA } from '../tipos/coifa'
 import { ETAPAS_TELAS } from '../tipos/telas'
 import { quantasEtapasPragas } from '../tipos/pragas'
 import { ExecucaoAgua } from './ExecucaoAgua'
+import { ExecucaoReservatorio } from './ExecucaoReservatorio'
 import { ExecucaoArCondicionado } from './ExecucaoArCondicionado'
 import { ExecucaoBebedouro } from './ExecucaoBebedouro'
 import { ExecucaoCoifa } from './ExecucaoCoifa'
@@ -143,6 +144,7 @@ function Execucao({ os }: { os: OsCompleta }) {
   const telas = os.tipo?.formulario_os === 'telas'
   const agua = os.tipo?.formulario_os === 'agua'
   const simples = os.tipo?.formulario_os === 'pragas_simples'
+  const reservatorio = os.tipo?.formulario_os === 'reservatorio'
   const arCondicionado = os.tipo?.formulario_os === 'ar_condicionado'
   const fila = useFila()
   const aguardandoEnvio = pendenteDaOs(fila, os.id).length > 0
@@ -475,6 +477,14 @@ function Execucao({ os }: { os: OsCompleta }) {
         <ExecucaoBebedouro os={os} campos={campos} alterar={alterar} aberta={aberta} primeira={2} />
       ) : telas ? (
         <ExecucaoTelas os={os} campos={campos} alterar={alterar} aberta={aberta} primeira={2} />
+      ) : reservatorio ? (
+        <ExecucaoReservatorio
+          os={os}
+          campos={campos}
+          alterar={alterar}
+          aberta={aberta}
+          primeira={2}
+        />
       ) : agua ? (
         <ExecucaoAgua os={os} campos={campos} alterar={alterar} aberta={aberta} primeira={2} />
       ) : arCondicionado ? (

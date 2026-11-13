@@ -14,6 +14,7 @@ import { escreverArCondicionado } from './arCondicionadoPdf'
 import { escreverBebedouro } from './bebedouroPdf'
 import { escreverCoifa } from './coifaPdf'
 import { areasAtendidas, type ChecklistAreas } from '../EscopoAreas'
+import { descreverReservatorio, ultimaLimpeza } from '../EscopoReservatorio'
 import { buscarDadosPragas, escreverPragas, escreverProdutos, type DadosPragas } from './pragasPdf'
 import { escreverTelas } from './telasPdf'
 
@@ -361,6 +362,23 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
     `Chegada ${hora(e?.hora_chegada ?? null)} · Início ${hora(e?.hora_inicio ?? null)} · Término ${hora(e?.hora_termino ?? null)} · Saída ${hora(e?.hora_saida ?? null)}`,
   )
   if (os.tipo?.formulario_os === 'generico') w.campo('Resultado', e?.resultado)
+  if (pragas && os.tipo?.formulario_os === 'reservatorio') {
+    const lista = pragas.pontos.filter((p) => p.tipo === 'reservatorio')
+    if (lista.length) w.secao('Reservatórios')
+    for (const r of lista) {
+      w.campo(
+        r.area,
+        [
+          descreverReservatorio(r),
+          r.limpo == null ? 'limpeza —' : r.limpo ? 'limpo' : 'não limpo',
+          ultimaLimpeza(r.ultima_limpeza).replace('Última limpeza', 'anterior'),
+          r.observacao?.trim(),
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      )
+    }
+  }
   if (os.tipo?.formulario_os === 'pragas_simples') {
     const conforme = (e?.checklist as ChecklistAreas | null)?.conforme_planejado
     w.campo('Áreas atendidas', areasAtendidas(os.escopo))
@@ -491,6 +509,7 @@ export async function montarPdfOs(os: OsCompleta) {
     os.tipo?.formulario_os === 'telas' ||
     os.tipo?.formulario_os === 'agua' ||
     os.tipo?.formulario_os === 'pragas_simples' ||
+    os.tipo?.formulario_os === 'reservatorio' ||
     os.tipo?.formulario_os === 'ar_condicionado'
       ? await buscarDadosPragas(os.id)
       : undefined

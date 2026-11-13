@@ -3572,6 +3572,7 @@ export type Database = {
           atualizado_em: string
           atualizado_por: string | null
           btu: number | null
+          capacidade_litros: number | null
           capturas: Json
           codigo_filtro: string | null
           coletado: boolean | null
@@ -3615,6 +3616,7 @@ export type Database = {
           atualizado_em?: string
           atualizado_por?: string | null
           btu?: number | null
+          capacidade_litros?: number | null
           capturas?: Json
           codigo_filtro?: string | null
           coletado?: boolean | null
@@ -3658,6 +3660,7 @@ export type Database = {
           atualizado_em?: string
           atualizado_por?: string | null
           btu?: number | null
+          capacidade_litros?: number | null
           capturas?: Json
           codigo_filtro?: string | null
           coletado?: boolean | null
@@ -3984,6 +3987,7 @@ export type Database = {
           atualizado_em: string
           atualizado_por: string | null
           btu: number | null
+          capacidade_litros: number | null
           codigo_filtro: string | null
           criado_em: string
           criado_por: string | null
@@ -4008,6 +4012,7 @@ export type Database = {
           atualizado_em?: string
           atualizado_por?: string | null
           btu?: number | null
+          capacidade_litros?: number | null
           codigo_filtro?: string | null
           criado_em?: string
           criado_por?: string | null
@@ -4032,6 +4037,7 @@ export type Database = {
           atualizado_em?: string
           atualizado_por?: string | null
           btu?: number | null
+          capacidade_litros?: number | null
           codigo_filtro?: string | null
           criado_em?: string
           criado_por?: string | null
@@ -6092,6 +6098,7 @@ export type Database = {
         | 'agua'
         | 'ar_condicionado'
         | 'pragas_simples'
+        | 'reservatorio'
       papel: 'admin' | 'financeiro' | 'vendedor' | 'recepcao' | 'operador' | 'administrativo'
       setor_atendimento: 'administrativo' | 'comercial' | 'financeiro' | 'operacional'
       status_comissao: 'prevista' | 'paga' | 'cancelada'
@@ -6118,6 +6125,7 @@ export type Database = {
         | 'bebedouro_garrafao'
         | 'ponto_coleta'
         | 'ar_condicionado'
+        | 'reservatorio'
       tipo_vencimento: 'certificado' | 'recomendacao'
     }
     CompositeTypes: {
@@ -6275,6 +6283,7 @@ export const Constants = {
         'agua',
         'ar_condicionado',
         'pragas_simples',
+        'reservatorio',
       ],
       papel: ['admin', 'financeiro', 'vendedor', 'recepcao', 'operador', 'administrativo'],
       setor_atendimento: ['administrativo', 'comercial', 'financeiro', 'operacional'],
@@ -6302,6 +6311,7 @@ export const Constants = {
         'bebedouro_garrafao',
         'ponto_coleta',
         'ar_condicionado',
+        'reservatorio',
       ],
       tipo_vencimento: ['certificado', 'recomendacao'],
     },

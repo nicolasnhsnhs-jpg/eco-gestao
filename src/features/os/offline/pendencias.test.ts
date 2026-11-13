@@ -220,6 +220,18 @@ describe('pendenciasLocais', () => {
   })
 })
 
+describe('reservatórios', () => {
+  it('cada reservatório precisa de limpo sim ou não', () => {
+    const pontos = [
+      { tipo: 'reservatorio', numero: 2, area: 'Terraço', limpo: null },
+      { tipo: 'reservatorio', numero: 1, area: 'Subsolo', limpo: true },
+    ]
+    expect(pendenciasLocais('reservatorio', comum, pontos)).toEqual(['reservatórios: Terraço'])
+    expect(pendenciasLocais('reservatorio', comum, [{ ...pontos[0], limpo: false }])).toEqual([])
+    expect(etapaDaPendencia('reservatórios: Terraço')).toBe('Reservatórios')
+  })
+})
+
 describe('horariosForaDeOrdem', () => {
   it('em ordem (ou no mesmo minuto) está certo', () => {
     expect(horariosForaDeOrdem(comum)).toBeNull()

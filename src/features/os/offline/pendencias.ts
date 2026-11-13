@@ -178,6 +178,14 @@ export function pendenciasLocais(
     if (typeof c.instaladas?.sim !== 'boolean') falta.push('conferência com o cliente')
   }
 
+  if (formulario === 'reservatorio') {
+    const sem = pontos
+      .filter((p) => p.tipo === 'reservatorio' && p.limpo == null)
+      .sort((a, b) => a.numero - b.numero)
+      .map((p) => p.area)
+    if (sem.length) falta.push(`reservatórios: ${sem.join(', ')}`)
+  }
+
   if (formulario === 'agua') {
     const c = (e.checklist ?? {}) as ChecklistAgua
     if (c.procedimento !== true) falta.push('confirmação do procedimento de coleta')
@@ -250,6 +258,7 @@ export function etapaDaPendencia(pendencia: string): string | null {
   if (pendencia === 'confirmação do procedimento de coleta') return 'Procedimento de coleta'
   if (pendencia.startsWith('coleta de:')) return 'Pontos de coleta'
   if (pendencia === 'conservação das amostras') return 'Amostras'
+  if (pendencia.startsWith('reservatórios:')) return 'Reservatórios'
   if (pendencia.startsWith('ar-condicionado:')) return 'Aparelhos de ar-condicionado'
   // A foto de antes fica na chegada (para não esquecer); a de depois, no fim.
   if (pendencia === 'foto antes do serviço') return 'Chegada e horários'

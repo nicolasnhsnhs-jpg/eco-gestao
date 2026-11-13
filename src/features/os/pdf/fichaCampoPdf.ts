@@ -61,6 +61,7 @@ import {
 import { EMPRESA_RODAPE, quebrarLinhas, textoSeguro } from './gerarPdfOs'
 import { buscarDadosPragas } from './pragasPdf'
 import { areasAtendidas } from '../EscopoAreas'
+import { descreverReservatorio } from '../EscopoReservatorio'
 
 /*
  * OS física (via de campo): a mesma OS da tela, impressa para o técnico preencher
@@ -775,6 +776,7 @@ export async function gerarFichaCampo(os: OsCompleta) {
     formulario === 'bebedouro' ||
     formulario === 'telas' ||
     formulario === 'agua' ||
+    formulario === 'reservatorio' ||
     formulario === 'ar_condicionado'
   const pontos = comPontos ? (await buscarDadosPragas(os.id)).pontos : []
 
@@ -867,7 +869,30 @@ export async function gerarFichaCampo(os: OsCompleta) {
   else if (formulario === 'coifa') escreverCoifa(f, os, pontos)
   else if (formulario === 'bebedouro') escreverBebedouro(f, pontos)
   else if (formulario === 'telas') escreverTelas(f, pontos)
-  else if (formulario === 'pragas_simples') {
+  else if (formulario === 'reservatorio') {
+    const lista = pontos
+      .filter((p) => p.tipo === 'reservatorio')
+      .sort((a, b) => a.numero - b.numero)
+    f.secao('Reservatórios')
+    f.tabela(
+      [
+        { titulo: 'Localização', largura: 3 },
+        { titulo: 'Qtde · capacidade', largura: 1.8 },
+        { titulo: 'Última limpeza', largura: 1.3 },
+        { titulo: 'Limpo (S/N)', largura: 1 },
+        { titulo: 'Observação', largura: 2.5 },
+      ],
+      lista.map((r) => [
+        r.area,
+        descreverReservatorio(r),
+        r.ultima_limpeza ? formatarData(r.ultima_limpeza) : '—',
+        '',
+        '',
+      ]),
+      lista.length === 0 ? 3 : 0,
+    )
+    f.escrita('Observações:', 4)
+  } else if (formulario === 'pragas_simples') {
     f.secao('Áreas atendidas')
     f.paragrafo(areasAtendidas(os.escopo) || '—', 9)
     f.secao('Serviço realizado')
