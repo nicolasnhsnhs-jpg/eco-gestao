@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router'
 
 import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
@@ -101,6 +102,8 @@ export function PresencaPage() {
             <Resumo rotulo="Folgas · horas em haver" valor={soma('folgasHoras')} />
           </div>
 
+          <Lembretes dias={dias.data} />
+
           <Card className="overflow-x-auto p-0">
             <div className="flex items-center justify-between border-b border-borda px-4 py-3">
               <h2 className="font-bold">{nomeDoMes(mes)}</h2>
@@ -194,6 +197,36 @@ export function PresencaPage() {
         </>
       )}
     </div>
+  )
+}
+
+/** As anotações da escala do mês (ex.: quem saiu mais cedo e fica com horas em haver). */
+function Lembretes({ dias }: { dias: readonly { data: string; nota_escala: string }[] }) {
+  const comNota = dias.filter((d) => d.nota_escala.trim())
+  return (
+    <Card className="flex flex-col gap-2">
+      <h2 className="font-bold">Lembretes da escala</h2>
+      {comNota.length === 0 ? (
+        <p className="text-sm text-texto-suave">
+          Nenhum lembrete neste mês. Eles são escritos na Agenda do dia, em "Anotação da escala".
+        </p>
+      ) : (
+        <ul className="flex flex-col divide-y divide-borda">
+          {comNota.map((d) => (
+            <li key={d.data} className="flex flex-col gap-0.5 py-2 sm:flex-row sm:gap-3">
+              <Link
+                to={`/servicos/dia?data=${d.data}`}
+                className="shrink-0 text-sm font-bold text-verde-escuro underline sm:w-28"
+                title="Abrir a agenda deste dia"
+              >
+                {diaCurto(d.data)}
+              </Link>
+              <span className="text-sm whitespace-pre-line">{d.nota_escala.trim()}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   )
 }
 
