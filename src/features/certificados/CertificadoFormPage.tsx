@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, Copy, FileDown, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, ClipboardList, Copy, FileDown, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
@@ -37,6 +37,7 @@ import {
   type ProdutoCatalogo,
 } from './api'
 import { EnviarAoCliente } from './EnviarAoCliente'
+import { PainelOs } from './PainelOs'
 import {
   calcularValidade,
   lerProdutos,
@@ -169,18 +170,19 @@ function valoresIniciais(tipos: Tipo[], c?: CertificadoResumo, origem?: Origem):
     tipo_servico_id: origem?.tipoId ?? '',
     modelo,
     titulo: padrao.titulo,
-    pragas_alvo: padrao.pragasAlvo,
+    pragas_alvo: (MODELO[modelo].temPragas && origem?.pragasAlvo) || padrao.pragasAlvo,
     servico_descrito: padrao.servicoDescrito,
     complemento: padrao.complemento,
     data_execucao: origem?.dataExecucao ?? hojeISO(),
     outras_datas: [],
     tipo_validade: origem?.deContrato ? 'contrato' : 'avulso',
     validade_meses: meses?.toString() ?? '',
-    areas: origem?.areas ?? '',
+    // No modelo de sucção a descrição da OS vai para "Descrição do serviço".
+    areas: MODELO[modelo].arranjo === 'descricao' ? '' : (origem?.areas ?? ''),
     produtos: origem?.produtos ?? [],
     reservatorios:
       modelo === 'reservatorio' ? [{ quantidade: '', local: '', metragem: '', produto: '' }] : [],
-    descricao: '',
+    descricao: MODELO[modelo].arranjo === 'descricao' ? (origem?.descricao ?? '') : '',
     mtr: '',
     volume: '',
     observacao_final: '',
@@ -453,495 +455,521 @@ function Formulario({
   }
 
   const ativos = catalogo.data?.filter((p) => p.ativo) ?? []
+  // A OS de onde veio fica aberta ao lado, para ir conferindo enquanto preenche.
+  const osId = certificado ? certificado.os_id : (origem?.osId ?? null)
+  const [verOs, setVerOs] = useState(!editando)
+  const painel = osId && verOs
 
   return (
-    <div className="flex flex-col gap-5">
-      <Link
-        to="/certificados"
-        className="inline-flex items-center gap-1 self-start text-sm font-semibold text-verde"
-      >
-        <ArrowLeft className="size-4" aria-hidden /> Certificados
-      </Link>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">
-            {editando ? `Certificado ${certificado.numero}` : 'Emitir certificado'}
-          </h1>
-          {origem?.osNumero && (
-            <p className="text-texto-suave">Preenchido a partir da {origem.osNumero}.</p>
-          )}
-          {certificado?.os && <p className="text-texto-suave">Da {certificado.os.numero}.</p>}
-        </div>
-        {editando && (
-          <div className="flex flex-wrap gap-2">
-            {!cancelado && (
-              <EnviarAoCliente
-                certificado={certificado}
-                bloqueado={
-                  form.formState.isDirty ? 'Salve as alterações antes de enviar ao cliente.' : null
-                }
-              />
-            )}
-            <Button onClick={() => void baixarPdf()} disabled={gerandoPdf}>
-              <FileDown className="size-5" aria-hidden />
-              {gerandoPdf ? 'Gerando PDF…' : 'Baixar PDF'}
-            </Button>
-          </div>
-        )}
-      </div>
-      {cancelado && (
-        <Aviso tipo="erro">
-          Certificado cancelado em {formatarData(certificado.cancelado_em)}:{' '}
-          {certificado.motivo_cancelamento}
-        </Aviso>
+    <div
+      className={
+        painel ? 'grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,34rem)]' : undefined
+      }
+    >
+      {painel && (
+        <aside className="max-h-[60dvh] overflow-y-auto rounded-2xl xl:sticky xl:top-4 xl:order-2 xl:max-h-[calc(100dvh-2rem)]">
+          <PainelOs osId={osId} aoFechar={() => setVerOs(false)} />
+        </aside>
       )}
-      {errors.root && <Aviso tipo="erro">{errors.root.message}</Aviso>}
-      {aviso && <Aviso>{aviso}</Aviso>}
-
-      <form onSubmit={form.handleSubmit(enviar)} noValidate className="flex flex-col gap-5">
-        <fieldset disabled={cancelado} className="flex flex-col gap-5">
-          <Card className="grid gap-4 sm:grid-cols-2">
-            <h2 className="font-bold sm:col-span-2">Cliente e serviço</h2>
-            <Campo
-              rotulo="Cliente"
-              htmlFor="cliente"
-              obrigatorio
-              erro={errors.cliente_id?.message}
-              className="sm:col-span-2"
-            >
-              {editando || origem ? (
-                <p className="flex min-h-11 items-center font-semibold">{clienteNome}</p>
-              ) : (
-                <ClienteSeletor
-                  id="cliente"
-                  valor={clienteId ? { id: clienteId, nome: clienteNome } : null}
-                  aoMudar={aoEscolherCliente}
+      <div className="flex min-w-0 flex-col gap-5">
+        <Link
+          to="/certificados"
+          className="inline-flex items-center gap-1 self-start text-sm font-semibold text-verde"
+        >
+          <ArrowLeft className="size-4" aria-hidden /> Certificados
+        </Link>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold">
+              {editando ? `Certificado ${certificado.numero}` : 'Emitir certificado'}
+            </h1>
+            {origem?.osNumero && (
+              <p className="text-texto-suave">Preenchido a partir da {origem.osNumero}.</p>
+            )}
+            {certificado?.os && <p className="text-texto-suave">Da {certificado.os.numero}.</p>}
+            {osId && !verOs && (
+              <button
+                type="button"
+                onClick={() => setVerOs(true)}
+                className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-verde underline"
+              >
+                <ClipboardList className="size-4" aria-hidden /> Ver a OS ao lado
+              </button>
+            )}
+          </div>
+          {editando && (
+            <div className="flex flex-wrap gap-2">
+              {!cancelado && (
+                <EnviarAoCliente
+                  certificado={certificado}
+                  bloqueado={
+                    form.formState.isDirty
+                      ? 'Salve as alterações antes de enviar ao cliente.'
+                      : null
+                  }
                 />
               )}
-            </Campo>
-            <Campo rotulo="Unidade / endereço" htmlFor="endereco">
-              <SelectForm id="endereco" control={form.control} name="endereco_id">
-                <option value="">
-                  {enderecos.length === 1
-                    ? 'O endereço cadastrado'
-                    : enderecos.length
-                      ? 'Escolha…'
-                      : 'Sem endereço'}
-                </option>
-                {enderecos.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {[e.apelido, `${e.logradouro}, ${e.numero ?? 's/n'}`]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </option>
-                ))}
-              </SelectForm>
-            </Campo>
-            <Campo
-              rotulo="Serviço"
-              htmlFor="tipo"
-              obrigatorio
-              erro={errors.tipo_servico_id?.message}
-            >
-              <SelectForm
-                id="tipo"
-                control={form.control}
-                name="tipo_servico_id"
-                onChange={(e) => aoEscolherTipo(e.target.value)}
+              <Button onClick={() => void baixarPdf()} disabled={gerandoPdf}>
+                <FileDown className="size-5" aria-hidden />
+                {gerandoPdf ? 'Gerando PDF…' : 'Baixar PDF'}
+              </Button>
+            </div>
+          )}
+        </div>
+        {cancelado && (
+          <Aviso tipo="erro">
+            Certificado cancelado em {formatarData(certificado.cancelado_em)}:{' '}
+            {certificado.motivo_cancelamento}
+          </Aviso>
+        )}
+        {errors.root && <Aviso tipo="erro">{errors.root.message}</Aviso>}
+        {aviso && <Aviso>{aviso}</Aviso>}
+
+        <form onSubmit={form.handleSubmit(enviar)} noValidate className="flex flex-col gap-5">
+          <fieldset disabled={cancelado} className="flex flex-col gap-5">
+            <Card className="grid gap-4 sm:grid-cols-2">
+              <h2 className="font-bold sm:col-span-2">Cliente e serviço</h2>
+              <Campo
+                rotulo="Cliente"
+                htmlFor="cliente"
+                obrigatorio
+                erro={errors.cliente_id?.message}
+                className="sm:col-span-2"
               >
-                <option value="">Escolha…</option>
-                {tipos
-                  .filter((t) => t.ativo || t.id === certificado?.tipo_servico_id)
-                  .map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.nome}
+                {editando || origem ? (
+                  <p className="flex min-h-11 items-center font-semibold">{clienteNome}</p>
+                ) : (
+                  <ClienteSeletor
+                    id="cliente"
+                    valor={clienteId ? { id: clienteId, nome: clienteNome } : null}
+                    aoMudar={aoEscolherCliente}
+                  />
+                )}
+              </Campo>
+              <Campo rotulo="Unidade / endereço" htmlFor="endereco">
+                <SelectForm id="endereco" control={form.control} name="endereco_id">
+                  <option value="">
+                    {enderecos.length === 1
+                      ? 'O endereço cadastrado'
+                      : enderecos.length
+                        ? 'Escolha…'
+                        : 'Sem endereço'}
+                  </option>
+                  {enderecos.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {[e.apelido, `${e.logradouro}, ${e.numero ?? 's/n'}`]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </option>
                   ))}
-              </SelectForm>
-            </Campo>
-            <Campo
-              rotulo="Modelo do certificado"
-              htmlFor="modelo"
-              dica="Muda a cor e os blocos do PDF."
-            >
-              <Select
-                id="modelo"
-                value={modelo}
-                onChange={(e) => aplicarModelo(e.target.value as ModeloCertificado)}
+                </SelectForm>
+              </Campo>
+              <Campo
+                rotulo="Serviço"
+                htmlFor="tipo"
+                obrigatorio
+                erro={errors.tipo_servico_id?.message}
               >
-                {MODELOS.map((x) => (
-                  <option key={x} value={x}>
-                    {MODELO[x].nome}
+                <SelectForm
+                  id="tipo"
+                  control={form.control}
+                  name="tipo_servico_id"
+                  onChange={(e) => aoEscolherTipo(e.target.value)}
+                >
+                  <option value="">Escolha…</option>
+                  {tipos
+                    .filter((t) => t.ativo || t.id === certificado?.tipo_servico_id)
+                    .map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.nome}
+                      </option>
+                    ))}
+                </SelectForm>
+              </Campo>
+              <Campo
+                rotulo="Modelo do certificado"
+                htmlFor="modelo"
+                dica="Muda a cor e os blocos do PDF."
+              >
+                <Select
+                  id="modelo"
+                  value={modelo}
+                  onChange={(e) => aplicarModelo(e.target.value as ModeloCertificado)}
+                >
+                  {MODELOS.map((x) => (
+                    <option key={x} value={x}>
+                      {MODELO[x].nome}
+                    </option>
+                  ))}
+                </Select>
+              </Campo>
+              {!editando && anterior && copiadoDe !== anterior.numero && (
+                <div className="flex flex-wrap items-center gap-3 rounded-xl bg-lima-claro p-3 sm:col-span-2">
+                  <p className="min-w-0 flex-1 text-sm">
+                    Este cliente já tem um certificado de <strong>{m.nome}</strong>:{' '}
+                    {anterior.numero}, do dia {formatarData(anterior.data_execucao)}.
+                  </p>
+                  <Button variante="secundario" onClick={() => copiarUltimo(anterior)}>
+                    <Copy className="size-5" aria-hidden /> Copiar o último certificado
+                  </Button>
+                </div>
+              )}
+              {copiadoDe && (
+                <div className="sm:col-span-2">
+                  <Aviso>Copiado do {copiadoDe}. Confira a data do serviço antes de emitir.</Aviso>
+                </div>
+              )}
+            </Card>
+
+            <Card className="grid gap-4 sm:grid-cols-2">
+              <h2 className="font-bold sm:col-span-2">Texto do certificado</h2>
+              <Campo
+                rotulo="Título"
+                htmlFor="titulo"
+                obrigatorio
+                erro={errors.titulo?.message}
+                className="sm:col-span-2"
+              >
+                <Input id="titulo" {...form.register('titulo')} />
+              </Campo>
+              {m.temPragas && (
+                <Campo
+                  rotulo="Pragas-alvo"
+                  htmlFor="pragas"
+                  dica='Sai como "Pragas Alvo (baratas, formigas…)".'
+                  className="sm:col-span-2"
+                >
+                  <Input id="pragas" {...form.register('pragas_alvo')} />
+                </Campo>
+              )}
+              <Campo
+                rotulo="Serviço na frase"
+                htmlFor="servico-descrito"
+                obrigatorio
+                erro={errors.servico_descrito?.message}
+                dica='"…foram realizados os serviços de [este texto] nas dependências de…"'
+                className="sm:col-span-2"
+              >
+                <Input id="servico-descrito" {...form.register('servico_descrito')} />
+              </Campo>
+              <Campo
+                rotulo="Frase extra (opcional)"
+                htmlFor="complemento"
+                dica="Vai logo depois do CNPJ do cliente."
+                className="sm:col-span-2"
+              >
+                <Input id="complemento" {...form.register('complemento')} />
+              </Campo>
+            </Card>
+
+            <Card className="grid gap-4 sm:grid-cols-2">
+              <h2 className="font-bold sm:col-span-2">Data e validade</h2>
+              <Campo
+                rotulo="Data do serviço"
+                htmlFor="data"
+                obrigatorio
+                erro={errors.data_execucao?.message}
+              >
+                <Input id="data" type="date" {...form.register('data_execucao')} />
+              </Campo>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-sm font-semibold">Outros dias do mesmo serviço</span>
+                {outrasDatas.fields.map((campo, i) => (
+                  <div key={campo.id} className="flex gap-2">
+                    <Input
+                      type="date"
+                      aria-label={`Outro dia ${i + 1}`}
+                      {...form.register(`outras_datas.${i}.data`)}
+                    />
+                    <BotaoIcone rotulo="Tirar este dia" onClick={() => outrasDatas.remove(i)}>
+                      <Trash2 className="size-5" aria-hidden />
+                    </BotaoIcone>
+                  </div>
+                ))}
+                <Button
+                  variante="fantasma"
+                  className="self-start"
+                  onClick={() => outrasDatas.append({ data: '' })}
+                >
+                  <Plus className="size-4" aria-hidden /> Adicionar dia
+                </Button>
+              </div>
+
+              <fieldset className="sm:col-span-2">
+                <legend className="mb-1.5 text-sm font-semibold">Tipo de certificado</legend>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {(
+                    [
+                      ['contrato', 'De contrato', 'Vale até o último dia do mês.'],
+                      [
+                        'avulso',
+                        'Avulso',
+                        'Vale até a data exata; a data vai embaixo e a validade ao lado.',
+                      ],
+                    ] as const
+                  ).map(([valor, nome, explicacao]) => (
+                    <label
+                      key={valor}
+                      className={cn(
+                        'flex cursor-pointer flex-col rounded-xl border border-borda p-3',
+                        'has-checked:border-verde has-checked:bg-lima-claro',
+                      )}
+                    >
+                      <span className="flex items-center gap-2 font-semibold">
+                        <input type="radio" value={valor} {...form.register('tipo_validade')} />
+                        {nome}
+                      </span>
+                      <span className="text-sm text-texto-suave">{explicacao}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <span className="text-sm font-semibold">Renovação</span>
+                <div className="flex flex-wrap gap-2">
+                  {PERIODICIDADES.map((p) => (
+                    <button
+                      key={p.meses}
+                      type="button"
+                      onClick={() =>
+                        form.setValue('validade_meses', String(p.meses), { shouldDirty: true })
+                      }
+                      className={cn(
+                        'min-h-10 rounded-xl border px-3 text-sm font-semibold',
+                        meses === String(p.meses)
+                          ? 'border-verde bg-lima-claro text-verde-escuro'
+                          : 'border-borda bg-white text-texto-suave hover:bg-lima-claro',
+                      )}
+                    >
+                      {p.nome}
+                    </button>
+                  ))}
+                  <label className="flex items-center gap-2 text-sm">
+                    ou
+                    <Input
+                      className="w-20"
+                      inputMode="numeric"
+                      aria-label="Meses de validade"
+                      {...form.register('validade_meses')}
+                    />
+                    meses
+                  </label>
+                </div>
+                {errors.validade_meses && (
+                  <p className="text-sm text-perigo" role="alert">
+                    {errors.validade_meses.message}
+                  </p>
+                )}
+                <p className="text-sm text-texto-suave">
+                  {validade
+                    ? tipoValidade === 'contrato'
+                      ? `No PDF: "${textoValidoAte(validade)}"`
+                      : `No PDF: "${textoValidadeMeses(Number(meses))}" (vale até ${formatarData(validade)}).`
+                    : 'Sem renovação: o certificado sai sem validade.'}
+                </p>
+              </div>
+              <Campo
+                rotulo="Observação no fim (opcional)"
+                htmlFor="obs-final"
+                dica='Ex.: "Monitoramento quinzenal durante o período de 6 meses."'
+                className="sm:col-span-2"
+              >
+                <Input id="obs-final" {...form.register('observacao_final')} />
+              </Campo>
+            </Card>
+
+            {m.arranjo === 'descricao' ? (
+              <Card className="grid gap-4 sm:grid-cols-2">
+                <h2 className="font-bold sm:col-span-2">Descrição do serviço</h2>
+                <Campo
+                  rotulo="Descrição"
+                  htmlFor="descricao"
+                  dica="Uma linha para cada item."
+                  className="sm:col-span-2"
+                >
+                  <Textarea id="descricao" rows={5} {...form.register('descricao')} />
+                </Campo>
+                <Campo rotulo="Nº do MTR" htmlFor="mtr">
+                  <Input id="mtr" {...form.register('mtr')} />
+                </Campo>
+                <Campo rotulo="Quantidade retirada" htmlFor="volume" dica="Ex.: 2,000m³">
+                  <Input id="volume" {...form.register('volume')} />
+                </Campo>
+              </Card>
+            ) : (
+              <Card className="grid gap-4">
+                <h2 className="font-bold">
+                  {m.arranjo === 'reservatorios'
+                    ? 'Áreas (opcional)'
+                    : (m.tituloAreas ?? 'Áreas atendidas')}
+                </h2>
+                <Campo
+                  rotulo={m.tituloAreas ?? 'Áreas'}
+                  htmlFor="areas"
+                  dica={`Uma linha para cada item (ex.: ${m.exemploAreas ?? '322 apartamentos'}).`}
+                >
+                  <Textarea id="areas" rows={4} {...form.register('areas')} />
+                </Campo>
+              </Card>
+            )}
+
+            {m.arranjo === 'reservatorios' && (
+              <Card className="flex flex-col gap-3">
+                <h2 className="font-bold">Reservatórios</h2>
+                {reservatorios.fields.map((campo, i) => (
+                  <div
+                    key={campo.id}
+                    className="grid gap-2 rounded-xl border border-borda p-3 sm:grid-cols-[1fr_2fr_1fr_1fr_auto]"
+                  >
+                    <Input
+                      aria-label="Quantidade"
+                      placeholder="02 Reservatórios"
+                      {...form.register(`reservatorios.${i}.quantidade`)}
+                    />
+                    <Input
+                      aria-label="Local"
+                      placeholder="Superior interno em polipropileno"
+                      {...form.register(`reservatorios.${i}.local`)}
+                    />
+                    <Input
+                      aria-label="Metragem cúbica"
+                      placeholder="10m³/cada"
+                      {...form.register(`reservatorios.${i}.metragem`)}
+                    />
+                    <Input
+                      aria-label="Produto utilizado"
+                      placeholder="40g Clor-in"
+                      {...form.register(`reservatorios.${i}.produto`)}
+                    />
+                    <BotaoIcone rotulo="Tirar esta linha" onClick={() => reservatorios.remove(i)}>
+                      <Trash2 className="size-5" aria-hidden />
+                    </BotaoIcone>
+                  </div>
+                ))}
+                <Button
+                  variante="fantasma"
+                  className="self-start"
+                  onClick={() =>
+                    reservatorios.append({ quantidade: '', local: '', metragem: '', produto: '' })
+                  }
+                >
+                  <Plus className="size-4" aria-hidden /> Adicionar reservatório
+                </Button>
+              </Card>
+            )}
+
+            <Card className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="font-bold">Produtos utilizados</h2>
+                <Link
+                  to="/certificados/produtos"
+                  className="text-sm font-semibold text-verde underline"
+                >
+                  Cadastro de produtos
+                </Link>
+              </div>
+              {m.arranjo === 'reservatorios' && (
+                <p className="text-sm text-texto-suave">
+                  No reservatório, o lote do produto aparece ao lado da assinatura.
+                </p>
+              )}
+              {produtos.fields.map((campo, i) => {
+                const [linha1, linha2] = linhasDoProduto(form.getValues(`produtos.${i}`))
+                return (
+                  <div
+                    key={campo.id}
+                    className="flex flex-wrap items-center gap-2 rounded-xl border border-borda p-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold">{linha1}</p>
+                      {linha2 && <p className="text-sm text-texto-suave">{linha2}</p>}
+                    </div>
+                    <Input
+                      className="w-32"
+                      aria-label={`Quantidade de ${campo.principio_ativo}`}
+                      placeholder="100ml"
+                      {...form.register(`produtos.${i}.quantidade`)}
+                    />
+                    <BotaoIcone rotulo="Tirar este produto" onClick={() => produtos.remove(i)}>
+                      <Trash2 className="size-5" aria-hidden />
+                    </BotaoIcone>
+                  </div>
+                )
+              })}
+              <Select
+                aria-label="Adicionar produto do cadastro"
+                value=""
+                onChange={(e) => {
+                  const item = ativos.find((p) => p.id === e.target.value)
+                  if (item) adicionarProduto(item)
+                }}
+              >
+                <option value="">
+                  {ativos.length
+                    ? '+ Adicionar produto do cadastro…'
+                    : 'Nenhum produto cadastrado ainda'}
+                </option>
+                {ativos.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.principio_ativo}
+                    {/* Mesmo princípio ativo em mais de um produto: o registro diferencia. */}
+                    {p.registro &&
+                    ativos.some((o) => o.id !== p.id && o.principio_ativo === p.principio_ativo)
+                      ? ` (${p.registro})`
+                      : ''}
+                    {p.lote ? ` · lote ${p.lote}` : ''}
                   </option>
                 ))}
               </Select>
-            </Campo>
-            {!editando && anterior && copiadoDe !== anterior.numero && (
-              <div className="flex flex-wrap items-center gap-3 rounded-xl bg-lima-claro p-3 sm:col-span-2">
-                <p className="min-w-0 flex-1 text-sm">
-                  Este cliente já tem um certificado de <strong>{m.nome}</strong>: {anterior.numero}
-                  , do dia {formatarData(anterior.data_execucao)}.
-                </p>
-                <Button variante="secundario" onClick={() => copiarUltimo(anterior)}>
-                  <Copy className="size-5" aria-hidden /> Copiar o último certificado
-                </Button>
-              </div>
-            )}
-            {copiadoDe && (
-              <div className="sm:col-span-2">
-                <Aviso>Copiado do {copiadoDe}. Confira a data do serviço antes de emitir.</Aviso>
-              </div>
-            )}
-          </Card>
+            </Card>
 
-          <Card className="grid gap-4 sm:grid-cols-2">
-            <h2 className="font-bold sm:col-span-2">Texto do certificado</h2>
-            <Campo
-              rotulo="Título"
-              htmlFor="titulo"
-              obrigatorio
-              erro={errors.titulo?.message}
-              className="sm:col-span-2"
-            >
-              <Input id="titulo" {...form.register('titulo')} />
-            </Campo>
-            {m.temPragas && (
-              <Campo
-                rotulo="Pragas-alvo"
-                htmlFor="pragas"
-                dica='Sai como "Pragas Alvo (baratas, formigas…)".'
-                className="sm:col-span-2"
-              >
-                <Input id="pragas" {...form.register('pragas_alvo')} />
-              </Campo>
-            )}
-            <Campo
-              rotulo="Serviço na frase"
-              htmlFor="servico-descrito"
-              obrigatorio
-              erro={errors.servico_descrito?.message}
-              dica='"…foram realizados os serviços de [este texto] nas dependências de…"'
-              className="sm:col-span-2"
-            >
-              <Input id="servico-descrito" {...form.register('servico_descrito')} />
-            </Campo>
-            <Campo
-              rotulo="Frase extra (opcional)"
-              htmlFor="complemento"
-              dica="Vai logo depois do CNPJ do cliente."
-              className="sm:col-span-2"
-            >
-              <Input id="complemento" {...form.register('complemento')} />
-            </Campo>
-          </Card>
-
-          <Card className="grid gap-4 sm:grid-cols-2">
-            <h2 className="font-bold sm:col-span-2">Data e validade</h2>
-            <Campo
-              rotulo="Data do serviço"
-              htmlFor="data"
-              obrigatorio
-              erro={errors.data_execucao?.message}
-            >
-              <Input id="data" type="date" {...form.register('data_execucao')} />
-            </Campo>
-            <div className="flex flex-col gap-1.5">
-              <span className="text-sm font-semibold">Outros dias do mesmo serviço</span>
-              {outrasDatas.fields.map((campo, i) => (
-                <div key={campo.id} className="flex gap-2">
-                  <Input
-                    type="date"
-                    aria-label={`Outro dia ${i + 1}`}
-                    {...form.register(`outras_datas.${i}.data`)}
-                  />
-                  <BotaoIcone rotulo="Tirar este dia" onClick={() => outrasDatas.remove(i)}>
-                    <Trash2 className="size-5" aria-hidden />
-                  </BotaoIcone>
-                </div>
-              ))}
-              <Button
-                variante="fantasma"
-                className="self-start"
-                onClick={() => outrasDatas.append({ data: '' })}
-              >
-                <Plus className="size-4" aria-hidden /> Adicionar dia
-              </Button>
-            </div>
-
-            <fieldset className="sm:col-span-2">
-              <legend className="mb-1.5 text-sm font-semibold">Tipo de certificado</legend>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {(
-                  [
-                    ['contrato', 'De contrato', 'Vale até o último dia do mês.'],
-                    [
-                      'avulso',
-                      'Avulso',
-                      'Vale até a data exata; a data vai embaixo e a validade ao lado.',
-                    ],
-                  ] as const
-                ).map(([valor, nome, explicacao]) => (
-                  <label
-                    key={valor}
-                    className={cn(
-                      'flex cursor-pointer flex-col rounded-xl border border-borda p-3',
-                      'has-checked:border-verde has-checked:bg-lima-claro',
-                    )}
-                  >
-                    <span className="flex items-center gap-2 font-semibold">
-                      <input type="radio" value={valor} {...form.register('tipo_validade')} />
-                      {nome}
-                    </span>
-                    <span className="text-sm text-texto-suave">{explicacao}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <span className="text-sm font-semibold">Renovação</span>
-              <div className="flex flex-wrap gap-2">
-                {PERIODICIDADES.map((p) => (
-                  <button
-                    key={p.meses}
-                    type="button"
-                    onClick={() =>
-                      form.setValue('validade_meses', String(p.meses), { shouldDirty: true })
-                    }
-                    className={cn(
-                      'min-h-10 rounded-xl border px-3 text-sm font-semibold',
-                      meses === String(p.meses)
-                        ? 'border-verde bg-lima-claro text-verde-escuro'
-                        : 'border-borda bg-white text-texto-suave hover:bg-lima-claro',
-                    )}
-                  >
-                    {p.nome}
-                  </button>
-                ))}
-                <label className="flex items-center gap-2 text-sm">
-                  ou
-                  <Input
-                    className="w-20"
-                    inputMode="numeric"
-                    aria-label="Meses de validade"
-                    {...form.register('validade_meses')}
-                  />
-                  meses
-                </label>
-              </div>
-              {errors.validade_meses && (
-                <p className="text-sm text-perigo" role="alert">
-                  {errors.validade_meses.message}
-                </p>
-              )}
-              <p className="text-sm text-texto-suave">
-                {validade
-                  ? tipoValidade === 'contrato'
-                    ? `No PDF: "${textoValidoAte(validade)}"`
-                    : `No PDF: "${textoValidadeMeses(Number(meses))}" (vale até ${formatarData(validade)}).`
-                  : 'Sem renovação: o certificado sai sem validade.'}
-              </p>
-            </div>
-            <Campo
-              rotulo="Observação no fim (opcional)"
-              htmlFor="obs-final"
-              dica='Ex.: "Monitoramento quinzenal durante o período de 6 meses."'
-              className="sm:col-span-2"
-            >
-              <Input id="obs-final" {...form.register('observacao_final')} />
-            </Campo>
-          </Card>
-
-          {m.arranjo === 'descricao' ? (
             <Card className="grid gap-4 sm:grid-cols-2">
-              <h2 className="font-bold sm:col-span-2">Descrição do serviço</h2>
+              <h2 className="font-bold sm:col-span-2">Responsável técnico</h2>
               <Campo
-                rotulo="Descrição"
-                htmlFor="descricao"
-                dica="Uma linha para cada item."
-                className="sm:col-span-2"
+                rotulo="Nome"
+                htmlFor="resp-nome"
+                dica={responsavelPadrao.nome ? `Vazio = ${responsavelPadrao.nome}` : undefined}
               >
-                <Textarea id="descricao" rows={5} {...form.register('descricao')} />
+                <Input id="resp-nome" {...form.register('responsavel_nome')} />
               </Campo>
-              <Campo rotulo="Nº do MTR" htmlFor="mtr">
-                <Input id="mtr" {...form.register('mtr')} />
-              </Campo>
-              <Campo rotulo="Quantidade retirada" htmlFor="volume" dica="Ex.: 2,000m³">
-                <Input id="volume" {...form.register('volume')} />
-              </Campo>
-            </Card>
-          ) : (
-            <Card className="grid gap-4">
-              <h2 className="font-bold">
-                {m.arranjo === 'reservatorios'
-                  ? 'Áreas (opcional)'
-                  : (m.tituloAreas ?? 'Áreas atendidas')}
-              </h2>
               <Campo
-                rotulo={m.tituloAreas ?? 'Áreas'}
-                htmlFor="areas"
-                dica={`Uma linha para cada item (ex.: ${m.exemploAreas ?? '322 apartamentos'}).`}
-              >
-                <Textarea id="areas" rows={4} {...form.register('areas')} />
-              </Campo>
-            </Card>
-          )}
-
-          {m.arranjo === 'reservatorios' && (
-            <Card className="flex flex-col gap-3">
-              <h2 className="font-bold">Reservatórios</h2>
-              {reservatorios.fields.map((campo, i) => (
-                <div
-                  key={campo.id}
-                  className="grid gap-2 rounded-xl border border-borda p-3 sm:grid-cols-[1fr_2fr_1fr_1fr_auto]"
-                >
-                  <Input
-                    aria-label="Quantidade"
-                    placeholder="02 Reservatórios"
-                    {...form.register(`reservatorios.${i}.quantidade`)}
-                  />
-                  <Input
-                    aria-label="Local"
-                    placeholder="Superior interno em polipropileno"
-                    {...form.register(`reservatorios.${i}.local`)}
-                  />
-                  <Input
-                    aria-label="Metragem cúbica"
-                    placeholder="10m³/cada"
-                    {...form.register(`reservatorios.${i}.metragem`)}
-                  />
-                  <Input
-                    aria-label="Produto utilizado"
-                    placeholder="40g Clor-in"
-                    {...form.register(`reservatorios.${i}.produto`)}
-                  />
-                  <BotaoIcone rotulo="Tirar esta linha" onClick={() => reservatorios.remove(i)}>
-                    <Trash2 className="size-5" aria-hidden />
-                  </BotaoIcone>
-                </div>
-              ))}
-              <Button
-                variante="fantasma"
-                className="self-start"
-                onClick={() =>
-                  reservatorios.append({ quantidade: '', local: '', metragem: '', produto: '' })
+                rotulo="Registro"
+                htmlFor="resp-registro"
+                dica={
+                  responsavelPadrao.registro
+                    ? `Vazio = ${responsavelPadrao.registro}`
+                    : 'Ex.: CRQ 000000'
                 }
               >
-                <Plus className="size-4" aria-hidden /> Adicionar reservatório
-              </Button>
+                <Input id="resp-registro" {...form.register('responsavel_registro')} />
+              </Campo>
+              {temAssinaturaDigital && (
+                <AssinaturaDigital
+                  situacao={situacaoDigital}
+                  marcada={assinaturaDigital}
+                  campo={form.register('assinatura_digital')}
+                />
+              )}
             </Card>
-          )}
+          </fieldset>
 
-          <Card className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="font-bold">Produtos utilizados</h2>
-              <Link
-                to="/certificados/produtos"
-                className="text-sm font-semibold text-verde underline"
-              >
-                Cadastro de produtos
-              </Link>
+          {!cancelado && (
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+              {editando ? <CancelarCertificado id={certificado.id} /> : <span />}
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting
+                  ? gerandoPdf
+                    ? 'Assinando o PDF…'
+                    : 'Salvando…'
+                  : editando
+                    ? 'Salvar alterações'
+                    : 'Emitir certificado'}
+              </Button>
             </div>
-            {m.arranjo === 'reservatorios' && (
-              <p className="text-sm text-texto-suave">
-                No reservatório, o lote do produto aparece ao lado da assinatura.
-              </p>
-            )}
-            {produtos.fields.map((campo, i) => {
-              const [linha1, linha2] = linhasDoProduto(form.getValues(`produtos.${i}`))
-              return (
-                <div
-                  key={campo.id}
-                  className="flex flex-wrap items-center gap-2 rounded-xl border border-borda p-3"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold">{linha1}</p>
-                    {linha2 && <p className="text-sm text-texto-suave">{linha2}</p>}
-                  </div>
-                  <Input
-                    className="w-32"
-                    aria-label={`Quantidade de ${campo.principio_ativo}`}
-                    placeholder="100ml"
-                    {...form.register(`produtos.${i}.quantidade`)}
-                  />
-                  <BotaoIcone rotulo="Tirar este produto" onClick={() => produtos.remove(i)}>
-                    <Trash2 className="size-5" aria-hidden />
-                  </BotaoIcone>
-                </div>
-              )
-            })}
-            <Select
-              aria-label="Adicionar produto do cadastro"
-              value=""
-              onChange={(e) => {
-                const item = ativos.find((p) => p.id === e.target.value)
-                if (item) adicionarProduto(item)
-              }}
-            >
-              <option value="">
-                {ativos.length
-                  ? '+ Adicionar produto do cadastro…'
-                  : 'Nenhum produto cadastrado ainda'}
-              </option>
-              {ativos.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.principio_ativo}
-                  {/* Mesmo princípio ativo em mais de um produto: o registro diferencia. */}
-                  {p.registro &&
-                  ativos.some((o) => o.id !== p.id && o.principio_ativo === p.principio_ativo)
-                    ? ` (${p.registro})`
-                    : ''}
-                  {p.lote ? ` · lote ${p.lote}` : ''}
-                </option>
-              ))}
-            </Select>
-          </Card>
-
-          <Card className="grid gap-4 sm:grid-cols-2">
-            <h2 className="font-bold sm:col-span-2">Responsável técnico</h2>
-            <Campo
-              rotulo="Nome"
-              htmlFor="resp-nome"
-              dica={responsavelPadrao.nome ? `Vazio = ${responsavelPadrao.nome}` : undefined}
-            >
-              <Input id="resp-nome" {...form.register('responsavel_nome')} />
-            </Campo>
-            <Campo
-              rotulo="Registro"
-              htmlFor="resp-registro"
-              dica={
-                responsavelPadrao.registro
-                  ? `Vazio = ${responsavelPadrao.registro}`
-                  : 'Ex.: CRQ 000000'
-              }
-            >
-              <Input id="resp-registro" {...form.register('responsavel_registro')} />
-            </Campo>
-            {temAssinaturaDigital && (
-              <AssinaturaDigital
-                situacao={situacaoDigital}
-                marcada={assinaturaDigital}
-                campo={form.register('assinatura_digital')}
-              />
-            )}
-          </Card>
-        </fieldset>
-
-        {!cancelado && (
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-            {editando ? <CancelarCertificado id={certificado.id} /> : <span />}
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting
-                ? gerandoPdf
-                  ? 'Assinando o PDF…'
-                  : 'Salvando…'
-                : editando
-                  ? 'Salvar alterações'
-                  : 'Emitir certificado'}
-            </Button>
-          </div>
-        )}
-      </form>
+          )}
+        </form>
+      </div>
     </div>
   )
 }

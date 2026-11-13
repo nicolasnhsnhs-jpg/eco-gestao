@@ -254,8 +254,17 @@ export type Origem = {
   deContrato: boolean
   periodicidade: number | null
   areas: string
+  /** Descrição da OS (no modelo de sucção vai para o bloco "Descrição do serviço"). */
+  descricao: string
+  /** Pragas-alvo marcadas na OS ("baratas, formigas e aranhas"); vazio = o padrão do modelo. */
+  pragasAlvo: string
   /** Produtos do catálogo que o técnico marcou na OS (com o lote atual). */
   produtos: ProdutoCertificado[]
+}
+
+/** "a, b e c" */
+export function juntarComE(itens: string[]) {
+  return itens.length <= 1 ? (itens[0] ?? '') : `${itens.slice(0, -1).join(', ')} e ${itens.at(-1)}`
 }
 
 /** Produtos da OS que vieram do catálogo, um por produto, com a quantidade somada. */
@@ -309,13 +318,22 @@ export function useOrigemOs(osId: string | null) {
       const { data, error } = await supabase
         .from('ordens_servico')
         .select(
-          'id, numero, cliente_id, endereco_id, tipo_servico_id, data_agendada, servico_id, modelo_id, descricao, cliente:clientes(nome, nome_fantasia), execucao:os_execucao(data)',
+          'id, numero, cliente_id, endereco_id, tipo_servico_id, data_agendada, servico_id, modelo_id, descricao, escopo, cliente:clientes(nome, nome_fantasia), execucao:os_execucao(data, checklist)',
         )
         .eq('id', osId!)
         .maybeSingle()
       if (error) throw error
       if (!data) return null
       const execucao = Array.isArray(data.execucao) ? data.execucao[0] : data.execucao
+      const escopo = (data.escopo ?? {}) as { pragas_alvo?: unknown; areas_insetos?: unknown }
+      const checklist = (execucao?.checklist ?? {}) as { pragas_alvo?: unknown }
+      // O que o técnico marcou na execução vale mais que o escopo combinado.
+      const pragas = [checklist.pragas_alvo, escopo.pragas_alvo].find(
+        (x): x is string[] => Array.isArray(x) && x.length > 0,
+      )
+      const descricao = (data.descricao ?? '').trim()
+      const areasInsetos =
+        typeof escopo.areas_insetos === 'string' ? escopo.areas_insetos.trim() : ''
       return {
         osId: data.id,
         osNumero: data.numero,
@@ -331,7 +349,9 @@ export function useOrigemOs(osId: string | null) {
           data.endereco_id,
           data.tipo_servico_id,
         ),
-        areas: data.descricao ?? '',
+        areas: [descricao, areasInsetos].filter(Boolean).join('\n'),
+        descricao,
+        pragasAlvo: pragas ? juntarComE(pragas.map((x) => x.toLowerCase())) : '',
         produtos: await produtosDaOs(data.id),
       }
     },
@@ -367,6 +387,8 @@ export function useOrigemServico(servicoId: string | null) {
           data.periodicidade_meses ??
           (await periodicidadeDoCliente(data.cliente_id, data.endereco_id, data.tipo_servico_id)),
         areas: '',
+        descricao: '',
+        pragasAlvo: '',
         produtos: [],
       }
     },
