@@ -8,6 +8,7 @@ import { Campo, Input } from '@/components/ui/Campo'
 import { Carregando } from '@/components/ui/Carregando'
 import { Modal } from '@/components/ui/Modal'
 import { formatarData } from '@/lib/datas'
+import { juntarEmails } from '@/lib/emails'
 import { mensagemDeErro } from '@/lib/erros'
 
 import { useEmailsDocumentos, useOsDoCliente, type CertificadoResumo } from './api'
@@ -63,7 +64,7 @@ function Formulario({
   if (emails.isPending || ordens.isPending) return <Carregando />
   if (emails.isError) return <Aviso tipo="erro">{mensagemDeErro(emails.error)}</Aviso>
 
-  const destinatarios = para ?? emails.data.emails.join(', ')
+  const destinatarios = para ?? juntarEmails(emails.data.emails)
   // A OS do certificado sempre aparece, mesmo que ainda não esteja concluída.
   const lista: {
     id: string
@@ -93,7 +94,7 @@ function Formulario({
       await queryClient.invalidateQueries({ queryKey: ['certificados'] })
       setMensagem({
         tipo: 'sucesso',
-        texto: `Enviado para ${r.para.join(', ')}${r.os.length ? `, com ${r.os.join(', ')}` : ''}.`,
+        texto: `Enviado para ${juntarEmails(r.para)}${r.os.length ? `, com ${r.os.join(', ')}` : ''}.`,
       })
     } catch (e) {
       void queryClient.invalidateQueries({ queryKey: ['certificados'] })
@@ -160,8 +161,9 @@ function Formulario({
       >
         <Input
           id="para-documentos"
-          type="email"
-          multiple
+          type="text"
+          inputMode="email"
+          autoComplete="off"
           value={destinatarios}
           disabled={enviando}
           onChange={(e) => setPara(e.target.value)}

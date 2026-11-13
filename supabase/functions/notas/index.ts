@@ -28,5 +28,5 @@ Deno.serve(async (req) => {
     origem: req.headers.get('origin'),
   })
   if (!r.enviada) return resposta(400, { erro: r.motivo, pendente: true })
-  return resposta(200, { ok: true, para: r.para })
+  return resposta(200, { ok: true, para: r.para, comBoleto: r.comBoleto, boletos: r.boletos })
 })

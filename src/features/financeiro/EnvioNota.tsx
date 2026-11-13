@@ -6,9 +6,11 @@ import { Button } from '@/components/ui/Button'
 import { Campo, Input } from '@/components/ui/Campo'
 import { Card } from '@/components/ui/Card'
 import { formatarData } from '@/lib/datas'
+import { juntarEmails } from '@/lib/emails'
 import { mensagemDeErro } from '@/lib/erros'
 
 import { abrirArquivo } from '../arquivos/api'
+import { oQueFoiEnviado } from './notas'
 import {
   useAnexarPdfNota,
   useEnviarNotaPorEmail,
@@ -30,12 +32,11 @@ export function EnvioNota({ nota }: { nota: NotaFiscalCompleta }) {
   const entrada = useRef<HTMLInputElement>(null)
   // Cliente que separou os e-mails do financeiro: a nota vai só para eles.
   const [para, setPara] = useState(
-    (nota.cliente?.emails_financeiro?.length
-      ? nota.cliente.emails_financeiro
-      : [nota.cliente?.email, ...(nota.cliente?.emails_extras ?? [])]
-    )
-      .filter(Boolean)
-      .join(', '),
+    juntarEmails(
+      nota.cliente?.emails_financeiro?.length
+        ? nota.cliente.emails_financeiro
+        : [nota.cliente?.email, ...(nota.cliente?.emails_extras ?? [])],
+    ),
   )
   const [mensagem, setMensagem] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null)
   const ocupado = anexar.isPending || enviar.isPending || marcar.isPending
@@ -46,7 +47,10 @@ export function EnvioNota({ nota }: { nota: NotaFiscalCompleta }) {
       const r = await enviar.mutateAsync({ notaId: nota.id, para: para.trim() || undefined })
       setMensagem(
         r.enviada
-          ? { tipo: 'sucesso', texto: `Nota enviada para ${r.para.join(', ')}.` }
+          ? {
+              tipo: 'sucesso',
+              texto: `${oQueFoiEnviado(r.comBoleto, r.boletos)} para ${juntarEmails(r.para)}.`,
+            }
           : { tipo: 'erro', texto: `${r.motivo} Ficou o aviso de envio pendente.` },
       )
     } catch (erro) {
@@ -121,8 +125,9 @@ export function EnvioNota({ nota }: { nota: NotaFiscalCompleta }) {
           >
             <Input
               id="email-nota"
-              type="email"
-              multiple
+              type="text"
+              inputMode="email"
+              autoComplete="off"
               value={para}
               onChange={(e) => setPara(e.target.value)}
             />

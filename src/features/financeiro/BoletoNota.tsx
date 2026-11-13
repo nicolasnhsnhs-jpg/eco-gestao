@@ -3,6 +3,7 @@ import {
   Copy,
   FileText,
   FlaskConical,
+  Plus,
   Landmark,
   Mail,
   RefreshCw,
@@ -18,16 +19,19 @@ import { Card } from '@/components/ui/Card'
 import { abrirPdfBase64 } from '@/lib/arquivos'
 import { formatarData, formatarDataHora } from '@/lib/datas'
 import { formatarReais } from '@/lib/dinheiro'
+import { juntarEmails } from '@/lib/emails'
 import { mensagemDeErro } from '@/lib/erros'
 
 import { abrirArquivo } from '../arquivos/api'
-import { totalRetido } from './notas'
+import { oQueFoiEnviado, totalRetido } from './notas'
 import {
   BANCOS_DA_UNIDADE,
   bancoPelaRegra,
   NOME_BANCO,
   useEnviarNotaPorEmail,
+  useAnexarBoletoExtra,
   useAnexarBoletoNota,
+  useBoletosExtras,
   useBaixarBoleto,
   useBoletoNaEmissao,
   useConfigBoleto,
@@ -35,6 +39,7 @@ import {
   useEnsaiarBoleto,
   useEscolherBancoBoleto,
   useGerarBoleto,
+  useTirarBoletoExtra,
   useTirarBoletoNota,
   type BancoBoleto,
   type EnsaioBoleto,
@@ -72,7 +77,11 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
   const consultar = useConsultarBoleto()
   const baixar = useBaixarBoleto()
   const enviar = useEnviarNotaPorEmail()
+  const anexarExtra = useAnexarBoletoExtra()
+  const tirarExtra = useTirarBoletoExtra()
+  const extras = useBoletosExtras(nota)
   const entrada = useRef<HTMLInputElement>(null)
+  const entradaExtra = useRef<HTMLInputElement>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [sucesso, setSucesso] = useState<string | null>(null)
   const [ensaio, setEnsaio] = useState<EnsaioBoleto | null>(null)
@@ -87,7 +96,9 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
     ensaiar.isPending ||
     consultar.isPending ||
     baixar.isPending ||
-    enviar.isPending
+    enviar.isPending ||
+    anexarExtra.isPending ||
+    tirarExtra.isPending
 
   const registrado = !!nota.boleto_cobranca_id
   const bancoDoBoleto = (nota.boleto_banco as BancoBoleto | null) ?? null
@@ -122,6 +133,15 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
     if (entrada.current) entrada.current.value = ''
   }
 
+  async function aoEscolherExtra(arquivo: File | undefined) {
+    if (!arquivo) return
+    await acao(async () => {
+      await anexarExtra.mutateAsync({ nota, arquivo })
+      return 'Boleto anexado: vai no mesmo e-mail, junto com a nota e o outro boleto.'
+    })
+    if (entradaExtra.current) entradaExtra.current.value = ''
+  }
+
   function mudarBanco(banco: BancoBoleto) {
     setBancoLocal(banco)
     // No rascunho a escolha fica gravada: é por ele que o boleto sai na emissão.
@@ -140,7 +160,10 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
   const semBoleto = !nota.boleto && !registrado
   const podeGerar = ligados.length > 0 && semBoleto
   // Nota emitida com PDF e boleto: o botão manda os dois ao cliente (o mesmo e-mail da nota).
-  const podeEnviar = nota.status === 'emitida' && !!nota.pdf && !!nota.boleto
+  const qtdExtras = nota.boletos_extras?.length ?? 0
+  const podeEnviar = nota.status === 'emitida' && !!nota.pdf && (!!nota.boleto || qtdExtras > 0)
+  // Boleto a mais (emitido por fora, outro prazo): só depois do primeiro.
+  const podeAnexarExtra = nota.status !== 'cancelada' && (!!nota.boleto || qtdExtras > 0)
 
   function gerarNo(banco: BancoBoleto) {
     void acao(async () => {
@@ -153,7 +176,7 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
     void acao(async () => {
       const r = await enviar.mutateAsync({ notaId: nota.id })
       if (!r.enviada) throw new Error(`${r.motivo} Ficou o aviso de envio pendente.`)
-      return `Nota e boleto enviados para ${r.para.join(', ')}.`
+      return `${oQueFoiEnviado(r.comBoleto, r.boletos)} para ${juntarEmails(r.para)}.`
     })
   }
   // Rascunho por boleto: o financeiro escolhe se a emissão já gera o boleto no banco.
@@ -218,6 +241,45 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
           <dt className="text-texto-suave">Linha digitável</dt>
           <dd className="font-mono text-xs break-all">{nota.boleto_linha_digitavel}</dd>
         </dl>
+      )}
+
+      {qtdExtras > 0 && (
+        <div className="flex flex-col gap-2 text-sm">
+          <p className="text-texto-suave">Boletos a mais (vão no mesmo e-mail):</p>
+          <ul className="flex flex-col gap-1">
+            {(extras.data ?? []).map((a, i) => (
+              <li key={a.id} className="flex flex-wrap items-center gap-2">
+                <span className="min-w-0 flex-1 truncate">
+                  {i + 2}. {a.nome_original}
+                </span>
+                <Button
+                  variante="secundario"
+                  onClick={() => abrirArquivo(a).catch((e: unknown) => setErro(mensagemDeErro(e)))}
+                >
+                  <FileText className="size-4" aria-hidden /> Ver
+                </Button>
+                <Button
+                  variante="secundario"
+                  disabled={ocupado}
+                  onClick={() => {
+                    if (
+                      !window.confirm(
+                        `Tirar "${a.nome_original}" desta nota? Ele não vai mais no e-mail.`,
+                      )
+                    )
+                      return
+                    void acao(async () => {
+                      await tirarExtra.mutateAsync({ nota, arquivoId: a.id })
+                      return null
+                    })
+                  }}
+                >
+                  <X className="size-4" aria-hidden /> Tirar
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
@@ -309,7 +371,11 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
         {podeEnviar && (
           <Button disabled={ocupado} onClick={enviarBoleto}>
             <Mail className="size-4" aria-hidden />
-            {enviar.isPending ? 'Enviando…' : 'Enviar nota e boleto'}
+            {enviar.isPending
+              ? 'Enviando…'
+              : qtdExtras > 0
+                ? 'Enviar nota e boletos'
+                : 'Enviar nota e boleto'}
           </Button>
         )}
 
@@ -427,6 +493,18 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
           </>
         )}
 
+        {podeAnexarExtra && (
+          <Button
+            variante="secundario"
+            disabled={ocupado}
+            title="Outro boleto emitido por fora (outro prazo, parcela): vai junto no e-mail."
+            onClick={() => entradaExtra.current?.click()}
+          >
+            <Plus className="size-4" aria-hidden />
+            {anexarExtra.isPending ? 'Anexando…' : 'Anexar outro boleto'}
+          </Button>
+        )}
+
         {emTestes.map((banco) => (
           <Button
             key={banco}
@@ -461,6 +539,14 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
           className="hidden"
           aria-label="PDF do boleto"
           onChange={(e) => void aoEscolher(e.target.files?.[0])}
+        />
+        <input
+          ref={entradaExtra}
+          type="file"
+          accept="application/pdf,.pdf"
+          className="hidden"
+          aria-label="PDF de outro boleto"
+          onChange={(e) => void aoEscolherExtra(e.target.files?.[0])}
         />
       </div>
     </Card>

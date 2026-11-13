@@ -253,11 +253,28 @@ async function nomeNoDrive(
   }
   if (arq.categoria === 'nota_fiscal' || arq.categoria === 'boleto') {
     const coluna = arq.categoria === 'boleto' ? 'arquivo_boleto_id' : 'arquivo_pdf_id'
+    const campos = 'numero, data_emissao, vencimento, boleto_vencimento'
     const { data: nota } = await admin
       .from('notas_fiscais')
-      .select('numero, data_emissao, vencimento, boleto_vencimento')
+      .select(campos)
       .eq(coluna, arquivoId)
       .maybeSingle()
+    // Boleto a mais, emitido por fora e anexado à mão: "Boleto NF 123 - <nome do arquivo>".
+    if (!nota && arq.categoria === 'boleto') {
+      const { data: comExtra } = await admin
+        .from('notas_fiscais')
+        .select(campos)
+        .contains('boletos_extras', [arquivoId])
+        .limit(1)
+        .maybeSingle()
+      if (comExtra) {
+        const base = arq.nome_original.replace(/\.pdf$/i, '')
+        return {
+          nome: `Boleto NF${comExtra.numero ? ` ${comExtra.numero}` : ''} - ${base}.pdf`,
+          data: comExtra.data_emissao,
+        }
+      }
+    }
     if (!nota) {
       // A nota é ligada ao PDF logo depois de guardá-lo: espera um pouco e tenta de novo.
       if (tentativas < 3) throw new AindaNaoLigado('O PDF ainda não foi ligado à nota.')

@@ -394,7 +394,7 @@ function DetalheParaSuporte({ detalhe }: { detalhe: Record<string, unknown> }) {
   return (
     <details className="mt-2 text-texto">
       <summary className="cursor-pointer font-medium">Detalhes para o suporte do banco</summary>
-      <pre className="mt-2 max-h-80 overflow-auto rounded border border-borda bg-white p-2 text-xs whitespace-pre-wrap break-all">
+      <pre className="mt-2 max-h-80 overflow-auto rounded border border-borda bg-white p-2 text-xs break-all whitespace-pre-wrap">
         {texto}
       </pre>
       <Button

@@ -128,7 +128,10 @@ function segredo(nome: string): string | undefined {
   )
 }
 
-export type ResultadoEnvio = { enviada: true; para: string[] } | { enviada: false; motivo: string }
+/** `comBoleto`: o boleto foi anexado junto com a nota (o aviso diz "nota e boleto"). */
+export type ResultadoEnvio =
+  | { enviada: true; para: string[]; comBoleto: boolean; boletos: number }
+  | { enviada: false; motivo: string }
 
 export async function enviarNotaPorEmail(
   admin: SupabaseClient,
@@ -163,11 +166,24 @@ export async function enviarNotaPorEmail(
     .from('arquivos')
     .download(nota.pdf.caminho_storage)
   if (erroArquivo || !arquivo) return falhar('Não foi possível abrir o PDF da nota.')
-  let boleto: Blob | null = null
-  if (nota.boleto) {
-    const r = await admin.storage.from('arquivos').download(nota.boleto.caminho_storage)
+  // O boleto principal e os anexados à mão (emitidos por fora, outros prazos).
+  const caminhos: string[] = nota.boleto ? [nota.boleto.caminho_storage] : []
+  const extras: string[] = nota.boletos_extras ?? []
+  if (extras.length) {
+    const { data: arqs } = await admin
+      .from('arquivos')
+      .select('id, caminho_storage')
+      .in('id', extras)
+    for (const id of extras) {
+      const a = arqs?.find((x) => x.id === id)
+      if (a) caminhos.push(a.caminho_storage)
+    }
+  }
+  const boletos: Blob[] = []
+  for (const caminho of caminhos) {
+    const r = await admin.storage.from('arquivos').download(caminho)
     if (r.error || !r.data) return falhar('Não foi possível abrir o PDF do boleto.')
-    boleto = r.data
+    boletos.push(r.data)
   }
   const nomeNota = nota.numero ?? nota.id.slice(0, 8)
 
@@ -185,7 +201,8 @@ export async function enviarNotaPorEmail(
     retido: totalRetido(nota),
     vencimento: nota.vencimento,
     formaPagamento: nota.forma_pagamento ? (FORMAS[nota.forma_pagamento] ?? null) : null,
-    comBoleto: !!boleto,
+    comBoleto: boletos.length > 0,
+    boletos: boletos.length,
   }
   const envio = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -202,14 +219,12 @@ export async function enviarNotaPorEmail(
           filename: `NF ${nomeNota}.pdf`,
           content: encodeBase64(new Uint8Array(await arquivo.arrayBuffer())),
         },
-        ...(boleto
-          ? [
-              {
-                filename: `Boleto NF ${nomeNota}.pdf`,
-                content: encodeBase64(new Uint8Array(await boleto.arrayBuffer())),
-              },
-            ]
-          : []),
+        ...(await Promise.all(
+          boletos.map(async (boleto, i) => ({
+            filename: `Boleto${boletos.length > 1 ? ` ${i + 1}` : ''} NF ${nomeNota}.pdf`,
+            content: encodeBase64(new Uint8Array(await boleto.arrayBuffer())),
+          })),
+        )),
       ],
     }),
   })
@@ -233,9 +248,9 @@ export async function enviarNotaPorEmail(
     .from('notas_fiscais')
     .update({
       enviada_em: new Date().toISOString(),
-      enviada_para: para.join(', '),
+      enviada_para: para.join('; '),
       erro_envio: null,
     })
     .eq('id', notaId)
-  return { enviada: true, para }
+  return { enviada: true, para, comBoleto: boletos.length > 0, boletos: boletos.length }
 }

@@ -203,7 +203,7 @@ Deno.serve(async (req) => {
     .from('certificados')
     .update({
       enviado_em: new Date().toISOString(),
-      enviado_para: para.join(', '),
+      enviado_para: para.join('; '),
       enviado_por: quem.user.id,
       enviado_com_os: numerosOs.join(', ') || null,
       erro_envio: null,

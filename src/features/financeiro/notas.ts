@@ -1,4 +1,5 @@
 import { formatarData, somarMeses } from '@/lib/datas'
+import { juntarEmails } from '@/lib/emails'
 
 /* Contas das notas fiscais, sem acesso ao banco (testadas em notas.test.ts). */
 
@@ -184,15 +185,25 @@ export function totalRetido(n: DadosRetencao): number {
   return somaRetencoes(retencoes(n))
 }
 
+/** "Nota e boleto enviados" / "Nota enviada (sem boleto)"; servidor antigo (sem a info): "Nota enviada". */
+export function oQueFoiEnviado(comBoleto: boolean | undefined, boletos?: number): string {
+  if (comBoleto === undefined) return 'Nota enviada'
+  if (!comBoleto) return 'Nota enviada (sem boleto)'
+  return boletos && boletos > 1 ? `Nota e ${boletos} boletos enviados` : 'Nota e boleto enviados'
+}
+
 /** O texto do resultado da emissão, também usado na emissão em lote. */
 export function textoEmissao(r: {
   numero: string
-  envio: { enviada: true; para: string[] } | { enviada: false; motivo: string } | null
+  envio:
+    | { enviada: true; para: string[]; comBoleto?: boolean; boletos?: number }
+    | { enviada: false; motivo: string }
+    | null
 }): string {
   if (!r.envio)
     return `NF ${r.numero} emitida. Anexe o boleto e clique em Enviar para mandar ao cliente.`
   return r.envio.enviada
-    ? `NF ${r.numero} emitida e enviada para ${r.envio.para.join(', ')}.`
+    ? `NF ${r.numero} emitida e enviada${r.envio.comBoleto === undefined ? '' : r.envio.comBoleto ? ((r.envio.boletos ?? 1) > 1 ? ` com os ${r.envio.boletos} boletos` : ' com o boleto') : ' (sem boleto)'} para ${juntarEmails(r.envio.para)}.`
     : `NF ${r.numero} emitida. ${r.envio.motivo} Ficou o aviso de envio pendente.`
 }
 

@@ -7,6 +7,7 @@ import { Carregando } from '@/components/ui/Carregando'
 import { formatarData, formatarDataHora } from '@/lib/datas'
 import { formatarReais } from '@/lib/dinheiro'
 import { formatarCep, formatarDocumento, formatarTelefone } from '@/lib/documentos'
+import { juntarEmails } from '@/lib/emails'
 import { mensagemDeErro } from '@/lib/erros'
 
 import {
@@ -88,6 +89,8 @@ const NOME_CAMPO: Record<string, string> = {
   motivo_recusa: 'Motivo da recusa',
   prazo_pagamento_dias: 'Prazo (dias)',
   condicao_pagamento: 'Condição de pagamento',
+  cartao_parcelas: 'Parcelas no cartão',
+  cartao_juros: 'Juros no cartão',
   nome_original: 'Arquivo',
   categoria: 'Categoria',
   data_execucao: 'Data do serviço',
@@ -164,6 +167,8 @@ export function SecaoHistorico({ clienteId }: { clienteId: string }) {
     if (campo === 'telefone' || campo === 'whatsapp') return formatarTelefone(String(v))
     if (campo === 'telefones_extras' && Array.isArray(v))
       return v.length ? v.map((t) => formatarTelefone(String(t))).join(', ') : '—'
+    if (campo.startsWith('emails_') && Array.isArray(v))
+      return v.length ? juntarEmails(v.map(String)) : '—'
     if (Array.isArray(v)) return v.length ? v.join(', ') : '—'
     if (campo === 'cep') return formatarCep(String(v))
     if (campo === 'cpf_cnpj') {

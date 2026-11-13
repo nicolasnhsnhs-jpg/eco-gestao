@@ -276,6 +276,56 @@ export function useTirarBoletoNota() {
   })
 }
 
+/** Os boletos a mais da nota (emitidos por fora), na ordem em que foram anexados. */
+export function useBoletosExtras(nota: NotaFiscalCompleta) {
+  const ids = nota.boletos_extras ?? []
+  return useQuery({
+    queryKey: ['financeiro', 'notas', nota.id, 'boletos-extras', ids],
+    enabled: ids.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('arquivos').select('*').in('id', ids)
+      if (error) throw error
+      return ids.flatMap((id) => data.filter((a) => a.id === id))
+    },
+  })
+}
+
+/** Anexa mais um boleto (emitido por fora, outro prazo): vai no mesmo e-mail da nota. */
+export function useAnexarBoletoExtra() {
+  const atualizar = useAtualizarNotas()
+  return useMutation({
+    mutationFn: async ({ nota, arquivo }: { nota: NotaFiscalCompleta; arquivo: File }) => {
+      const id = await guardarPdfDaNota(
+        nota,
+        arquivo,
+        'boleto',
+        nota.numero ? `Boleto a mais da NF ${nota.numero}` : 'Boleto a mais',
+      )
+      const { error } = await supabase
+        .from('notas_fiscais')
+        .update({ boletos_extras: [...(nota.boletos_extras ?? []), id] })
+        .eq('id', nota.id)
+      if (error) throw error
+    },
+    onSuccess: atualizar,
+  })
+}
+
+/** Tira um boleto a mais da nota (o arquivo continua na ficha do cliente). */
+export function useTirarBoletoExtra() {
+  const atualizar = useAtualizarNotas()
+  return useMutation({
+    mutationFn: async ({ nota, arquivoId }: { nota: NotaFiscalCompleta; arquivoId: string }) => {
+      const { error } = await supabase
+        .from('notas_fiscais')
+        .update({ boletos_extras: (nota.boletos_extras ?? []).filter((id) => id !== arquivoId) })
+        .eq('id', nota.id)
+      if (error) throw error
+    },
+    onSuccess: atualizar,
+  })
+}
+
 /**
  * Manda o PDF ao e-mail do cliente (Edge Function "notas"). Sem e-mail, ou se o envio
  * falhar, a nota fica com envio pendente e o financeiro recebe um aviso: a resposta
@@ -299,7 +349,8 @@ export function useEnviarNotaPorEmail() {
         }
         throw error
       }
-      return { enviada: true as const, para: (data as { para: string[] }).para }
+      const r = data as { para: string[]; comBoleto?: boolean; boletos?: number }
+      return { enviada: true as const, para: r.para, comBoleto: r.comBoleto, boletos: r.boletos }
     },
     onSettled: atualizar,
   })
@@ -541,6 +592,7 @@ async function abrirCopiaDaNota(
       tp_imunidade: n.tp_imunidade,
       tp_ret_piscofins: n.tp_ret_piscofins,
       arquivo_boleto_id: n.arquivo_boleto_id,
+      boletos_extras: n.boletos_extras,
       observacoes: [
         n.observacoes,
         `Substitui a NF ${n.numero ?? ''}${substituicao ? '' : ' (cancelada)'}.`,

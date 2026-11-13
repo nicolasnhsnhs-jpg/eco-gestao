@@ -10,13 +10,14 @@ import { Carregando } from '@/components/ui/Carregando'
 import { Etiqueta } from '@/components/ui/Etiqueta'
 import { formatarData, formatarMes, hojeISO } from '@/lib/datas'
 import { formatarReais } from '@/lib/dinheiro'
+import { juntarEmails } from '@/lib/emails'
 import { mensagemDeErro } from '@/lib/erros'
 import { useValorAtrasado } from '@/lib/useValorAtrasado'
 import { cn } from '@/lib/utils'
 
 import { AntecipacaoModal } from './AntecipacaoModal'
 import { totalBruto } from './antecipacao'
-import { aceitaBoletoEmLote, contaParaAntecipar, textoEmissao } from './notas'
+import { aceitaBoletoEmLote, contaParaAntecipar, oQueFoiEnviado, textoEmissao } from './notas'
 import {
   BANCOS_DA_UNIDADE,
   NOME_BANCO,
@@ -623,7 +624,7 @@ function BoletoDasMarcadas({
       if (!n.pdf) throw new Error(`${texto}, mas a nota ainda não tem PDF: não foi enviada.`)
       const e = await enviarEmail.mutateAsync({ notaId: n.id })
       if (!e.enviada) throw new Error(`${texto}, mas o e-mail não foi: ${e.motivo}`)
-      return `${texto}, enviado para ${e.para.join(', ')}.`
+      return `${texto}; ${oQueFoiEnviado(e.comBoleto, e.boletos).toLowerCase()} para ${juntarEmails(e.para)}.`
     })
     aoMarcar(new Set())
   }
