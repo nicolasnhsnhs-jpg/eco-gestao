@@ -188,6 +188,27 @@ export function ExecucaoPragas({ os, campos, alterar, aberta, primeira }: Props)
         numero={primeira + quantasEtapasPragas(os, pontos.data) - 1}
         titulo="Observações gerais"
       >
+        {(escopo.locais_planilha ?? []).length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="font-semibold">Locais com planilha de ocorrência de pragas</p>
+            {(escopo.locais_planilha ?? []).map((local) => (
+              <label key={local} className="flex min-h-11 items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="size-5 accent-verde"
+                  disabled={!aberta}
+                  checked={checklist.planilha_vistos?.[local] === true}
+                  onChange={(e) =>
+                    mudar({
+                      planilha_vistos: { ...checklist.planilha_vistos, [local]: e.target.checked },
+                    })
+                  }
+                />
+                {local} — visto técnico
+              </label>
+            ))}
+          </div>
+        )}
         <div className="flex flex-col gap-2">
           <p className="font-semibold">Sugestão de medidas físicas e preventivas?</p>
           <BotoesCodigo

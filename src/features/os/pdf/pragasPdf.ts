@@ -484,6 +484,13 @@ export function escreverPragas(
     }
   }
 
+  if ((escopo.locais_planilha ?? []).length > 0) {
+    w.secao('Locais com planilha de ocorrência de pragas')
+    for (const local of escopo.locais_planilha ?? []) {
+      w.campo(local, checklist.planilha_vistos?.[local] ? 'Visto técnico: sim' : 'Visto técnico: —')
+    }
+  }
+
   w.secao('Observações gerais')
   w.campo(
     'Medidas preventivas',

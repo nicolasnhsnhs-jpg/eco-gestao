@@ -533,6 +533,18 @@ function escreverPragas(f: Folha, os: OsCompleta, pontos: PontoOs[]) {
     )
   }
 
+  const locais = escopo.locais_planilha ?? []
+  if (locais.length > 0) {
+    f.secao('Locais com planilha de ocorrência de pragas')
+    f.tabela(
+      [
+        { titulo: 'Localização', largura: 3 },
+        { titulo: 'Visto técnico', largura: 1.5 },
+      ],
+      locais.map((l) => [l, '']),
+    )
+  }
+
   f.secao('Observações gerais')
   f.simNao('Medidas preventivas recomendadas?', 'Se sim, quais')
   f.escrita('Comentários e locais de aplicação:', 2)

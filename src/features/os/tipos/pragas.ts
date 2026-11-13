@@ -173,6 +173,8 @@ export type ChecklistPragas = {
   medidas_descricao?: string
   comentarios_aplicacao?: string
   solicitacoes_cliente?: string
+  /** Visto do técnico em cada local com planilha de ocorrência de pragas. */
+  planilha_vistos?: Record<string, boolean>
 }
 
 /** Escopo do controle de pragas (guardado em escopo da OS e do modelo). */
@@ -181,6 +183,8 @@ export type EscopoPragas = {
   pragas_alvo?: string[]
   areas_insetos?: string
   armadilhas_contrato?: number
+  /** Locais com planilha de ocorrência de pragas (o técnico dá o visto). */
+  locais_planilha?: string[]
 }
 
 /** Quantas etapas o controle de pragas ocupa (para numerar as etapas seguintes). */

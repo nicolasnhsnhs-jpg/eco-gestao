@@ -180,6 +180,7 @@ function FormEscopo({
     armadilhas_contrato: inicial.armadilhas_contrato,
   })
 
+  const [locaisTexto, setLocaisTexto] = useState((escopo.locais_planilha ?? []).join(', '))
   return (
     <div className="flex flex-col gap-3">
       <Campo rotulo="Serviço" htmlFor="esc-subtipo">
@@ -234,6 +235,26 @@ function FormEscopo({
           onChange={(e) => {
             const n = e.target.value.replace(/\D/g, '')
             setEscopo({ ...escopo, armadilhas_contrato: n ? Number(n) : undefined })
+          }}
+        />
+      </Campo>
+      <Campo
+        rotulo="Locais com planilha de ocorrência de pragas"
+        htmlFor="esc-planilha"
+        dica='Separe por vírgula. Ex.: "Cozinha, Recepção". O técnico dá o visto em cada um.'
+      >
+        <Input
+          id="esc-planilha"
+          value={locaisTexto}
+          onChange={(e) => {
+            setLocaisTexto(e.target.value)
+            setEscopo({
+              ...escopo,
+              locais_planilha: e.target.value
+                .split(',')
+                .map((l) => l.trim())
+                .filter(Boolean),
+            })
           }}
         />
       </Campo>
