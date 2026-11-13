@@ -461,6 +461,11 @@ function Armadilha({ osId, ponto, aberta }: { osId: string; ponto: PontoOs; aber
         Última troca de lâmpada:{' '}
         {ponto.ultima_troca_lampada ? formatarData(ponto.ultima_troca_lampada) : 'sem registro'}
       </p>
+      {ponto.observacao_fixa && (
+        <p className="-mt-2 rounded-lg bg-fundo-suave px-2 py-1 text-sm">
+          <strong>Obs.:</strong> {ponto.observacao_fixa}
+        </p>
+      )}
       {anotar.isError && <Aviso tipo="erro">{mensagemDeErro(anotar.error)}</Aviso>}
       <Linha rotulo="Situação *">
         <BotoesCodigo

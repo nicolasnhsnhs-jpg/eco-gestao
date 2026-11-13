@@ -2677,7 +2677,6 @@ export type Database = {
           arquivo_cancelamento_id: string | null
           arquivo_pdf_id: string | null
           arquivo_xml_id: string | null
-          boletos_extras: string[]
           atualizado_em: string
           atualizado_por: string | null
           boleto_banco: string | null
@@ -2692,6 +2691,7 @@ export type Database = {
           boleto_situacao: string | null
           boleto_valor: number | null
           boleto_vencimento: string | null
+          boletos_extras: string[]
           cancelada_em: string | null
           chave_acesso: string | null
           cliente_id: string
@@ -2752,7 +2752,6 @@ export type Database = {
           arquivo_cancelamento_id?: string | null
           arquivo_pdf_id?: string | null
           arquivo_xml_id?: string | null
-          boletos_extras?: string[]
           atualizado_em?: string
           atualizado_por?: string | null
           boleto_banco?: string | null
@@ -2767,6 +2766,7 @@ export type Database = {
           boleto_situacao?: string | null
           boleto_valor?: number | null
           boleto_vencimento?: string | null
+          boletos_extras?: string[]
           cancelada_em?: string | null
           chave_acesso?: string | null
           cliente_id: string
@@ -2827,7 +2827,6 @@ export type Database = {
           arquivo_cancelamento_id?: string | null
           arquivo_pdf_id?: string | null
           arquivo_xml_id?: string | null
-          boletos_extras?: string[]
           atualizado_em?: string
           atualizado_por?: string | null
           boleto_banco?: string | null
@@ -2842,6 +2841,7 @@ export type Database = {
           boleto_situacao?: string | null
           boleto_valor?: number | null
           boleto_vencimento?: string | null
+          boletos_extras?: string[]
           cancelada_em?: string | null
           chave_acesso?: string | null
           cliente_id?: string
@@ -3596,6 +3596,7 @@ export type Database = {
           numero: number
           numero_serie: string | null
           observacao: string | null
+          observacao_fixa: string | null
           os_id: string
           ponto_id: string | null
           quantidade: number | null
@@ -3638,6 +3639,7 @@ export type Database = {
           numero: number
           numero_serie?: string | null
           observacao?: string | null
+          observacao_fixa?: string | null
           os_id: string
           ponto_id?: string | null
           quantidade?: number | null
@@ -3680,6 +3682,7 @@ export type Database = {
           numero?: number
           numero_serie?: string | null
           observacao?: string | null
+          observacao_fixa?: string | null
           os_id?: string
           ponto_id?: string | null
           quantidade?: number | null
@@ -3992,10 +3995,12 @@ export type Database = {
           modelo_id: string
           numero: number
           numero_serie: string | null
+          observacao_fixa: string | null
           quantidade: number | null
           quantidade_telas: number | null
           tipo: Database['public']['Enums']['tipo_ponto']
           tipo_isca: string | null
+          ultima_troca_lampada: string | null
         }
         Insert: {
           area: string
@@ -4014,10 +4019,12 @@ export type Database = {
           modelo_id: string
           numero: number
           numero_serie?: string | null
+          observacao_fixa?: string | null
           quantidade?: number | null
           quantidade_telas?: number | null
           tipo: Database['public']['Enums']['tipo_ponto']
           tipo_isca?: string | null
+          ultima_troca_lampada?: string | null
         }
         Update: {
           area?: string
@@ -4036,10 +4043,12 @@ export type Database = {
           modelo_id?: string
           numero?: number
           numero_serie?: string | null
+          observacao_fixa?: string | null
           quantidade?: number | null
           quantidade_telas?: number | null
           tipo?: Database['public']['Enums']['tipo_ponto']
           tipo_isca?: string | null
+          ultima_troca_lampada?: string | null
         }
         Relationships: [
           {

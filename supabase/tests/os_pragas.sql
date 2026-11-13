@@ -173,9 +173,16 @@ select pg_temp.conferir('exceção gravada',
   (select count(*) from public.os_pontos where os_id = (select id from ids where nome = 'os1')
      and numero = 2 and situacao = 'MC'), 1);
 
--- Próxima visita: traz a última troca de lâmpada
+select pg_temp.conferir('armadilha guarda a data da troca ao concluir',
+  (select count(*) from public.pontos_controle
+    where modelo_id = '00000000-0000-0000-0000-000000006d01' and tipo = 'armadilha_luminosa'
+      and ultima_troca_lampada = '2026-11-05'), 1);
+
+-- Próxima visita: traz a última troca de lâmpada e a observação fixa
 select pg_temp.como('00000000-0000-0000-0000-0000000006c1');
 set local role authenticated;
+update public.pontos_controle set observacao_fixa = 'Atrás da porta da câmara fria'
+ where modelo_id = '00000000-0000-0000-0000-000000006d01' and tipo = 'armadilha_luminosa';
 insert into ids values
   ('os2', public.gerar_os_do_modelo('00000000-0000-0000-0000-000000006d01', '2026-12-05'));
 reset role;
@@ -186,6 +193,21 @@ select pg_temp.conferir('última troca de lâmpada herdada da visita anterior',
 select pg_temp.conferir('nova visita começa sem as exceções da anterior',
   (select count(*) from public.os_pontos where os_id = (select id from ids where nome = 'os2')
      and situacao = 'MC'), 0);
+select pg_temp.conferir('observação fixa da armadilha vai para a OS',
+  (select count(*) from public.os_pontos where os_id = (select id from ids where nome = 'os2')
+     and observacao_fixa = 'Atrás da porta da câmara fria'), 1);
+
+-- O escritório corrige a data na armadilha: a próxima OS usa a data corrigida.
+select pg_temp.como('00000000-0000-0000-0000-0000000006c1');
+set local role authenticated;
+update public.pontos_controle set ultima_troca_lampada = '2026-10-20'
+ where modelo_id = '00000000-0000-0000-0000-000000006d01' and tipo = 'armadilha_luminosa';
+insert into ids values
+  ('os3', public.gerar_os_do_modelo('00000000-0000-0000-0000-000000006d01', '2027-01-05'));
+reset role;
+select pg_temp.conferir('data corrigida pelo escritório vai para a OS',
+  (select count(*) from public.os_pontos where os_id = (select id from ids where nome = 'os3')
+     and tipo = 'armadilha_luminosa' and ultima_troca_lampada = '2026-10-20'), 1);
 
 select 'Controle de pragas: pontos, exceções e histórico conferidos.' as resultado;
 

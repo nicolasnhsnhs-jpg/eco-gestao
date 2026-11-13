@@ -110,42 +110,21 @@ export function EscopoPragas({ alvo }: { alvo: AlvoEscopo }) {
         <h3 className="font-semibold text-verde-escuro">
           Armadilhas luminosas ({armadilhas.length})
         </h3>
-        <ul className="flex max-h-96 flex-col gap-1 overflow-y-auto">
+        <p className="text-sm text-texto-suave">
+          A data da última troca de lâmpada e a observação ficam na armadilha e saem em toda O.S
+          deste local. A data se atualiza sozinha quando o técnico conclui uma O.S com lâmpada
+          trocada.
+        </p>
+        <ul className="flex max-h-[32rem] flex-col gap-2 overflow-y-auto">
           {armadilhas.map((a) => (
-            <li key={a.id} className="flex items-center gap-2">
-              <span className="flex-1">
-                {String(a.numero).padStart(2, '0')} · {a.area} ·{' '}
-                {a.modelo_armadilha === 'P' ? 'Branca (P)' : 'Inox (G)'}
-              </span>
-              <Button
-                variante="fantasma"
-                disabled={salvarPontos.isPending}
-                onClick={() => {
-                  const area = window.prompt(`Novo local da armadilha ${a.numero}:`, a.area)?.trim()
-                  if (area && area !== a.area) {
-                    void executar(
-                      () => salvarPontos.mutateAsync({ alterar: { id: a.id, dados: { area } } }),
-                      `Armadilha ${a.numero} alterada. Vale para as próximas O.S deste local.`,
-                    )
-                  }
-                }}
-              >
-                Editar
-              </Button>
-              <Button
-                variante="fantasma"
-                disabled={salvarPontos.isPending}
-                onClick={() =>
-                  void executar(
-                    () =>
-                      salvarPontos.mutateAsync({ alterar: { id: a.id, dados: { ativo: false } } }),
-                    `Armadilha ${a.numero} retirada.`,
-                  )
-                }
-              >
-                Retirar
-              </Button>
-            </li>
+            <ArmadilhaItem
+              key={a.id}
+              armadilha={a}
+              ocupado={salvarPontos.isPending}
+              aoAlterar={(dados, mensagem) =>
+                executar(() => salvarPontos.mutateAsync({ alterar: { id: a.id, dados } }), mensagem)
+              }
+            />
           ))}
         </ul>
         <FormArmadilha
@@ -556,5 +535,87 @@ function FormArmadilha({
         Adicionar
       </Button>
     </div>
+  )
+}
+
+/** Uma armadilha: local, data da última troca de lâmpada e observação fixas. */
+function ArmadilhaItem({
+  armadilha: a,
+  ocupado,
+  aoAlterar,
+}: {
+  armadilha: PontoControle
+  ocupado: boolean
+  aoAlterar: (dados: TablesUpdate<'pontos_controle'>, mensagem: string) => Promise<void>
+}) {
+  const [troca, setTroca] = useState(a.ultima_troca_lampada ?? '')
+  const [obs, setObs] = useState(a.observacao_fixa ?? '')
+  const mudou = troca !== (a.ultima_troca_lampada ?? '') || obs.trim() !== (a.observacao_fixa ?? '')
+  const id = `arm-${a.id}`
+
+  return (
+    <li className="flex flex-col gap-2 rounded-xl border border-borda p-3">
+      <div className="flex items-center gap-2">
+        <span className="flex-1 font-semibold">
+          {String(a.numero).padStart(2, '0')} · {a.area} ·{' '}
+          {a.modelo_armadilha === 'P' ? 'Branca (P)' : 'Inox (G)'}
+        </span>
+        <Button
+          variante="fantasma"
+          disabled={ocupado}
+          onClick={() => {
+            const area = window.prompt(`Novo local da armadilha ${a.numero}:`, a.area)?.trim()
+            if (area && area !== a.area) {
+              void aoAlterar(
+                { area },
+                `Armadilha ${a.numero} alterada. Vale para as próximas O.S deste local.`,
+              )
+            }
+          }}
+        >
+          Editar local
+        </Button>
+        <Button
+          variante="fantasma"
+          disabled={ocupado}
+          onClick={() => void aoAlterar({ ativo: false }, `Armadilha ${a.numero} retirada.`)}
+        >
+          Retirar
+        </Button>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-[11rem_1fr_auto] sm:items-end">
+        <Campo rotulo="Última troca de lâmpada" htmlFor={`${id}-troca`}>
+          <Input
+            id={`${id}-troca`}
+            type="date"
+            value={troca}
+            onChange={(e) => setTroca(e.target.value)}
+          />
+        </Campo>
+        <Campo rotulo="Observação fixa" htmlFor={`${id}-obs`}>
+          <Input
+            id={`${id}-obs`}
+            maxLength={500}
+            placeholder="Ex.: fica atrás da porta da câmara fria"
+            value={obs}
+            onChange={(e) => setObs(e.target.value)}
+          />
+        </Campo>
+        {mudou && (
+          <Button
+            variante="secundario"
+            disabled={ocupado}
+            onClick={() =>
+              void aoAlterar(
+                { ultima_troca_lampada: troca || null, observacao_fixa: obs.trim() || null },
+                `Armadilha ${a.numero} salva. Vale para as próximas O.S deste local.`,
+              )
+            }
+          >
+            Salvar
+          </Button>
+        )}
+      </div>
+    </li>
   )
 }

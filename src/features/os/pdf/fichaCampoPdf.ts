@@ -488,7 +488,9 @@ function escreverPragas(f: Folha, os: OsCompleta, pontos: PontoOs[]) {
       armadilhas
         .sort((a, b) => a.numero - b.numero)
         .map((a) => [
-          `${String(a.numero).padStart(2, '0')} · ${a.area}`,
+          [`${String(a.numero).padStart(2, '0')} · ${a.area}`, a.observacao_fixa?.trim()]
+            .filter(Boolean)
+            .join(' · Obs.: '),
           a.modelo_armadilha === 'P' ? 'Branca (P)' : a.modelo_armadilha === 'G' ? 'Inox (G)' : '',
           a.ultima_troca_lampada ? formatarData(a.ultima_troca_lampada) : 'sem registro',
           '',

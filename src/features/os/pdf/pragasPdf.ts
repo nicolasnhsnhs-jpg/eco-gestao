@@ -463,6 +463,7 @@ export function escreverPragas(
             `Lâmpadas trocadas: ${a.lampadas_trocadas == null ? '—' : a.lampadas_trocadas ? 'sim' : 'não'}`,
             `Última troca de lâmpada: ${a.ultima_troca_lampada ? formatarData(a.ultima_troca_lampada) : '—'}`,
             `Capturas: ${capturas || 'nenhuma'}`,
+            ...(a.observacao_fixa?.trim() ? [`Obs.: ${a.observacao_fixa.trim()}`] : []),
           ],
         }
       }),
