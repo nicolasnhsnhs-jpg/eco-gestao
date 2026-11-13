@@ -34,6 +34,8 @@ import {
   type Escala,
   type Veiculo,
   veiculosSemSemParar,
+  resumoConferencia,
+  servicosDaLinha,
 } from './regras'
 
 /*
@@ -155,8 +157,12 @@ function Almoco({ valor }: { valor: string }) {
   return <span className="aq-st aq-traco">–</span>
 }
 
-function Feito({ sim }: { sim: boolean }) {
-  return sim ? <span className="aq-st aq-verde">{CHECK}</span> : <span className="aq-st aq-vazio" />
+/** Conferência da linha: verde = todos os serviços; amarelo = só uma parte. */
+function Feito({ x, letra }: { x: AgendaItem; letra: 'R' | 'F' }) {
+  const r = resumoConferencia(x, servicosDaLinha(x.descricao).length, letra)
+  if (r === 'tudo') return <span className="aq-st aq-verde">{CHECK}</span>
+  if (r === 'parte') return <span className="aq-st aq-amarelo" title="Só uma parte dos serviços" />
+  return <span className="aq-st aq-vazio" />
 }
 
 function Tecnico({ n, escalas, cores }: { n: number; escalas: Escala[]; cores: CorEscala[] }) {
@@ -364,6 +370,16 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
                                 <Taxa texto={taxa} />
                               </>
                             )}
+                            {interno && x.parcial_partes.includes(i) && (
+                              <>
+                                {' '}
+                                <span className="aq-chip aq-parcial">
+                                  Parcial
+                                  {valorDaParte(x.motivos_parcial, i) &&
+                                    `: ${valorDaParte(x.motivos_parcial, i)}`}
+                                </span>
+                              </>
+                            )}
                           </span>
                         </Fragment>
                       ))}
@@ -394,12 +410,12 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
                     </div>
                     {interno && (
                       <div className="aq-c">
-                        <Feito sim={x.realizado} />
+                        <Feito x={x} letra="R" />
                       </div>
                     )}
                     {interno && (
                       <div className="aq-c">
-                        <Feito sim={x.faturado} />
+                        <Feito x={x} letra="F" />
                       </div>
                     )}
                   </div>
@@ -428,7 +444,7 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
                 <span className="aq-chip aq-taxa">$ Taxa</span> Taxa a cobrar
               </span>
             )}
-            {interno && <span>R realizado · F faturado</span>}
+            {interno && <span>R realizado · F faturado (amarelo: só uma parte)</span>}
           </div>
         </section>
 

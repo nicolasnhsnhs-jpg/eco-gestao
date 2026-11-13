@@ -18,6 +18,12 @@ import {
   alternarAvulso,
   coresDasEscalas,
   almocoPadrao,
+  estadoR,
+  estaFaturado,
+  proximoR,
+  proximoF,
+  resumoConferencia,
+  servicosDaLinha,
   conferirComCadastro,
   veiculosSemSemParar,
   type Tecnico,
@@ -57,6 +63,10 @@ function item(p: Partial<AgendaItem>): AgendaItem {
     almoco: 'fica',
     realizado: false,
     faturado: false,
+    realizado_partes: [],
+    faturado_partes: [],
+    parcial_partes: [],
+    motivos_parcial: [],
     criado_em: '2026-11-09T10:00:00Z',
     criado_por: null,
     atualizado_em: '2026-11-09T10:00:00Z',
@@ -332,5 +342,37 @@ describe('falta e folga', () => {
     expect(r[1].dias.falta).toEqual(['2026-11-03'])
     expect(r[1].dias.folga_horas).toEqual(['2026-11-07'])
     expect(r[2].dias.sem_registro).toEqual(['2026-11-02', '2026-11-03', '2026-11-07', '2026-11-08'])
+  })
+})
+
+describe('conferência por serviço', () => {
+  it('cada serviço da linha (separados por "/")', () => {
+    expect(servicosDaLinha('GHC: LR / IBIS Caxias: LR e CI geral')).toEqual([
+      'GHC: LR',
+      'IBIS Caxias: LR e CI geral',
+    ])
+    expect(servicosDaLinha('Unimed')).toEqual(['Unimed'])
+  })
+  it('R: vazio → feito → parcial → vazio; a linha só fica realizada com todos feitos', () => {
+    let x = item({})
+    const aplicar = (i: number) => (x = { ...x, ...proximoR(x, i, 2) })
+    aplicar(0)
+    expect(estadoR(x, 0, 2)).toBe('feito')
+    expect(x.realizado).toBe(false)
+    aplicar(1)
+    expect(x.realizado).toBe(true)
+    aplicar(1)
+    expect(estadoR(x, 1, 2)).toBe('parcial')
+    expect(x.realizado).toBe(false)
+    expect(resumoConferencia(x, 2, 'R')).toBe('parte')
+    aplicar(1)
+    expect(estadoR(x, 1, 2)).toBe('vazio')
+  })
+  it('linha antiga marcada inteira vale para todos os serviços', () => {
+    const x = item({ realizado: true, faturado: true })
+    expect(estadoR(x, 1, 3)).toBe('feito')
+    expect(estaFaturado(x, 2, 3)).toBe(true)
+    expect(proximoF(x, 1, 3)).toEqual({ faturado_partes: [0, 2], faturado: false })
+    expect(resumoConferencia(x, 3, 'F')).toBe('tudo')
   })
 })

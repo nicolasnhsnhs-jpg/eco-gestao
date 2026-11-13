@@ -491,6 +491,15 @@
   background: #4caf50;
   box-shadow: 0 6px 14px -6px rgba(76, 175, 80, 0.8);
 }
+.aq-chip.aq-parcial {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fbbf24;
+}
+.aq-st.aq-amarelo {
+  background: #fbbf24;
+  box-shadow: 0 6px 14px -6px rgba(251, 191, 36, 0.8);
+}
 .aq-st.aq-vazio {
   border: 2px dashed var(--borda);
 }

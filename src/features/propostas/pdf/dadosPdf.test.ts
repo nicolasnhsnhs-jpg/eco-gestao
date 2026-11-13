@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  textoPagamento,
+  ehCartao,
+  ehPix,
   MODELOS,
   recursosDoModelo,
   separarFrequencia,
@@ -36,6 +39,8 @@ const base = (x: Partial<PropostaBase> = {}): PropostaBase => ({
   custos_detalhados: true,
   prazo_pagamento_dias: 28,
   condicao_pagamento: 'boleto bancário',
+  cartao_parcelas: null,
+  cartao_juros: null,
   observacoes: null,
   itens: [],
   ...x,
@@ -337,5 +342,51 @@ describe('montarDadosPdf', () => {
     expect(textos.some((t) => t.includes('taxa adicional no valor de R$ 480,00 por chamado'))).toBe(
       true,
     )
+  })
+})
+
+describe('forma de pagamento no cartão', () => {
+  it('parcelas e juros vão junto do cartão', () => {
+    expect(textoPagamento(null, 'cartão de crédito', { parcelas: 3, juros: false })).toBe(
+      'cartão de crédito em **3x sem juros**',
+    )
+    expect(textoPagamento(null, 'Cartão de crédito', { parcelas: 6, juros: true })).toBe(
+      'Cartão de crédito em **6x com juros**',
+    )
+    expect(textoPagamento(null, 'cartão de crédito', { parcelas: 1, juros: null })).toBe(
+      'cartão de crédito **à vista**',
+    )
+  })
+  it('sem prazo no PIX; boleto não leva parcelas', () => {
+    expect(textoPagamento(null, 'PIX')).toBe('PIX')
+    expect(textoPagamento(28, 'boleto bancário', { parcelas: 3, juros: false })).toBe(
+      '**28 dias** boleto bancário',
+    )
+  })
+  it('o PDF da proposta avulsa mostra o cartão', () => {
+    const d = montarDadosPdf(
+      base({
+        prazo_pagamento_dias: null,
+        condicao_pagamento: 'cartão de crédito',
+        cartao_parcelas: 4,
+        cartao_juros: false,
+        itens: [item({ descricao: 'Desinsetização', valor_unitario: 400 })],
+      }),
+      cliente,
+      null,
+      vendedor,
+    )
+    expect(JSON.stringify(d)).toContain(
+      'Forma de pagamento: cartão de crédito em **4x sem juros**.',
+    )
+  })
+})
+
+describe('ehPix / ehCartao', () => {
+  it('reconhece a forma escrita', () => {
+    expect(ehPix('PIX')).toBe(true)
+    expect(ehPix('pix ou boleto')).toBe(true)
+    expect(ehPix('boleto bancário')).toBe(false)
+    expect(ehCartao('Cartão de crédito')).toBe(true)
   })
 })

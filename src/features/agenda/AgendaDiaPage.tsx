@@ -54,7 +54,6 @@ import {
   useCriarItem,
   useDiasComAgenda,
   useLembretesAgenda,
-  useSalvarItem,
   useSalvarItemAtual,
   useSalvarDiaAtual,
   type Conexao,
@@ -70,6 +69,12 @@ import {
 import { QuadroAgenda, QuadroAjustado } from './QuadroAgenda'
 import {
   alternarAvulso,
+  estadoR,
+  estaFaturado,
+  proximoF,
+  proximoR,
+  servicosDaLinha,
+  type EstadoR,
   conferirComCadastro,
   partesDaDescricao,
   itensDoQuadro,
@@ -972,6 +977,8 @@ function Linhas({
                 </div>
               )}
 
+              <ConferirServicos item={item} conferir={conferir} salvarAtual={salvar.salvarAtual} />
+
               {/* Observação da linha toda, larga, para ler tudo o que foi escrito. */}
               <div className="flex flex-wrap items-center gap-2">
                 <label className="flex min-w-64 flex-1 items-center gap-1.5 text-sm">
@@ -1003,22 +1010,6 @@ function Linhas({
                     <UtensilsCrossed className="size-4" aria-hidden />
                     {item.almoco === 'volta' ? 'Volta' : item.almoco === 'fica' ? 'Não volta' : '–'}
                   </button>
-                  <Conferencia
-                    letra="R"
-                    titulo="Realizado"
-                    ligado={item.realizado}
-                    pode={conferir.r}
-                    quem="o ADM"
-                    onClick={() => salvarCampo({ realizado: !item.realizado })}
-                  />
-                  <Conferencia
-                    letra="F"
-                    titulo="Faturado"
-                    ligado={item.faturado}
-                    pode={conferir.f}
-                    quem="o financeiro"
-                    onClick={() => salvarCampo({ faturado: !item.faturado })}
-                  />
                   <span className="mx-1 h-6 w-px bg-borda" />
                   <IconeAcao rotulo="Subir" desligado={pos <= 0} onClick={() => mover(item, -1)}>
                     <ArrowUp className="size-4" aria-hidden />
@@ -1218,6 +1209,103 @@ function Alternar({
   )
 }
 
+/**
+ * R e F de cada serviço da linha (separados por "/"). O R muda a cada clique:
+ * vazio → feito (verde) → parcial (amarelo). No parcial, abre o campo do que não foi feito.
+ */
+function ConferirServicos({
+  item,
+  conferir,
+  salvarAtual,
+}: {
+  item: AgendaItem
+  conferir: { r: boolean; f: boolean }
+  salvarAtual: ReturnType<typeof useSalvarItemAtual>['salvarAtual']
+}) {
+  const servicos = servicosDaLinha(item.descricao)
+  const n = servicos.length
+  return (
+    <ul className="flex flex-col gap-1 rounded-lg bg-fundo-suave p-1.5">
+      {servicos.map((nome, i) => {
+        const r = estadoR(item, i, n)
+        return (
+          <li key={i} className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <span className="min-w-0 flex-1 truncate text-sm" title={nome}>
+                {n > 1 ? nome : 'Serviço da linha'}
+              </span>
+              <BotaoR
+                estado={r}
+                pode={conferir.r}
+                onClick={() => salvarAtual(item.id, (atual) => proximoR(atual, i, n))}
+              />
+              <Conferencia
+                letra="F"
+                titulo="Faturado"
+                ligado={estaFaturado(item, i, n)}
+                pode={conferir.f}
+                quem="o financeiro"
+                onClick={() => salvarAtual(item.id, (atual) => proximoF(atual, i, n))}
+              />
+            </div>
+            {r === 'parcial' && (
+              <label className="flex items-center gap-1.5 text-sm">
+                <span className="shrink-0 font-semibold text-amber-700">Não foi feito:</span>
+                <CampoAuto
+                  aria-label={`O que não foi feito em ${nome}`}
+                  placeholder="Ex.: CI geral não foi feita (cliente pediu outro dia)"
+                  valor={valorDaParte(item.motivos_parcial, i)}
+                  disabled={!conferir.r}
+                  onSalvar={(v) =>
+                    salvarAtual(item.id, (atual) => ({
+                      motivos_parcial: comValorNaParte(atual.motivos_parcial, i, v),
+                    }))
+                  }
+                  className="min-h-9 min-w-0 flex-1 text-sm"
+                />
+              </label>
+            )}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+const NOME_ESTADO_R: Record<EstadoR, string> = {
+  vazio: 'Realizado: não marcado',
+  feito: 'Realizado',
+  parcial: 'Realizado em parte',
+}
+
+function BotaoR({
+  estado,
+  pode,
+  onClick,
+}: {
+  estado: EstadoR
+  pode: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      title={`${NOME_ESTADO_R[estado]}${pode ? ' (clique para mudar)' : ' (só o ADM marca)'}`}
+      aria-label={NOME_ESTADO_R[estado]}
+      disabled={!pode}
+      onClick={onClick}
+      className={cn(
+        'grid h-9 min-w-9 place-items-center rounded-lg border-2 px-1 text-sm font-extrabold disabled:cursor-not-allowed',
+        estado === 'feito' && 'border-green-700 bg-green-500 text-white',
+        estado === 'parcial' && 'border-amber-600 bg-amber-400 text-amber-950',
+        estado === 'vazio' && 'border-dashed border-borda text-texto-suave',
+      )}
+    >
+      {estado === 'parcial' ? 'R½' : 'R'}
+    </button>
+  )
+}
+
 function Conferencia({
   letra,
   titulo,
@@ -1267,7 +1355,7 @@ function ConferenciaDoDia({
   itens: AgendaItem[]
   conferir: { r: boolean; f: boolean }
 }) {
-  const salvar = useSalvarItem(data)
+  const salvar = useSalvarItemAtual(data)
   const lista = itensDoQuadro(itens)
   return (
     <section className="flex flex-col gap-2">
@@ -1280,28 +1368,15 @@ function ConferenciaDoDia({
         {lista.map((item) => (
           <li
             key={item.id}
-            className="flex items-center gap-3 rounded-xl border border-borda bg-white px-3 py-2"
+            className="flex flex-col gap-2 rounded-xl border border-borda bg-white px-3 py-2"
           >
-            <span className="w-12 shrink-0 text-sm font-semibold text-texto-suave">
-              {item.hora}
-            </span>
-            <span className="min-w-0 flex-1 font-semibold">{item.descricao}</span>
-            <Conferencia
-              letra="R"
-              titulo="Realizado"
-              ligado={item.realizado}
-              pode={conferir.r}
-              quem="o ADM"
-              onClick={() => salvar.mutate({ id: item.id, patch: { realizado: !item.realizado } })}
-            />
-            <Conferencia
-              letra="F"
-              titulo="Faturado"
-              ligado={item.faturado}
-              pode={conferir.f}
-              quem="o financeiro"
-              onClick={() => salvar.mutate({ id: item.id, patch: { faturado: !item.faturado } })}
-            />
+            <div className="flex items-baseline gap-3">
+              <span className="w-12 shrink-0 text-sm font-semibold text-texto-suave">
+                {item.hora}
+              </span>
+              <span className="min-w-0 flex-1 font-semibold">{item.descricao}</span>
+            </div>
+            <ConferirServicos item={item} conferir={conferir} salvarAtual={salvar.salvarAtual} />
           </li>
         ))}
       </ul>

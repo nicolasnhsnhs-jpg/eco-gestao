@@ -102,6 +102,18 @@ do $$ begin
   end;
 end $$;
 update public.agenda_itens set realizado = true where id = '00000000-0000-0000-0000-0000000a9101';
+-- ADM marca o R de cada serviço e o que ficou sem fazer; o F de cada serviço, não.
+update public.agenda_itens set parcial_partes = '{1}', motivos_parcial = '{"","CI geral não feita"}'
+ where id = '00000000-0000-0000-0000-0000000a9101';
+do $$ begin
+  begin
+    update public.agenda_itens set faturado_partes = '{0}' where id = '00000000-0000-0000-0000-0000000a9101';
+    raise exception 'ADM não deveria marcar o F do serviço';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+update public.agenda_itens set parcial_partes = '{}', motivos_parcial = '{}'
+ where id = '00000000-0000-0000-0000-0000000a9101';
 update public.agenda_dias set mensagem = 'X' where data = '2099-01-05';
 delete from public.agenda_itens where id = '00000000-0000-0000-0000-0000000a9101';
 
@@ -119,12 +131,19 @@ do $$ begin
   exception when insufficient_privilege then null;
   end;
   begin
+    update public.agenda_itens set motivos_parcial = '{"X"}' where id = '00000000-0000-0000-0000-0000000a9101';
+    raise exception 'financeiro não deveria escrever o motivo do parcial';
+  exception when insufficient_privilege then null;
+  end;
+  begin
     insert into public.agenda_itens (data, hora, descricao) values ('2099-01-05', '08:00', 'X');
     raise exception 'financeiro não deveria criar linha';
   exception when insufficient_privilege then null;
   end;
 end $$;
 update public.agenda_itens set faturado = true where id = '00000000-0000-0000-0000-0000000a9101';
+update public.agenda_itens set faturado_partes = '{0}' where id = '00000000-0000-0000-0000-0000000a9101';
+update public.agenda_itens set faturado_partes = '{}' where id = '00000000-0000-0000-0000-0000000a9101';
 update public.agenda_dias set mensagem = 'X' where data = '2099-01-05';
 
 -- Vendedor não desmarca o F.

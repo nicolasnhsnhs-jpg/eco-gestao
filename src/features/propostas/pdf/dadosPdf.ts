@@ -67,6 +67,8 @@ export type PropostaBase = {
   custos_detalhados: boolean
   prazo_pagamento_dias: number | null
   condicao_pagamento: string | null
+  cartao_parcelas: number | null
+  cartao_juros: boolean | null
   observacoes: string | null
   itens: ItemBase[]
 }
@@ -238,7 +240,10 @@ export function montarDadosPdf(
     custos.push({ tipo: 'espaco', texto: '' })
     custos.push({
       tipo: 'linha',
-      texto: `Forma de pagamento: ${textoPagamento(p.prazo_pagamento_dias, p.condicao_pagamento)}.`,
+      texto: `Forma de pagamento: ${textoPagamento(p.prazo_pagamento_dias, p.condicao_pagamento, {
+        parcelas: p.cartao_parcelas,
+        juros: p.cartao_juros,
+      })}.`,
     })
   }
   if (p.observacoes?.trim()) {
@@ -336,7 +341,10 @@ function memorialDescritivo(p: PropostaBase, cliente: string) {
   custos.push({ tipo: 'espaco', texto: '' })
   custos.push({
     tipo: 'linha',
-    texto: `Forma de pagamento: ${textoPagamento(p.prazo_pagamento_dias, p.condicao_pagamento)}.`,
+    texto: `Forma de pagamento: ${textoPagamento(p.prazo_pagamento_dias, p.condicao_pagamento, {
+      parcelas: p.cartao_parcelas,
+      juros: p.cartao_juros,
+    })}.`,
   })
   if (p.observacoes?.trim()) {
     custos.push({ tipo: 'espaco', texto: '' })
@@ -417,7 +425,10 @@ function custosDoContrato(p: PropostaBase): LinhaCusto[] {
       : ''
     linhas.push({ tipo: 'marcador', texto: `${i.descricao}${textoFreq}${valor}` })
   }
-  const condicao = p.condicao_pagamento?.trim() || 'boleto bancário'
+  const condicao = textoPagamento(null, p.condicao_pagamento, {
+    parcelas: p.cartao_parcelas,
+    juros: p.cartao_juros,
+  })
   const comoPaga =
     parcelas === 1
       ? `pagamento único de **${valorComExtenso(parcela)}**`

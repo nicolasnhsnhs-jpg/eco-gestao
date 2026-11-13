@@ -25,7 +25,7 @@ import {
   type SituacaoProposta,
 } from './api'
 import { JanelaExecucao } from './JanelaExecucao'
-import { nomeFrequencia } from './modelos'
+import { nomeFrequencia, textoPagamento } from './modelos'
 import { valoresDoContrato } from './pdf/dadosPdf'
 import { AcoesPdfProposta } from './pdf/PdfProposta'
 import { propostaGravadaParaBase, taxasDoItem } from './pdf/usoPdf'
@@ -237,11 +237,17 @@ function Detalhe({ p }: { p: PropostaCompleta }) {
               valor={
                 p.prazo_pagamento_dias != null
                   ? `${p.prazo_pagamento_dias} dias após o serviço`
-                  : '—'
+                  : 'Sem prazo'
               }
             />
             {p.condicao_pagamento && (
-              <Dado rotulo="Forma de pagamento" valor={p.condicao_pagamento} />
+              <Dado
+                rotulo="Forma de pagamento"
+                valor={textoPagamento(null, p.condicao_pagamento, {
+                  parcelas: p.cartao_parcelas,
+                  juros: p.cartao_juros,
+                }).replace(/\*\*/g, '')}
+              />
             )}
             {p.acrescimo_fora_horario != null && (
               <Dado

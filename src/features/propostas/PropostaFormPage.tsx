@@ -14,8 +14,10 @@ import { SelectForm } from '@/components/ui/SelectForm'
 import { hojeISO, somarDias } from '@/lib/datas'
 import { formatarReais, mascaraValor, valorParaCampo } from '@/lib/dinheiro'
 import { formatarTelefone } from '@/lib/documentos'
+import { juntarEmails } from '@/lib/emails'
 import { mensagemDeErro } from '@/lib/erros'
 import { UNIDADE } from '@/lib/unidade'
+import { cn } from '@/lib/utils'
 
 import { usePerfil } from '../auth/useAuth'
 import { equipeComercial, useCliente, useEquipe } from '../clientes/api'
@@ -43,6 +45,8 @@ import {
   modeloDe,
   recursosDoModelo,
   valorFrequencia,
+  ehCartao,
+  ehPix,
   type ChaveModelo,
 } from './modelos'
 import { valoresDoContrato, valorAnualDosItens } from './pdf/dadosPdf'
@@ -93,6 +97,8 @@ function valoresIniciais(
       introducao: proposta.introducao ?? '',
       prazo_pagamento_dias: proposta.prazo_pagamento_dias?.toString() ?? '',
       condicao_pagamento: proposta.condicao_pagamento ?? '',
+      cartao_parcelas: proposta.cartao_parcelas?.toString() ?? '',
+      cartao_juros: proposta.cartao_juros ?? false,
       acrescimo_fora_horario:
         proposta.acrescimo_fora_horario == null
           ? ''
@@ -137,6 +143,8 @@ function valoresIniciais(
     introducao: '',
     prazo_pagamento_dias: '28',
     condicao_pagamento: 'boleto bancário',
+    cartao_parcelas: '',
+    cartao_juros: false,
     acrescimo_fora_horario: valorParaCampo(UNIDADE.proposta.acrescimoPadrao),
     custos_detalhados: true,
     observacoes: '',
@@ -191,7 +199,7 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
     )
     form.setValue(
       'contato_email',
-      contato?.email || [c.email, ...(c.emails_extras ?? [])].filter(Boolean).join('; '),
+      contato?.email || juntarEmails([c.email, ...(c.emails_extras ?? [])]),
     )
   }, [cliente.data, editando, form])
 
@@ -518,25 +526,7 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
                 {...form.register('introducao')}
               />
             </Campo>
-            <Campo
-              rotulo="Prazo de pagamento (dias)"
-              htmlFor="prazo"
-              erro={errors.prazo_pagamento_dias?.message}
-              dica="Também gera a conta a receber quando o serviço for concluído."
-            >
-              <Input id="prazo" inputMode="numeric" {...form.register('prazo_pagamento_dias')} />
-            </Campo>
-            <Campo
-              rotulo="Forma de pagamento"
-              htmlFor="condicao"
-              dica="Ex.: boleto bancário, PIX, depósito"
-            >
-              <Input
-                id="condicao"
-                placeholder="boleto bancário"
-                {...form.register('condicao_pagamento')}
-              />
-            </Campo>
+            <CamposPagamento form={form} />
             <CampoValor
               form={form}
               nome="acrescimo_fora_horario"
@@ -953,5 +943,126 @@ function CampoValor({
         }}
       />
     </Campo>
+  )
+}
+
+const FORMAS_RAPIDAS = ['boleto bancário', 'PIX', 'cartão de crédito']
+
+/**
+ * Prazo e forma de pagamento. A forma é escrita à mão (com atalhos). Com PIX ou
+ * cartão dá para tirar o prazo; no cartão, em quantas vezes e se tem juros.
+ */
+function CamposPagamento({ form }: { form: UseFormReturn<FormProposta> }) {
+  const { errors } = form.formState
+  const [condicao, prazo, parcelas] = useWatch({
+    control: form.control,
+    name: ['condicao_pagamento', 'prazo_pagamento_dias', 'cartao_parcelas'],
+  })
+  const cartao = ehCartao(condicao)
+  const podeSemPrazo = cartao || ehPix(condicao)
+  const semPrazo = podeSemPrazo && prazo.trim() === ''
+  const mudar = { shouldDirty: true, shouldValidate: true } as const
+
+  return (
+    <>
+      <Campo
+        rotulo="Forma de pagamento"
+        htmlFor="condicao"
+        dica="Escreva como quiser ou use um atalho."
+      >
+        <Input
+          id="condicao"
+          placeholder="boleto bancário"
+          {...form.register('condicao_pagamento')}
+        />
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {FORMAS_RAPIDAS.map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => form.setValue('condicao_pagamento', f, mudar)}
+              className={cn(
+                'rounded-full border px-2.5 py-0.5 text-xs font-semibold',
+                condicao.trim().toLowerCase() === f.toLowerCase()
+                  ? 'border-verde bg-verde text-white'
+                  : 'border-borda text-texto-suave hover:border-verde',
+              )}
+            >
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
+      </Campo>
+      <Campo
+        rotulo="Prazo de pagamento (dias)"
+        htmlFor="prazo"
+        erro={errors.prazo_pagamento_dias?.message}
+        dica={
+          semPrazo
+            ? 'Sem prazo: o PDF não fala em dias e a conta a receber vence no dia do serviço.'
+            : 'Também gera a conta a receber quando o serviço for concluído.'
+        }
+      >
+        {!semPrazo && (
+          <Input id="prazo" inputMode="numeric" {...form.register('prazo_pagamento_dias')} />
+        )}
+        {podeSemPrazo && (
+          <label className="mt-1.5 flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="size-4 accent-verde"
+              checked={semPrazo}
+              onChange={(e) =>
+                form.setValue('prazo_pagamento_dias', e.target.checked ? '' : '28', mudar)
+              }
+            />
+            Sem prazo de pagamento
+          </label>
+        )}
+      </Campo>
+      {cartao && (
+        <>
+          <Campo
+            rotulo="Parcelas no cartão"
+            htmlFor="cartao_parcelas"
+            erro={errors.cartao_parcelas?.message}
+            dica="1 = à vista. Em branco, o PDF não fala em parcelas."
+          >
+            <Input
+              id="cartao_parcelas"
+              inputMode="numeric"
+              placeholder="Ex.: 3"
+              {...form.register('cartao_parcelas')}
+            />
+          </Campo>
+          {Number(parcelas) > 1 && (
+            <Campo rotulo="Juros no cartão" htmlFor="cartao_juros">
+              <div className="flex gap-1.5">
+                {[
+                  { v: false, t: 'Sem juros' },
+                  { v: true, t: 'Com juros' },
+                ].map(({ v, t }) => (
+                  <button
+                    key={t}
+                    type="button"
+                    id={v ? undefined : 'cartao_juros'}
+                    aria-pressed={form.watch('cartao_juros') === v}
+                    onClick={() => form.setValue('cartao_juros', v, mudar)}
+                    className={cn(
+                      'min-h-11 flex-1 rounded-xl border-2 px-3 text-sm font-semibold',
+                      form.watch('cartao_juros') === v
+                        ? 'border-verde bg-verde text-white'
+                        : 'border-borda text-texto-suave',
+                    )}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </Campo>
+          )}
+        </>
+      )}
+    </>
   )
 }

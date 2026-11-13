@@ -85,16 +85,20 @@ export type Database = {
           data: string
           descricao: string
           faturado: boolean
+          faturado_partes: number[]
           hora: string
           horario_cliente: boolean
           horarios: string[]
           id: string
+          motivos_parcial: string[]
           nota: string
           nota_parte: number | null
           notas: string[]
           ordem: number
+          parcial_partes: number[]
           periodo: string
           realizado: boolean
+          realizado_partes: number[]
           taxa: string
           taxa_motivo: string
           taxa_parte: number | null
@@ -115,16 +119,20 @@ export type Database = {
           data: string
           descricao?: string
           faturado?: boolean
+          faturado_partes?: number[]
           hora?: string
           horario_cliente?: boolean
           horarios?: string[]
           id?: string
+          motivos_parcial?: string[]
           nota?: string
           nota_parte?: number | null
           notas?: string[]
           ordem?: number
+          parcial_partes?: number[]
           periodo?: string
           realizado?: boolean
+          realizado_partes?: number[]
           taxa?: string
           taxa_motivo?: string
           taxa_parte?: number | null
@@ -145,16 +153,20 @@ export type Database = {
           data?: string
           descricao?: string
           faturado?: boolean
+          faturado_partes?: number[]
           hora?: string
           horario_cliente?: boolean
           horarios?: string[]
           id?: string
+          motivos_parcial?: string[]
           nota?: string
           nota_parte?: number | null
           notas?: string[]
           ordem?: number
+          parcial_partes?: number[]
           periodo?: string
           realizado?: boolean
+          realizado_partes?: number[]
           taxa?: string
           taxa_motivo?: string
           taxa_parte?: number | null
@@ -2665,6 +2677,7 @@ export type Database = {
           arquivo_cancelamento_id: string | null
           arquivo_pdf_id: string | null
           arquivo_xml_id: string | null
+          boletos_extras: string[]
           atualizado_em: string
           atualizado_por: string | null
           boleto_banco: string | null
@@ -2739,6 +2752,7 @@ export type Database = {
           arquivo_cancelamento_id?: string | null
           arquivo_pdf_id?: string | null
           arquivo_xml_id?: string | null
+          boletos_extras?: string[]
           atualizado_em?: string
           atualizado_por?: string | null
           boleto_banco?: string | null
@@ -2813,6 +2827,7 @@ export type Database = {
           arquivo_cancelamento_id?: string | null
           arquivo_pdf_id?: string | null
           arquivo_xml_id?: string | null
+          boletos_extras?: string[]
           atualizado_em?: string
           atualizado_por?: string | null
           boleto_banco?: string | null
@@ -3556,20 +3571,30 @@ export type Database = {
           area: string
           atualizado_em: string
           atualizado_por: string | null
+          btu: number | null
           capturas: Json
           codigo_filtro: string | null
+          coletado: boolean | null
           criado_em: string
           criado_por: string | null
           filtro_trocado: boolean | null
           forma_iscagem: string | null
           foto_antes: boolean | null
+          foto_etiqueta: boolean | null
+          fotos_limpeza: boolean | null
           higiene: string | null
+          hora_coleta: string | null
           id: string
           lampadas_trocadas: boolean | null
+          limpeza_dreno: string | null
+          limpeza_gabinete: string | null
+          limpeza_serpentina: string | null
           limpo: boolean | null
+          marca: string | null
           material: string | null
           modelo_armadilha: string | null
           numero: number
+          numero_serie: string | null
           observacao: string | null
           os_id: string
           ponto_id: string | null
@@ -3588,20 +3613,30 @@ export type Database = {
           area: string
           atualizado_em?: string
           atualizado_por?: string | null
+          btu?: number | null
           capturas?: Json
           codigo_filtro?: string | null
+          coletado?: boolean | null
           criado_em?: string
           criado_por?: string | null
           filtro_trocado?: boolean | null
           forma_iscagem?: string | null
           foto_antes?: boolean | null
+          foto_etiqueta?: boolean | null
+          fotos_limpeza?: boolean | null
           higiene?: string | null
+          hora_coleta?: string | null
           id?: string
           lampadas_trocadas?: boolean | null
+          limpeza_dreno?: string | null
+          limpeza_gabinete?: string | null
+          limpeza_serpentina?: string | null
           limpo?: boolean | null
+          marca?: string | null
           material?: string | null
           modelo_armadilha?: string | null
           numero: number
+          numero_serie?: string | null
           observacao?: string | null
           os_id: string
           ponto_id?: string | null
@@ -3620,20 +3655,30 @@ export type Database = {
           area?: string
           atualizado_em?: string
           atualizado_por?: string | null
+          btu?: number | null
           capturas?: Json
           codigo_filtro?: string | null
+          coletado?: boolean | null
           criado_em?: string
           criado_por?: string | null
           filtro_trocado?: boolean | null
           forma_iscagem?: string | null
           foto_antes?: boolean | null
+          foto_etiqueta?: boolean | null
+          fotos_limpeza?: boolean | null
           higiene?: string | null
+          hora_coleta?: string | null
           id?: string
           lampadas_trocadas?: boolean | null
+          limpeza_dreno?: string | null
+          limpeza_gabinete?: string | null
+          limpeza_serpentina?: string | null
           limpo?: boolean | null
+          marca?: string | null
           material?: string | null
           modelo_armadilha?: string | null
           numero?: number
+          numero_serie?: string | null
           observacao?: string | null
           os_id?: string
           ponto_id?: string | null
@@ -3935,15 +3980,18 @@ export type Database = {
           ativo: boolean
           atualizado_em: string
           atualizado_por: string | null
+          btu: number | null
           codigo_filtro: string | null
           criado_em: string
           criado_por: string | null
           forma_iscagem: string | null
           id: string
+          marca: string | null
           material: string | null
           modelo_armadilha: string | null
           modelo_id: string
           numero: number
+          numero_serie: string | null
           quantidade: number | null
           quantidade_telas: number | null
           tipo: Database['public']['Enums']['tipo_ponto']
@@ -3954,15 +4002,18 @@ export type Database = {
           ativo?: boolean
           atualizado_em?: string
           atualizado_por?: string | null
+          btu?: number | null
           codigo_filtro?: string | null
           criado_em?: string
           criado_por?: string | null
           forma_iscagem?: string | null
           id?: string
+          marca?: string | null
           material?: string | null
           modelo_armadilha?: string | null
           modelo_id: string
           numero: number
+          numero_serie?: string | null
           quantidade?: number | null
           quantidade_telas?: number | null
           tipo: Database['public']['Enums']['tipo_ponto']
@@ -3973,15 +4024,18 @@ export type Database = {
           ativo?: boolean
           atualizado_em?: string
           atualizado_por?: string | null
+          btu?: number | null
           codigo_filtro?: string | null
           criado_em?: string
           criado_por?: string | null
           forma_iscagem?: string | null
           id?: string
+          marca?: string | null
           material?: string | null
           modelo_armadilha?: string | null
           modelo_id?: string
           numero?: number
+          numero_serie?: string | null
           quantidade?: number | null
           quantidade_telas?: number | null
           tipo?: Database['public']['Enums']['tipo_ponto']
@@ -4193,6 +4247,8 @@ export type Database = {
           acrescimo_fora_horario: number | null
           atualizado_em: string
           atualizado_por: string | null
+          cartao_juros: boolean | null
+          cartao_parcelas: number | null
           cliente_id: string
           condicao_pagamento: string | null
           contato_email: string | null
@@ -4225,6 +4281,8 @@ export type Database = {
           acrescimo_fora_horario?: number | null
           atualizado_em?: string
           atualizado_por?: string | null
+          cartao_juros?: boolean | null
+          cartao_parcelas?: number | null
           cliente_id: string
           condicao_pagamento?: string | null
           contato_email?: string | null
@@ -4257,6 +4315,8 @@ export type Database = {
           acrescimo_fora_horario?: number | null
           atualizado_em?: string
           atualizado_por?: string | null
+          cartao_juros?: boolean | null
+          cartao_parcelas?: number | null
           cliente_id?: string
           condicao_pagamento?: string | null
           contato_email?: string | null
@@ -5403,6 +5463,8 @@ export type Database = {
           acrescimo_fora_horario: number | null
           atualizado_em: string | null
           atualizado_por: string | null
+          cartao_juros: boolean | null
+          cartao_parcelas: number | null
           cliente_id: string | null
           condicao_pagamento: string | null
           contato_email: string | null
@@ -5437,6 +5499,8 @@ export type Database = {
           acrescimo_fora_horario?: number | null
           atualizado_em?: string | null
           atualizado_por?: string | null
+          cartao_juros?: boolean | null
+          cartao_parcelas?: number | null
           cliente_id?: string | null
           condicao_pagamento?: string | null
           contato_email?: string | null
@@ -5471,6 +5535,8 @@ export type Database = {
           acrescimo_fora_horario?: number | null
           atualizado_em?: string | null
           atualizado_por?: string | null
+          cartao_juros?: boolean | null
+          cartao_parcelas?: number | null
           cliente_id?: string | null
           condicao_pagamento?: string | null
           contato_email?: string | null
@@ -6001,7 +6067,8 @@ export type Database = {
       categoria_os: 'contrato' | 'avulsa'
       forma_pagamento:
         'pix' | 'boleto' | 'transferencia' | 'cartao' | 'dinheiro' | 'debito_automatico' | 'outro'
-      formulario_os: 'generico' | 'pragas' | 'coifa' | 'bebedouro' | 'telas'
+      formulario_os:
+        'generico' | 'pragas' | 'coifa' | 'bebedouro' | 'telas' | 'agua' | 'ar_condicionado'
       papel: 'admin' | 'financeiro' | 'vendedor' | 'recepcao' | 'operador' | 'administrativo'
       setor_atendimento: 'administrativo' | 'comercial' | 'financeiro' | 'operacional'
       status_comissao: 'prevista' | 'paga' | 'cancelada'
@@ -6020,7 +6087,14 @@ export type Database = {
       tipo_movimento_investimento: 'aporte' | 'resgate' | 'rendimento'
       tipo_nota_fiscal: 'contrato' | 'avulsa'
       tipo_pessoa: 'PF' | 'PJ'
-      tipo_ponto: 'porta_isca' | 'armadilha_luminosa' | 'coifa' | 'bebedouro' | 'bebedouro_garrafao'
+      tipo_ponto:
+        | 'porta_isca'
+        | 'armadilha_luminosa'
+        | 'coifa'
+        | 'bebedouro'
+        | 'bebedouro_garrafao'
+        | 'ponto_coleta'
+        | 'ar_condicionado'
       tipo_vencimento: 'certificado' | 'recomendacao'
     }
     CompositeTypes: {
@@ -6169,7 +6243,15 @@ export const Constants = {
         'debito_automatico',
         'outro',
       ],
-      formulario_os: ['generico', 'pragas', 'coifa', 'bebedouro', 'telas'],
+      formulario_os: [
+        'generico',
+        'pragas',
+        'coifa',
+        'bebedouro',
+        'telas',
+        'agua',
+        'ar_condicionado',
+      ],
       papel: ['admin', 'financeiro', 'vendedor', 'recepcao', 'operador', 'administrativo'],
       setor_atendimento: ['administrativo', 'comercial', 'financeiro', 'operacional'],
       status_comissao: ['prevista', 'paga', 'cancelada'],
@@ -6188,7 +6270,15 @@ export const Constants = {
       tipo_movimento_investimento: ['aporte', 'resgate', 'rendimento'],
       tipo_nota_fiscal: ['contrato', 'avulsa'],
       tipo_pessoa: ['PF', 'PJ'],
-      tipo_ponto: ['porta_isca', 'armadilha_luminosa', 'coifa', 'bebedouro', 'bebedouro_garrafao'],
+      tipo_ponto: [
+        'porta_isca',
+        'armadilha_luminosa',
+        'coifa',
+        'bebedouro',
+        'bebedouro_garrafao',
+        'ponto_coleta',
+        'ar_condicionado',
+      ],
       tipo_vencimento: ['certificado', 'recomendacao'],
     },
   },

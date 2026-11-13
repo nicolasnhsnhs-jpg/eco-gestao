@@ -428,3 +428,79 @@ export function presencaDoMes(
   }
   return [...por.values()].sort((a, b) => a.numero - b.numero)
 }
+
+/* ---------------- Conferência: R e F de cada serviço da linha ---------------- */
+
+/** R de um serviço: vazio, feito (verde) ou feito só em parte (amarelo, com motivo). */
+export type EstadoR = 'vazio' | 'feito' | 'parcial'
+
+type Conferencia = Pick<
+  AgendaItem,
+  'realizado' | 'faturado' | 'realizado_partes' | 'faturado_partes' | 'parcial_partes'
+>
+
+/** Quantos serviços a linha tem para conferir (pelo menos 1). */
+export function servicosDaLinha(descricao: string): string[] {
+  const partes = partesDaDescricao(descricao).map(([nome, servico]) =>
+    servico ? `${nome}: ${servico}` : nome,
+  )
+  return partes.length ? partes : [descricao.trim()]
+}
+
+const todas = (n: number) => Array.from({ length: n }, (_, i) => i)
+
+/** Linhas antigas marcavam a linha toda; vale como todos os serviços marcados. */
+function marcadas(linhaToda: boolean, partes: readonly number[], n: number): number[] {
+  return linhaToda && partes.length === 0 ? todas(n) : [...partes]
+}
+
+export function estadoR(item: Conferencia, i: number, n: number): EstadoR {
+  if (item.parcial_partes.includes(i)) return 'parcial'
+  return marcadas(item.realizado, item.realizado_partes, n).includes(i) ? 'feito' : 'vazio'
+}
+
+export function estaFaturado(item: Conferencia, i: number, n: number): boolean {
+  return marcadas(item.faturado, item.faturado_partes, n).includes(i)
+}
+
+const ordenado = (s: Set<number>) => [...s].sort((a, b) => a - b)
+
+/** Clique no R do serviço i: vazio → feito → parcial → vazio. */
+export function proximoR(item: Conferencia, i: number, n: number) {
+  const feitos = new Set(marcadas(item.realizado, item.realizado_partes, n))
+  const parciais = new Set(item.parcial_partes)
+  const estado = estadoR(item, i, n)
+  feitos.delete(i)
+  parciais.delete(i)
+  if (estado === 'vazio') feitos.add(i)
+  if (estado === 'feito') parciais.add(i)
+  return {
+    realizado_partes: ordenado(feitos),
+    parcial_partes: ordenado(parciais),
+    realizado: todas(n).every((p) => feitos.has(p)),
+  }
+}
+
+/** Clique no F do serviço i: liga ou desliga. */
+export function proximoF(item: Conferencia, i: number, n: number) {
+  const faturados = new Set(marcadas(item.faturado, item.faturado_partes, n))
+  if (faturados.has(i)) faturados.delete(i)
+  else faturados.add(i)
+  return {
+    faturado_partes: ordenado(faturados),
+    faturado: todas(n).every((p) => faturados.has(p)),
+  }
+}
+
+/** Resumo da linha no quadro: tudo feito, parte feita ou nada. */
+export function resumoConferencia(
+  item: Conferencia,
+  n: number,
+  letra: 'R' | 'F',
+): 'tudo' | 'parte' | 'nada' {
+  const marcados = todas(n).filter((i) =>
+    letra === 'R' ? estadoR(item, i, n) === 'feito' : estaFaturado(item, i, n),
+  ).length
+  const algum = marcados > 0 || (letra === 'R' && item.parcial_partes.some((p) => p < n))
+  return marcados === n ? 'tudo' : algum ? 'parte' : 'nada'
+}

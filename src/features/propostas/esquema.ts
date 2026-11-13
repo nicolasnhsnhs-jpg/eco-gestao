@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import { lerValor, paraCentavos } from '@/lib/dinheiro'
 
-import { ehFrequenciaCurta, separarFrequencia } from './modelos'
+import { ehCartao, ehFrequenciaCurta, separarFrequencia } from './modelos'
 import type { PropostaBase } from './pdf/dadosPdf'
 
 const inteiroOpcional = (min: number, max: number, mensagem: string) =>
@@ -68,6 +68,9 @@ export const esquemaProposta = z
     introducao: textoAte(2000),
     prazo_pagamento_dias: inteiroOpcional(0, 365, 'Entre 0 e 365 dias.'),
     condicao_pagamento: z.string().trim(),
+    /** Cartão de crédito: em quantas vezes e se tem juros. */
+    cartao_parcelas: inteiroOpcional(1, 24, 'Entre 1 e 24 vezes.'),
+    cartao_juros: z.boolean(),
     acrescimo_fora_horario: z
       .string()
       .refine((v) => v.trim() === '' || lerValor(v) !== null, 'Valor inválido.'),
@@ -152,6 +155,13 @@ const taxasParaBase = (taxas: Partial<FormTaxa>[] | undefined) =>
     .map((t) => ({ descricao: (t.descricao ?? '').trim(), valor: lerValor(t.valor ?? '') ?? 0 }))
     .filter((t) => t.descricao || t.valor)
 
+/** Parcelas e juros só valem quando a forma de pagamento é cartão. */
+export function camposCartao(condicao: string, parcelas: string, juros: boolean) {
+  if (!ehCartao(condicao) || !parcelas.trim()) return { cartao_parcelas: null, cartao_juros: null }
+  const n = Number(parcelas)
+  return { cartao_parcelas: n, cartao_juros: n > 1 ? juros : null }
+}
+
 export function propostaParaBanco(f: FormProposta) {
   const acrescimo = f.acrescimo_fora_horario.trim() ? lerValor(f.acrescimo_fora_horario) : null
   return {
@@ -168,6 +178,7 @@ export function propostaParaBanco(f: FormProposta) {
       introducao: ouNulo(f.introducao),
       prazo_pagamento_dias: f.prazo_pagamento_dias ? Number(f.prazo_pagamento_dias) : null,
       condicao_pagamento: ouNulo(f.condicao_pagamento),
+      ...camposCartao(f.condicao_pagamento, f.cartao_parcelas, f.cartao_juros),
       acrescimo_fora_horario: acrescimo,
       custos_detalhados: f.custos_detalhados,
       observacoes: ouNulo(f.observacoes),
@@ -209,6 +220,7 @@ export function formParaBase(f: FormProposta, numero?: string | null): PropostaB
     custos_detalhados: f.custos_detalhados ?? true,
     prazo_pagamento_dias: f.prazo_pagamento_dias ? Number(f.prazo_pagamento_dias) : null,
     condicao_pagamento: ouNulo(f.condicao_pagamento ?? ''),
+    ...camposCartao(f.condicao_pagamento ?? '', f.cartao_parcelas ?? '', f.cartao_juros ?? false),
     observacoes: ouNulo(f.observacoes ?? ''),
     itens: (f.itens ?? []).map((i) => ({
       modelo: ouNulo(i.modelo ?? ''),

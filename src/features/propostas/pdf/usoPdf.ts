@@ -47,6 +47,8 @@ export function propostaGravadaParaBase(p: PropostaCompleta): PropostaBase {
     custos_detalhados: p.custos_detalhados ?? true,
     prazo_pagamento_dias: p.prazo_pagamento_dias,
     condicao_pagamento: p.condicao_pagamento,
+    cartao_parcelas: p.cartao_parcelas ?? null,
+    cartao_juros: p.cartao_juros ?? null,
     observacoes: p.observacoes,
     itens: p.itens.map((i) => ({
       modelo: i.modelo,
