@@ -249,8 +249,8 @@ export function etapaDaPendencia(pendencia: string): string | null {
   if (pendencia.startsWith('coleta de:')) return 'Pontos de coleta'
   if (pendencia === 'conservação das amostras') return 'Amostras'
   if (pendencia.startsWith('ar-condicionado:')) return 'Aparelhos de ar-condicionado'
-  if (pendencia === 'foto antes do serviço' || pendencia === 'foto após o serviço') {
-    return 'Relatório fotográfico'
-  }
+  // A foto de antes fica na chegada (para não esquecer); a de depois, no fim.
+  if (pendencia === 'foto antes do serviço') return 'Chegada e horários'
+  if (pendencia === 'foto após o serviço') return 'Relatório fotográfico'
   return null
 }

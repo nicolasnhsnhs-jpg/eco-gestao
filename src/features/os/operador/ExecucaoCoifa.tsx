@@ -147,7 +147,7 @@ export function ExecucaoCoifa({ os, campos, alterar, aberta, primeira }: Props) 
             ))}
           </div>
           <p className="text-sm text-texto-suave">
-            As fotos em si vão no “Relatório fotográfico”, mais abaixo.
+            A foto de antes vai na etapa 1 (chegada); a de depois, no “Relatório fotográfico”.
           </p>
         </Pergunta>
       </Etapa>

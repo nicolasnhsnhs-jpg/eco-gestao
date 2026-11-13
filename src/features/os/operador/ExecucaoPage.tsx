@@ -441,6 +441,26 @@ function Execucao({ os }: { os: OsCompleta }) {
             Confira os horários: {foraDeOrdem}. A ordem é chegada, início, término e saída.
           </Aviso>
         )}
+        {os.tipo?.fotos_antes_depois && (
+          // Serviço de limpeza: a foto de antes fica logo na chegada, para não
+          // começar o serviço sem ela. A de depois fica no fim da OS.
+          <div className="flex flex-col gap-2 rounded-xl border-2 border-alerta/40 bg-alerta/10 p-3">
+            <h3 className="font-semibold text-verde-escuro">
+              Foto antes do serviço <span className="text-perigo">*</span>
+            </h3>
+            <p className="text-sm text-texto-suave">
+              Tire antes de começar a limpeza. Pode mandar várias (ex.: uma de cada reservatório
+              ou coifa).
+            </p>
+            <FotosOs
+              clienteId={os.cliente_id}
+              osId={os.id}
+              aberta={aberta}
+              categoria="foto_antes"
+              textoVazio="Nenhuma foto de antes ainda."
+            />
+          </div>
+        )}
       </Etapa>
 
       {pragas ? (
@@ -487,19 +507,10 @@ function Execucao({ os }: { os: OsCompleta }) {
       {os.tipo?.fotos_antes_depois ? (
         <Etapa numero={depois} titulo="Relatório fotográfico">
           <p className="text-sm text-texto-suave">
-            Pode mandar várias fotos em cada parte (ex.: uma de cada reservatório ou coifa).
+            A foto de antes fica na etapa 1. Aqui vai a de depois, tirada com a limpeza pronta.
+            Pode mandar várias (ex.: uma de cada reservatório ou coifa).
           </p>
           <h3 className="font-semibold text-verde-escuro">
-            Foto antes do serviço <span className="text-perigo">*</span>
-          </h3>
-          <FotosOs
-            clienteId={os.cliente_id}
-            osId={os.id}
-            aberta={aberta}
-            categoria="foto_antes"
-            textoVazio="Nenhuma foto de antes ainda."
-          />
-          <h3 className="mt-2 font-semibold text-verde-escuro">
             Foto após o serviço <span className="text-perigo">*</span>
           </h3>
           <FotosOs
