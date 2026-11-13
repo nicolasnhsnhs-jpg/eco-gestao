@@ -243,14 +243,26 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
         </dl>
       )}
 
-      {qtdExtras > 0 && (
+      {(nota.boleto || qtdExtras > 0) && (
         <div className="flex flex-col gap-2 text-sm">
-          <p className="text-texto-suave">Boletos a mais (vão no mesmo e-mail):</p>
+          <p className="text-texto-suave">
+            {nota.boleto && qtdExtras === 0
+              ? 'Boleto anexado (vai no mesmo e-mail):'
+              : 'Boletos anexados (vão no mesmo e-mail):'}
+          </p>
           <ul className="flex flex-col gap-1">
+            {nota.boleto && (
+              <li className="flex flex-wrap items-center gap-2">
+                <span className="min-w-0 flex-1 truncate" title={nota.boleto.nome_original}>
+                  {qtdExtras > 0 ? '1. ' : ''}
+                  {nota.boleto.nome_original}
+                </span>
+              </li>
+            )}
             {(extras.data ?? []).map((a, i) => (
               <li key={a.id} className="flex flex-wrap items-center gap-2">
-                <span className="min-w-0 flex-1 truncate">
-                  {i + 2}. {a.nome_original}
+                <span className="min-w-0 flex-1 truncate" title={a.nome_original}>
+                  {i + (nota.boleto ? 2 : 1)}. {a.nome_original}
                 </span>
                 <Button
                   variante="secundario"
