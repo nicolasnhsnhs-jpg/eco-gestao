@@ -170,7 +170,7 @@ export const MODELOS = {
   },
   analise_agua: {
     nome: 'Coleta de água para análise',
-    tipo: null,
+    tipo: 'Análise de água',
     assunto: ASSUNTO_AGUA,
     titulo: 'Coleta de água para análise',
     descricao: 'Coleta de água para análise',
@@ -190,6 +190,24 @@ export const MODELOS = {
       'Mão de obra especializada com técnicos devidamente uniformizados e identificados;',
       ...recursosAgua(u).slice(1, -1),
       'Execução do serviço: 01 operador técnico.',
+    ],
+    periodicidade: 6,
+  },
+  ar_condicionado: {
+    nome: 'Limpeza de ar-condicionado',
+    tipo: 'Limpeza de ar-condicionado',
+    assunto: 'em Higienização de Ar-Condicionado',
+    titulo: 'Serviço de limpeza e desbacterização de ar-condicionado',
+    descricao: 'Higienização dos aparelhos de ar-condicionado',
+    escopo: 'Limpeza e desbacterização de ar-condicionado:\n- 06 aparelhos de ar-condicionado ...',
+    metodologia:
+      '**Limpeza e desbacterização de aparelhos de ar-condicionado:** remoção das impurezas dos aparelhos na evaporadora com aplicação de biocida e desbactericida, eliminando e combatendo os microrganismos e desinfetando todo o sistema de ar refrigerado, deixando-o livre de bactérias, leveduras e fungos.',
+    recursos: (u: DadosUnidade) => [
+      'Mão de obra especializada;',
+      u.responsavel && `Controle técnico - ${u.responsavel};`,
+      'Garantia de 90 dias;',
+      PRODUTOS,
+      'Execução do serviço: 04 horas / 02 operadores técnicos.',
     ],
     periodicidade: 6,
   },
@@ -396,11 +414,28 @@ export function assuntoDosItens(itens: { modelo?: string | null }[]) {
   return ''
 }
 
+/** A forma de pagamento escrita fala em PIX ou cartão (aí o prazo pode sair). */
+export const ehPix = (condicao: string | null | undefined) => /\bpix\b/i.test(condicao ?? '')
+export const ehCartao = (condicao: string | null | undefined) => /cart[aã]o/i.test(condicao ?? '')
+
+/** "3" + sem juros → "em **3x sem juros**"; 1 → "**à vista**". */
+export function textoCartao(
+  parcelas: number | null | undefined,
+  juros: boolean | null | undefined,
+) {
+  if (!parcelas) return ''
+  if (parcelas === 1) return '**à vista**'
+  return `em **${parcelas}x ${juros ? 'com juros' : 'sem juros'}**`
+}
+
 export function textoPagamento(
   prazo: number | null | undefined,
   condicao: string | null | undefined,
+  cartao?: { parcelas: number | null | undefined; juros: boolean | null | undefined },
 ) {
-  const c = condicao?.trim() || 'boleto bancário'
+  let c = condicao?.trim() || 'boleto bancário'
+  const parcelas = ehCartao(c) && cartao ? textoCartao(cartao.parcelas, cartao.juros) : ''
+  if (parcelas) c = `${c} ${parcelas}`
   return prazo != null ? `**${prazo} dias** ${c}` : c
 }
 

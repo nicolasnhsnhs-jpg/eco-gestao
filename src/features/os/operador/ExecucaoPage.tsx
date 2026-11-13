@@ -37,10 +37,14 @@ import {
   type OsCompleta,
 } from '../api'
 import { usePontosOs } from '../pragasApi'
+import { ETAPAS_AGUA } from '../tipos/agua'
+import { ETAPAS_AR } from '../tipos/arCondicionado'
 import { ETAPAS_BEBEDOURO } from '../tipos/bebedouro'
 import { ETAPAS_COIFA } from '../tipos/coifa'
 import { ETAPAS_TELAS } from '../tipos/telas'
 import { quantasEtapasPragas } from '../tipos/pragas'
+import { ExecucaoAgua } from './ExecucaoAgua'
+import { ExecucaoArCondicionado } from './ExecucaoArCondicionado'
 import { ExecucaoBebedouro } from './ExecucaoBebedouro'
 import { ExecucaoCoifa } from './ExecucaoCoifa'
 import { ExecucaoPragas } from './ExecucaoPragas'
@@ -136,6 +140,8 @@ function Execucao({ os }: { os: OsCompleta }) {
   const coifa = os.tipo?.formulario_os === 'coifa'
   const bebedouro = os.tipo?.formulario_os === 'bebedouro'
   const telas = os.tipo?.formulario_os === 'telas'
+  const agua = os.tipo?.formulario_os === 'agua'
+  const arCondicionado = os.tipo?.formulario_os === 'ar_condicionado'
   const fila = useFila()
   const aguardandoEnvio = pendenteDaOs(fila, os.id).length > 0
   const fotos = useFotosAntesDepois(os, fila)
@@ -149,7 +155,11 @@ function Execucao({ os }: { os: OsCompleta }) {
           ? ETAPAS_BEBEDOURO
           : telas
             ? ETAPAS_TELAS
-            : 1)
+            : agua
+              ? ETAPAS_AGUA
+              : arCondicionado
+                ? ETAPAS_AR
+                : 1)
 
   async function registrarAgora(campo: CampoHora) {
     setErro(null)
@@ -441,6 +451,16 @@ function Execucao({ os }: { os: OsCompleta }) {
         <ExecucaoBebedouro os={os} campos={campos} alterar={alterar} aberta={aberta} primeira={2} />
       ) : telas ? (
         <ExecucaoTelas os={os} campos={campos} alterar={alterar} aberta={aberta} primeira={2} />
+      ) : agua ? (
+        <ExecucaoAgua os={os} campos={campos} alterar={alterar} aberta={aberta} primeira={2} />
+      ) : arCondicionado ? (
+        <ExecucaoArCondicionado
+          os={os}
+          campos={campos}
+          alterar={alterar}
+          aberta={aberta}
+          primeira={2}
+        />
       ) : (
         <Etapa numero={2} titulo="Serviço realizado">
           <Campo rotulo="Resultado" htmlFor="ex-resultado" obrigatorio>

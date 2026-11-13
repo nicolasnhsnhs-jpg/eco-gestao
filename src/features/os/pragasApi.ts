@@ -145,6 +145,13 @@ type CamposPonto = Pick<
   | 'foto_antes'
   | 'limpo'
   | 'filtro_trocado'
+  | 'coletado'
+  | 'hora_coleta'
+  | 'limpeza_serpentina'
+  | 'limpeza_gabinete'
+  | 'limpeza_dreno'
+  | 'foto_etiqueta'
+  | 'fotos_limpeza'
 >
 
 /**

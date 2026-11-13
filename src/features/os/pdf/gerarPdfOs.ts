@@ -9,6 +9,8 @@ import { UNIDADE } from '@/lib/unidade'
 import { supabase } from '@/lib/supabase'
 
 import { enderecoDaFicha, fichaDaOs, type OsCompleta } from '../api'
+import { escreverAgua } from './aguaPdf'
+import { escreverArCondicionado } from './arCondicionadoPdf'
 import { escreverBebedouro } from './bebedouroPdf'
 import { escreverCoifa } from './coifaPdf'
 import { buscarDadosPragas, escreverPragas, type DadosPragas } from './pragasPdf'
@@ -363,6 +365,10 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
   if (pragas && os.tipo?.formulario_os === 'coifa') escreverCoifa(w, os, pragas.pontos)
   if (pragas && os.tipo?.formulario_os === 'bebedouro') escreverBebedouro(w, os, pragas.pontos)
   if (pragas && os.tipo?.formulario_os === 'telas') escreverTelas(w, os, pragas.pontos)
+  if (pragas && os.tipo?.formulario_os === 'agua') escreverAgua(w, os, pragas.pontos)
+  if (pragas && os.tipo?.formulario_os === 'ar_condicionado') {
+    escreverArCondicionado(w, os, pragas.pontos)
+  }
 
   /** Grade de fotos, 3 por linha; com legenda, cada uma leva "<legenda> 1, 2…" embaixo. */
   async function grade(titulo: string, lista: Arquivo[], legenda?: string) {
@@ -474,7 +480,9 @@ export async function montarPdfOs(os: OsCompleta) {
     os.tipo?.formulario_os === 'pragas' ||
     os.tipo?.formulario_os === 'coifa' ||
     os.tipo?.formulario_os === 'bebedouro' ||
-    os.tipo?.formulario_os === 'telas'
+    os.tipo?.formulario_os === 'telas' ||
+    os.tipo?.formulario_os === 'agua' ||
+    os.tipo?.formulario_os === 'ar_condicionado'
       ? await buscarDadosPragas(os.id)
       : undefined
   const bytes = await gerarPdfOs(os, arquivos, pragas)

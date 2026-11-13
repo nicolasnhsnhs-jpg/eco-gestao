@@ -178,7 +178,7 @@ function Bebedouro({
   )
 }
 
-function PerguntaSimNao({
+export function PerguntaSimNao({
   texto,
   detalhe,
   resposta,
@@ -210,7 +210,7 @@ function PerguntaSimNao({
   )
 }
 
-function Pergunta({ texto, children }: { texto: string; children: ReactNode }) {
+export function Pergunta({ texto, children }: { texto: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-2">
       <p className="font-semibold">{texto}</p>
@@ -219,7 +219,7 @@ function Pergunta({ texto, children }: { texto: string; children: ReactNode }) {
   )
 }
 
-function Etapa({
+export function Etapa({
   numero,
   titulo,
   children,

@@ -44,6 +44,20 @@ import {
   type EscopoPragas,
 } from '../tipos/pragas'
 import { PERGUNTA_INSTALADAS, PERGUNTA_LIBERACAO_TELAS, totalTelas } from '../tipos/telas'
+import {
+  AVISO_PONTOS,
+  PARAMETROS_PADRAO,
+  PERGUNTA_REFRIGERADAS,
+  PROCEDIMENTO_COLETA,
+  quantosPontos,
+  type EscopoAgua,
+} from '../tipos/agua'
+import {
+  AVISO_FOTOS_AR,
+  formatarBtu,
+  PRODUTO_PADRAO_AR,
+  type EscopoAr,
+} from '../tipos/arCondicionado'
 import { EMPRESA_RODAPE, quebrarLinhas, textoSeguro } from './gerarPdfOs'
 import { buscarDadosPragas } from './pragasPdf'
 
@@ -653,6 +667,90 @@ function escreverBebedouro(f: Folha, pontos: PontoOs[]) {
   f.escrita('Observações:', 3)
 }
 
+function escreverAgua(f: Folha, os: OsCompleta, pontos: PontoOs[]) {
+  const escopo = (os.escopo ?? {}) as EscopoAgua
+  const lista = pontos.filter((p) => p.tipo === 'ponto_coleta').sort((a, b) => a.numero - b.numero)
+
+  f.secao('Procedimento de coleta para análise')
+  for (const [i, passo] of PROCEDIMENTO_COLETA.entries()) f.paragrafo(`${i + 1}. ${passo}`, 8.5)
+  f.opcoes('', ['Segui o procedimento de coleta'])
+
+  f.secao('Informações sobre os pontos de coleta')
+  f.paragrafo(AVISO_PONTOS, 8.5)
+  f.dado('Quantidade', quantosPontos(lista.length))
+  f.dado('Parâmetros', escopo.parametros || PARAMETROS_PADRAO)
+  if (escopo.frascos) f.dado('Frascos', escopo.frascos)
+  f.tabela(
+    [
+      { titulo: 'Ponto da coleta', largura: 4 },
+      { titulo: 'Coleta anterior', largura: 1.3 },
+      { titulo: 'Coletado (S/N)', largura: 1 },
+      { titulo: 'Hora da coleta', largura: 1.2 },
+      { titulo: 'Observação', largura: 2.5 },
+    ],
+    lista.map((p) => [
+      `${String(p.numero).padStart(2, '0')} · ${p.area}`,
+      p.ultima_limpeza ? formatarData(p.ultima_limpeza) : '—',
+      '',
+      '',
+      '',
+    ]),
+    lista.length === 0 ? 3 : 0,
+  )
+
+  f.secao('Amostras')
+  f.simNao(PERGUNTA_REFRIGERADAS.texto, PERGUNTA_REFRIGERADAS.detalhe)
+  f.escrita('Observações:', 4)
+}
+
+function escreverArCondicionado(f: Folha, os: OsCompleta, pontos: PontoOs[]) {
+  const lista = pontos
+    .filter((p) => p.tipo === 'ar_condicionado')
+    .sort((a, b) => a.numero - b.numero)
+
+  f.secao(`Aparelhos de ar-condicionado (${lista.length})`)
+  f.legenda('Limpezas', { S: 'Sim', N: 'Não', NA: 'Não se aplica' })
+  f.tabela(
+    [
+      { titulo: 'Nº · Localização · BTU · Marca · Série', largura: 3.6 },
+      { titulo: 'Data anterior', largura: 1.1 },
+      { titulo: 'Serpentina (S/N/NA)', largura: 1 },
+      { titulo: 'Gabinete, aletas e veneziana', largura: 1.1 },
+      { titulo: 'Dreno e bandeja', largura: 1 },
+      { titulo: 'Foto etiqueta (S/N)', largura: 0.9 },
+      { titulo: 'Fotos antes e depois', largura: 0.9 },
+      { titulo: 'Não conformidade', largura: 2 },
+    ],
+    lista.map((a) => [
+      [
+        `${String(a.numero).padStart(2, '0')} · ${a.area}`,
+        formatarBtu(a.btu),
+        a.marca,
+        a.numero_serie,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      a.ultima_limpeza ? formatarData(a.ultima_limpeza) : '—',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+    ]),
+    lista.length === 0 ? 6 : 0,
+    26,
+  )
+
+  f.secao('Produto utilizado')
+  f.dado('Produto', ((os.escopo ?? {}) as EscopoAr).produto || PRODUTO_PADRAO_AR)
+  f.escrita('Quantidade utilizada (ml):')
+
+  f.secao('Observações gerais')
+  f.escrita('', 5)
+  f.paragrafo(`Atenção: ${AVISO_FOTOS_AR}`, 8.5)
+}
+
 /** Monta a OS física (em branco para o técnico) e devolve o PDF. */
 export async function gerarFichaCampo(os: OsCompleta) {
   const formulario = os.tipo?.formulario_os
@@ -660,7 +758,9 @@ export async function gerarFichaCampo(os: OsCompleta) {
     formulario === 'pragas' ||
     formulario === 'coifa' ||
     formulario === 'bebedouro' ||
-    formulario === 'telas'
+    formulario === 'telas' ||
+    formulario === 'agua' ||
+    formulario === 'ar_condicionado'
   const pontos = comPontos ? (await buscarDadosPragas(os.id)).pontos : []
 
   const ficha = fichaDaOs(os.ficha_cliente)
@@ -752,6 +852,8 @@ export async function gerarFichaCampo(os: OsCompleta) {
   else if (formulario === 'coifa') escreverCoifa(f, os, pontos)
   else if (formulario === 'bebedouro') escreverBebedouro(f, pontos)
   else if (formulario === 'telas') escreverTelas(f, pontos)
+  else if (formulario === 'agua') escreverAgua(f, os, pontos)
+  else if (formulario === 'ar_condicionado') escreverArCondicionado(f, os, pontos)
   else {
     f.secao('Serviço realizado')
     f.escrita('Resultado:', 6)

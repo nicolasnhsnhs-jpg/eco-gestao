@@ -29,6 +29,8 @@ import { contagemPontos, linkAgendar, nomeCliente, nomeUnidade } from './modelos
 import { RotasLista } from './RotasPages'
 import { SeletorCategoria } from './SeletorCategoria'
 import { nomeVeiculo } from './nomeVeiculo'
+import { EscopoAgua } from './EscopoAgua'
+import { EscopoArCondicionado } from './EscopoArCondicionado'
 import { EscopoBebedouro } from './EscopoBebedouro'
 import { EscopoCoifa } from './EscopoCoifa'
 import { EscopoPragas } from './EscopoPragas'
@@ -355,6 +357,16 @@ export function ModeloOsPage() {
       {m.tipo?.formulario_os === 'bebedouro' && (
         <div className="mt-4">
           <EscopoBebedouro alvo={alvo} />
+        </div>
+      )}
+      {m.tipo?.formulario_os === 'agua' && (
+        <div className="mt-4">
+          <EscopoAgua alvo={alvo} />
+        </div>
+      )}
+      {m.tipo?.formulario_os === 'ar_condicionado' && (
+        <div className="mt-4">
+          <EscopoArCondicionado alvo={alvo} />
         </div>
       )}
     </>

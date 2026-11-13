@@ -168,6 +168,56 @@ describe('pendenciasLocais', () => {
       'Liberação para instalação de telas',
     )
   })
+
+  it('água: procedimento, coleta (com hora) de cada ponto e conservação', () => {
+    const pontos = [
+      { tipo: 'ponto_coleta', numero: 2, area: 'Cozinha', coletado: true, hora_coleta: null },
+      { tipo: 'ponto_coleta', numero: 1, area: 'Reservatório', coletado: null },
+      { tipo: 'ponto_coleta', numero: 3, area: 'Portaria', coletado: false },
+    ]
+    expect(pendenciasLocais('agua', comum, pontos)).toEqual([
+      'confirmação do procedimento de coleta',
+      'coleta de: Reservatório, Cozinha',
+      'conservação das amostras',
+    ])
+    const checklist = { procedimento: true, refrigeradas: { sim: true } }
+    expect(
+      pendenciasLocais(
+        'agua',
+        { ...comum, checklist },
+        pontos.map((p) => ({ ...p, coletado: p.coletado ?? true, hora_coleta: '09:10' })),
+      ),
+    ).toEqual([])
+    expect(etapaDaPendencia('coleta de: Cozinha')).toBe('Pontos de coleta')
+    expect(etapaDaPendencia('conservação das amostras')).toBe('Amostras')
+  })
+
+  it('ar-condicionado: limpezas e fotos de cada aparelho e quantidade de produto', () => {
+    const completo = {
+      limpeza_serpentina: 'sim',
+      limpeza_gabinete: 'sim',
+      limpeza_dreno: 'na',
+      foto_etiqueta: true,
+      fotos_limpeza: false,
+    }
+    const aparelhos = [
+      { tipo: 'ar_condicionado', numero: 12, area: 'Adm', ...completo, limpeza_dreno: null },
+      { tipo: 'ar_condicionado', numero: 1, area: 'Comercial', ...completo },
+      { tipo: 'ar_condicionado', numero: 3, area: 'TST' },
+    ]
+    expect(pendenciasLocais('ar_condicionado', comum, aparelhos)).toEqual([
+      'ar-condicionado: 03, 12',
+      'quantidade de produto',
+    ])
+    expect(
+      pendenciasLocais(
+        'ar_condicionado',
+        { ...comum, checklist: { produto_ml: 500 } },
+        aparelhos.map((a) => ({ ...a, ...completo })),
+      ),
+    ).toEqual([])
+    expect(etapaDaPendencia('ar-condicionado: 03')).toBe('Aparelhos de ar-condicionado')
+  })
 })
 
 describe('horariosForaDeOrdem', () => {

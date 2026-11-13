@@ -1,4 +1,6 @@
 import type { CamposExecucao } from '../api'
+import type { ChecklistAgua } from '../tipos/agua'
+import { aparelhoIncompleto, type ChecklistAr } from '../tipos/arCondicionado'
 import type { ChecklistBebedouro } from '../tipos/bebedouro'
 import type { ChecklistCoifa } from '../tipos/coifa'
 import { ESPECIES, type ChecklistPragas } from '../tipos/pragas'
@@ -6,7 +8,7 @@ import type { ChecklistTelas } from '../tipos/telas'
 
 /*
  * O que falta para concluir a OS — a MESMA regra de privado.pendencias_os no banco
- * (migration 20261220130000_os_ocorrencia.sql). O celular usa esta cópia para concluir
+ * (migration 20261227120100_os_agua_ar_condicionado.sql). O celular usa esta cópia para concluir
  * sem internet; quando o sinal volta, o banco confere de novo e é quem garante.
  * Se mudar uma, mude a outra (os testes de pendencias.test.ts e de os*.sql ajudam).
  */
@@ -19,6 +21,13 @@ type Ponto = {
   capturas?: unknown
   sujidade?: string | null
   limpo?: boolean | null
+  coletado?: boolean | null
+  hora_coleta?: string | null
+  limpeza_serpentina?: string | null
+  limpeza_gabinete?: string | null
+  limpeza_dreno?: string | null
+  foto_etiqueta?: boolean | null
+  fotos_limpeza?: boolean | null
 }
 
 /** Todas as espécies da ficha com número (0 quando a armadilha não pegou nada). */
@@ -65,7 +74,16 @@ export function horariosForaDeOrdem(e: CamposExecucao): string | null {
 export type FotosDaOs = { exigidas: boolean; antes: number; depois: number }
 
 export function pendenciasLocais(
-  formulario: 'generico' | 'pragas' | 'coifa' | 'bebedouro' | 'telas' | string | undefined,
+  formulario:
+    | 'generico'
+    | 'pragas'
+    | 'coifa'
+    | 'bebedouro'
+    | 'telas'
+    | 'agua'
+    | 'ar_condicionado'
+    | string
+    | undefined,
   e: CamposExecucao,
   pontos: Ponto[],
   fotos?: FotosDaOs,
@@ -158,6 +176,30 @@ export function pendenciasLocais(
     if (typeof c.instaladas?.sim !== 'boolean') falta.push('conferência com o cliente')
   }
 
+  if (formulario === 'agua') {
+    const c = (e.checklist ?? {}) as ChecklistAgua
+    if (c.procedimento !== true) falta.push('confirmação do procedimento de coleta')
+    const semColeta = pontos
+      .filter(
+        (p) => p.tipo === 'ponto_coleta' && (p.coletado == null || (p.coletado && !p.hora_coleta)),
+      )
+      .sort((a, b) => a.numero - b.numero)
+      .map((p) => p.area)
+    if (semColeta.length) falta.push(`coleta de: ${semColeta.join(', ')}`)
+    if (typeof c.refrigeradas?.sim !== 'boolean') falta.push('conservação das amostras')
+  }
+
+  if (formulario === 'ar_condicionado') {
+    const c = (e.checklist ?? {}) as ChecklistAr
+    const incompletos = pontos
+      .filter((p) => p.tipo === 'ar_condicionado' && aparelhoIncompleto(p))
+      .map((p) => p.numero)
+      .sort((a, b) => a - b)
+      .map((n) => String(n).padStart(2, '0'))
+    if (incompletos.length) falta.push(`ar-condicionado: ${incompletos.join(', ')}`)
+    if (typeof c.produto_ml !== 'number') falta.push('quantidade de produto')
+  }
+
   // Serviços de limpeza: pelo menos uma foto de antes e uma de depois.
   if (fotos?.exigidas) {
     if (fotos.antes === 0) falta.push('foto antes do serviço')
@@ -203,6 +245,10 @@ export function etapaDaPendencia(pendencia: string): string | null {
   }
   if (pendencia === 'preventivo ou corretivo') return 'Trabalho a ser realizado'
   if (pendencia.startsWith('limpeza de:')) return 'Bebedouros'
+  if (pendencia === 'confirmação do procedimento de coleta') return 'Procedimento de coleta'
+  if (pendencia.startsWith('coleta de:')) return 'Pontos de coleta'
+  if (pendencia === 'conservação das amostras') return 'Amostras'
+  if (pendencia.startsWith('ar-condicionado:')) return 'Aparelhos de ar-condicionado'
   if (pendencia === 'foto antes do serviço' || pendencia === 'foto após o serviço') {
     return 'Relatório fotográfico'
   }
