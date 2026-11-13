@@ -21,6 +21,7 @@ export type Database = {
           folgas_horas: number[]
           folgas_simples: number[]
           mensagem: string
+          nota_escala: string
           observacoes: string
         }
         Insert: {
@@ -35,6 +36,7 @@ export type Database = {
           folgas_horas?: number[]
           folgas_simples?: number[]
           mensagem?: string
+          nota_escala?: string
           observacoes?: string
         }
         Update: {
@@ -49,6 +51,7 @@ export type Database = {
           folgas_horas?: number[]
           folgas_simples?: number[]
           mensagem?: string
+          nota_escala?: string
           observacoes?: string
         }
         Relationships: [

@@ -1453,6 +1453,20 @@ function DadosDoDia({ dia, tecnicos }: { dia: AgendaDia; tecnicos: Tecnico[] }) 
             </p>
           ) : null
         })()}
+        {/* Lembrete de quem monta a agenda: fica só neste dia e não vai para o quadro. */}
+        <div className="flex flex-col gap-1.5 border-t border-borda pt-3">
+          <label className="text-sm font-semibold">Anotação da escala</label>
+          <CampoAuto
+            multilinha
+            aria-label="Anotação da escala"
+            placeholder="Ex.: Gustavo e Victor saíram às 18h30, ficam com horas em haver"
+            valor={dia.nota_escala}
+            onSalvar={(v) => salvar.mutate({ nota_escala: v })}
+          />
+          <p className="text-xs text-texto-suave">
+            Só para vocês: não aparece no quadro nem na imagem dos operadores.
+          </p>
+        </div>
       </Card>
 
       <Card className="flex flex-col gap-3">
