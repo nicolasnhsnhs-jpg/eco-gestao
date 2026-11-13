@@ -223,6 +223,9 @@ export function pendenciasLocais(
  * (o título da etapa, como aparece na tela). Serve para levar o operador até lá.
  */
 export function etapaDaPendencia(pendencia: string): string | null {
+  if (pendencia === 'horário de término' || pendencia === 'horário de saída') {
+    return 'Término e saída'
+  }
   if (pendencia === 'data' || pendencia.startsWith('horário de')) return 'Chegada e horários'
   if (pendencia === 'resultado do serviço') return 'Serviço realizado'
   if (pendencia === 'nome do operador' || pendencia === 'visto do operador') return 'Operador'

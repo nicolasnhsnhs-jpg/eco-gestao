@@ -167,6 +167,37 @@ function Execucao({ os }: { os: OsCompleta }) {
                   ? 2
                   : 1)
 
+  /** Horários com o botão "Registrar agora" (chegada/início no topo, término/saída no fim). */
+  const gradeHorarios = (lista: typeof HORARIOS) => (
+    <div className="grid grid-cols-2 gap-3">
+      {lista.map(({ campo: nome, rotulo }) => (
+        <div key={nome} className="flex flex-col gap-1">
+          <label htmlFor={`ex-${nome}`} className="font-semibold">
+            {rotulo}
+          </label>
+          {campos[nome] || !aberta ? (
+            <Input
+              id={`ex-${nome}`}
+              type="time"
+              disabled={!aberta}
+              value={horaDe(campos[nome])}
+              onChange={(e) =>
+                alterar({
+                  [nome]: e.target.value ? comporHora(dataServico, e.target.value) : null,
+                  data: dataServico,
+                })
+              }
+            />
+          ) : (
+            <Button id={`ex-${nome}`} type="button" onClick={() => void registrarAgora(nome)}>
+              Registrar agora
+            </Button>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+
   async function registrarAgora(campo: CampoHora) {
     setErro(null)
     if (os.status === 'agendada') {
@@ -415,38 +446,7 @@ function Execucao({ os }: { os: OsCompleta }) {
             ))}
           </Select>
         </Campo>
-        <div className="grid grid-cols-2 gap-3">
-          {HORARIOS.map(({ campo: nome, rotulo }) => (
-            <div key={nome} className="flex flex-col gap-1">
-              <label htmlFor={`ex-${nome}`} className="font-semibold">
-                {rotulo}
-              </label>
-              {campos[nome] || !aberta ? (
-                <Input
-                  id={`ex-${nome}`}
-                  type="time"
-                  disabled={!aberta}
-                  value={horaDe(campos[nome])}
-                  onChange={(e) =>
-                    alterar({
-                      [nome]: e.target.value ? comporHora(dataServico, e.target.value) : null,
-                      data: dataServico,
-                    })
-                  }
-                />
-              ) : (
-                <Button id={`ex-${nome}`} type="button" onClick={() => void registrarAgora(nome)}>
-                  Registrar agora
-                </Button>
-              )}
-            </div>
-          ))}
-        </div>
-        {foraDeOrdem && (
-          <Aviso tipo="erro">
-            Confira os horários: {foraDeOrdem}. A ordem é chegada, início, término e saída.
-          </Aviso>
-        )}
+        {gradeHorarios(HORARIOS.slice(0, 2))}
         {os.tipo?.fotos_antes_depois && (
           // Serviço de limpeza: a foto de antes fica logo na chegada, para não
           // começar o serviço sem ela. A de depois fica no fim da OS.
@@ -656,6 +656,18 @@ function Execucao({ os }: { os: OsCompleta }) {
           aoConfirmar={(img) => assinar('operador', img)}
           aoRefazer={() => alterar({ assinatura_operador_id: null })}
         />
+      </Etapa>
+
+      <Etapa numero={depois + 3} titulo="Término e saída">
+        <p className="text-sm text-texto-suave">
+          Registre ao terminar o serviço e ao sair do cliente. Depois toque em Concluir OS.
+        </p>
+        {gradeHorarios(HORARIOS.slice(2))}
+        {foraDeOrdem && (
+          <Aviso tipo="erro">
+            Confira os horários: {foraDeOrdem}. A ordem é chegada, início, término e saída.
+          </Aviso>
+        )}
       </Etapa>
 
       {aberta && (

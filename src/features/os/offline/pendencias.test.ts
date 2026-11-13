@@ -283,7 +283,8 @@ describe('etapaDaPendencia', () => {
   })
 
   it('aponta a etapa certa', () => {
-    expect(etapaDaPendencia('horário de saída')).toBe('Chegada e horários')
+    expect(etapaDaPendencia('horário de saída')).toBe('Término e saída')
+    expect(etapaDaPendencia('horário de chegada')).toBe('Chegada e horários')
     expect(etapaDaPendencia('foto antes do serviço')).toBe('Chegada e horários')
     expect(etapaDaPendencia('foto após o serviço')).toBe('Relatório fotográfico')
     expect(etapaDaPendencia('assinatura de quem acompanhou')).toBe('Quem acompanhou (cliente)')
