@@ -75,6 +75,48 @@ export function useProposta(id: string | undefined) {
 
 export type PropostaCompleta = NonNullable<ReturnType<typeof useProposta>['data']>
 
+const CAMPOS_PAGAMENTO = 'prazo_pagamento_dias, condicao_pagamento, cartao_parcelas, cartao_juros'
+
+/**
+ * O que a proposta nova do cliente puxa das anteriores (sem mexer no cadastro):
+ *  - fixo: o pagamento da proposta mais recente marcada "fixo para os próximos";
+ *  - contato: o "A/C" da proposta mais recente.
+ * `excluir` tira a própria proposta quando ela está sendo editada.
+ */
+export function useAnterioresDoCliente(clienteId: string | undefined, excluir?: string) {
+  return useQuery({
+    queryKey: ['propostas', 'anteriores-do-cliente', clienteId, excluir],
+    enabled: !!clienteId,
+    queryFn: async () => {
+      let fixo = supabase
+        .from('propostas')
+        .select(CAMPOS_PAGAMENTO)
+        .eq('cliente_id', clienteId!)
+        .eq('pagamento_fixo', true)
+        .order('criado_em', { ascending: false })
+        .limit(1)
+      let contato = supabase
+        .from('propostas')
+        .select('contato_nome, contato_telefone, contato_email')
+        .eq('cliente_id', clienteId!)
+        .order('criado_em', { ascending: false })
+        .limit(1)
+      if (excluir) {
+        fixo = fixo.neq('id', excluir)
+        contato = contato.neq('id', excluir)
+      }
+      const [f, c] = await Promise.all([fixo.maybeSingle(), contato.maybeSingle()])
+      if (f.error) throw f.error
+      if (c.error) throw c.error
+      return { fixo: f.data, contato: c.data }
+    },
+  })
+}
+
+export type PagamentoFixo = NonNullable<
+  NonNullable<ReturnType<typeof useAnterioresDoCliente>['data']>['fixo']
+>
+
 function useAtualizarPropostas() {
   const queryClient = useQueryClient()
   return () => {

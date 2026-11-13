@@ -71,6 +71,8 @@ export const esquemaProposta = z
     /** Cartão de crédito: em quantas vezes e se tem juros. */
     cartao_parcelas: inteiroOpcional(1, 24, 'Entre 1 e 24 vezes.'),
     cartao_juros: z.boolean(),
+    /** Pagamento vira o padrão das próximas propostas do cliente. */
+    pagamento_fixo: z.boolean(),
     acrescimo_fora_horario: z
       .string()
       .refine((v) => v.trim() === '' || lerValor(v) !== null, 'Valor inválido.'),
@@ -179,6 +181,7 @@ export function propostaParaBanco(f: FormProposta) {
       prazo_pagamento_dias: f.prazo_pagamento_dias ? Number(f.prazo_pagamento_dias) : null,
       condicao_pagamento: ouNulo(f.condicao_pagamento),
       ...camposCartao(f.condicao_pagamento, f.cartao_parcelas, f.cartao_juros),
+      pagamento_fixo: f.pagamento_fixo,
       acrescimo_fora_horario: acrescimo,
       custos_detalhados: f.custos_detalhados,
       observacoes: ouNulo(f.observacoes),

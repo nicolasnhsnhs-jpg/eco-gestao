@@ -53,6 +53,7 @@ describe('esquemaProposta', () => {
     condicao_pagamento: '',
     cartao_parcelas: '',
     cartao_juros: false,
+    pagamento_fixo: false,
     acrescimo_fora_horario: '480,00',
     custos_detalhados: true,
     observacoes: '',

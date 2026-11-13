@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, Eye, EyeOff, Plus, RotateCcw, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ArrowLeft, Eye, EyeOff, Pin, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { useFieldArray, useForm, useWatch, type UseFormReturn } from 'react-hook-form'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 
@@ -23,7 +23,13 @@ import { usePerfil } from '../auth/useAuth'
 import { equipeComercial, useCliente, useEquipe } from '../clientes/api'
 import { ClienteSeletor, type ClienteEscolhido } from '../clientes/ClienteSeletor'
 import { useTiposServico } from '../servicos/api'
-import { useProposta, useSalvarProposta, type PropostaCompleta } from './api'
+import {
+  useProposta,
+  useSalvarProposta,
+  useAnterioresDoCliente,
+  type PagamentoFixo,
+  type PropostaCompleta,
+} from './api'
 import { introducaoContrato, textoContratoPadrao } from './contratual'
 import {
   esquemaProposta,
@@ -98,6 +104,7 @@ function valoresIniciais(
       prazo_pagamento_dias: proposta.prazo_pagamento_dias?.toString() ?? '',
       condicao_pagamento: proposta.condicao_pagamento ?? '',
       cartao_parcelas: proposta.cartao_parcelas?.toString() ?? '',
+      pagamento_fixo: proposta.pagamento_fixo ?? false,
       cartao_juros: proposta.cartao_juros ?? false,
       acrescimo_fora_horario:
         proposta.acrescimo_fora_horario == null
@@ -145,6 +152,7 @@ function valoresIniciais(
     condicao_pagamento: 'boleto bancário',
     cartao_parcelas: '',
     cartao_juros: false,
+    pagamento_fixo: false,
     acrescimo_fora_horario: valorParaCampo(UNIDADE.proposta.acrescimoPadrao),
     custos_detalhados: true,
     observacoes: '',
@@ -182,12 +190,36 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
   const comerciais = equipeComercial(equipe.data)
   const total = totalDosItens(valores.itens ?? [])
 
-  // Cliente escolhido (proposta nova): puxa o contato principal para o "A/C".
+  // Cliente escolhido (proposta nova): puxa o pagamento fixo do cliente (se houver)
+  // e o "A/C" da última proposta dele; sem proposta anterior, o contato principal
+  // do cadastro. Roda uma vez por cliente escolhido e não altera o cadastro.
+  const anteriores = useAnterioresDoCliente(clienteId, proposta?.id ?? undefined)
+  const pagamentoFixo = anteriores.data?.fixo ?? null
+  const preenchidoPara = useRef<string | null>(null)
   useEffect(() => {
     const c = cliente.data
-    if (!c || editando) return
+    if (!c || editando || c.id !== clienteId || anteriores.isPending) return
+    if (preenchidoPara.current === c.id) return
+    preenchidoPara.current = c.id
+    const { fixo, contato: ultimo } = anteriores.data ?? {}
+
+    form.setValue(
+      'prazo_pagamento_dias',
+      fixo ? (fixo.prazo_pagamento_dias?.toString() ?? '') : '28',
+    )
+    form.setValue('condicao_pagamento', fixo?.condicao_pagamento ?? 'boleto bancário')
+    form.setValue('cartao_parcelas', fixo?.cartao_parcelas?.toString() ?? '')
+    form.setValue('cartao_juros', fixo?.cartao_juros ?? false)
+    form.setValue('pagamento_fixo', !!fixo)
+
     const { contato_nome, contato_telefone, contato_email } = form.getValues()
     if (contato_nome || contato_telefone || contato_email) return
+    if (ultimo && (ultimo.contato_nome || ultimo.contato_telefone || ultimo.contato_email)) {
+      form.setValue('contato_nome', ultimo.contato_nome ?? '')
+      form.setValue('contato_telefone', ultimo.contato_telefone ?? '')
+      form.setValue('contato_email', ultimo.contato_email ?? '')
+      return
+    }
     const contato = c.contatos_cliente?.[0]
     const tratamento = contato?.nome
       ? `${contato.nome}${contato.cargo ? ` - ${contato.cargo}` : ''}`
@@ -201,9 +233,10 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
       'contato_email',
       contato?.email || juntarEmails([c.email, ...(c.emails_extras ?? [])]),
     )
-  }, [cliente.data, editando, form])
+  }, [cliente.data, clienteId, editando, form, anteriores.isPending, anteriores.data])
 
   function aoEscolherCliente(c: ClienteEscolhido | null) {
+    preenchidoPara.current = null
     form.setValue('cliente_id', c?.id ?? '', { shouldValidate: !!c })
     form.setValue('cliente_nome', c?.nome ?? '')
     form.setValue('endereco_id', '')
@@ -526,7 +559,7 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
                 {...form.register('introducao')}
               />
             </Campo>
-            <CamposPagamento form={form} />
+            <CamposPagamento form={form} fixo={pagamentoFixo} temCliente={!!clienteId} />
             <CampoValor
               form={form}
               nome="acrescimo_fora_horario"
@@ -952,11 +985,20 @@ const FORMAS_RAPIDAS = ['boleto bancário', 'PIX', 'cartão de crédito']
  * Prazo e forma de pagamento. A forma é escrita à mão (com atalhos). Com PIX ou
  * cartão dá para tirar o prazo; no cartão, em quantas vezes e se tem juros.
  */
-function CamposPagamento({ form }: { form: UseFormReturn<FormProposta> }) {
+function CamposPagamento({
+  form,
+  fixo,
+  temCliente,
+}: {
+  form: UseFormReturn<FormProposta>
+  /** Pagamento fixo do cliente (de uma proposta anterior), se houver. */
+  fixo: PagamentoFixo | null
+  temCliente: boolean
+}) {
   const { errors } = form.formState
-  const [condicao, prazo, parcelas] = useWatch({
+  const [condicao, prazo, parcelas, juros] = useWatch({
     control: form.control,
-    name: ['condicao_pagamento', 'prazo_pagamento_dias', 'cartao_parcelas'],
+    name: ['condicao_pagamento', 'prazo_pagamento_dias', 'cartao_parcelas', 'cartao_juros'],
   })
   const cartao = ehCartao(condicao)
   const podeSemPrazo = cartao || ehPix(condicao)
@@ -1063,6 +1105,123 @@ function CamposPagamento({ form }: { form: UseFormReturn<FormProposta> }) {
           )}
         </>
       )}
+      {temCliente && (
+        <PagamentoFixoDoCliente
+          form={form}
+          fixo={fixo}
+          igual={!!fixo && mesmoPagamento(fixo, { condicao, prazo, parcelas, juros })}
+        />
+      )}
     </>
+  )
+}
+
+/** O que está na tela é o mesmo pagamento fixo do cliente? */
+function mesmoPagamento(
+  fixo: PagamentoFixo,
+  atual: { condicao: string; prazo: string; parcelas: string; juros: boolean },
+) {
+  const parcelas = ehCartao(atual.condicao) ? atual.parcelas.trim() : ''
+  return (
+    (fixo.condicao_pagamento ?? '').trim().toLowerCase() === atual.condicao.trim().toLowerCase() &&
+    (fixo.prazo_pagamento_dias?.toString() ?? '') === atual.prazo.trim() &&
+    (fixo.cartao_parcelas?.toString() ?? '') === parcelas &&
+    (Number(parcelas) > 1 ? !!fixo.cartao_juros === atual.juros : true)
+  )
+}
+
+function descreverPagamento(p: PagamentoFixo) {
+  return [
+    p.prazo_pagamento_dias != null ? `${p.prazo_pagamento_dias} dias` : 'sem prazo',
+    p.condicao_pagamento,
+    p.cartao_parcelas ? `${p.cartao_parcelas}x` : null,
+  ]
+    .filter(Boolean)
+    .join(', ')
+}
+
+/**
+ * Fixar o pagamento para as próximas propostas do cliente, ou usar um prazo
+ * diferente só nesta (ex.: prazo reduzido num serviço avulso).
+ */
+function PagamentoFixoDoCliente({
+  form,
+  fixo,
+  igual,
+}: {
+  form: UseFormReturn<FormProposta>
+  fixo: PagamentoFixo | null
+  igual: boolean
+}) {
+  const marcado = useWatch({ control: form.control, name: 'pagamento_fixo' })
+  const mudar = { shouldDirty: true } as const
+
+  if (fixo && igual) {
+    return (
+      <p className="flex items-center gap-2 rounded-xl bg-verde/10 px-3 py-2 text-sm font-semibold text-verde">
+        <Pin className="size-4 shrink-0" aria-hidden />
+        Prazo fixo deste cliente: vale também para os próximos orçamentos.
+      </p>
+    )
+  }
+
+  if (!fixo) {
+    return (
+      <label className="flex items-start gap-2 rounded-xl border border-borda px-3 py-2 text-sm">
+        <input
+          type="checkbox"
+          className="mt-0.5 size-4 accent-verde"
+          checked={marcado}
+          onChange={(e) => form.setValue('pagamento_fixo', e.target.checked, mudar)}
+        />
+        <span>
+          <span className="font-semibold">Manter este prazo fixo</span> para os próximos orçamentos
+          deste cliente
+        </span>
+      </label>
+    )
+  }
+
+  function voltarAoFixo(f: PagamentoFixo) {
+    const opcoes = { shouldDirty: true, shouldValidate: true } as const
+    form.setValue('prazo_pagamento_dias', f.prazo_pagamento_dias?.toString() ?? '', opcoes)
+    form.setValue('condicao_pagamento', f.condicao_pagamento ?? '', opcoes)
+    form.setValue('cartao_parcelas', f.cartao_parcelas?.toString() ?? '', opcoes)
+    form.setValue('cartao_juros', f.cartao_juros ?? false, opcoes)
+    form.setValue('pagamento_fixo', true, mudar)
+  }
+
+  return (
+    <div className="space-y-1.5 rounded-xl border border-borda px-3 py-2">
+      <p className="text-sm">
+        Prazo fixo deste cliente: <strong>{descreverPagamento(fixo)}</strong>.{' '}
+        <button
+          type="button"
+          className="font-semibold text-verde underline"
+          onClick={() => voltarAoFixo(fixo)}
+        >
+          Voltar ao fixo
+        </button>
+      </p>
+      <div className="flex flex-col gap-1.5 sm:flex-row">
+        {[
+          { v: false, t: 'Só para esta proposta' },
+          { v: true, t: 'Fixar para os próximos' },
+        ].map(({ v, t }) => (
+          <button
+            key={t}
+            type="button"
+            aria-pressed={marcado === v}
+            onClick={() => form.setValue('pagamento_fixo', v, mudar)}
+            className={cn(
+              'min-h-11 flex-1 rounded-xl border-2 px-3 text-sm font-semibold',
+              marcado === v ? 'border-verde bg-verde text-white' : 'border-borda text-texto-suave',
+            )}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
