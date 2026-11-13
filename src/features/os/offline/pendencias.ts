@@ -96,7 +96,9 @@ export function pendenciasLocais(
   if (!e.hora_inicio) falta.push('horário de início')
   if (!e.hora_termino) falta.push('horário de término')
   if (!e.hora_saida) falta.push('horário de saída')
-  if (formulario === 'generico' && vazio(e.resultado)) falta.push('resultado do serviço')
+  if ((formulario === 'generico' || formulario === 'pragas_simples') && vazio(e.resultado)) {
+    falta.push('resultado do serviço')
+  }
   if (vazio(e.operador_nome)) falta.push('nome do operador')
   if (!e.assinatura_operador_id) falta.push('visto do operador')
   // Quem acompanhou: nome, setor e assinatura, a não ser que ninguém tenha acompanhado.

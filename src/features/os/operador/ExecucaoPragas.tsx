@@ -549,7 +549,7 @@ function Armadilha({ osId, ponto, aberta }: { osId: string; ponto: PontoOs; aber
   )
 }
 
-function Produtos({ osId, aberta }: { osId: string; aberta: boolean }) {
+export function Produtos({ osId, aberta }: { osId: string; aberta: boolean }) {
   const produtos = useProdutos(osId)
   const gravar = useGravarProduto(osId)
   const catalogo = useCatalogoProdutos()

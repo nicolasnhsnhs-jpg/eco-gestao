@@ -422,21 +422,7 @@ export function escreverPragas(
   w.campo('Quebrados', checklist.quebrados)
   w.campo('Comentários', checklist.comentarios_roedores)
 
-  if (dados.produtos.length > 0) {
-    w.secao('Produtos utilizados')
-    for (const p of dados.produtos) {
-      w.campo(
-        nomeDoProduto(p),
-        [
-          FORMAS_PRODUTO[p.forma as keyof typeof FORMAS_PRODUTO],
-          p.unidades != null && `${p.unidades.toLocaleString('pt-BR')} un`,
-          p.gramas != null && `${p.gramas.toLocaleString('pt-BR')} g`,
-        ]
-          .filter(Boolean)
-          .join(' · '),
-      )
-    }
-  }
+  escreverProdutos(w, dados.produtos)
 
   if (armadilhas.length > 0) {
     const contrato = escopo.armadilhas_contrato ?? armadilhas.length
@@ -509,4 +495,22 @@ export function escreverPragas(
   )
   w.campo('Locais de aplicação', checklist.comentarios_aplicacao)
   w.campo('Solicitações do cliente', checklist.solicitacoes_cliente)
+}
+
+/** Produtos usados na OS (pragas e controle só de insetos ou roedores). */
+export function escreverProdutos(w: EscritorPdf, produtos: ProdutoOs[]) {
+  if (produtos.length === 0) return
+  w.secao('Produtos utilizados')
+  for (const p of produtos) {
+    w.campo(
+      nomeDoProduto(p),
+      [
+        FORMAS_PRODUTO[p.forma as keyof typeof FORMAS_PRODUTO],
+        p.unidades != null && `${p.unidades.toLocaleString('pt-BR')} un`,
+        p.gramas != null && `${p.gramas.toLocaleString('pt-BR')} g`,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+    )
+  }
 }

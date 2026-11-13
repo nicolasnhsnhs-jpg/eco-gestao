@@ -112,7 +112,7 @@ export const MODELOS = {
   },
   insetos: {
     nome: 'Controle de insetos (desinsetização)',
-    tipo: 'Controle de pragas',
+    tipo: 'Controle de insetos',
     assunto: ASSUNTO_PRAGAS,
     titulo: 'Serviço de controle de pragas urbanas',
     descricao: 'Controle de insetos',
@@ -122,7 +122,7 @@ export const MODELOS = {
   },
   roedores: {
     nome: 'Controle de roedores (desratização)',
-    tipo: 'Controle de pragas',
+    tipo: 'Controle de roedores',
     assunto: ASSUNTO_PRAGAS,
     titulo: 'Serviço de controle de pragas urbanas',
     descricao: 'Desratização',
@@ -132,7 +132,7 @@ export const MODELOS = {
   },
   alados: {
     nome: 'Insetos alados (marimbondos, abelhas)',
-    tipo: 'Controle de pragas',
+    tipo: 'Controle de insetos',
     assunto: ASSUNTO_PRAGAS,
     titulo: 'Serviço de controle de pragas urbanas',
     descricao: 'Controle de insetos alados',
@@ -145,7 +145,7 @@ export const MODELOS = {
   },
   cupins: {
     nome: 'Cupins (descupinização)',
-    tipo: 'Controle de pragas',
+    tipo: 'Controle de insetos',
     assunto: ASSUNTO_PRAGAS,
     titulo: 'Serviço de controle de pragas urbanas / descupinização',
     descricao: 'Controle de cupins',

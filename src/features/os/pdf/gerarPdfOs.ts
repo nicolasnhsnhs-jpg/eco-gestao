@@ -13,7 +13,8 @@ import { escreverAgua } from './aguaPdf'
 import { escreverArCondicionado } from './arCondicionadoPdf'
 import { escreverBebedouro } from './bebedouroPdf'
 import { escreverCoifa } from './coifaPdf'
-import { buscarDadosPragas, escreverPragas, type DadosPragas } from './pragasPdf'
+import { areasAtendidas, type ChecklistAreas } from '../EscopoAreas'
+import { buscarDadosPragas, escreverPragas, escreverProdutos, type DadosPragas } from './pragasPdf'
 import { escreverTelas } from './telasPdf'
 
 /*
@@ -360,6 +361,13 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
     `Chegada ${hora(e?.hora_chegada ?? null)} · Início ${hora(e?.hora_inicio ?? null)} · Término ${hora(e?.hora_termino ?? null)} · Saída ${hora(e?.hora_saida ?? null)}`,
   )
   if (os.tipo?.formulario_os === 'generico') w.campo('Resultado', e?.resultado)
+  if (os.tipo?.formulario_os === 'pragas_simples') {
+    const conforme = (e?.checklist as ChecklistAreas | null)?.conforme_planejado
+    w.campo('Áreas atendidas', areasAtendidas(os.escopo))
+    w.campo('Conforme planejado', conforme ? 'Sim' : 'Não')
+    w.campo('O que foi feito', e?.resultado)
+    if (pragas) escreverProdutos(w, pragas.produtos)
+  }
   w.campo('Observações', e?.observacoes)
   if (pragas && os.tipo?.formulario_os === 'pragas') escreverPragas(w, normal, negrito, os, pragas)
   if (pragas && os.tipo?.formulario_os === 'coifa') escreverCoifa(w, os, pragas.pontos)
@@ -482,6 +490,7 @@ export async function montarPdfOs(os: OsCompleta) {
     os.tipo?.formulario_os === 'bebedouro' ||
     os.tipo?.formulario_os === 'telas' ||
     os.tipo?.formulario_os === 'agua' ||
+    os.tipo?.formulario_os === 'pragas_simples' ||
     os.tipo?.formulario_os === 'ar_condicionado'
       ? await buscarDadosPragas(os.id)
       : undefined

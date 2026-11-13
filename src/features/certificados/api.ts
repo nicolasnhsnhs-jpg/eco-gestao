@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { areasAtendidas } from '@/features/os/EscopoAreas'
 import { FunctionsHttpError } from '@supabase/supabase-js'
 
 import type { Tables, TablesInsert, TablesUpdate } from '@/lib/database.types'
@@ -332,8 +333,12 @@ export function useOrigemOs(osId: string | null) {
         (x): x is string[] => Array.isArray(x) && x.length > 0,
       )
       const descricao = (data.descricao ?? '').trim()
-      const areasInsetos =
-        typeof escopo.areas_insetos === 'string' ? escopo.areas_insetos.trim() : ''
+      const areasInsetos = [
+        typeof escopo.areas_insetos === 'string' ? escopo.areas_insetos.trim() : '',
+        areasAtendidas(data.escopo),
+      ]
+        .filter(Boolean)
+        .join(String.fromCharCode(10))
       return {
         osId: data.id,
         osNumero: data.numero,

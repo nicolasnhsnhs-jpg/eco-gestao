@@ -30,6 +30,7 @@ import { RotasLista } from './RotasPages'
 import { SeletorCategoria } from './SeletorCategoria'
 import { nomeVeiculo } from './nomeVeiculo'
 import { EscopoAgua } from './EscopoAgua'
+import { EscopoAreasAtendidas } from './EscopoAreas'
 import { EscopoArCondicionado } from './EscopoArCondicionado'
 import { EscopoBebedouro } from './EscopoBebedouro'
 import { EscopoCoifa } from './EscopoCoifa'
@@ -357,6 +358,11 @@ export function ModeloOsPage() {
       {m.tipo?.formulario_os === 'bebedouro' && (
         <div className="mt-4">
           <EscopoBebedouro alvo={alvo} />
+        </div>
+      )}
+      {m.tipo?.formulario_os === 'pragas_simples' && (
+        <div className="mt-4">
+          <EscopoAreasAtendidas alvo={alvo} />
         </div>
       )}
       {m.tipo?.formulario_os === 'agua' && (

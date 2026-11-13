@@ -30,6 +30,7 @@ import { nomeVeiculo } from './nomeVeiculo'
 import { ConferenciaOs } from './ConferenciaOs'
 import { EditarOs } from './EditarOs'
 import { EscopoAgua } from './EscopoAgua'
+import { EscopoAreasAtendidas } from './EscopoAreas'
 import { EscopoArCondicionado } from './EscopoArCondicionado'
 import { EscopoBebedouro } from './EscopoBebedouro'
 import { EscopoCoifa } from './EscopoCoifa'
@@ -316,6 +317,11 @@ export function OsPage() {
       {escritorio && alvo && o.tipo?.formulario_os === 'bebedouro' && (
         <div className="mt-4">
           <EscopoBebedouro alvo={alvo} />
+        </div>
+      )}
+      {escritorio && alvo && o.tipo?.formulario_os === 'pragas_simples' && (
+        <div className="mt-4">
+          <EscopoAreasAtendidas alvo={alvo} />
         </div>
       )}
       {escritorio && alvo && o.tipo?.formulario_os === 'agua' && (

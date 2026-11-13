@@ -148,7 +148,7 @@ type Tipo = Pick<Tables<'tipos_servico'>, 'nome' | 'formulario_os'>
 /** Qual modelo usar para um tipo de serviço. */
 export function modeloDoTipo(tipo: Tipo | null | undefined): ModeloCertificado {
   if (!tipo) return 'geral'
-  if (tipo.formulario_os === 'pragas') return 'pragas'
+  if (tipo.formulario_os === 'pragas' || tipo.formulario_os === 'pragas_simples') return 'pragas'
   if (tipo.formulario_os === 'coifa') return 'coifa'
   const nome = semAcento(tipo.nome)
   if (nome.includes('bebedour')) return 'bebedouro'

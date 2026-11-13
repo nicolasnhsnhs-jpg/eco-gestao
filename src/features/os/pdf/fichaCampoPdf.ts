@@ -60,6 +60,7 @@ import {
 } from '../tipos/arCondicionado'
 import { EMPRESA_RODAPE, quebrarLinhas, textoSeguro } from './gerarPdfOs'
 import { buscarDadosPragas } from './pragasPdf'
+import { areasAtendidas } from '../EscopoAreas'
 
 /*
  * OS física (via de campo): a mesma OS da tela, impressa para o técnico preencher
@@ -854,7 +855,26 @@ export async function gerarFichaCampo(os: OsCompleta) {
   else if (formulario === 'coifa') escreverCoifa(f, os, pontos)
   else if (formulario === 'bebedouro') escreverBebedouro(f, pontos)
   else if (formulario === 'telas') escreverTelas(f, pontos)
-  else if (formulario === 'agua') escreverAgua(f, os, pontos)
+  else if (formulario === 'pragas_simples') {
+    f.secao('Áreas atendidas')
+    f.paragrafo(areasAtendidas(os.escopo) || '—', 9)
+    f.secao('Serviço realizado')
+    f.opcoes('', ['Serviço feito conforme planejado'])
+    f.escrita('O que foi feito:', 6)
+    f.secao('Produtos utilizados')
+    f.paragrafo(`Formas: ${Object.values(FORMAS_PRODUTO).join(' · ')}`, 7.5, CINZA)
+    f.tabela(
+      [
+        { titulo: 'Produto', largura: 4 },
+        { titulo: 'Forma', largura: 2.5 },
+        { titulo: 'Unidades', largura: 1.2 },
+        { titulo: 'Gramas', largura: 1.2 },
+      ],
+      [],
+      5,
+    )
+    f.escrita('Observações:', 3)
+  } else if (formulario === 'agua') escreverAgua(f, os, pontos)
   else if (formulario === 'ar_condicionado') escreverArCondicionado(f, os, pontos)
   else {
     f.secao('Serviço realizado')

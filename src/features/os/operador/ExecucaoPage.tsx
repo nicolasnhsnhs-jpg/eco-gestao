@@ -47,7 +47,8 @@ import { ExecucaoAgua } from './ExecucaoAgua'
 import { ExecucaoArCondicionado } from './ExecucaoArCondicionado'
 import { ExecucaoBebedouro } from './ExecucaoBebedouro'
 import { ExecucaoCoifa } from './ExecucaoCoifa'
-import { ExecucaoPragas } from './ExecucaoPragas'
+import { ExecucaoPragas, Produtos } from './ExecucaoPragas'
+import { areasAtendidas, type ChecklistAreas } from '../EscopoAreas'
 import { ExecucaoTelas } from './ExecucaoTelas'
 import { useRascunhoExecucao, type EstadoEnvio } from './rascunho'
 
@@ -141,6 +142,7 @@ function Execucao({ os }: { os: OsCompleta }) {
   const bebedouro = os.tipo?.formulario_os === 'bebedouro'
   const telas = os.tipo?.formulario_os === 'telas'
   const agua = os.tipo?.formulario_os === 'agua'
+  const simples = os.tipo?.formulario_os === 'pragas_simples'
   const arCondicionado = os.tipo?.formulario_os === 'ar_condicionado'
   const fila = useFila()
   const aguardandoEnvio = pendenteDaOs(fila, os.id).length > 0
@@ -159,7 +161,9 @@ function Execucao({ os }: { os: OsCompleta }) {
               ? ETAPAS_AGUA
               : arCondicionado
                 ? ETAPAS_AR
-                : 1)
+                : simples
+                  ? 2
+                  : 1)
 
   async function registrarAgora(campo: CampoHora) {
     setErro(null)
@@ -449,8 +453,8 @@ function Execucao({ os }: { os: OsCompleta }) {
               Foto antes do serviço <span className="text-perigo">*</span>
             </h3>
             <p className="text-sm text-texto-suave">
-              Tire antes de começar a limpeza. Pode mandar várias (ex.: uma de cada reservatório
-              ou coifa).
+              Tire antes de começar a limpeza. Pode mandar várias (ex.: uma de cada reservatório ou
+              coifa).
             </p>
             <FotosOs
               clienteId={os.cliente_id}
@@ -483,7 +487,40 @@ function Execucao({ os }: { os: OsCompleta }) {
         />
       ) : (
         <Etapa numero={2} titulo="Serviço realizado">
-          <Campo rotulo="Resultado" htmlFor="ex-resultado" obrigatorio>
+          {simples && (
+            <>
+              <p>
+                <strong>Áreas atendidas:</strong> {areasAtendidas(os.escopo) || '—'}
+              </p>
+              <label className="flex min-h-11 items-center gap-2 font-semibold">
+                <input
+                  type="checkbox"
+                  className="size-5 accent-verde"
+                  disabled={!aberta}
+                  checked={(campos.checklist as ChecklistAreas | null)?.conforme_planejado === true}
+                  onChange={(e) =>
+                    alterar({
+                      checklist: {
+                        ...((campos.checklist ?? {}) as object),
+                        conforme_planejado: e.target.checked,
+                      },
+                    })
+                  }
+                />
+                Serviço feito conforme planejado
+              </label>
+            </>
+          )}
+          <Campo
+            rotulo={simples ? 'O que foi feito' : 'Resultado'}
+            htmlFor="ex-resultado"
+            obrigatorio
+            dica={
+              simples
+                ? 'Ex.: iscagem exposta nas áreas externas, pulverização na cozinha.'
+                : undefined
+            }
+          >
             <Textarea
               id="ex-resultado"
               rows={4}
@@ -503,12 +540,17 @@ function Execucao({ os }: { os: OsCompleta }) {
           </Campo>
         </Etapa>
       )}
+      {simples && (
+        <Etapa numero={3} titulo="Produtos utilizados">
+          <Produtos osId={os.id} aberta={aberta} />
+        </Etapa>
+      )}
 
       {os.tipo?.fotos_antes_depois ? (
         <Etapa numero={depois} titulo="Relatório fotográfico">
           <p className="text-sm text-texto-suave">
-            A foto de antes fica na etapa 1. Aqui vai a de depois, tirada com a limpeza pronta.
-            Pode mandar várias (ex.: uma de cada reservatório ou coifa).
+            A foto de antes fica na etapa 1. Aqui vai a de depois, tirada com a limpeza pronta. Pode
+            mandar várias (ex.: uma de cada reservatório ou coifa).
           </p>
           <h3 className="font-semibold text-verde-escuro">
             Foto após o serviço <span className="text-perigo">*</span>

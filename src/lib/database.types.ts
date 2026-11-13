@@ -4257,7 +4257,6 @@ export type Database = {
           atualizado_em: string
           atualizado_por: string | null
           cartao_juros: boolean | null
-          pagamento_fixo: boolean
           cartao_parcelas: number | null
           cliente_id: string
           condicao_pagamento: string | null
@@ -4280,6 +4279,7 @@ export type Database = {
           motivo_recusa: string | null
           numero: string
           observacoes: string | null
+          pagamento_fixo: boolean
           prazo_pagamento_dias: number | null
           status: Database['public']['Enums']['status_proposta']
           tipo: string
@@ -4292,7 +4292,6 @@ export type Database = {
           atualizado_em?: string
           atualizado_por?: string | null
           cartao_juros?: boolean | null
-          pagamento_fixo?: boolean
           cartao_parcelas?: number | null
           cliente_id: string
           condicao_pagamento?: string | null
@@ -4315,6 +4314,7 @@ export type Database = {
           motivo_recusa?: string | null
           numero?: string
           observacoes?: string | null
+          pagamento_fixo?: boolean
           prazo_pagamento_dias?: number | null
           status?: Database['public']['Enums']['status_proposta']
           tipo?: string
@@ -4327,7 +4327,6 @@ export type Database = {
           atualizado_em?: string
           atualizado_por?: string | null
           cartao_juros?: boolean | null
-          pagamento_fixo?: boolean
           cartao_parcelas?: number | null
           cliente_id?: string
           condicao_pagamento?: string | null
@@ -4350,6 +4349,7 @@ export type Database = {
           motivo_recusa?: string | null
           numero?: string
           observacoes?: string | null
+          pagamento_fixo?: boolean
           prazo_pagamento_dias?: number | null
           status?: Database['public']['Enums']['status_proposta']
           tipo?: string
@@ -5476,7 +5476,6 @@ export type Database = {
           atualizado_em: string | null
           atualizado_por: string | null
           cartao_juros: boolean | null
-          pagamento_fixo: boolean | null
           cartao_parcelas: number | null
           cliente_id: string | null
           condicao_pagamento: string | null
@@ -5500,6 +5499,7 @@ export type Database = {
           motivo_recusa: string | null
           numero: string | null
           observacoes: string | null
+          pagamento_fixo: boolean | null
           prazo_pagamento_dias: number | null
           situacao: string | null
           status: Database['public']['Enums']['status_proposta'] | null
@@ -5513,7 +5513,6 @@ export type Database = {
           atualizado_em?: string | null
           atualizado_por?: string | null
           cartao_juros?: boolean | null
-          pagamento_fixo?: boolean | null
           cartao_parcelas?: number | null
           cliente_id?: string | null
           condicao_pagamento?: string | null
@@ -5537,6 +5536,7 @@ export type Database = {
           motivo_recusa?: string | null
           numero?: string | null
           observacoes?: string | null
+          pagamento_fixo?: boolean | null
           prazo_pagamento_dias?: number | null
           situacao?: never
           status?: Database['public']['Enums']['status_proposta'] | null
@@ -5550,7 +5550,6 @@ export type Database = {
           atualizado_em?: string | null
           atualizado_por?: string | null
           cartao_juros?: boolean | null
-          pagamento_fixo?: boolean | null
           cartao_parcelas?: number | null
           cliente_id?: string | null
           condicao_pagamento?: string | null
@@ -5574,6 +5573,7 @@ export type Database = {
           motivo_recusa?: string | null
           numero?: string | null
           observacoes?: string | null
+          pagamento_fixo?: boolean | null
           prazo_pagamento_dias?: number | null
           situacao?: never
           status?: Database['public']['Enums']['status_proposta'] | null
@@ -5856,6 +5856,7 @@ export type Database = {
         Returns: undefined
       }
       conferir_os: { Args: { os: string }; Returns: undefined }
+      contas_das_notas: { Args: { p_notas: string[] }; Returns: string[] }
       criar_treinamento_os: {
         Args: { operadores: string[]; origem: string }
         Returns: number
@@ -6083,7 +6084,14 @@ export type Database = {
       forma_pagamento:
         'pix' | 'boleto' | 'transferencia' | 'cartao' | 'dinheiro' | 'debito_automatico' | 'outro'
       formulario_os:
-        'generico' | 'pragas' | 'coifa' | 'bebedouro' | 'telas' | 'agua' | 'ar_condicionado'
+        | 'generico'
+        | 'pragas'
+        | 'coifa'
+        | 'bebedouro'
+        | 'telas'
+        | 'agua'
+        | 'ar_condicionado'
+        | 'pragas_simples'
       papel: 'admin' | 'financeiro' | 'vendedor' | 'recepcao' | 'operador' | 'administrativo'
       setor_atendimento: 'administrativo' | 'comercial' | 'financeiro' | 'operacional'
       status_comissao: 'prevista' | 'paga' | 'cancelada'
@@ -6266,6 +6274,7 @@ export const Constants = {
         'telas',
         'agua',
         'ar_condicionado',
+        'pragas_simples',
       ],
       papel: ['admin', 'financeiro', 'vendedor', 'recepcao', 'operador', 'administrativo'],
       setor_atendimento: ['administrativo', 'comercial', 'financeiro', 'operacional'],
