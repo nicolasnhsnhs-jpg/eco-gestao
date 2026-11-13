@@ -240,8 +240,6 @@ function Formulario({
   const m = MODELO[modelo]
   const validade = calcularValidade(dataExecucao, meses ? Number(meses) : null, tipoValidade)
   const responsavelPadrao = responsavelDoModelo(modelo)
-  // Sucção sai no nome da responsável da sucção: sem a opção de assinatura digital.
-  const temAssinaturaDigital = !(m.responsavelSuccao && UNIDADE.certificado.responsavelSuccao)
   const assinaturaDigital = useWatch({ control: form.control, name: 'assinatura_digital' })
 
   // Emissão nova: se o cliente já tem um certificado desse serviço e modelo, oferece copiar.
@@ -355,7 +353,9 @@ function Formulario({
 
   async function enviar(d: Dados) {
     setAviso(null)
-    const digital = temAssinaturaDigital && d.assinatura_digital
+    // Todos os modelos podem sair assinados com o e-CNPJ da empresa, inclusive a
+    // sucção (no nome da responsável da sucção).
+    const digital = d.assinatura_digital
     // Com assinatura digital, salvar já abre o PDF assinado (a aba abre agora, no
     // clique, para o navegador não bloquear).
     const aba = digital ? window.open('', '_blank') : null
@@ -944,13 +944,11 @@ function Formulario({
               >
                 <Input id="resp-registro" {...form.register('responsavel_registro')} />
               </Campo>
-              {temAssinaturaDigital && (
-                <AssinaturaDigital
-                  situacao={situacaoDigital}
-                  marcada={assinaturaDigital}
-                  campo={form.register('assinatura_digital')}
-                />
-              )}
+              <AssinaturaDigital
+                situacao={situacaoDigital}
+                marcada={assinaturaDigital}
+                campo={form.register('assinatura_digital')}
+              />
             </Card>
           </fieldset>
 

@@ -167,8 +167,8 @@ Para os clientes que pedem o certificado assinado digitalmente. Na tela do certi
 **Salvar alterações** (ou **Emitir certificado**), o PDF já abre assinado. O botão
 **Baixar PDF** e a lista de certificados também passam a entregar o PDF assinado. No Adobe, a
 assinatura aparece no painel **Assinaturas** (quem assinou e quando). O PDF ainda leva a frase
-"Assinado digitalmente · ICP-Brasil" embaixo do nome da responsável. A opção não aparece nos
-certificados de sucção, que saem no nome da Barbara.
+"Assinado digitalmente · ICP-Brasil" embaixo do nome da responsável. Vale também para os
+certificados de sucção, que saem no nome da Barbara (assinados com o mesmo e-CNPJ).
 
 A assinatura usa **o mesmo certificado A1 da nota fiscal** (e-CNPJ da empresa, segredos
 `NFSE_CERTIFICADO` e `NFSE_SENHA`), então no Adobe aparece como assinante a empresa. Nada novo a
