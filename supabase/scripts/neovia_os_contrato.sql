@@ -5,7 +5,9 @@
 -- 1. Controle de pragas (insetos e roedores) — junta a ficha "CI CR" com a de
 --    feromônio: 66 porta-iscas externos (1-66), 40 internos (101-140; na ficha
 --    antiga 01-40), 3 armadilhas luminosas, 2 armadilhas biológicas de moscas,
---    12 armadilhas de feromônio, planilha de ocorrências e envelope.
+--    12 armadilhas de feromônio, planilha de ocorrências e envelope. Os
+--    porta-iscas "Ret" (retirados: 39, 60, 62, 137 e 139) ficam à vista com
+--    "(RETIRADO)" no local.
 -- 2. Controle de insetos — "Profilaxia e higiene + CI (mensal)", com os produtos
 --    e as dosagens já prontas para o técnico marcar.
 --
@@ -184,6 +186,10 @@ begin
     (v_pragas, 'feromonio', 10, 'Sala Micro para cavalos', null, null, null, date '2026-10-26'),
     (v_pragas, 'feromonio', 11, 'Depósito Matéria Prima', null, null, null, date '2026-10-26'),
     (v_pragas, 'feromonio', 12, 'Depósito Matéria Prima 2', null, null, null, date '2026-10-26');
+
+    -- "Ret" na ficha antiga: porta-iscas retirados continuam à vista, marcados no local.
+    update public.pontos_controle set area = area || ' (RETIRADO)'
+     where modelo_id = v_pragas and tipo = 'porta_isca' and numero in (39, 60, 62, 137, 139);
     raise notice 'Controle de pragas criado: %', v_pragas;
   end if;
 
