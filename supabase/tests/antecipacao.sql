@@ -146,6 +146,68 @@ end $$;
 reset role;
 
 -- =============================================================================
+-- Notas avulsas (tela das notas): acha a conta do cliente ou cria no Sicredi
+-- =============================================================================
+reset role;
+insert into public.clientes (id, tipo_pessoa, nome) values
+  ('00000000-0000-0000-0000-0000000d1c01', 'PF', 'Cliente Avulsa Teste');
+insert into public.contas_bancarias (id, nome, saldo_inicial, data_saldo_inicial)
+values ('00000000-0000-0000-0000-0000000d1a02', 'Banco Outro', 0, privado.hoje() - 30);
+-- Conta a receber lançada à parte, com o mesmo valor da nota 1.
+insert into public.lancamentos (id, tipo, descricao, cliente_id, categoria_id, competencia, vencimento, valor)
+values ('00000000-0000-0000-0000-0000000d1b11', 'entrada', 'Serviço avulso', '00000000-0000-0000-0000-0000000d1c01',
+        pg_temp.categoria('Serviços prestados'), privado.hoje(), privado.hoje() + 20, 980);
+insert into public.notas_fiscais (id, tipo, status, cliente_id, numero, data_emissao, competencia,
+                                  vencimento, descricao, valor_servico) values
+  ('00000000-0000-0000-0000-0000000d1d01', 'avulsa', 'emitida', '00000000-0000-0000-0000-0000000d1c01',
+   '9001', privado.hoje(), date_trunc('month', privado.hoje())::date, privado.hoje() + 20,
+   'Dedetização avulsa', 980),
+  ('00000000-0000-0000-0000-0000000d1d02', 'avulsa', 'emitida', '00000000-0000-0000-0000-0000000d1c01',
+   '9002', privado.hoje(), date_trunc('month', privado.hoje())::date, privado.hoje() + 25,
+   'Limpeza de caixa avulsa', 980),
+  ('00000000-0000-0000-0000-0000000d1d03', 'avulsa', 'rascunho', '00000000-0000-0000-0000-0000000d1c01',
+   null, privado.hoje(), date_trunc('month', privado.hoje())::date, null, 'Rascunho', 50);
+
+select pg_temp.como('00000000-0000-0000-0000-0000000002f1');
+set local role authenticated;
+do $$
+declare
+  v_contas uuid[];
+  v_nova   public.lancamentos;
+  v_id     uuid;
+begin
+  v_contas := public.contas_das_notas(
+    array['00000000-0000-0000-0000-0000000d1d01', '00000000-0000-0000-0000-0000000d1d02']::uuid[]);
+  assert cardinality(v_contas) = 2, 'Devolve uma conta por nota';
+  assert v_contas[1] = '00000000-0000-0000-0000-0000000d1b11', 'Nota 1 liga na conta já lançada';
+  assert v_contas[2] <> v_contas[1], 'Nota 2 não reaproveita a conta da nota 1';
+  select * into v_nova from public.lancamentos where id = v_contas[2];
+  assert v_nova.conta_bancaria_id = '00000000-0000-0000-0000-0000000d1a01', 'Conta nova vai no Sicredi';
+  assert v_nova.valor = 980 and v_nova.numero_nota_fiscal = '9002'
+     and v_nova.cliente_id = '00000000-0000-0000-0000-0000000d1c01'
+     and v_nova.vencimento = privado.hoje() + 25, 'Conta nova com os dados da nota';
+  assert (select lancamento_id from public.notas_fiscais
+           where id = '00000000-0000-0000-0000-0000000d1d02') = v_contas[2], 'Nota 2 ficou ligada';
+
+  -- Chamar de novo não duplica nada.
+  assert public.contas_das_notas(
+    array['00000000-0000-0000-0000-0000000d1d01', '00000000-0000-0000-0000-0000000d1d02']::uuid[]) = v_contas,
+    'Segunda chamada devolve as mesmas contas';
+
+  v_id := public.antecipar_recebiveis(v_contas, privado.hoje(),
+            '00000000-0000-0000-0000-0000000d1a01', 'Sicredi', 60);
+  assert (select valor_bruto from public.antecipacoes where id = v_id) = 1960, 'Bruto das duas notas';
+  assert (select sum(valor_pago) from public.lancamentos where antecipacao_id = v_id) = 1900, 'Líquido';
+
+  begin
+    perform public.contas_das_notas(array['00000000-0000-0000-0000-0000000d1d03']::uuid[]);
+    raise exception 'FALHOU: antecipou nota em rascunho';
+  exception when check_violation then null;
+  end;
+end $$;
+reset role;
+
+-- =============================================================================
 -- Vendedor: não vê nem antecipa
 -- =============================================================================
 select pg_temp.como('00000000-0000-0000-0000-0000000002b1');

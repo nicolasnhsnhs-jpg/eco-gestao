@@ -524,6 +524,11 @@ export function useCancelarMovimentoInvestimento() {
 
 export type Antecipacao = {
   lancamentos: string[]
+  /**
+   * Pela tela das notas: as notas marcadas. O banco acha (ou cria no Sicredi) a conta a
+   * receber de cada uma e é ela que é antecipada; `lancamentos` é ignorado.
+   */
+  notas?: string[]
   data: string
   conta_bancaria_id: string
   instituicao: string
@@ -540,8 +545,14 @@ export function useAntecipar() {
   const atualizar = useAtualizarFinanceiro()
   return useMutation({
     mutationFn: async (a: Antecipacao) => {
+      let lancamentos = a.lancamentos
+      if (a.notas?.length) {
+        const contas = await supabase.rpc('contas_das_notas', { p_notas: a.notas })
+        if (contas.error) throw contas.error
+        lancamentos = contas.data
+      }
       const { data, error } = await supabase.rpc('antecipar_recebiveis', {
-        p_lancamentos: a.lancamentos,
+        p_lancamentos: lancamentos,
         p_data: a.data,
         p_conta: a.conta_bancaria_id,
         p_instituicao: a.instituicao,

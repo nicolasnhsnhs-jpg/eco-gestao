@@ -294,8 +294,24 @@ describe('contaParaAntecipar', () => {
       status: 'agendado',
     })
   })
+  it('avulsa sem conta ligada entra com o valor da nota', () => {
+    expect(
+      contaParaAntecipar({ ...nota, tipo: 'avulsa', valor_servico: '980.00', lancamento: null }),
+    ).toEqual({ id: null, valor: '980.00' })
+    expect(
+      contaParaAntecipar({
+        status: 'rascunho',
+        tipo: 'avulsa',
+        valor_servico: 980,
+        lancamento: null,
+      }),
+    ).toBeNull()
+  })
   it('recusa nota sem conta, cancelada, rascunho ou já recebida', () => {
     expect(contaParaAntecipar({ ...nota, lancamento: null })).toBeNull()
+    expect(
+      contaParaAntecipar({ ...nota, tipo: 'contrato', valor_servico: 980, lancamento: null }),
+    ).toBeNull()
     expect(contaParaAntecipar({ ...nota, status: 'cancelada' })).toBeNull()
     expect(contaParaAntecipar({ ...nota, status: 'rascunho' })).toBeNull()
     expect(

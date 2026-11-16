@@ -248,13 +248,24 @@ export function aceitaBoletoEmLote(n: {
 }
 
 /**
- * Nota emitida cuja conta a receber ainda está em aberto: dá para antecipar pela tela das
- * notas. Devolve a conta (é ela que o banco antecipa, com o valor dela) ou null.
+ * Nota emitida que dá para antecipar pela tela das notas. Devolve a conta a receber (é ela
+ * que o banco antecipa, com o valor dela) ou null. A avulsa ainda sem conta ligada também
+ * entra, com o valor da nota e id null: ao antecipar, o sistema acha a conta do cliente ou
+ * cria uma no Sicredi (função contas_das_notas).
  */
 export function contaParaAntecipar<
   L extends { id: string; status: string; valor: number | string | null },
->(n: { status: string; lancamento: L | null }): L | null {
+>(n: {
+  status: string
+  tipo?: string
+  valor_servico?: number | string
+  lancamento: L | null
+}): { id: string | null; valor: number | string | null } | null {
   const l = n.lancamento
-  if (n.status !== 'emitida' || !l) return null
+  if (n.status !== 'emitida') return null
+  if (!l)
+    return n.tipo === 'avulsa' && n.valor_servico != null
+      ? { id: null, valor: n.valor_servico }
+      : null
   return l.status === 'pendente' || l.status === 'agendado' ? l : null
 }

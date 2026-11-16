@@ -89,9 +89,8 @@ export function NotasFiscaisPage() {
   const lista = antecipando ? todasDoFiltro.filter((n) => contaParaAntecipar(n)) : todasDoFiltro
   const foraDaAntecipacao = todasDoFiltro.length - lista.length
   // Só valem as marcadas que ainda aparecem na lista (o filtro pode ter mudado).
-  const contasMarcadas = antecipando
-    ? lista.filter((n) => marcadas.has(n.id)).map((n) => contaParaAntecipar(n)!)
-    : []
+  const notasMarcadas = antecipando ? lista.filter((n) => marcadas.has(n.id)) : []
+  const contasMarcadas = notasMarcadas.map((n) => contaParaAntecipar(n)!)
   const somar = (lista: NotaFiscalCompleta[]) =>
     lista.reduce((s, n) => s + Number(n.valor_servico), 0)
   const deContrato = lista.filter((n) => n.tipo === 'contrato')
@@ -132,7 +131,8 @@ export function NotasFiscaisPage() {
         <div className="mb-4">
           <Aviso>
             Escolha o <strong>dia da emissão</strong>, marque as notas que foram antecipadas e toque
-            em <strong>Antecipar</strong>. Aparecem só as notas com a conta a receber em aberto; os
+            em <strong>Antecipar</strong>. Aparecem as notas com a conta a receber em aberto e as
+            avulsas ainda sem conta (o sistema acha a conta do cliente ou cria uma no Sicredi); os
             vencimentos dos clientes continuam registrados e no saldo entra só o que caiu na conta.{' '}
             <Link to="/financeiro/antecipacoes" className="font-semibold underline">
               Ver antecipações feitas
@@ -289,6 +289,7 @@ export function NotasFiscaisPage() {
       <AntecipacaoModal
         aberto={antecipacaoAberta}
         selecionados={contasMarcadas}
+        notas={notasMarcadas.map((n) => n.id)}
         aoFechar={() => setAntecipacaoAberta(false)}
         aoAntecipar={() => {
           setAntecipacaoAberta(false)

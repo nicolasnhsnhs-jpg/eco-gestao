@@ -24,24 +24,28 @@ export type ContaParaAntecipar = { id: string | null; valor: number | string | n
 type Props = {
   aberto: boolean
   selecionados: ContaParaAntecipar[]
+  /** Vindo da tela das notas: as notas marcadas (na mesma ordem de `selecionados`). */
+  notas?: string[]
   aoFechar: () => void
   aoAntecipar: () => void
 }
 
 /** Antecipar várias contas a receber de uma vez: informa o desconto e onde o dinheiro caiu. */
-export function AntecipacaoModal({ aberto, selecionados, aoFechar, aoAntecipar }: Props) {
+export function AntecipacaoModal({ aberto, selecionados, notas, aoFechar, aoAntecipar }: Props) {
   return (
     <Modal aberto={aberto} aoFechar={aoFechar} titulo="Antecipar recebíveis">
-      <Formulario selecionados={selecionados} aoTerminar={aoAntecipar} />
+      <Formulario selecionados={selecionados} notas={notas} aoTerminar={aoAntecipar} />
     </Modal>
   )
 }
 
 function Formulario({
   selecionados,
+  notas,
   aoTerminar,
 }: {
   selecionados: ContaParaAntecipar[]
+  notas?: string[]
   aoTerminar: () => void
 }) {
   const contas = useContas()
@@ -76,7 +80,8 @@ function Formulario({
     if (descontoForaDoLimite) return setErro('O desconto precisa ser menor que o total.')
     try {
       await antecipar.mutateAsync({
-        lancamentos: selecionados.map((l) => l.id!),
+        lancamentos: selecionados.map((l) => l.id).filter((id): id is string => !!id),
+        notas,
         data,
         conta_bancaria_id: conta,
         instituicao,
