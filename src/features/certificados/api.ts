@@ -273,26 +273,30 @@ async function produtosDaOs(osId: string): Promise<ProdutoCertificado[]> {
   const { data, error } = await supabase
     .from('os_produtos')
     .select(
-      'unidades, gramas, produto:produtos_certificado(id, nome_comercial, principio_ativo, registro, lote, fabricacao, validade, quantidade_padrao)',
+      'unidades, gramas, ml, produto:produtos_certificado(id, nome_comercial, principio_ativo, registro, lote, fabricacao, validade, quantidade_padrao)',
     )
     .eq('os_id', osId)
     .not('produto_id', 'is', null)
     .order('criado_em')
   if (error) throw error
-  const porProduto = new Map<string, { item: ProdutoCatalogoResumo; un: number; g: number }>()
+  const porProduto = new Map<
+    string,
+    { item: ProdutoCatalogoResumo; un: number; g: number; ml: number }
+  >()
   for (const linha of data) {
     if (!linha.produto) continue
-    const atual = porProduto.get(linha.produto.id) ?? { item: linha.produto, un: 0, g: 0 }
+    const atual = porProduto.get(linha.produto.id) ?? { item: linha.produto, un: 0, g: 0, ml: 0 }
     atual.un += linha.unidades ?? 0
     atual.g += linha.gramas ?? 0
+    atual.ml += linha.ml ?? 0
     porProduto.set(linha.produto.id, atual)
   }
   const num = (n: number) => n.toLocaleString('pt-BR')
-  return [...porProduto.values()].map(({ item, un, g }) => ({
+  return [...porProduto.values()].map(({ item, un, g, ml }) => ({
     nome_comercial: item.nome_comercial ?? '',
     principio_ativo: item.principio_ativo,
     registro: item.registro ?? '',
-    quantidade: g ? `${num(g)}g` : un ? `${num(un)} un` : '',
+    quantidade: g ? `${num(g)}g` : ml ? `${num(ml)} mL` : un ? `${num(un)} un` : '',
     lote: item.lote ?? '',
     fabricacao: item.fabricacao ?? '',
     validade: item.validade ?? '',

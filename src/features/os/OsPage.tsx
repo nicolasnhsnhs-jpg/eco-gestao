@@ -32,6 +32,7 @@ import { EditarOs } from './EditarOs'
 import { EscopoAgua } from './EscopoAgua'
 import { EscopoReservatorio } from './EscopoReservatorio'
 import { EscopoAreasAtendidas } from './EscopoAreas'
+import { EscopoProdutosProgramados } from './ProdutosProgramados'
 import { EscopoArCondicionado } from './EscopoArCondicionado'
 import { EscopoBebedouro } from './EscopoBebedouro'
 import { EscopoCoifa } from './EscopoCoifa'
@@ -281,14 +282,13 @@ export function OsPage() {
                 {e.assinatura_operador_id && <Etiqueta cor="verde">Visto</Etiqueta>}
               </Linha>
               <Linha rotulo="Acompanhou">
-                {e.sem_acompanhamento ? (
-                  'Não houve acompanhamento'
-                ) : (
-                  <>
-                    {[e.responsavel_nome, e.responsavel_setor].filter(Boolean).join(' · ') || '—'}{' '}
-                    {e.assinatura_cliente_id && <Etiqueta cor="verde">Assinado</Etiqueta>}
-                  </>
-                )}
+                {e.sem_acompanhamento && 'Não houve acompanhamento'}
+                {e.sem_acompanhamento &&
+                  (e.responsavel_nome || e.responsavel_setor || e.assinatura_cliente_id) &&
+                  ' · recebeu: '}
+                {[e.responsavel_nome, e.responsavel_setor].filter(Boolean).join(' · ') ||
+                  (e.sem_acompanhamento ? '' : '—')}{' '}
+                {e.assinatura_cliente_id && <Etiqueta cor="verde">Assinado</Etiqueta>}
               </Linha>
               {o.concluida_em && (
                 <Linha rotulo="Concluída em">{formatarDataHora(o.concluida_em)}</Linha>
@@ -320,6 +320,14 @@ export function OsPage() {
           <EscopoBebedouro alvo={alvo} />
         </div>
       )}
+      {escritorio &&
+        alvo &&
+        o.tipo?.formulario_os &&
+        ['pragas', 'pragas_simples'].includes(escritorio && alvo && o.tipo.formulario_os) && (
+          <div className="mt-4">
+            <EscopoProdutosProgramados alvo={alvo} />
+          </div>
+        )}
       {escritorio && alvo && o.tipo?.formulario_os === 'pragas_simples' && (
         <div className="mt-4">
           <EscopoAreasAtendidas alvo={alvo} />

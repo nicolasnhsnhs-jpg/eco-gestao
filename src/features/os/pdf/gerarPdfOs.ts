@@ -15,7 +15,13 @@ import { escreverBebedouro } from './bebedouroPdf'
 import { escreverCoifa } from './coifaPdf'
 import { areasAtendidas, type ChecklistAreas } from '../EscopoAreas'
 import { descreverReservatorio, ultimaLimpeza } from '../EscopoReservatorio'
-import { buscarDadosPragas, escreverPragas, escreverProdutos, type DadosPragas } from './pragasPdf'
+import {
+  buscarDadosPragas,
+  escreverPragas,
+  escreverProdutos,
+  escreverProgramas,
+  type DadosPragas,
+} from './pragasPdf'
 import { escreverTelas } from './telasPdf'
 
 /*
@@ -384,6 +390,7 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
     w.campo('Áreas atendidas', areasAtendidas(os.escopo))
     w.campo('Conforme planejado', conforme ? 'Sim' : 'Não')
     w.campo('O que foi feito', e?.resultado)
+    escreverProgramas(w, os.escopo, e?.checklist)
     if (pragas) escreverProdutos(w, pragas.produtos)
   }
   w.campo('Observações', e?.observacoes)
@@ -432,11 +439,16 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
   // pronto, com a assinatura escaneada (o operador nem vê esse quadro).
   const rt = UNIDADE.responsavelTecnico
   const quadros: { imagem: PDFImage | null; nome: string; rotulo: string; extra?: string }[] = []
+  // Sem acompanhamento o técnico ainda pode pegar a assinatura de quem recebeu na saída
+  // (portaria, recepção…), para mostrar que esteve lá.
+  const quemAssinou = [e?.responsavel_nome, e?.responsavel_setor].filter(Boolean).join(' · ')
   const acompanhou = e?.sem_acompanhamento
-    ? 'Não houve acompanhamento'
-    : [e?.responsavel_nome, e?.responsavel_setor].filter(Boolean).join(' · ')
+    ? ['Não houve acompanhamento', quemAssinou && `Recebeu: ${quemAssinou}`]
+        .filter(Boolean)
+        .join(' · ')
+    : quemAssinou
   for (const [arquivo, rotulo, nome] of [
-    [e?.sem_acompanhamento ? undefined : assinaturaCliente, 'Acompanhou pelo cliente', acompanhou],
+    [assinaturaCliente, e?.sem_acompanhamento ? 'Cliente' : 'Acompanhou pelo cliente', acompanhou],
     [assinaturaOperador, 'Operador', e?.operador_nome ?? ''],
   ] as const) {
     const bytes = arquivo && imagens.get(arquivo.id)

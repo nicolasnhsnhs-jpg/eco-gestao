@@ -7,17 +7,23 @@ import type { OsCompleta } from '../api'
 import { quebrarLinhas, textoSeguro } from './gerarPdfOs'
 import { nomeDoProduto, type InsetoOs, type PontoOs, type ProdutoOs } from '../pragasApi'
 import {
+  CONDICOES,
+  DILUENTES,
   escreverFaixas,
   ESPECIES,
   FORMAS_PRODUTO,
+  HIGIENE,
   NIVEIS,
+  OCORRENCIAS,
   PRAGAS_INSETOS,
+  REFIL,
   PROCEDIMENTOS,
   SITUACOES_ISCA,
   sugerirNivelRoedores,
   type ChecklistPragas,
   type EscopoPragas,
 } from '../tipos/pragas'
+import { dosesMarcadas, type ChecklistProgramas, type EscopoProgramas } from '../tipos/programas'
 
 /*
  * Seções do controle de pragas no PDF da OS. Os porta-iscas saem resumidos por
@@ -399,6 +405,8 @@ export function escreverPragas(
   const checklist = (os.execucao?.checklist ?? {}) as ChecklistPragas
   const portaIscas = dados.pontos.filter((p) => p.tipo === 'porta_isca')
   const armadilhas = dados.pontos.filter((p) => p.tipo === 'armadilha_luminosa')
+  const feromonios = dados.pontos.filter((p) => p.tipo === 'feromonio')
+  const moscas = dados.pontos.filter((p) => p.tipo === 'armadilha_moscas')
 
   w.secao('Controle de roedores')
   w.campo('Pragas alvo', (checklist.pragas_alvo ?? escopo.pragas_alvo ?? []).join(', '))
@@ -422,6 +430,7 @@ export function escreverPragas(
   w.campo('Quebrados', checklist.quebrados)
   w.campo('Comentários', checklist.comentarios_roedores)
 
+  escreverProgramas(w, os.escopo, checklist)
   escreverProdutos(w, dados.produtos)
 
   if (armadilhas.length > 0) {
@@ -460,9 +469,50 @@ export function escreverPragas(
     pizzaInsetos(w, fonte, armadilhas)
   }
 
+  if (feromonios.length > 0) {
+    w.secao('Monitoramento — armadilha adesiva com feromônios e atrativos alimentares')
+    w.campo('Objetivo', escopo.objetivo_feromonio)
+    desenharGrade(
+      w,
+      fonte,
+      negrito,
+      feromonios.map((f) => {
+        const qtd = ((f.capturas ?? {}) as Record<string, number>).qtd
+        return {
+          titulo: `${String(f.numero).padStart(2, '0')} · ${f.area}`,
+          linhas: [
+            `Última troca: ${f.ultima_troca_lampada ? formatarData(f.ultima_troca_lampada) : '—'}`,
+            `Situação ${f.refil ?? '—'} · Higiene ${f.higiene ?? '—'}`,
+            `Qtd: ${qtd ?? '—'}`,
+            ...(f.observacao?.trim() ? [`Pragas: ${f.observacao.trim()}`] : []),
+          ],
+        }
+      }),
+      'Armadilhas de feromônio',
+    )
+  }
+
+  if (moscas.length > 0) {
+    w.secao('Monitoramento — armadilha biológica para captura de moscas')
+    for (const m of moscas) {
+      w.campo(
+        `${String(m.numero).padStart(2, '0')} · ${m.area}`,
+        [
+          `refil ${m.refil ? REFIL[m.refil as keyof typeof REFIL] : '—'}`,
+          `higiene ${m.higiene ? HIGIENE[m.higiene as keyof typeof HIGIENE] : '—'}`,
+          `nível ${m.nivel ? NIVEIS[m.nivel as keyof typeof NIVEIS] : '—'}`,
+          m.observacao?.trim(),
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      )
+    }
+  }
+
   if (escopo.subtipo === 'insetos_roedores') {
     w.secao('Controle de insetos')
     w.campo('Áreas do cliente', escopo.areas_insetos)
+    w.campo('Pragas combatidas', escopo.pragas_insetos)
     w.campo(
       'Monitoramento',
       checklist.monitoramento_insetos ? 'Realizado nas áreas descritas' : 'Não realizado',
@@ -476,6 +526,8 @@ export function escreverPragas(
           i.condicoes,
           i.principio_ativo,
           i.quantidade,
+          i.diluente && (DILUENTES[i.diluente as keyof typeof DILUENTES] ?? i.diluente),
+          i.calda && `calda ${i.calda} L`,
           i.procedimento && PROCEDIMENTOS[i.procedimento as keyof typeof PROCEDIMENTOS],
         ]
           .filter(Boolean)
@@ -491,6 +543,22 @@ export function escreverPragas(
     }
   }
 
+  const ocorrencias = Object.entries(checklist.ocorrencias ?? {}).filter(
+    ([, o]) => o && (o.vivos != null || o.mortos != null || o.comentario?.trim()),
+  )
+  if (escopo.planilha_ocorrencias) {
+    w.secao('Planilha de gerenciamento de ocorrências com pragas')
+    if (ocorrencias.length === 0) w.campo('Ocorrências', 'Nenhuma praga encontrada')
+    for (const [tipo, o] of ocorrencias) {
+      w.campo(
+        OCORRENCIAS[tipo as keyof typeof OCORRENCIAS] ?? tipo,
+        [`vivos ${o?.vivos ?? 0}`, `mortos ${o?.mortos ?? 0}`, o?.comentario?.trim()]
+          .filter(Boolean)
+          .join(' · '),
+      )
+    }
+  }
+
   w.secao('Observações gerais')
   w.campo(
     'Medidas preventivas',
@@ -502,6 +570,38 @@ export function escreverPragas(
   )
   w.campo('Locais de aplicação', checklist.comentarios_aplicacao)
   w.campo('Solicitações do cliente', checklist.solicitacoes_cliente)
+  if (escopo.envelope) {
+    w.campo(
+      'Envelope entregue',
+      checklist.envelope_entregue == null
+        ? ''
+        : checklist.envelope_entregue
+          ? ['Sim', checklist.envelope_documentos?.trim()].filter(Boolean).join(': ')
+          : 'Não',
+    )
+    if (checklist.envelope_entregue) w.campo('Recebido por', checklist.envelope_responsavel)
+  }
+}
+
+/** Produtos programados (aplicações prontas do contrato): o que o técnico marcou. */
+export function escreverProgramas(w: EscritorPdf, escopoOs: unknown, checklistOs: unknown) {
+  const programas = ((escopoOs ?? {}) as EscopoProgramas).programas ?? []
+  const marcacoes = ((checklistOs ?? {}) as ChecklistProgramas).programas ?? {}
+  for (const g of programas) {
+    const m = marcacoes[g.id]
+    w.secao(g.titulo)
+    w.campo('Áreas do cliente', g.areas)
+    w.campo('Nível de infestação', m?.nivel ? NIVEIS[m.nivel] : '')
+    w.campo(
+      'Condições das áreas',
+      m?.condicoes ? (CONDICOES[m.condicoes as keyof typeof CONDICOES] ?? m.condicoes) : '',
+    )
+    const marcadas = dosesMarcadas(g, m)
+    if (marcadas.length === 0) w.campo('Aplicado', 'Nenhum produto marcado')
+    for (const { produto, texto } of marcadas) {
+      w.item(texto, produto.alvos ? `Alvos: ${produto.alvos}` : undefined)
+    }
+  }
 }
 
 /** Produtos usados na OS (pragas e controle só de insetos ou roedores). */
@@ -515,6 +615,7 @@ export function escreverProdutos(w: EscritorPdf, produtos: ProdutoOs[]) {
         FORMAS_PRODUTO[p.forma as keyof typeof FORMAS_PRODUTO],
         p.unidades != null && `${p.unidades.toLocaleString('pt-BR')} un`,
         p.gramas != null && `${p.gramas.toLocaleString('pt-BR')} g`,
+        p.ml != null && `${p.ml.toLocaleString('pt-BR')} mL`,
       ]
         .filter(Boolean)
         .join(' · '),

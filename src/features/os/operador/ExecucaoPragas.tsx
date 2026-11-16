@@ -23,17 +23,20 @@ import {
 } from '../pragasApi'
 import {
   CONDICOES,
+  DILUENTES,
   escreverFaixas,
   ESPECIES,
   FORMAS_PRODUTO,
   HIGIENE,
   lerFaixas,
   NIVEIS,
+  OCORRENCIAS,
   PRAGAS_ALVO,
   PRAGAS_INSETOS,
   PROCEDIMENTOS,
   REFIL,
   SITUACOES_ARMADILHA,
+  SITUACOES_FEROMONIO,
   SITUACOES_ISCA,
   SITUACOES_PLACA,
   sugerirNivelRoedores,
@@ -41,8 +44,11 @@ import {
   type ChecklistPragas,
   type EscopoPragas,
   type Nivel,
+  type Ocorrencia,
 } from '../tipos/pragas'
 import { capturasCompletas } from '../offline/pendencias'
+import { MarcarProdutosProgramados } from '../ProdutosProgramados'
+import type { ChecklistProgramas } from '../tipos/programas'
 import { ConferenciaPortaIscas } from './ConferenciaPortaIscas'
 
 type Props = {
@@ -58,11 +64,16 @@ type Props = {
 export function ExecucaoPragas({ os, campos, alterar, aberta, primeira }: Props) {
   const pontos = usePontosOs(os.id)
   const escopo = (os.escopo ?? {}) as EscopoPragas
-  const checklist = (campos.checklist ?? {}) as ChecklistPragas
-  const mudar = (parcial: ChecklistPragas) => alterar({ checklist: { ...checklist, ...parcial } })
+  const checklist = (campos.checklist ?? {}) as ChecklistPragas & ChecklistProgramas
+  const mudar = (parcial: ChecklistPragas & ChecklistProgramas) =>
+    alterar({ checklist: { ...checklist, ...parcial } })
 
   const portaIscas = pontos.data?.filter((p) => p.tipo === 'porta_isca') ?? []
   const armadilhas = pontos.data?.filter((p) => p.tipo === 'armadilha_luminosa') ?? []
+  const feromonios = pontos.data?.filter((p) => p.tipo === 'feromonio') ?? []
+  const moscas = pontos.data?.filter((p) => p.tipo === 'armadilha_moscas') ?? []
+  const temMonitoramento = feromonios.length + moscas.length > 0
+  const etapaInsetos = primeira + 2 + (armadilhas.length > 0 ? 1 : 0) + (temMonitoramento ? 1 : 0)
   const sugestao = sugerirNivelRoedores(portaIscas.map((p) => p.situacao))
   const pragasAlvo = checklist.pragas_alvo ?? escopo.pragas_alvo ?? []
 
@@ -152,6 +163,12 @@ export function ExecucaoPragas({ os, campos, alterar, aberta, primeira }: Props)
       </Etapa>
 
       <Etapa numero={primeira + 1} titulo="Produtos utilizados">
+        <MarcarProdutosProgramados
+          escopo={os.escopo}
+          checklist={checklist}
+          aberta={aberta}
+          mudar={mudar}
+        />
         <Produtos osId={os.id} aberta={aberta} />
       </Etapa>
 
@@ -163,11 +180,47 @@ export function ExecucaoPragas({ os, campos, alterar, aberta, primeira }: Props)
         </Etapa>
       )}
 
+      {temMonitoramento && (
+        <Etapa
+          numero={primeira + 2 + (armadilhas.length > 0 ? 1 : 0)}
+          titulo="Feromônio e armadilhas de moscas"
+        >
+          {feromonios.length > 0 && (
+            <>
+              <h3 className="font-semibold text-verde-escuro">
+                Armadilha adesiva com feromônio e atrativo alimentar
+              </h3>
+              {escopo.objetivo_feromonio && (
+                <p className="text-sm text-texto-suave">{escopo.objetivo_feromonio}</p>
+              )}
+              {feromonios.map((f) => (
+                <Feromonio key={f.id} osId={os.id} ponto={f} aberta={aberta} />
+              ))}
+            </>
+          )}
+          {moscas.length > 0 && (
+            <>
+              <h3 className="font-semibold text-verde-escuro">
+                Armadilha biológica para captura de moscas
+              </h3>
+              {moscas.map((m) => (
+                <ArmadilhaMoscas key={m.id} osId={os.id} ponto={m} aberta={aberta} />
+              ))}
+            </>
+          )}
+        </Etapa>
+      )}
+
       {escopo.subtipo === 'insetos_roedores' && (
-        <Etapa numero={primeira + 2 + (armadilhas.length > 0 ? 1 : 0)} titulo="Controle de insetos">
+        <Etapa numero={etapaInsetos} titulo="Controle de insetos">
           {escopo.areas_insetos && (
             <p>
               <span className="font-semibold">Áreas do cliente:</span> {escopo.areas_insetos}
+            </p>
+          )}
+          {escopo.pragas_insetos && (
+            <p>
+              <span className="font-semibold">Pragas combatidas:</span> {escopo.pragas_insetos}
             </p>
           )}
           <label className="flex min-h-11 items-center gap-3">
@@ -208,6 +261,9 @@ export function ExecucaoPragas({ os, campos, alterar, aberta, primeira }: Props)
               </label>
             ))}
           </div>
+        )}
+        {escopo.planilha_ocorrencias && (
+          <PlanilhaOcorrencias checklist={checklist} aberta={aberta} mudar={mudar} />
         )}
         <div className="flex flex-col gap-2">
           <p className="font-semibold">Sugestão de medidas físicas e preventivas?</p>
@@ -251,6 +307,44 @@ export function ExecucaoPragas({ os, campos, alterar, aberta, primeira }: Props)
             onChange={(e) => mudar({ solicitacoes_cliente: e.target.value })}
           />
         </Campo>
+        {escopo.envelope && (
+          <div className="flex flex-col gap-2">
+            <p className="font-semibold">Foi entregue envelope?</p>
+            <BotoesCodigo
+              opcoes={{ nao: 'Não', sim: 'Sim' }}
+              valor={
+                checklist.envelope_entregue == null
+                  ? null
+                  : checklist.envelope_entregue
+                    ? 'sim'
+                    : 'nao'
+              }
+              desabilitado={!aberta}
+              aoMudar={(v) => mudar({ envelope_entregue: v === null ? undefined : v === 'sim' })}
+            />
+            {checklist.envelope_entregue && (
+              <>
+                <Campo rotulo="Documentos entregues" htmlFor="pr-env-docs">
+                  <Textarea
+                    id="pr-env-docs"
+                    rows={2}
+                    disabled={!aberta}
+                    value={checklist.envelope_documentos ?? ''}
+                    onChange={(e) => mudar({ envelope_documentos: e.target.value })}
+                  />
+                </Campo>
+                <Campo rotulo="Quem recebeu (nome e setor)" htmlFor="pr-env-resp">
+                  <Input
+                    id="pr-env-resp"
+                    disabled={!aberta}
+                    value={checklist.envelope_responsavel ?? ''}
+                    onChange={(e) => mudar({ envelope_responsavel: e.target.value })}
+                  />
+                </Campo>
+              </>
+            )}
+          </div>
+        )}
         <Campo rotulo="Outras observações" htmlFor="ex-observacoes">
           <Textarea
             id="ex-observacoes"
@@ -570,6 +664,196 @@ function Armadilha({ osId, ponto, aberta }: { osId: string; ponto: PontoOs; aber
   )
 }
 
+/** Armadilha adesiva com feromônio: situação, higiene, quantidade e pragas identificadas. */
+function Feromonio({ osId, ponto, aberta }: { osId: string; ponto: PontoOs; aberta: boolean }) {
+  const anotar = useAnotarPontos(osId)
+  const capturas = (ponto.capturas ?? {}) as Record<string, number>
+  const [pragas, setPragas] = useState(ponto.observacao ?? '')
+  const gravar = (campos: Parameters<typeof anotar.mutate>[0]['campos']) =>
+    anotar.mutate({ ids: [ponto.id], campos })
+
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-borda p-3">
+      <p className="font-semibold">
+        {String(ponto.numero).padStart(2, '0')} · {ponto.area}
+      </p>
+      <p className="-mt-2 text-sm text-texto-suave">
+        Última troca:{' '}
+        {ponto.ultima_troca_lampada ? formatarData(ponto.ultima_troca_lampada) : 'sem registro'}
+      </p>
+      {anotar.isError && <Aviso tipo="erro">{mensagemDeErro(anotar.error)}</Aviso>}
+      <Linha rotulo="Situação da armadilha">
+        <BotoesCodigo
+          opcoes={SITUACOES_FEROMONIO}
+          valor={ponto.refil}
+          desabilitado={!aberta}
+          aoMudar={(v) => gravar({ refil: v })}
+        />
+      </Linha>
+      <Linha rotulo="Higiene da armadilha">
+        <BotoesCodigo
+          opcoes={HIGIENE}
+          valor={ponto.higiene}
+          desabilitado={!aberta}
+          aoMudar={(v) => gravar({ higiene: v })}
+        />
+      </Linha>
+      <div className="grid grid-cols-[6rem_1fr] gap-2">
+        <Campo rotulo="Qtd" htmlFor={`fer-qtd-${ponto.id}`}>
+          <Input
+            key={capturas.qtd ?? 'vazio'}
+            id={`fer-qtd-${ponto.id}`}
+            inputMode="numeric"
+            disabled={!aberta}
+            defaultValue={capturas.qtd?.toString() ?? ''}
+            onBlur={(e) => {
+              const n = e.target.value.replace(/\D/g, '')
+              const novo = { ...capturas }
+              if (n) novo.qtd = Number(n)
+              else delete novo.qtd
+              if (novo.qtd !== capturas.qtd) gravar({ capturas: novo })
+            }}
+          />
+        </Campo>
+        <Campo rotulo="Praga(s) identificada(s)" htmlFor={`fer-pragas-${ponto.id}`}>
+          <Input
+            id={`fer-pragas-${ponto.id}`}
+            disabled={!aberta}
+            placeholder="Ex.: gorgulho, traça"
+            value={pragas}
+            onChange={(e) => setPragas(e.target.value)}
+            onBlur={() => {
+              if (pragas.trim() !== (ponto.observacao ?? ''))
+                gravar({ observacao: pragas.trim() || null })
+            }}
+          />
+        </Campo>
+      </div>
+    </div>
+  )
+}
+
+/** Armadilha biológica de moscas: refil, higiene, nível de infestação e observação. */
+function ArmadilhaMoscas({
+  osId,
+  ponto,
+  aberta,
+}: {
+  osId: string
+  ponto: PontoOs
+  aberta: boolean
+}) {
+  const anotar = useAnotarPontos(osId)
+  const [obs, setObs] = useState(ponto.observacao ?? '')
+  const gravar = (campos: Parameters<typeof anotar.mutate>[0]['campos']) =>
+    anotar.mutate({ ids: [ponto.id], campos })
+
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-borda p-3">
+      <p className="font-semibold">
+        {String(ponto.numero).padStart(2, '0')} · {ponto.area}
+      </p>
+      {anotar.isError && <Aviso tipo="erro">{mensagemDeErro(anotar.error)}</Aviso>}
+      <Linha rotulo="Situação do refil">
+        <BotoesCodigo
+          opcoes={REFIL}
+          valor={ponto.refil}
+          desabilitado={!aberta}
+          aoMudar={(v) => gravar({ refil: v })}
+        />
+      </Linha>
+      <Linha rotulo="Condições de higiene">
+        <BotoesCodigo
+          opcoes={HIGIENE}
+          valor={ponto.higiene}
+          desabilitado={!aberta}
+          aoMudar={(v) => gravar({ higiene: v })}
+        />
+      </Linha>
+      <Linha rotulo="Nível de infestação">
+        <BotoesCodigo
+          opcoes={NIVEIS}
+          valor={ponto.nivel}
+          desabilitado={!aberta}
+          aoMudar={(v) => gravar({ nivel: v })}
+        />
+      </Linha>
+      <Input
+        aria-label={`Observação de ${ponto.area}`}
+        placeholder="Observação (opcional)"
+        disabled={!aberta}
+        value={obs}
+        onChange={(e) => setObs(e.target.value)}
+        onBlur={() => {
+          if (obs.trim() !== (ponto.observacao ?? '')) gravar({ observacao: obs.trim() || null })
+        }}
+      />
+    </div>
+  )
+}
+
+type TipoOcorrencia = keyof typeof OCORRENCIAS
+
+/** Planilha de gerenciamento de ocorrências com pragas: vivos e mortos por tipo. */
+function PlanilhaOcorrencias({
+  checklist,
+  aberta,
+  mudar,
+}: {
+  checklist: ChecklistPragas
+  aberta: boolean
+  mudar: (parcial: ChecklistPragas) => void
+}) {
+  const atual = checklist.ocorrencias ?? {}
+  const mudarTipo = (tipo: TipoOcorrencia, dados: Ocorrencia) =>
+    mudar({ ocorrencias: { ...atual, [tipo]: { ...atual[tipo], ...dados } } })
+  const numero = (t: string) => {
+    const n = t.replace(/\D/g, '')
+    return n ? Number(n) : undefined
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="font-semibold">Planilha de ocorrências com pragas</p>
+      <p className="text-sm text-texto-suave">
+        Só o que encontrou: quantidade de vivos e mortos e onde (áreas e comentários).
+      </p>
+      {(Object.entries(OCORRENCIAS) as [TipoOcorrencia, string][]).map(([tipo, nome]) => (
+        <div
+          key={tipo}
+          className="grid grid-cols-[1fr_4.5rem_4.5rem] gap-2 sm:grid-cols-[10rem_5rem_5rem_1fr]"
+        >
+          <span className="self-center text-sm font-semibold">{nome}</span>
+          <Input
+            aria-label={`${nome}: vivos`}
+            placeholder="vivos"
+            inputMode="numeric"
+            disabled={!aberta}
+            value={atual[tipo]?.vivos?.toString() ?? ''}
+            onChange={(e) => mudarTipo(tipo, { vivos: numero(e.target.value) })}
+          />
+          <Input
+            aria-label={`${nome}: mortos`}
+            placeholder="mortos"
+            inputMode="numeric"
+            disabled={!aberta}
+            value={atual[tipo]?.mortos?.toString() ?? ''}
+            onChange={(e) => mudarTipo(tipo, { mortos: numero(e.target.value) })}
+          />
+          <Input
+            aria-label={`${nome}: áreas e comentários`}
+            className="col-span-3 sm:col-span-1"
+            placeholder="áreas e comentários"
+            disabled={!aberta}
+            value={atual[tipo]?.comentario ?? ''}
+            onChange={(e) => mudarTipo(tipo, { comentario: e.target.value })}
+          />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function Produtos({ osId, aberta }: { osId: string; aberta: boolean }) {
   const produtos = useProdutos(osId)
   const gravar = useGravarProduto(osId)
@@ -579,6 +863,7 @@ export function Produtos({ osId, aberta }: { osId: string; aberta: boolean }) {
   const [forma, setForma] = useState('bloco')
   const [unidades, setUnidades] = useState('')
   const [gramas, setGramas] = useState('')
+  const [ml, setMl] = useState('')
   const numero = (t: string) => (t ? Number(t.replace(',', '.')) : null)
 
   return (
@@ -592,6 +877,7 @@ export function Produtos({ osId, aberta }: { osId: string; aberta: boolean }) {
               {FORMAS_PRODUTO[p.forma as keyof typeof FORMAS_PRODUTO]}
               {p.unidades != null && ` · ${p.unidades} un`}
               {p.gramas != null && ` · ${p.gramas} g`}
+              {p.ml != null && ` · ${p.ml} mL`}
             </span>
             {aberta && (
               <Button variante="fantasma" onClick={() => gravar.mutate({ remover: p.id })}>
@@ -644,22 +930,32 @@ export function Produtos({ osId, aberta }: { osId: string; aberta: boolean }) {
               </Select>
             </Campo>
           </div>
-          <Campo rotulo="Unidades" htmlFor="prod-unidades">
-            <Input
-              id="prod-unidades"
-              inputMode="decimal"
-              value={unidades}
-              onChange={(e) => setUnidades(e.target.value)}
-            />
-          </Campo>
-          <Campo rotulo="Gramas" htmlFor="prod-gramas">
-            <Input
-              id="prod-gramas"
-              inputMode="decimal"
-              value={gramas}
-              onChange={(e) => setGramas(e.target.value)}
-            />
-          </Campo>
+          <div className="col-span-2 grid grid-cols-3 gap-2">
+            <Campo rotulo="Unidades" htmlFor="prod-unidades">
+              <Input
+                id="prod-unidades"
+                inputMode="decimal"
+                value={unidades}
+                onChange={(e) => setUnidades(e.target.value)}
+              />
+            </Campo>
+            <Campo rotulo="Gramas" htmlFor="prod-gramas">
+              <Input
+                id="prod-gramas"
+                inputMode="decimal"
+                value={gramas}
+                onChange={(e) => setGramas(e.target.value)}
+              />
+            </Campo>
+            <Campo rotulo="mL" htmlFor="prod-ml">
+              <Input
+                id="prod-ml"
+                inputMode="decimal"
+                value={ml}
+                onChange={(e) => setMl(e.target.value)}
+              />
+            </Campo>
+          </div>
           <Button
             className="col-span-2"
             disabled={!escolhido || gravar.isPending}
@@ -675,6 +971,7 @@ export function Produtos({ osId, aberta }: { osId: string; aberta: boolean }) {
                     forma,
                     unidades: numero(unidades),
                     gramas: numero(gramas),
+                    ml: numero(ml),
                   },
                 },
                 {
@@ -682,6 +979,7 @@ export function Produtos({ osId, aberta }: { osId: string; aberta: boolean }) {
                     setProdutoId('')
                     setUnidades('')
                     setGramas('')
+                    setMl('')
                   },
                 },
               )
@@ -705,6 +1003,8 @@ function Insetos({ osId, aberta }: { osId: string; aberta: boolean }) {
     condicoes: 'LE',
     principio_ativo: '',
     quantidade: '',
+    diluente: 'agua',
+    calda: '',
     procedimento: 'PL',
   })
 
@@ -717,7 +1017,9 @@ function Insetos({ osId, aberta }: { osId: string; aberta: boolean }) {
           <li key={i.id} className="flex items-center gap-2">
             <span className="flex-1">
               <strong>{i.area}</strong> · {PRAGAS_INSETOS[i.praga as keyof typeof PRAGAS_INSETOS]} ·
-              nível {i.nivel} · {i.condicoes} · {i.principio_ativo} {i.quantidade} ·{' '}
+              nível {i.nivel} · {i.condicoes} · {i.principio_ativo} {i.quantidade}
+              {i.diluente && ` · ${DILUENTES[i.diluente as keyof typeof DILUENTES] ?? i.diluente}`}
+              {i.calda && ` · calda ${i.calda} L`} ·{' '}
               {i.procedimento && PROCEDIMENTOS[i.procedimento as keyof typeof PROCEDIMENTOS]}
             </span>
             {aberta && (
@@ -771,11 +1073,32 @@ function Insetos({ osId, aberta }: { osId: string; aberta: boolean }) {
               onChange={(e) => setNovo({ ...novo, principio_ativo: e.target.value })}
             />
           </Campo>
-          <Campo rotulo="Quantidade" htmlFor="ins-quantidade">
+          <Campo rotulo="QNT (g/ml/pts)" htmlFor="ins-quantidade">
             <Input
               id="ins-quantidade"
               value={novo.quantidade}
               onChange={(e) => setNovo({ ...novo, quantidade: e.target.value })}
+            />
+          </Campo>
+          <Campo rotulo="Diluente" htmlFor="ins-diluente">
+            <Select
+              id="ins-diluente"
+              value={novo.diluente}
+              onChange={(e) => setNovo({ ...novo, diluente: e.target.value })}
+            >
+              {Object.entries(DILUENTES).map(([codigo, nome]) => (
+                <option key={codigo} value={codigo}>
+                  {nome}
+                </option>
+              ))}
+            </Select>
+          </Campo>
+          <Campo rotulo="Qtde calda (L)" htmlFor="ins-calda">
+            <Input
+              id="ins-calda"
+              inputMode="decimal"
+              value={novo.calda}
+              onChange={(e) => setNovo({ ...novo, calda: e.target.value })}
             />
           </Campo>
           <Button
@@ -783,10 +1106,18 @@ function Insetos({ osId, aberta }: { osId: string; aberta: boolean }) {
             disabled={!novo.area.trim() || gravar.isPending}
             onClick={() =>
               gravar.mutate(
-                { adicionar: { os_id: osId, ...novo, area: novo.area.trim() } },
+                {
+                  adicionar: {
+                    os_id: osId,
+                    ...novo,
+                    area: novo.area.trim(),
+                    calda: novo.calda.trim() || null,
+                    pronto_uso: novo.diluente === 'pronto',
+                  },
+                },
                 {
                   onSuccess: () =>
-                    setNovo({ ...novo, area: '', principio_ativo: '', quantidade: '' }),
+                    setNovo({ ...novo, area: '', principio_ativo: '', quantidade: '', calda: '' }),
                 },
               )
             }

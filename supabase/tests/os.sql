@@ -261,7 +261,33 @@ select pg_temp.como('00000000-0000-0000-0000-0000000005c1');
 set local role authenticated;
 update public.os_conferencia set certificado = true, logistica = 'Ok [teste]'
  where os_id = (select id from ids where nome = 'os_a');
+-- OK para o financeiro: precisa dizer se tem pedido de compra (e o número, se tiver).
+do $$ begin
+  begin
+    perform public.conferir_os((select id from ids where nome = 'os_a'));
+    raise exception 'FALHOU: conferiu sem responder o pedido de compra';
+  exception when check_violation then null;
+  end;
+end $$;
+update public.os_conferencia set tem_pedido_compra = true
+ where os_id = (select id from ids where nome = 'os_a');
+do $$ begin
+  begin
+    perform public.conferir_os((select id from ids where nome = 'os_a'));
+    raise exception 'FALHOU: conferiu com pedido de compra sem número';
+  exception when check_violation then null;
+  end;
+end $$;
+update public.os_conferencia set pedido_compra = 'PC-123 [teste]'
+ where os_id = (select id from ids where nome = 'os_a');
 select public.conferir_os((select id from ids where nome = 'os_a'));
+do $$ begin
+  if not exists (select 1 from public.os_conferencia
+                  where os_id = (select id from ids where nome = 'os_a')
+                    and liberada_financeiro_em is not null) then
+    raise exception 'FALHOU: conferir não deu o OK para o financeiro';
+  end if;
+end $$;
 do $$ begin
   begin
     perform public.faturar_os((select id from ids where nome = 'os_a'), 350, '2026-11-20');

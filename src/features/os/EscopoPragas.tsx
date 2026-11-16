@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
-import { Campo, Input, Select } from '@/components/ui/Campo'
+import { Campo, Input, Select, Textarea } from '@/components/ui/Campo'
 import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
 import type { TablesUpdate } from '@/lib/database.types'
@@ -49,6 +49,8 @@ export function EscopoPragas({ alvo }: { alvo: AlvoEscopo }) {
 
   const portaIscas = pontos.data?.filter((p) => p.tipo === 'porta_isca' && p.ativo) ?? []
   const armadilhas = pontos.data?.filter((p) => p.tipo === 'armadilha_luminosa' && p.ativo) ?? []
+  const proximo = (tipo: string) =>
+    Math.max(0, ...(pontos.data ?? []).filter((p) => p.tipo === tipo).map((p) => p.numero)) + 1
   const inativos = pontos.data?.filter((p) => !p.ativo) ?? []
 
   return (
@@ -155,6 +157,46 @@ export function EscopoPragas({ alvo }: { alvo: AlvoEscopo }) {
         />
       </section>
 
+      <SecaoMonitoramento
+        titulo="Armadilhas adesivas com feromônio"
+        explicacao="Localização e a data da última troca. Quando o técnico conclui uma O.S com a armadilha trocada (T), a data se atualiza sozinha."
+        comData
+        pontos={(pontos.data ?? []).filter((p) => p.tipo === 'feromonio' && p.ativo)}
+        proximoNumero={proximo('feromonio')}
+        ocupado={salvarPontos.isPending}
+        aoAdicionar={(novos) =>
+          executar(
+            () =>
+              salvarPontos.mutateAsync({
+                novos: novos.map((n) => ({ ...n, modelo_id: modeloId, tipo: 'feromonio' })),
+              }),
+            `${novos.length} armadilha(s) de feromônio cadastrada(s).`,
+          )
+        }
+        aoAlterar={(id, dados, mensagem) =>
+          executar(() => salvarPontos.mutateAsync({ alterar: { id, dados } }), mensagem)
+        }
+      />
+
+      <SecaoMonitoramento
+        titulo="Armadilhas biológicas para captura de moscas"
+        pontos={(pontos.data ?? []).filter((p) => p.tipo === 'armadilha_moscas' && p.ativo)}
+        proximoNumero={proximo('armadilha_moscas')}
+        ocupado={salvarPontos.isPending}
+        aoAdicionar={(novos) =>
+          executar(
+            () =>
+              salvarPontos.mutateAsync({
+                novos: novos.map((n) => ({ ...n, modelo_id: modeloId, tipo: 'armadilha_moscas' })),
+              }),
+            `${novos.length} armadilha(s) de moscas cadastrada(s).`,
+          )
+        }
+        aoAlterar={(id, dados, mensagem) =>
+          executar(() => salvarPontos.mutateAsync({ alterar: { id, dados } }), mensagem)
+        }
+      />
+
       {inativos.length > 0 && (
         <p className="text-sm text-texto-suave">
           Retirados (guardados no histórico): {inativos.map((p) => p.numero).join(', ')}
@@ -174,10 +216,10 @@ function FormEscopo({
   const salvar = useSalvarEscopo(alvo.osId, alvo.modeloId)
   const inicial = (alvo.escopo ?? {}) as Escopo
   const [escopo, setEscopo] = useState<Escopo>({
+    ...inicial,
     subtipo: inicial.subtipo ?? 'roedores',
     pragas_alvo: inicial.pragas_alvo ?? [],
     areas_insetos: inicial.areas_insetos ?? '',
-    armadilhas_contrato: inicial.armadilhas_contrato,
   })
 
   const [locaisTexto, setLocaisTexto] = useState((escopo.locais_planilha ?? []).join(', '))
@@ -227,6 +269,49 @@ function FormEscopo({
           />
         </Campo>
       )}
+      {escopo.subtipo === 'insetos_roedores' && (
+        <Campo
+          rotulo="Pragas combatidas (insetos)"
+          htmlFor="esc-pragas-insetos"
+          dica='Ex.: "Baratas (B), Formigas (F), Moscas (M)".'
+        >
+          <Input
+            id="esc-pragas-insetos"
+            value={escopo.pragas_insetos ?? ''}
+            onChange={(e) => setEscopo({ ...escopo, pragas_insetos: e.target.value })}
+          />
+        </Campo>
+      )}
+      <Campo
+        rotulo="Objetivo do monitoramento com feromônio"
+        htmlFor="esc-objetivo-feromonio"
+        dica="Aparece para o técnico e no PDF (só quando há armadilhas de feromônio)."
+      >
+        <Textarea
+          id="esc-objetivo-feromonio"
+          rows={2}
+          value={escopo.objetivo_feromonio ?? ''}
+          onChange={(e) => setEscopo({ ...escopo, objetivo_feromonio: e.target.value })}
+        />
+      </Campo>
+      <label className="flex min-h-11 items-center gap-2">
+        <input
+          type="checkbox"
+          className="size-5 accent-verde"
+          checked={escopo.planilha_ocorrencias ?? false}
+          onChange={(e) => setEscopo({ ...escopo, planilha_ocorrencias: e.target.checked })}
+        />
+        Planilha de ocorrências com pragas (vivos e mortos por tipo)
+      </label>
+      <label className="flex min-h-11 items-center gap-2">
+        <input
+          type="checkbox"
+          className="size-5 accent-verde"
+          checked={escopo.envelope ?? false}
+          onChange={(e) => setEscopo({ ...escopo, envelope: e.target.checked })}
+        />
+        Perguntar se foi entregue envelope ao cliente
+      </label>
       <Campo rotulo="Armadilhas luminosas no contrato" htmlFor="esc-armadilhas">
         <Input
           id="esc-armadilhas"
@@ -261,7 +346,12 @@ function FormEscopo({
       <Button
         variante="secundario"
         disabled={salvar.isPending}
-        onClick={() => void aoSalvar(() => salvar.mutateAsync(escopo), 'Escopo salvo neste local.')}
+        onClick={() =>
+          void aoSalvar(
+            () => salvar.mutateAsync({ ...((alvo.escopo ?? {}) as object), ...escopo } as Escopo),
+            'Escopo salvo neste local.',
+          )
+        }
       >
         Salvar escopo
       </Button>
@@ -638,5 +728,141 @@ function ArmadilhaItem({
         )}
       </div>
     </li>
+  )
+}
+
+type NovoMonitoramento = { numero: number; area: string; ultima_troca_lampada?: string | null }
+
+/**
+ * Feromônio e armadilhas de moscas: lista com local (e a última troca, no
+ * feromônio), retirar, e o cadastro de um ou vários de uma vez.
+ */
+function SecaoMonitoramento({
+  titulo,
+  explicacao,
+  comData,
+  pontos,
+  proximoNumero,
+  ocupado,
+  aoAdicionar,
+  aoAlterar,
+}: {
+  titulo: string
+  explicacao?: string
+  comData?: boolean
+  pontos: PontoControle[]
+  proximoNumero: number
+  ocupado: boolean
+  aoAdicionar: (novos: NovoMonitoramento[]) => Promise<void>
+  aoAlterar: (id: string, dados: TablesUpdate<'pontos_controle'>, mensagem: string) => Promise<void>
+}) {
+  const [area, setArea] = useState('')
+  const [numeros, setNumeros] = useState('')
+  const [troca, setTroca] = useState('')
+  const [erro, setErro] = useState<string | null>(null)
+  const ordenados = [...pontos].sort((a, b) => a.numero - b.numero)
+
+  async function adicionar() {
+    setErro(null)
+    if (!area.trim()) return setErro('Informe a localização.')
+    const { numeros: lista, invalidos } = numeros.trim()
+      ? lerFaixas(numeros)
+      : { numeros: [proximoNumero], invalidos: [] }
+    if (invalidos.length) return setErro(`Não entendi: ${invalidos.join(', ')}.`)
+    await aoAdicionar(
+      lista.map((numero) => ({
+        numero,
+        area: area.trim(),
+        ...(comData ? { ultima_troca_lampada: troca || null } : {}),
+      })),
+    )
+    setNumeros('')
+    setArea('')
+  }
+
+  return (
+    <section className="flex flex-col gap-2 border-t border-borda pt-3">
+      <h3 className="font-semibold text-verde-escuro">
+        {titulo} ({pontos.length})
+      </h3>
+      {explicacao && <p className="text-sm text-texto-suave">{explicacao}</p>}
+      <ul className="flex max-h-[28rem] flex-col gap-1 overflow-y-auto">
+        {ordenados.map((p) => (
+          <li key={p.id} className="flex flex-wrap items-center gap-2">
+            <span className="flex-1">
+              <strong>{String(p.numero).padStart(2, '0')}</strong> · {p.area}
+            </span>
+            {comData && (
+              <Input
+                type="date"
+                aria-label={`Última troca da ${p.numero}`}
+                className="w-auto"
+                defaultValue={p.ultima_troca_lampada ?? ''}
+                disabled={ocupado}
+                onBlur={(e) => {
+                  if (e.target.value !== (p.ultima_troca_lampada ?? ''))
+                    void aoAlterar(
+                      p.id,
+                      { ultima_troca_lampada: e.target.value || null },
+                      `Última troca da ${p.numero} salva.`,
+                    )
+                }}
+              />
+            )}
+            <Button
+              variante="fantasma"
+              disabled={ocupado}
+              onClick={() => {
+                const nova = window.prompt(`Novo local da ${p.numero}:`, p.area)?.trim()
+                if (nova && nova !== p.area)
+                  void aoAlterar(p.id, { area: nova }, `${p.numero} alterada.`)
+              }}
+            >
+              Editar local
+            </Button>
+            <Button
+              variante="fantasma"
+              disabled={ocupado}
+              onClick={() => void aoAlterar(p.id, { ativo: false }, `${p.numero} retirada.`)}
+            >
+              Retirar
+            </Button>
+          </li>
+        ))}
+      </ul>
+      <div
+        className={`grid gap-2 rounded-xl bg-fundo-suave p-3 sm:items-end ${comData ? 'sm:grid-cols-[1fr_7rem_10rem_auto]' : 'sm:grid-cols-[1fr_7rem_auto]'}`}
+      >
+        {erro && (
+          <div className="sm:col-span-4">
+            <Aviso tipo="erro">{erro}</Aviso>
+          </div>
+        )}
+        <Campo rotulo="Localização" htmlFor={`mon-area-${titulo}`}>
+          <Input id={`mon-area-${titulo}`} value={area} onChange={(e) => setArea(e.target.value)} />
+        </Campo>
+        <Campo rotulo="Números" htmlFor={`mon-num-${titulo}`} dica="Ex.: 1-3">
+          <Input
+            id={`mon-num-${titulo}`}
+            placeholder={String(proximoNumero)}
+            value={numeros}
+            onChange={(e) => setNumeros(e.target.value)}
+          />
+        </Campo>
+        {comData && (
+          <Campo rotulo="Última troca" htmlFor={`mon-troca-${titulo}`}>
+            <Input
+              id={`mon-troca-${titulo}`}
+              type="date"
+              value={troca}
+              onChange={(e) => setTroca(e.target.value)}
+            />
+          </Campo>
+        )}
+        <Button disabled={ocupado} onClick={() => void adicionar()}>
+          Adicionar
+        </Button>
+      </div>
+    </section>
   )
 }

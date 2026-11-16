@@ -16,6 +16,7 @@ import { ExigePapel, RotaProtegida } from '@/features/auth/RotaProtegida'
 import { ClienteFichaPage } from '@/features/clientes/ClienteFichaPage'
 import { ClienteFormPage } from '@/features/clientes/ClienteFormPage'
 import { ClientesPage } from '@/features/clientes/ClientesPage'
+import { AFaturarPage } from '@/features/financeiro/AFaturarPage'
 import { AntecipacoesPage } from '@/features/financeiro/AntecipacoesPage'
 import { CadastrosPage } from '@/features/financeiro/CadastrosPage'
 import { CartoesPage } from '@/features/financeiro/CartoesPage'
@@ -229,6 +230,7 @@ export const router = createBrowserRouter([
         ),
         children: [
           { index: true, element: <PainelPage /> },
+          { path: 'a-faturar', element: <AFaturarPage /> },
           { path: 'lancamentos', element: <LancamentosPage /> },
           { path: 'lancamentos/novo', element: <LancamentoFormPage /> },
           { path: 'lancamentos/:id', element: <LancamentoFormPage /> },

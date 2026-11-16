@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
-import { Campo, Input } from '@/components/ui/Campo'
+import { Campo, Input, Select } from '@/components/ui/Campo'
 import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
 import { formatarData } from '@/lib/datas'
@@ -10,22 +10,51 @@ import { mensagemDeErro } from '@/lib/erros'
 
 import { usePontosModelo, useSalvarPontos, type AlvoEscopo } from './pragasApi'
 
-/** "2 × 20.000 L" */
+/**
+ * A capacidade fica guardada em litros (número inteiro); a tela e o PDF usam m³,
+ * com vírgula ("139,70 m³" = 139.700 L).
+ */
+export const litrosParaM3 = (litros: number | null) =>
+  litros ? (litros / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 3 }) : ''
+
+/** "139,7" ou "139,70" → 139700 litros; vazio ou inválido → null. */
+export function m3ParaLitros(texto: string): number | null {
+  const n = Number(texto.trim().replace(/\./g, '').replace(',', '.'))
+  return Number.isFinite(n) && n > 0 ? Math.round(n * 1000) : null
+}
+
+/** Deixa só números e uma vírgula enquanto a pessoa digita a capacidade. */
+export const mascaraM3 = (texto: string) => {
+  const [inteiro, ...resto] = texto
+    .replace(/\./g, ',')
+    .replace(/[^\d,]/g, '')
+    .split(',')
+  return resto.length ? `${inteiro},${resto.join('').slice(0, 3)}` : inteiro
+}
+
+/** "Pode com chuva" / "Não pode com chuva" (vazio quando não informado). */
+export const textoChuva = (comChuva: boolean | null | undefined) =>
+  comChuva == null ? '' : comChuva ? 'pode com chuva' : 'não pode com chuva'
+
+/** "2 × 139,7 m³ · não pode com chuva" */
 export const descreverReservatorio = (r: {
   quantidade: number | null
   capacidade_litros: number | null
+  com_chuva?: boolean | null
 }) =>
   [
-    `${r.quantidade ?? 1} ×`,
-    r.capacidade_litros ? `${r.capacidade_litros.toLocaleString('pt-BR')} L` : 'capacidade —',
-  ].join(' ')
+    `${r.quantidade ?? 1} × ${r.capacidade_litros ? `${litrosParaM3(r.capacidade_litros)} m³` : 'capacidade —'}`,
+    textoChuva(r.com_chuva),
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
 /** Quantas etapas o reservatório ocupa na tela do operador. */
 export const ETAPAS_RESERVATORIO = 1
 
 /**
  * Escopo da limpeza de reservatórios (escritório): os reservatórios do local, com
- * localização, quantidade e capacidade. Ficam no modelo e valem para as próximas
+ * localização, quantidade, capacidade (m³) e se dá para limpar com chuva. Ficam no modelo e valem para as próximas
  * visitas; a data da última limpeza vem das OS concluídas.
  */
 export function EscopoReservatorio({ alvo }: { alvo: AlvoEscopo }) {
@@ -35,6 +64,7 @@ export function EscopoReservatorio({ alvo }: { alvo: AlvoEscopo }) {
   const [area, setArea] = useState('')
   const [quantidade, setQuantidade] = useState('1')
   const [capacidade, setCapacidade] = useState('')
+  const [comChuva, setComChuva] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [sucesso, setSucesso] = useState<string | null>(null)
   const todos = (pontos.data ?? []).filter((p) => p.tipo === 'reservatorio')
@@ -70,6 +100,26 @@ export function EscopoReservatorio({ alvo }: { alvo: AlvoEscopo }) {
             <span className="flex-1">
               <strong>{r.area}</strong> · {descreverReservatorio(r)}
             </span>
+            <Select
+              aria-label={`Com chuva: ${r.area}`}
+              className="w-auto"
+              value={r.com_chuva == null ? '' : r.com_chuva ? 'sim' : 'nao'}
+              disabled={salvarPontos.isPending}
+              onChange={(e) => {
+                const v = e.target.value
+                void executar(
+                  () =>
+                    salvarPontos.mutateAsync({
+                      alterar: { id: r.id, dados: { com_chuva: v === '' ? null : v === 'sim' } },
+                    }),
+                  `${r.area}: ${v === '' ? 'chuva não informada' : textoChuva(v === 'sim')}.`,
+                )
+              }}
+            >
+              <option value="">Com chuva?</option>
+              <option value="sim">Com chuva: Sim</option>
+              <option value="nao">Com chuva: Não</option>
+            </Select>
             <Button
               variante="fantasma"
               disabled={salvarPontos.isPending}
@@ -89,7 +139,7 @@ export function EscopoReservatorio({ alvo }: { alvo: AlvoEscopo }) {
           <li className="text-texto-suave">Nenhum reservatório cadastrado.</li>
         )}
       </ul>
-      <div className="grid grid-cols-2 gap-2 rounded-xl bg-fundo-suave p-3 sm:grid-cols-[1fr_5rem_8rem_auto] sm:items-end">
+      <div className="grid grid-cols-2 gap-2 rounded-xl bg-fundo-suave p-3 sm:grid-cols-[1fr_5rem_8rem_8rem_auto] sm:items-end">
         <div className="col-span-2 sm:col-span-1">
           <Campo rotulo="Localização" htmlFor="res-area" dica='Ex.: "Subsolo" ou "Terraço".'>
             <Input id="res-area" value={area} onChange={(e) => setArea(e.target.value)} />
@@ -103,14 +153,21 @@ export function EscopoReservatorio({ alvo }: { alvo: AlvoEscopo }) {
             onChange={(e) => setQuantidade(e.target.value.replace(/\D/g, ''))}
           />
         </Campo>
-        <Campo rotulo="Litros (cada)" htmlFor="res-litros">
+        <Campo rotulo="Capacidade (m³)" htmlFor="res-m3">
           <Input
-            id="res-litros"
-            inputMode="numeric"
-            placeholder="20000"
+            id="res-m3"
+            inputMode="decimal"
+            placeholder="139,70"
             value={capacidade}
-            onChange={(e) => setCapacidade(e.target.value.replace(/\D/g, ''))}
+            onChange={(e) => setCapacidade(mascaraM3(e.target.value))}
           />
+        </Campo>
+        <Campo rotulo="Com chuva?" htmlFor="res-chuva">
+          <Select id="res-chuva" value={comChuva} onChange={(e) => setComChuva(e.target.value)}>
+            <option value="">—</option>
+            <option value="sim">Sim</option>
+            <option value="nao">Não</option>
+          </Select>
         </Campo>
         <Button
           disabled={!area.trim() || salvarPontos.isPending}
@@ -126,7 +183,8 @@ export function EscopoReservatorio({ alvo }: { alvo: AlvoEscopo }) {
                       numero: Math.max(0, ...todos.map((p) => p.numero)) + 1,
                       area: nome,
                       quantidade: Math.max(1, Number(quantidade) || 1),
-                      capacidade_litros: Number(capacidade) || null,
+                      capacidade_litros: m3ParaLitros(capacidade),
+                      com_chuva: comChuva === '' ? null : comChuva === 'sim',
                     },
                   ],
                 }),
@@ -135,6 +193,7 @@ export function EscopoReservatorio({ alvo }: { alvo: AlvoEscopo }) {
               if (ok) {
                 setArea('')
                 setCapacidade('')
+                setComChuva('')
                 setQuantidade('1')
               }
             })

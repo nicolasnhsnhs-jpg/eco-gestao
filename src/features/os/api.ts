@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-query'
 
 import type { Database, Enums, Json, Tables, TablesUpdate } from '@/lib/database.types'
+import { hojeISO } from '@/lib/datas'
 import { supabase } from '@/lib/supabase'
 
 import { enfileirar } from './offline/fila'
@@ -94,6 +95,8 @@ export type FiltroOs = {
   clienteId?: string
   /** true: só os testes de treinamento; false: só as OS de verdade; sem valor: todas. */
   treinamento?: boolean
+  /** Mais recentes primeiro (para as anteriores: o limite corta as mais antigas). */
+  recentesPrimeiro?: boolean
 }
 
 export function useOrdensServico(filtro: FiltroOs) {
@@ -103,10 +106,11 @@ export function useOrdensServico(filtro: FiltroOs) {
       let consulta = supabase
         .from('ordens_servico')
         .select(
-          `id, numero, status, data_agendada, hora_agendada, concluida_em, ficha_cliente, cliente_id, treinamento, ${RELACOES}`,
+          `id, numero, status, data_agendada, hora_agendada, concluida_em, ficha_cliente, cliente_id, treinamento, ${RELACOES},
+          conferencia:os_conferencia(certificado, cronograma, liberada_financeiro_em, taxa_faturada)`,
         )
-        .order('data_agendada', { ascending: true })
-        .order('hora_agendada', { ascending: true, nullsFirst: false })
+        .order('data_agendada', { ascending: !filtro.recentesPrimeiro })
+        .order('hora_agendada', { ascending: !filtro.recentesPrimeiro, nullsFirst: false })
         .limit(200)
       if (filtro.de) consulta = consulta.gte('data_agendada', filtro.de)
       if (filtro.ate) consulta = consulta.lte('data_agendada', filtro.ate)
@@ -553,7 +557,8 @@ export function useSalvarConferencia(osId: string) {
       const { error } = await supabase.from('os_conferencia').update(dados).eq('os_id', osId)
       if (error) throw error
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os', osId] }),
+    // ['os'] inteiro: a lista mostra as etiquetas da conferência.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
   })
 }
 
@@ -908,6 +913,49 @@ export function useAgendarRota() {
         else criadas.push(osId)
       }
       return { criadas, erros }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
+  })
+}
+
+// -----------------------------------------------------------------------------
+// Financeiro: serviços a faturar (OS conferidas com o OK do escritório)
+// -----------------------------------------------------------------------------
+
+/** OS com o OK para o financeiro que ainda não foram faturadas (mais antigas primeiro). */
+export function useOsAFaturar() {
+  return useQuery({
+    queryKey: ['os', 'a-faturar'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('os_conferencia')
+        .select(
+          `os_id, liberada_financeiro_em, observacoes, tem_pedido_compra, pedido_compra,
+           os:ordens_servico!inner(id, numero, data_agendada, ficha_cliente, cliente_id, treinamento,
+             tipo:tipos_servico(nome), operadores:os_operadores(operador:perfis(id, nome)))`,
+        )
+        .not('liberada_financeiro_em', 'is', null)
+        .or('taxa_faturada.is.null,taxa_faturada.eq.false')
+        .eq('os.treinamento', false)
+        .order('liberada_financeiro_em', { ascending: true })
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export type OsAFaturar = NonNullable<ReturnType<typeof useOsAFaturar>['data']>[number]
+
+/** Tira da lista "A faturar" sem criar lançamento (ex.: entrou na nota do contrato). */
+export function useMarcarOsFaturada() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (osId: string) => {
+      const { error } = await supabase
+        .from('os_conferencia')
+        .update({ taxa_faturada: true, faturado_em: hojeISO() })
+        .eq('os_id', osId)
+      if (error) throw error
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
   })

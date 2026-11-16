@@ -5,6 +5,9 @@
 //   RESEND_API_KEY     chave do Resend com permissão de envio no domínio da unidade
 //   EMAIL_NOTAS_DE     remetente, ex.: Eco Ambiental RS <financeiro@ecoambientalrs.com.br>
 //   EMAIL_NOTAS_RESPOSTA (opcional) para onde vão as respostas do cliente
+//   EMAIL_NOTAS_COPIA (opcional) quem recebe cópia oculta de toda nota enviada; sem ele,
+//            vai para o próprio remetente (o financeiro fica com o registro na caixa
+//            de entrada). "nenhuma" desliga a cópia.
 //   SITE_URL (opcional) endereço do sistema, para o logo do e-mail; sem ele, vale o
 //            endereço de onde o financeiro clicou
 //
@@ -204,12 +207,21 @@ export async function enviarNotaPorEmail(
     comBoleto: boletos.length > 0,
     boletos: boletos.length,
   }
+  // Cópia oculta para o financeiro (quem já está no "Para" não recebe duas vezes).
+  const copiaSegredo = segredo('EMAIL_NOTAS_COPIA')
+  const copia =
+    copiaSegredo?.toLowerCase() === 'nenhuma'
+      ? []
+      : enderecosEmail(copiaSegredo ?? de.match(/<([^>]+)>/)?.[1] ?? de).filter(
+          (e) => !para.includes(e),
+        )
   const envio = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${chave}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from: de,
       to: para,
+      bcc: copia.length ? copia : undefined,
       reply_to: segredo('EMAIL_NOTAS_RESPOSTA') || undefined,
       subject: assuntoNota(dados),
       html: htmlNota(dados),

@@ -7,7 +7,7 @@ import { Campo, Input, Select, Textarea } from '@/components/ui/Campo'
 import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
 import { Etiqueta } from '@/components/ui/Etiqueta'
-import { formatarData, hojeISO, somarDias } from '@/lib/datas'
+import { formatarData, formatarDataHora, hojeISO, somarDias } from '@/lib/datas'
 import { formatarReais, lerValor, mascaraValor } from '@/lib/dinheiro'
 import { mensagemDeErro } from '@/lib/erros'
 import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
@@ -65,6 +65,14 @@ function FormConferencia({
   async function gravar(conferirDepois: boolean) {
     setErro(null)
     setSucesso(null)
+    if (conferirDepois && dados.tem_pedido_compra == null) {
+      setErro('Responda se o serviço tem pedido de compra antes de dar o OK para o financeiro.')
+      return
+    }
+    if (conferirDepois && dados.tem_pedido_compra && !dados.pedido_compra?.trim()) {
+      setErro('Informe o número do pedido de compra.')
+      return
+    }
     try {
       await salvar.mutateAsync({
         certificado: dados.certificado,
@@ -78,9 +86,13 @@ function FormConferencia({
         envio_relatorios: dados.envio_relatorios,
         envio_arquivo: dados.envio_arquivo,
         observacoes: dados.observacoes || null,
+        tem_pedido_compra: dados.tem_pedido_compra,
+        pedido_compra: dados.tem_pedido_compra ? dados.pedido_compra?.trim() || null : null,
       })
       if (conferirDepois) await conferir.mutateAsync()
-      setSucesso(conferirDepois ? 'OS conferida.' : 'Conferência salva.')
+      setSucesso(
+        conferirDepois ? 'OS conferida e enviada para o financeiro faturar.' : 'Conferência salva.',
+      )
     } catch (e) {
       setErro(mensagemDeErro(e))
     }
@@ -166,6 +178,28 @@ function FormConferencia({
         </div>
       </Grupo>
 
+      <Grupo titulo="Pedido de compra">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <SimNaoCampo
+            rotulo="Tem pedido de compra? *"
+            valor={dados.tem_pedido_compra}
+            aoMudar={(v) => muda('tem_pedido_compra', v)}
+          />
+          {dados.tem_pedido_compra && (
+            <Campo rotulo="Número do pedido de compra" htmlFor="conf-pedido" obrigatorio>
+              <Input
+                id="conf-pedido"
+                value={dados.pedido_compra ?? ''}
+                onChange={(e) => muda('pedido_compra', e.target.value)}
+              />
+            </Campo>
+          )}
+        </div>
+        <p className="text-sm text-texto-suave">
+          Obrigatório para dar o OK para o financeiro: a nota sai com o número do pedido.
+        </p>
+      </Grupo>
+
       <Campo rotulo="Observações internas" htmlFor="conf-observacoes">
         <Textarea
           id="conf-observacoes"
@@ -183,15 +217,25 @@ function FormConferencia({
         >
           Salvar conferência
         </Button>
-        {status === 'concluida' && (
+        {(status === 'concluida' ||
+          (status === 'conferida' && !inicial.liberada_financeiro_em)) && (
           <Button
             onClick={() => void gravar(true)}
             disabled={salvar.isPending || conferir.isPending}
           >
-            Salvar e marcar como conferida
+            Conferida: OK para o financeiro
           </Button>
         )}
       </div>
+      {inicial.liberada_financeiro_em && (
+        <Aviso tipo="sucesso">
+          OK para o financeiro dado em {formatarDataHora(inicial.liberada_financeiro_em)}
+          {inicial.tem_pedido_compra
+            ? ` · pedido de compra ${inicial.pedido_compra}`
+            : ' · sem pedido de compra'}
+          {inicial.taxa_faturada ? ' · já faturada.' : ' · aguardando o faturamento.'}
+        </Aviso>
+      )}
 
       <Grupo titulo="Financeiro">
         {inicial.lancamento_id ? (

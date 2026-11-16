@@ -152,6 +152,7 @@ type CamposPonto = Pick<
   | 'limpeza_dreno'
   | 'foto_etiqueta'
   | 'fotos_limpeza'
+  | 'nivel'
 >
 
 /**

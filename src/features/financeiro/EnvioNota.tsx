@@ -18,6 +18,21 @@ import {
   type NotaFiscalCompleta,
 } from './notasApi'
 
+/**
+ * Os e-mails que já vêm preenchidos para mandar a nota: os do financeiro do cliente,
+ * quando ele separou; senão o principal e os outros. Dá para trocar antes de enviar.
+ */
+export const emailsPadraoDaNota = (nota: NotaFiscalCompleta) =>
+  juntarEmails(
+    nota.cliente?.emails_financeiro?.length
+      ? nota.cliente.emails_financeiro
+      : [nota.cliente?.email, ...(nota.cliente?.emails_extras ?? [])],
+  )
+
+/** Aviso de que o financeiro também recebe (cópia oculta), para ter o registro. */
+export const DICA_EMAILS_NOTA =
+  'Vazio usa o do cadastro (ou do contato principal). Separe vários com ; — o financeiro recebe uma cópia oculta.'
+
 const horario = (iso: string) =>
   `${formatarData(iso)} às ${new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
 
@@ -31,13 +46,7 @@ export function EnvioNota({ nota }: { nota: NotaFiscalCompleta }) {
   const marcar = useMarcarNotaEnviada()
   const entrada = useRef<HTMLInputElement>(null)
   // Cliente que separou os e-mails do financeiro: a nota vai só para eles.
-  const [para, setPara] = useState(
-    juntarEmails(
-      nota.cliente?.emails_financeiro?.length
-        ? nota.cliente.emails_financeiro
-        : [nota.cliente?.email, ...(nota.cliente?.emails_extras ?? [])],
-    ),
-  )
+  const [para, setPara] = useState(() => emailsPadraoDaNota(nota))
   const [mensagem, setMensagem] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null)
   const ocupado = anexar.isPending || enviar.isPending || marcar.isPending
 
@@ -63,6 +72,7 @@ export function EnvioNota({ nota }: { nota: NotaFiscalCompleta }) {
     setMensagem(null)
     try {
       await anexar.mutateAsync({ nota, arquivo })
+      // Já manda para os e-mails do campo (que aparece antes, para dar para mudar).
       await mandar()
     } catch (erro) {
       setMensagem({ tipo: 'erro', texto: mensagemDeErro(erro) })
@@ -116,13 +126,9 @@ export function EnvioNota({ nota }: { nota: NotaFiscalCompleta }) {
         />
       </div>
 
-      {nota.pdf && (
+      {nota.status === 'emitida' && (
         <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-          <Campo
-            rotulo="E-mail do cliente"
-            htmlFor="email-nota"
-            dica="Vazio usa o do cadastro (ou do contato principal). Separe vários com ;"
-          >
+          <Campo rotulo="E-mail do cliente" htmlFor="email-nota" dica={DICA_EMAILS_NOTA}>
             <Input
               id="email-nota"
               type="text"
@@ -132,26 +138,30 @@ export function EnvioNota({ nota }: { nota: NotaFiscalCompleta }) {
               onChange={(e) => setPara(e.target.value)}
             />
           </Campo>
-          <div className="flex flex-wrap gap-2">
-            <Button disabled={ocupado} onClick={() => void mandar()}>
-              <Mail className="size-4" aria-hidden />
-              {enviar.isPending ? 'Enviando…' : nota.enviada_em ? 'Enviar de novo' : 'Enviar'}
-            </Button>
-            {!nota.enviada_em && (
-              <Button
-                variante="secundario"
-                disabled={ocupado}
-                onClick={() =>
-                  marcar
-                    .mutateAsync({ notaId: nota.id, como: 'enviada à mão pelo financeiro' })
-                    .then(() => setMensagem(null))
-                    .catch((e: unknown) => setMensagem({ tipo: 'erro', texto: mensagemDeErro(e) }))
-                }
-              >
-                Já enviei à mão
+          {nota.pdf && (
+            <div className="flex flex-wrap gap-2">
+              <Button disabled={ocupado} onClick={() => void mandar()}>
+                <Mail className="size-4" aria-hidden />
+                {enviar.isPending ? 'Enviando…' : nota.enviada_em ? 'Enviar de novo' : 'Enviar'}
               </Button>
-            )}
-          </div>
+              {!nota.enviada_em && (
+                <Button
+                  variante="secundario"
+                  disabled={ocupado}
+                  onClick={() =>
+                    marcar
+                      .mutateAsync({ notaId: nota.id, como: 'enviada à mão pelo financeiro' })
+                      .then(() => setMensagem(null))
+                      .catch((e: unknown) =>
+                        setMensagem({ tipo: 'erro', texto: mensagemDeErro(e) }),
+                      )
+                  }
+                >
+                  Já enviei à mão
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </Card>

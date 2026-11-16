@@ -50,6 +50,8 @@ import { ExecucaoBebedouro } from './ExecucaoBebedouro'
 import { ExecucaoCoifa } from './ExecucaoCoifa'
 import { ExecucaoPragas, Produtos } from './ExecucaoPragas'
 import { areasAtendidas, type ChecklistAreas } from '../EscopoAreas'
+import { MarcarProdutosProgramados } from '../ProdutosProgramados'
+import type { ChecklistProgramas } from '../tipos/programas'
 import { ExecucaoTelas } from './ExecucaoTelas'
 import { useRascunhoExecucao, type EstadoEnvio } from './rascunho'
 
@@ -552,6 +554,14 @@ function Execucao({ os }: { os: OsCompleta }) {
       )}
       {simples && (
         <Etapa numero={3} titulo="Produtos utilizados">
+          <MarcarProdutosProgramados
+            escopo={os.escopo}
+            checklist={(campos.checklist ?? {}) as ChecklistProgramas}
+            aberta={aberta}
+            mudar={(parcial) =>
+              alterar({ checklist: { ...((campos.checklist ?? {}) as object), ...parcial } })
+            }
+          />
           <Produtos osId={os.id} aberta={aberta} />
         </Etapa>
       )}
@@ -587,7 +597,7 @@ function Execucao({ os }: { os: OsCompleta }) {
       )}
 
       <Etapa numero={depois + 1} titulo="Quem acompanhou (cliente)">
-        {/* Ninguém do cliente acompanhou: a OS conclui sem nome, setor e assinatura. */}
+        {/* Ninguém do cliente acompanhou: nome, setor e assinatura ficam opcionais (ex.: portaria na saída). */}
         <button
           type="button"
           disabled={!aberta}
@@ -601,42 +611,44 @@ function Execucao({ os }: { os: OsCompleta }) {
         >
           Não houve acompanhamento
         </button>
-        {campos.sem_acompanhamento ? (
+        {campos.sem_acompanhamento && (
           <Aviso tipo="info">
-            Ninguém do cliente acompanhou o serviço: a OS sai sem nome e sem assinatura do cliente.
-            Se alguém acompanhou, toque de novo no botão para desmarcar.
+            Ninguém do cliente acompanhou o serviço. Se der, peça na saída a assinatura de quem
+            recebeu (portaria, recepção…) para mostrar que você esteve lá; não é obrigatório. Se
+            alguém acompanhou, toque de novo no botão para desmarcar.
           </Aviso>
-        ) : (
-          <>
-            <div className="grid grid-cols-2 gap-3">
-              <Campo rotulo="Nome" htmlFor="ex-resp-nome" obrigatorio>
-                <Input
-                  id="ex-resp-nome"
-                  disabled={!aberta}
-                  value={campo('responsavel_nome')}
-                  onChange={(e) => alterar({ responsavel_nome: e.target.value })}
-                />
-              </Campo>
-              <Campo rotulo="Setor" htmlFor="ex-resp-setor" obrigatorio>
-                <Input
-                  id="ex-resp-setor"
-                  disabled={!aberta}
-                  placeholder="Ex.: Manutenção"
-                  value={campo('responsavel_setor')}
-                  onChange={(e) => alterar({ responsavel_setor: e.target.value })}
-                />
-              </Campo>
-            </div>
-            <QuadroAssinatura
-              titulo="Assinatura de quem acompanhou"
-              feita={!!campos.assinatura_cliente_id}
-              aberta={aberta}
-              ocupado={assinando === 'cliente'}
-              aoConfirmar={(img) => assinar('cliente', img)}
-              aoRefazer={() => alterar({ assinatura_cliente_id: null })}
-            />
-          </>
         )}
+        <div className="grid grid-cols-2 gap-3">
+          <Campo rotulo="Nome" htmlFor="ex-resp-nome" obrigatorio={!campos.sem_acompanhamento}>
+            <Input
+              id="ex-resp-nome"
+              disabled={!aberta}
+              value={campo('responsavel_nome')}
+              onChange={(e) => alterar({ responsavel_nome: e.target.value })}
+            />
+          </Campo>
+          <Campo rotulo="Setor" htmlFor="ex-resp-setor" obrigatorio={!campos.sem_acompanhamento}>
+            <Input
+              id="ex-resp-setor"
+              disabled={!aberta}
+              placeholder={campos.sem_acompanhamento ? 'Ex.: Portaria' : 'Ex.: Manutenção'}
+              value={campo('responsavel_setor')}
+              onChange={(e) => alterar({ responsavel_setor: e.target.value })}
+            />
+          </Campo>
+        </div>
+        <QuadroAssinatura
+          titulo={
+            campos.sem_acompanhamento
+              ? 'Assinatura de quem recebeu na saída (opcional)'
+              : 'Assinatura de quem acompanhou'
+          }
+          feita={!!campos.assinatura_cliente_id}
+          aberta={aberta}
+          ocupado={assinando === 'cliente'}
+          aoConfirmar={(img) => assinar('cliente', img)}
+          aoRefazer={() => alterar({ assinatura_cliente_id: null })}
+        />
       </Etapa>
 
       <Etapa numero={depois + 2} titulo="Operador">

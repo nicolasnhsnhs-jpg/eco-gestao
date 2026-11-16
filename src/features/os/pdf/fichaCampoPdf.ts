@@ -34,6 +34,7 @@ import {
   FORMAS_PRODUTO,
   HIGIENE,
   NIVEIS,
+  OCORRENCIAS,
   PRAGAS_ALVO,
   PRAGAS_INSETOS,
   PROCEDIMENTOS,
@@ -43,6 +44,7 @@ import {
   SITUACOES_PLACA,
   type EscopoPragas,
 } from '../tipos/pragas'
+import type { EscopoProgramas } from '../tipos/programas'
 import { PERGUNTA_INSTALADAS, PERGUNTA_LIBERACAO_TELAS, totalTelas } from '../tipos/telas'
 import {
   AVISO_PONTOS,
@@ -433,6 +435,12 @@ function escreverPragas(f: Folha, os: OsCompleta, pontos: PontoOs[]) {
   const escopo = (os.escopo ?? {}) as EscopoPragas
   const portaIscas = pontos.filter((p) => p.tipo === 'porta_isca')
   const armadilhas = pontos.filter((p) => p.tipo === 'armadilha_luminosa')
+  const feromonios = pontos
+    .filter((p) => p.tipo === 'feromonio')
+    .sort((a, b) => a.numero - b.numero)
+  const moscas = pontos
+    .filter((p) => p.tipo === 'armadilha_moscas')
+    .sort((a, b) => a.numero - b.numero)
 
   f.secao('Porta-iscas')
   if (portaIscas.length > 0) {
@@ -457,6 +465,7 @@ function escreverPragas(f: Folha, os: OsCompleta, pontos: PontoOs[]) {
   f.escrita('Porta-iscas quebrados (quais e por quê):', 2)
   f.escrita('Comentários:', 2)
 
+  escreverProgramasFicha(f, os)
   f.secao('Produtos utilizados')
   f.paragrafo(`Formas: ${Object.values(FORMAS_PRODUTO).join(' · ')}`, 7.5, CINZA)
   f.tabela(
@@ -465,6 +474,7 @@ function escreverPragas(f: Folha, os: OsCompleta, pontos: PontoOs[]) {
       { titulo: 'Forma', largura: 2.5 },
       { titulo: 'Unidades', largura: 1.2 },
       { titulo: 'Gramas', largura: 1.2 },
+      { titulo: 'mL', largura: 1.2 },
     ],
     [],
     5,
@@ -511,9 +521,55 @@ function escreverPragas(f: Folha, os: OsCompleta, pontos: PontoOs[]) {
     )
   }
 
+  if (feromonios.length > 0) {
+    f.secao('Monitoramento armadilha adesiva com feromônios e atrativos alimentares')
+    if (escopo.objetivo_feromonio) f.paragrafo(escopo.objetivo_feromonio, 8.5)
+    f.legenda('Situação', REFIL)
+    f.legenda('Higiene', HIGIENE)
+    f.tabela(
+      [
+        { titulo: 'Nº', largura: 0.6 },
+        { titulo: 'Localização', largura: 3 },
+        { titulo: 'Última troca', largura: 1.3 },
+        { titulo: 'Situação', largura: 1 },
+        { titulo: 'Higiene', largura: 1 },
+        { titulo: 'Qtd', largura: 0.8 },
+        { titulo: 'Praga(s) identificada(s)', largura: 3 },
+      ],
+      feromonios.map((p) => [
+        String(p.numero).padStart(2, '0'),
+        p.area,
+        p.ultima_troca_lampada ? formatarData(p.ultima_troca_lampada) : '—',
+        '',
+        '',
+        '',
+        '',
+      ]),
+    )
+  }
+
+  if (moscas.length > 0) {
+    f.secao('Monitoramento armadilha biológica para captura de moscas')
+    f.legenda('Refil', REFIL)
+    f.legenda('Higiene', HIGIENE)
+    f.legenda('Nível', NIVEIS)
+    f.tabela(
+      [
+        { titulo: 'Nº', largura: 0.6 },
+        { titulo: 'Localização', largura: 3.4 },
+        { titulo: 'Situação do refil', largura: 1.2 },
+        { titulo: 'Condições higiene', largura: 1.2 },
+        { titulo: 'Nível de infestação', largura: 1.2 },
+        { titulo: 'Observação', largura: 3 },
+      ],
+      moscas.map((p) => [String(p.numero).padStart(2, '0'), p.area, '', '', '', '']),
+    )
+  }
+
   if (escopo.subtipo === 'insetos_roedores') {
     f.secao('Controle de insetos')
     f.dado('Áreas do cliente', escopo.areas_insetos)
+    f.dado('Pragas combatidas', escopo.pragas_insetos)
     f.opcoes('Monitoramento', ['Realizado nas áreas descritas', 'Não realizado'])
     f.legenda('Praga', PRAGAS_INSETOS)
     f.legenda('Nível', NIVEIS)
@@ -526,7 +582,9 @@ function escreverPragas(f: Folha, os: OsCompleta, pontos: PontoOs[]) {
         { titulo: 'Nível', largura: 0.9 },
         { titulo: 'Condições', largura: 1.1 },
         { titulo: 'Princípio ativo', largura: 2.2 },
-        { titulo: 'Quantidade', largura: 1.3 },
+        { titulo: 'QNT (g/ml/pts)', largura: 1.2 },
+        { titulo: 'Diluente', largura: 1 },
+        { titulo: 'Calda (L)', largura: 0.9 },
         { titulo: 'Procedimento', largura: 1.3 },
       ],
       [],
@@ -546,11 +604,63 @@ function escreverPragas(f: Folha, os: OsCompleta, pontos: PontoOs[]) {
     )
   }
 
+  if (escopo.planilha_ocorrencias) {
+    f.secao('Planilha de gerenciamento de ocorrências com pragas')
+    f.tabela(
+      [
+        { titulo: 'Tipo de praga encontrada', largura: 2 },
+        { titulo: 'Vivos', largura: 0.8 },
+        { titulo: 'Mortos', largura: 0.8 },
+        { titulo: 'Áreas e comentários', largura: 5 },
+      ],
+      Object.values(OCORRENCIAS).map((nome) => [nome, '', '', '']),
+    )
+  }
+
   f.secao('Observações gerais')
   f.simNao('Medidas preventivas recomendadas?', 'Se sim, quais')
   f.escrita('Comentários e locais de aplicação:', 2)
   f.escrita('Solicitações ou considerações do cliente:', 2)
+  if (escopo.envelope) {
+    f.simNao('Foi entregue envelope?', 'Descrição dos documentos entregues')
+    f.escrita('Responsável pelo recebimento do envelope (nome e setor):', 1)
+  }
   f.escrita('Outras observações:', 2)
+}
+
+/** Produtos programados na ficha de papel: o técnico marca (X) a dosagem usada. */
+function escreverProgramasFicha(f: Folha, os: OsCompleta) {
+  const programas = ((os.escopo ?? {}) as EscopoProgramas).programas ?? []
+  for (const g of programas) {
+    f.secao(g.titulo)
+    if (g.areas) f.dado('Áreas do cliente', g.areas)
+    f.opcoes('Nível de infestação', Object.values(NIVEIS))
+    f.opcoes('Condições gerais das áreas', Object.values(CONDICOES))
+    f.tabela(
+      [
+        { titulo: 'Nome comercial', largura: 1.8 },
+        { titulo: 'Princípio ativo / alvo', largura: 2.6 },
+        { titulo: 'Selecione (X)', largura: 1 },
+        { titulo: 'QNT', largura: 1 },
+        { titulo: 'Diluente', largura: 0.9 },
+        { titulo: 'Calda', largura: 0.9 },
+        { titulo: 'Procedimento', largura: 1.5 },
+      ],
+      g.produtos.flatMap((p) =>
+        p.doses.map((d, i) => [
+          i === 0 ? p.nome_comercial : '',
+          [i === 0 ? p.principio_ativo : '', d.alvo && `(${d.alvo})`].filter(Boolean).join(' '),
+          '',
+          d.qnt,
+          p.diluente ?? '',
+          d.calda ?? '',
+          p.procedimento ?? '',
+        ]),
+      ),
+    )
+    const alvos = g.produtos.filter((p) => p.alvos).map((p) => `${p.nome_comercial}: ${p.alvos}`)
+    if (alvos.length) f.paragrafo(`Alvos combatidos — ${alvos.join(' · ')}`, 7.5, CINZA)
+  }
 }
 
 function escreverCoifa(f: Folha, os: OsCompleta, pontos: PontoOs[]) {
@@ -898,6 +1008,7 @@ export async function gerarFichaCampo(os: OsCompleta) {
     f.secao('Serviço realizado')
     f.opcoes('', ['Serviço feito conforme planejado'])
     f.escrita('O que foi feito:', 6)
+    escreverProgramasFicha(f, os)
     f.secao('Produtos utilizados')
     f.paragrafo(`Formas: ${Object.values(FORMAS_PRODUTO).join(' · ')}`, 7.5, CINZA)
     f.tabela(
@@ -906,6 +1017,7 @@ export async function gerarFichaCampo(os: OsCompleta) {
         { titulo: 'Forma', largura: 2.5 },
         { titulo: 'Unidades', largura: 1.2 },
         { titulo: 'Gramas', largura: 1.2 },
+        { titulo: 'mL', largura: 1.2 },
       ],
       [],
       5,

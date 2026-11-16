@@ -15,6 +15,7 @@ export const TIPOS_ISCA = {
   IG: 'Isca granulada',
   PO: 'Pó de contato',
   MEC: 'Mecânica',
+  TR: 'Ratoeira T-rex',
   CO: 'Cola (placa adesiva)',
   S: 'Semente',
 } as const
@@ -53,6 +54,29 @@ export const REFIL = { M: 'Mantido', T: 'Trocado', I: 'Inexistente' } as const
 export const HIGIENE = { S: 'Satisfatória', R: 'Regular', I: 'Insuficiente' } as const
 export const ESPECIES = { M: 'Mosca', MQ: 'Mosquito', MA: 'Mariposa', B: 'Besouro' } as const
 export const PRAGAS_ALVO = ['Ratazana', 'Rato de telhado', 'Camundongo'] as const
+
+/** Armadilha de feromônio: situação da armadilha (guardada em os_pontos.refil). */
+export const SITUACOES_FEROMONIO = REFIL
+
+/** Planilha de gerenciamento de ocorrências com pragas (vivos e mortos por tipo). */
+export const OCORRENCIAS = {
+  besouros: 'Besouros',
+  mariposas: 'Mariposas',
+  lacraias: 'Lacraias/centopeias',
+  aranhas: 'Aranhas',
+  baratas: 'Baratas',
+  ratos: 'Ratos',
+  formigas: 'Formigas',
+  mosquitos: 'Mosquitos',
+  moscas: 'Moscas',
+  abelhas: 'Abelhas',
+  inseto_graos: 'Inseto de grãos',
+  outros: 'Outros',
+} as const
+
+export type Ocorrencia = { vivos?: number; mortos?: number; comentario?: string }
+
+export const DILUENTES = { pronto: 'Pronto uso', agua: 'H²O', oleo: 'Óleo' } as const
 export const NIVEIS = { B: 'Baixo', M: 'Médio', A: 'Alto' } as const
 
 export const PRAGAS_INSETOS = {
@@ -86,6 +110,7 @@ export const FORMAS_PRODUTO = {
   granulada: 'Isca granulada',
   po: 'Pó de contato',
   placa: 'Placa adesiva',
+  liquido: 'Líquido (pulverização)',
   outro: 'Outro',
 } as const
 
@@ -175,6 +200,11 @@ export type ChecklistPragas = {
   solicitacoes_cliente?: string
   /** Visto do técnico em cada local com planilha de ocorrência de pragas. */
   planilha_vistos?: Record<string, boolean>
+  /** Planilha de ocorrências: vivos, mortos e comentário por tipo de praga. */
+  ocorrencias?: Partial<Record<keyof typeof OCORRENCIAS, Ocorrencia>>
+  envelope_entregue?: boolean
+  envelope_documentos?: string
+  envelope_responsavel?: string
 }
 
 /** Escopo do controle de pragas (guardado em escopo da OS e do modelo). */
@@ -185,6 +215,14 @@ export type EscopoPragas = {
   armadilhas_contrato?: number
   /** Locais com planilha de ocorrência de pragas (o técnico dá o visto). */
   locais_planilha?: string[]
+  /** Pragas combatidas no controle de insetos (texto da ficha). */
+  pragas_insetos?: string
+  /** Mostra a planilha de ocorrências (vivos/mortos por tipo de praga). */
+  planilha_ocorrencias?: boolean
+  /** Pergunta se foi entregue envelope (documentos) ao cliente. */
+  envelope?: boolean
+  /** Texto do objetivo do monitoramento com feromônio (aparece para o técnico e no PDF). */
+  objetivo_feromonio?: string
 }
 
 /** Quantas etapas o controle de pragas ocupa (para numerar as etapas seguintes). */
@@ -193,6 +231,9 @@ export function quantasEtapasPragas(
   pontos: { tipo: string }[] | undefined,
 ) {
   const temArmadilhas = !!pontos?.some((p) => p.tipo === 'armadilha_luminosa')
+  const temMonitoramento = !!pontos?.some(
+    (p) => p.tipo === 'feromonio' || p.tipo === 'armadilha_moscas',
+  )
   const temInsetos = (os.escopo as EscopoPragas | null)?.subtipo === 'insetos_roedores'
-  return 3 + (temArmadilhas ? 1 : 0) + (temInsetos ? 1 : 0)
+  return 3 + (temArmadilhas ? 1 : 0) + (temMonitoramento ? 1 : 0) + (temInsetos ? 1 : 0)
 }

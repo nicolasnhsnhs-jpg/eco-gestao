@@ -3144,12 +3144,16 @@ export type Database = {
           envio_scanner: boolean
           faturado_em: string | null
           lancamento_id: string | null
+          liberada_financeiro_em: string | null
+          liberada_financeiro_por: string | null
           logistica: string | null
           numero_nf: string | null
           observacoes: string | null
           os_id: string
+          pedido_compra: string | null
           solicitacao: boolean | null
           taxa_faturada: boolean | null
+          tem_pedido_compra: boolean | null
           valor: number | null
           valor_faturado: number | null
           vencimento: string | null
@@ -3169,12 +3173,16 @@ export type Database = {
           envio_scanner?: boolean
           faturado_em?: string | null
           lancamento_id?: string | null
+          liberada_financeiro_em?: string | null
+          liberada_financeiro_por?: string | null
           logistica?: string | null
           numero_nf?: string | null
           observacoes?: string | null
           os_id: string
+          pedido_compra?: string | null
           solicitacao?: boolean | null
           taxa_faturada?: boolean | null
+          tem_pedido_compra?: boolean | null
           valor?: number | null
           valor_faturado?: number | null
           vencimento?: string | null
@@ -3194,12 +3202,16 @@ export type Database = {
           envio_scanner?: boolean
           faturado_em?: string | null
           lancamento_id?: string | null
+          liberada_financeiro_em?: string | null
+          liberada_financeiro_por?: string | null
           logistica?: string | null
           numero_nf?: string | null
           observacoes?: string | null
           os_id?: string
+          pedido_compra?: string | null
           solicitacao?: boolean | null
           taxa_faturada?: boolean | null
+          tem_pedido_compra?: boolean | null
           valor?: number | null
           valor_faturado?: number | null
           vencimento?: string | null
@@ -3231,6 +3243,13 @@ export type Database = {
             columns: ['lancamento_id']
             isOneToOne: false
             referencedRelation: 'v_lancamentos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_conferencia_liberada_financeiro_por_fkey'
+            columns: ['liberada_financeiro_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
             referencedColumns: ['id']
           },
           {
@@ -3576,6 +3595,7 @@ export type Database = {
           capturas: Json
           codigo_filtro: string | null
           coletado: boolean | null
+          com_chuva: boolean | null
           criado_em: string
           criado_por: string | null
           filtro_trocado: boolean | null
@@ -3594,6 +3614,7 @@ export type Database = {
           marca: string | null
           material: string | null
           modelo_armadilha: string | null
+          nivel: string | null
           numero: number
           numero_serie: string | null
           observacao: string | null
@@ -3620,6 +3641,7 @@ export type Database = {
           capturas?: Json
           codigo_filtro?: string | null
           coletado?: boolean | null
+          com_chuva?: boolean | null
           criado_em?: string
           criado_por?: string | null
           filtro_trocado?: boolean | null
@@ -3638,6 +3660,7 @@ export type Database = {
           marca?: string | null
           material?: string | null
           modelo_armadilha?: string | null
+          nivel?: string | null
           numero: number
           numero_serie?: string | null
           observacao?: string | null
@@ -3664,6 +3687,7 @@ export type Database = {
           capturas?: Json
           codigo_filtro?: string | null
           coletado?: boolean | null
+          com_chuva?: boolean | null
           criado_em?: string
           criado_por?: string | null
           filtro_trocado?: boolean | null
@@ -3682,6 +3706,7 @@ export type Database = {
           marca?: string | null
           material?: string | null
           modelo_armadilha?: string | null
+          nivel?: string | null
           numero?: number
           numero_serie?: string | null
           observacao?: string | null
@@ -3739,6 +3764,7 @@ export type Database = {
           forma: string
           gramas: number | null
           id: string
+          ml: number | null
           nome_comercial: string | null
           os_id: string
           principio_ativo: string
@@ -3753,6 +3779,7 @@ export type Database = {
           forma: string
           gramas?: number | null
           id?: string
+          ml?: number | null
           nome_comercial?: string | null
           os_id: string
           principio_ativo: string
@@ -3767,6 +3794,7 @@ export type Database = {
           forma?: string
           gramas?: number | null
           id?: string
+          ml?: number | null
           nome_comercial?: string | null
           os_id?: string
           principio_ativo?: string
@@ -3989,6 +4017,7 @@ export type Database = {
           btu: number | null
           capacidade_litros: number | null
           codigo_filtro: string | null
+          com_chuva: boolean | null
           criado_em: string
           criado_por: string | null
           forma_iscagem: string | null
@@ -4014,6 +4043,7 @@ export type Database = {
           btu?: number | null
           capacidade_litros?: number | null
           codigo_filtro?: string | null
+          com_chuva?: boolean | null
           criado_em?: string
           criado_por?: string | null
           forma_iscagem?: string | null
@@ -4039,6 +4069,7 @@ export type Database = {
           btu?: number | null
           capacidade_litros?: number | null
           codigo_filtro?: string | null
+          com_chuva?: boolean | null
           criado_em?: string
           criado_por?: string | null
           forma_iscagem?: string | null
@@ -6126,6 +6157,8 @@ export type Database = {
         | 'ponto_coleta'
         | 'ar_condicionado'
         | 'reservatorio'
+        | 'feromonio'
+        | 'armadilha_moscas'
       tipo_vencimento: 'certificado' | 'recomendacao'
     }
     CompositeTypes: {
@@ -6312,6 +6345,8 @@ export const Constants = {
         'ponto_coleta',
         'ar_condicionado',
         'reservatorio',
+        'feromonio',
+        'armadilha_moscas',
       ],
       tipo_vencimento: ['certificado', 'recomendacao'],
     },

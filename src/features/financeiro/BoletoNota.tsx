@@ -14,8 +14,9 @@ import { useRef, useState } from 'react'
 
 import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
-import { Campo, Select } from '@/components/ui/Campo'
+import { Campo, Input, Select } from '@/components/ui/Campo'
 import { Card } from '@/components/ui/Card'
+import { Modal } from '@/components/ui/Modal'
 import { abrirPdfBase64 } from '@/lib/arquivos'
 import { formatarData, formatarDataHora } from '@/lib/datas'
 import { formatarReais } from '@/lib/dinheiro'
@@ -23,6 +24,7 @@ import { juntarEmails } from '@/lib/emails'
 import { mensagemDeErro } from '@/lib/erros'
 
 import { abrirArquivo } from '../arquivos/api'
+import { DICA_EMAILS_NOTA, emailsPadraoDaNota } from './EnvioNota'
 import { oQueFoiEnviado, totalRetido } from './notas'
 import {
   BANCOS_DA_UNIDADE,
@@ -87,6 +89,8 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
   const [ensaio, setEnsaio] = useState<EnsaioBoleto | null>(null)
   const [bancoLocal, setBancoLocal] = useState<BancoBoleto | null>(null)
   const [naEmissaoLocal, setNaEmissaoLocal] = useState<boolean | null>(null)
+  // "Enviar nota e boleto": abre com os e-mails do cliente para conferir ou trocar.
+  const [paraEnvio, setParaEnvio] = useState<string | null>(null)
   const ocupado =
     anexar.isPending ||
     tirar.isPending ||
@@ -172,9 +176,10 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
     })
   }
 
-  function enviarBoleto() {
+  function enviarBoleto(para: string) {
+    setParaEnvio(null)
     void acao(async () => {
-      const r = await enviar.mutateAsync({ notaId: nota.id })
+      const r = await enviar.mutateAsync({ notaId: nota.id, para: para.trim() || undefined })
       if (!r.enviada) throw new Error(`${r.motivo} Ficou o aviso de envio pendente.`)
       return `${oQueFoiEnviado(r.comBoleto, r.boletos)} para ${juntarEmails(r.para)}.`
     })
@@ -381,7 +386,12 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
           ))}
 
         {podeEnviar && (
-          <Button disabled={ocupado} onClick={enviarBoleto}>
+          <Button
+            disabled={ocupado}
+            onClick={() =>
+              setParaEnvio(nota.enviada_para?.trim() ? nota.enviada_para : emailsPadraoDaNota(nota))
+            }
+          >
             <Mail className="size-4" aria-hidden />
             {enviar.isPending
               ? 'Enviando…'
@@ -561,6 +571,32 @@ export function BoletoNota({ nota }: { nota: NotaFiscalCompleta }) {
           onChange={(e) => void aoEscolherExtra(e.target.files?.[0])}
         />
       </div>
+      <Modal
+        aberto={paraEnvio !== null}
+        aoFechar={() => setParaEnvio(null)}
+        titulo={qtdExtras > 0 ? 'Enviar nota e boletos' : 'Enviar nota e boleto'}
+      >
+        <div className="flex flex-col gap-3">
+          <Campo rotulo="Para" htmlFor="email-nota-boleto" dica={DICA_EMAILS_NOTA}>
+            <Input
+              id="email-nota-boleto"
+              type="text"
+              inputMode="email"
+              autoComplete="off"
+              value={paraEnvio ?? ''}
+              onChange={(e) => setParaEnvio(e.target.value)}
+            />
+          </Campo>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variante="secundario" onClick={() => setParaEnvio(null)}>
+              Cancelar
+            </Button>
+            <Button disabled={ocupado} onClick={() => enviarBoleto(paraEnvio ?? '')}>
+              <Mail className="size-4" aria-hidden /> Enviar
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </Card>
   )
 }
