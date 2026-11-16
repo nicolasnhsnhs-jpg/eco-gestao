@@ -22,7 +22,7 @@ import {
   fichaDaOs,
   NOME_STATUS_OS,
   osAberta,
-  useAtualizarOs,
+  useCancelarOs,
   useOrdemServico,
   useReabrirOs,
 } from './api'
@@ -53,7 +53,7 @@ export function OsPage() {
   const { id = '' } = useParams()
   const perfil = usePerfil()
   const os = useOrdemServico(id)
-  const atualizar = useAtualizarOs(id)
+  const cancelar = useCancelarOs(id)
   const reabrir = useReabrirOs(id)
   const [erro, setErro] = useState<string | null>(null)
   const [gerandoPdf, setGerandoPdf] = useState(false)
@@ -170,17 +170,24 @@ export function OsPage() {
                 Editar OS
               </Button>
             )}
-            {escritorio && antesDeComecar && (
-              <Button
-                variante="fantasma"
-                onClick={() => {
-                  if (!window.confirm('Cancelar esta OS?')) return
-                  void executar(() => atualizar.mutateAsync({ dados: { status: 'cancelada' } }))
-                }}
-              >
-                Cancelar OS
-              </Button>
-            )}
+            {/* Só o Administrador e o ADM cancelam (o operador avisa o escritório). */}
+            {(perfil.papel === 'admin' || perfil.papel === 'administrativo') &&
+              o.status !== 'cancelada' && (
+                <Button
+                  variante="fantasma"
+                  onClick={() => {
+                    const motivo = window
+                      .prompt(
+                        'Cancelar esta OS? Ela sai da lista do técnico e não pode mais ser preenchida. Motivo do cancelamento (fica registrado):',
+                      )
+                      ?.trim()
+                    if (!motivo) return
+                    void executar(() => cancelar.mutateAsync(motivo))
+                  }}
+                >
+                  Cancelar OS
+                </Button>
+              )}
             {perfil.papel === 'admin' &&
               !o.treinamento &&
               (o.status === 'concluida' || o.status === 'conferida') && (
@@ -251,6 +258,11 @@ export function OsPage() {
             )}
           </Linha>
           {o.ocorrencia && <Linha rotulo="Ocorrência">{o.ocorrencia}</Linha>}
+          {o.status === 'cancelada' && o.motivo_cancelamento && (
+            <Aviso tipo="erro">
+              Cancelada em {formatarDataHora(o.cancelada_em)}: {o.motivo_cancelamento}
+            </Aviso>
+          )}
           {o.motivo_reabertura && (
             <Aviso tipo="info">
               Reaberta em {formatarDataHora(o.reaberta_em)}: {o.motivo_reabertura}

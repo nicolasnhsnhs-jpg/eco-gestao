@@ -325,6 +325,58 @@ do $$ begin
         and c.taxa_faturada and c.valor_faturado = 350), 1);
 end $$;
 
+-- Cancelar: só Administrador e ADM, com motivo; faturada não cancela
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-0000000005d1', 'os.adm@teste.local', '{"nome":"ADM OS"}');
+update public.perfis set papel = 'administrativo' where id = '00000000-0000-0000-0000-0000000005d1';
+
+select pg_temp.como('00000000-0000-0000-0000-0000000005e2');
+set local role authenticated;
+do $$ begin
+  begin
+    perform public.cancelar_os((select id from ids where nome = 'os_b'), 'preenchi errado');
+    raise exception 'FALHOU: operador cancelou a OS';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
+select pg_temp.como('00000000-0000-0000-0000-0000000005c1');
+set local role authenticated;
+do $$ begin
+  begin
+    perform public.cancelar_os((select id from ids where nome = 'os_b'), 'preenchi errado');
+    raise exception 'FALHOU: recepção cancelou a OS';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
+select pg_temp.como('00000000-0000-0000-0000-0000000005d1');
+set local role authenticated;
+do $$ begin
+  begin
+    perform public.cancelar_os((select id from ids where nome = 'os_b'), 'ok');
+    raise exception 'FALHOU: cancelou sem motivo';
+  exception when check_violation then null;
+  end;
+  begin
+    perform public.cancelar_os((select id from ids where nome = 'os_a'), 'técnico preencheu errado');
+    raise exception 'FALHOU: cancelou OS já faturada';
+  exception when check_violation then null;
+  end;
+end $$;
+select public.cancelar_os((select id from ids where nome = 'os_b'), 'Técnico preencheu errado');
+reset role;
+
+do $$ begin
+  perform pg_temp.conferir('OS cancelada pelo ADM com motivo',
+    (select count(*) from public.ordens_servico
+      where id = (select id from ids where nome = 'os_b') and status = 'cancelada'
+        and motivo_cancelamento = 'Técnico preencheu errado'
+        and cancelada_por = '00000000-0000-0000-0000-0000000005d1' and cancelada_em is not null), 1);
+end $$;
+
 select 'Ordens de serviço: permissões e fluxo conferidos.' as resultado;
 
 rollback;

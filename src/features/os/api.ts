@@ -385,6 +385,18 @@ export function useReabrirOs(id: string) {
   })
 }
 
+/** Cancelar a OS (Administrador ou ADM), em qualquer fase, com o motivo. */
+export function useCancelarOs(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (motivo: string) => {
+      const { error } = await supabase.rpc('cancelar_os', { os: id, motivo })
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
+  })
+}
+
 // -----------------------------------------------------------------------------
 // Operador: execução
 // -----------------------------------------------------------------------------
@@ -937,6 +949,7 @@ export function useOsAFaturar() {
         .not('liberada_financeiro_em', 'is', null)
         .or('taxa_faturada.is.null,taxa_faturada.eq.false')
         .eq('os.treinamento', false)
+        .neq('os.status', 'cancelada')
         .order('liberada_financeiro_em', { ascending: true })
       if (error) throw error
       return data

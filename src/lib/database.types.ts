@@ -2974,6 +2974,8 @@ export type Database = {
         Row: {
           atualizado_em: string
           atualizado_por: string | null
+          cancelada_em: string | null
+          cancelada_por: string | null
           cliente_id: string
           concluida_em: string | null
           concluida_por: string | null
@@ -2987,6 +2989,7 @@ export type Database = {
           hora_agendada: string | null
           id: string
           modelo_id: string | null
+          motivo_cancelamento: string | null
           motivo_reabertura: string | null
           numero: string
           observacoes_adm: string | null
@@ -3002,6 +3005,8 @@ export type Database = {
         Insert: {
           atualizado_em?: string
           atualizado_por?: string | null
+          cancelada_em?: string | null
+          cancelada_por?: string | null
           cliente_id: string
           concluida_em?: string | null
           concluida_por?: string | null
@@ -3015,6 +3020,7 @@ export type Database = {
           hora_agendada?: string | null
           id?: string
           modelo_id?: string | null
+          motivo_cancelamento?: string | null
           motivo_reabertura?: string | null
           numero: string
           observacoes_adm?: string | null
@@ -3030,6 +3036,8 @@ export type Database = {
         Update: {
           atualizado_em?: string
           atualizado_por?: string | null
+          cancelada_em?: string | null
+          cancelada_por?: string | null
           cliente_id?: string
           concluida_em?: string | null
           concluida_por?: string | null
@@ -3043,6 +3051,7 @@ export type Database = {
           hora_agendada?: string | null
           id?: string
           modelo_id?: string | null
+          motivo_cancelamento?: string | null
           motivo_reabertura?: string | null
           numero?: string
           observacoes_adm?: string | null
@@ -3059,6 +3068,13 @@ export type Database = {
           {
             foreignKeyName: 'ordens_servico_atualizado_por_fkey'
             columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ordens_servico_cancelada_por_fkey'
+            columns: ['cancelada_por']
             isOneToOne: false
             referencedRelation: 'perfis'
             referencedColumns: ['id']
@@ -5887,6 +5903,7 @@ export type Database = {
           porta_iscas: number
         }[]
       }
+      cancelar_os: { Args: { motivo: string; os: string }; Returns: undefined }
       concluir_os: { Args: { os: string }; Returns: undefined }
       conferir_lembrete_agenda: {
         Args: { proposta: string }
