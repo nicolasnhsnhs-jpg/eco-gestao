@@ -51,3 +51,10 @@ export type ChecklistBebedouro = {
 
 /** "01", "02"… como nas etiquetas. */
 export const etiqueta = (numero: number) => String(numero).padStart(2, '0')
+
+/** Dias entre a última limpeza e hoje (as duas em "AAAA-MM-DD"). */
+export const diasDesde = (iso: string, hoje: string) =>
+  Math.round((Date.parse(`${hoje}T00:00:00Z`) - Date.parse(`${iso}T00:00:00Z`)) / 86_400_000)
+
+/** Até quantos dias a limpeza conta como "recente" e fica em destaque para o técnico. */
+export const DIAS_LIMPEZA_RECENTE = 30

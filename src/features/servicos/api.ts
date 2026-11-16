@@ -46,7 +46,7 @@ const RELACOES = `
   endereco:enderecos(id, apelido, logradouro, numero, cidade, uf),
   tipo:tipos_servico(id, nome, tipo_vencimento),
   vendedor:perfis!servicos_vendedor_id_fkey(id, nome),
-  proposta:propostas(id, numero, prazo_pagamento_dias)
+  proposta:propostas(id, numero, prazo_pagamento_dias, prazos_pagamento)
 `
 
 export type FiltroServicos = {

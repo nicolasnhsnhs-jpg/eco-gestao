@@ -428,15 +428,60 @@ export function textoCartao(
   return `em **${parcelas}x ${juros ? 'com juros' : 'sem juros'}**`
 }
 
+/**
+ * "21/42", "21-42", "21, 42" ou "28" → [21, 42] / [28]; vazio → []. Null quando
+ * algum pedaço não é um número de 0 a 365 ou os prazos não estão em ordem.
+ */
+export function lerPrazos(texto: string): number[] | null {
+  const t = texto.trim()
+  if (!t) return []
+  const partes = t.split(/\s*[/\-,;]\s*|\s+/)
+  if (partes.some((x) => !/^\d{1,3}$/.test(x))) return null
+  const dias = partes.map(Number)
+  if (dias.some((d) => d > 365)) return null
+  if (dias.some((d, i) => i > 0 && d <= dias[i - 1])) return null
+  return dias
+}
+
+/** Os prazos gravados na proposta: todos (parcelado) ou só o único. */
+export function prazosDe(p: {
+  prazo_pagamento_dias: number | null | undefined
+  prazos_pagamento?: number[] | null
+}): number[] {
+  if (p.prazos_pagamento?.length) return p.prazos_pagamento
+  return p.prazo_pagamento_dias == null ? [] : [p.prazo_pagamento_dias]
+}
+
+/** [21, 42] → "21/42"; para o campo do formulário. */
+export const prazosParaCampo = (p: Parameters<typeof prazosDe>[0]) => prazosDe(p).join('/')
+
+/** [21, 42] → "21/42 dias (2 parcelas)"; [28] → "28 dias". */
+export function descreverPrazos(prazos: number[]) {
+  if (prazos.length === 0) return ''
+  const dias = `${prazos.join('/')} dias`
+  return prazos.length > 1 ? `${dias} (${prazos.length} parcelas)` : dias
+}
+
 export function textoPagamento(
-  prazo: number | null | undefined,
+  prazo: number | number[] | null | undefined,
   condicao: string | null | undefined,
   cartao?: { parcelas: number | null | undefined; juros: boolean | null | undefined },
 ) {
   let c = condicao?.trim() || 'boleto bancário'
   const parcelas = ehCartao(c) && cartao ? textoCartao(cartao.parcelas, cartao.juros) : ''
   if (parcelas) c = `${c} ${parcelas}`
-  return prazo != null ? `**${prazo} dias** ${c}` : c
+  const prazos = prazo == null ? [] : ([] as number[]).concat(prazo)
+  if (prazos.length === 0) return c
+  if (prazos.length === 1) return `**${prazos[0]} dias** ${c}`
+  return `**${prazos.join('/')} dias** ${c}, em ${prazos.length} parcelas`
+}
+
+/** Texto do atendimento fora do horário: o escrito na proposta ou o padrão. */
+export function textoAtendimentoDaProposta(p: {
+  texto_atendimento?: string | null
+  acrescimo_fora_horario: number | null
+}) {
+  return p.texto_atendimento?.trim() || textoAtendimento(p.acrescimo_fora_horario)
 }
 
 export function textoAtendimento(acrescimo: number | null | undefined) {

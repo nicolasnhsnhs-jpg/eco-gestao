@@ -242,7 +242,9 @@ function CartaoFinanceiro({ s, nomeCliente }: { s: ServicoResumo; nomeCliente: s
           <>
             <p className="mb-3 text-sm text-texto-suave">
               Serviço feito e ainda sem conta a receber.
-              {prazo > 0 && ` Prazo combinado: ${prazo} dias.`}
+              {(s.proposta?.prazos_pagamento?.length ?? 0) > 1
+                ? ` Prazo combinado: ${s.proposta!.prazos_pagamento!.join('/')} dias — lance uma conta para cada parcela (a primeira já vem com o vencimento de ${prazo} dias).`
+                : prazo > 0 && ` Prazo combinado: ${prazo} dias.`}
             </p>
             <Link
               to={`/financeiro/lancamentos/novo?${parametros}`}

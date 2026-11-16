@@ -4,12 +4,14 @@ import { Aviso } from '@/components/ui/Aviso'
 import { Campo, Input, Textarea } from '@/components/ui/Campo'
 import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
-import { formatarData } from '@/lib/datas'
+import { formatarData, hojeISO } from '@/lib/datas'
 import { mensagemDeErro } from '@/lib/erros'
 
 import type { CamposExecucao, OsCompleta } from '../api'
 import { useAnotarPontos, usePontosOs, type PontoOs } from '../pragasApi'
 import {
+  diasDesde,
+  DIAS_LIMPEZA_RECENTE,
   etiqueta,
   PERGUNTAS_CONFERENCIA_BEBEDOURO,
   TIPOS_BEBEDOURO,
@@ -141,10 +143,7 @@ function Bebedouro({
           <span className="font-normal text-texto-suave"> · filtro {bebedouro.codigo_filtro}</span>
         )}
       </p>
-      <p className="text-sm text-texto-suave">
-        Limpeza anterior:{' '}
-        {bebedouro.ultima_limpeza ? formatarData(bebedouro.ultima_limpeza) : 'sem registro'}
-      </p>
+      <UltimaLimpeza data={bebedouro.ultima_limpeza} />
       <div className="flex flex-wrap gap-x-6 gap-y-2">
         <Pergunta texto="Limpo hoje? *">
           <BotoesCodigo
@@ -238,5 +237,26 @@ export function Etapa({
       </h2>
       {children}
     </Card>
+  )
+}
+
+/**
+ * Data da última limpeza (do histórico ou informada pelo escritório). Se foi há
+ * pouco, fica em destaque: em visita parcial o técnico pode pular este.
+ */
+export function UltimaLimpeza({ data }: { data: string | null }) {
+  if (!data) return <p className="text-sm text-texto-suave">Última limpeza: sem registro</p>
+  const dias = diasDesde(data, hojeISO())
+  const quando = dias <= 0 ? 'hoje' : dias === 1 ? 'há 1 dia' : `há ${dias} dias`
+  if (dias > DIAS_LIMPEZA_RECENTE)
+    return (
+      <p className="text-sm text-texto-suave">
+        Última limpeza: {formatarData(data)} ({quando})
+      </p>
+    )
+  return (
+    <p className="rounded-lg bg-amber-50 px-2 py-1 text-sm font-semibold text-alerta">
+      Limpo recentemente: {formatarData(data)} ({quando})
+    </p>
   )
 }

@@ -25,7 +25,7 @@ import {
   type SituacaoProposta,
 } from './api'
 import { JanelaExecucao } from './JanelaExecucao'
-import { nomeFrequencia, textoPagamento } from './modelos'
+import { descreverPrazos, nomeFrequencia, prazosDe, textoPagamento } from './modelos'
 import { valoresDoContrato } from './pdf/dadosPdf'
 import { AcoesPdfProposta } from './pdf/PdfProposta'
 import { propostaGravadaParaBase, taxasDoItem } from './pdf/usoPdf'
@@ -236,7 +236,7 @@ function Detalhe({ p }: { p: PropostaCompleta }) {
               rotulo="Prazo de pagamento"
               valor={
                 p.prazo_pagamento_dias != null
-                  ? `${p.prazo_pagamento_dias} dias após o serviço`
+                  ? `${descreverPrazos(prazosDe(p))} após o serviço`
                   : 'Sem prazo'
               }
             />
@@ -253,6 +253,12 @@ function Detalhe({ p }: { p: PropostaCompleta }) {
               <Dado
                 rotulo="Acréscimo fora do horário"
                 valor={formatarReais(p.acrescimo_fora_horario)}
+              />
+            )}
+            {p.texto_atendimento && (
+              <Dado
+                rotulo="Texto do atendimento fora do horário"
+                valor={p.texto_atendimento.replace(/\*\*/g, '')}
               />
             )}
             {p.observacoes && <Dado rotulo="Observações" valor={p.observacoes} />}

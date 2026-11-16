@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import { lerValor, paraCentavos } from '@/lib/dinheiro'
 
-import { ehCartao, ehFrequenciaCurta, separarFrequencia } from './modelos'
+import { ehCartao, ehFrequenciaCurta, lerPrazos, separarFrequencia } from './modelos'
 import type { PropostaBase } from './pdf/dadosPdf'
 
 const inteiroOpcional = (min: number, max: number, mensagem: string) =>
@@ -66,7 +66,14 @@ export const esquemaProposta = z
     contato_telefone: textoAte(120),
     contato_email: textoAte(300),
     introducao: textoAte(2000),
-    prazo_pagamento_dias: inteiroOpcional(0, 365, 'Entre 0 e 365 dias.'),
+    /** "28" ou parcelado: "21/42" (também aceita traço ou vírgula). */
+    prazo_pagamento_dias: z
+      .string()
+      .trim()
+      .refine((v) => {
+        const prazos = lerPrazos(v)
+        return prazos !== null && prazos.length <= 24
+      }, 'Dias de 0 a 365; parcelado separe por barra, em ordem: 21/42.'),
     condicao_pagamento: z.string().trim(),
     /** Cartão de crédito: em quantas vezes e se tem juros. */
     cartao_parcelas: inteiroOpcional(1, 24, 'Entre 1 e 24 vezes.'),
@@ -76,6 +83,8 @@ export const esquemaProposta = z
     acrescimo_fora_horario: z
       .string()
       .refine((v) => v.trim() === '' || lerValor(v) !== null, 'Valor inválido.'),
+    /** Texto próprio do atendimento fora do horário; vazio = texto padrão. */
+    texto_atendimento: textoAte(2000),
     custos_detalhados: z.boolean(),
     observacoes: z.string().trim(),
     itens: z.array(esquemaItem).min(1, 'Adicione pelo menos um serviço.'),
@@ -164,6 +173,15 @@ export function camposCartao(condicao: string, parcelas: string, juros: boolean)
   return { cartao_parcelas: n, cartao_juros: n > 1 ? juros : null }
 }
 
+/** "21/42" → primeiro prazo no campo antigo e todos em prazos_pagamento. */
+export function camposPrazo(texto: string) {
+  const prazos = lerPrazos(texto) ?? []
+  return {
+    prazo_pagamento_dias: prazos[0] ?? null,
+    prazos_pagamento: prazos.length > 1 ? prazos : null,
+  }
+}
+
 export function propostaParaBanco(f: FormProposta) {
   const acrescimo = f.acrescimo_fora_horario.trim() ? lerValor(f.acrescimo_fora_horario) : null
   return {
@@ -178,11 +196,12 @@ export function propostaParaBanco(f: FormProposta) {
       contato_telefone: ouNulo(f.contato_telefone),
       contato_email: ouNulo(f.contato_email),
       introducao: ouNulo(f.introducao),
-      prazo_pagamento_dias: f.prazo_pagamento_dias ? Number(f.prazo_pagamento_dias) : null,
+      ...camposPrazo(f.prazo_pagamento_dias),
       condicao_pagamento: ouNulo(f.condicao_pagamento),
       ...camposCartao(f.condicao_pagamento, f.cartao_parcelas, f.cartao_juros),
       pagamento_fixo: f.pagamento_fixo,
       acrescimo_fora_horario: acrescimo,
+      texto_atendimento: ouNulo(f.texto_atendimento),
       custos_detalhados: f.custos_detalhados,
       observacoes: ouNulo(f.observacoes),
     },
@@ -220,8 +239,9 @@ export function formParaBase(f: FormProposta, numero?: string | null): PropostaB
     contato_email: ouNulo(f.contato_email ?? ''),
     introducao: ouNulo(f.introducao ?? ''),
     acrescimo_fora_horario: acrescimo,
+    texto_atendimento: ouNulo(f.texto_atendimento ?? ''),
     custos_detalhados: f.custos_detalhados ?? true,
-    prazo_pagamento_dias: f.prazo_pagamento_dias ? Number(f.prazo_pagamento_dias) : null,
+    ...camposPrazo(f.prazo_pagamento_dias ?? ''),
     condicao_pagamento: ouNulo(f.condicao_pagamento ?? ''),
     ...camposCartao(f.condicao_pagamento ?? '', f.cartao_parcelas ?? '', f.cartao_juros ?? false),
     observacoes: ouNulo(f.observacoes ?? ''),

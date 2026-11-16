@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Campo, Input } from '@/components/ui/Campo'
 import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
+import { formatarData } from '@/lib/datas'
 import { mensagemDeErro } from '@/lib/erros'
 
 import { usePontosModelo, useSalvarPontos, type AlvoEscopo, type PontoControle } from './pragasApi'
@@ -97,7 +98,7 @@ function Bebedouro({
   bebedouro: PontoControle
   ocupado: boolean
   aoAlterar: (
-    dados: { ativo?: boolean; codigo_filtro?: string | null },
+    dados: { ativo?: boolean; codigo_filtro?: string | null; limpeza_informada?: string | null },
     mensagem: string,
   ) => Promise<void>
 }) {
@@ -129,6 +130,11 @@ function Bebedouro({
           Salvar
         </Button>
       )}
+      <DataUltimaLimpeza
+        ponto={bebedouro}
+        ocupado={ocupado}
+        aoSalvar={(data, mensagem) => aoAlterar({ limpeza_informada: data }, mensagem)}
+      />
       <Button
         variante="fantasma"
         disabled={ocupado}
@@ -202,5 +208,45 @@ function NovoBebedouro({
         </Button>
       </div>
     </div>
+  )
+}
+
+/**
+ * Data da última limpeza informada pelo escritório (visitas parciais ou limpeza
+ * feita antes do sistema). O técnico vê na OS a mais recente entre esta e o
+ * histórico das visitas.
+ */
+export function DataUltimaLimpeza({
+  ponto,
+  ocupado,
+  aoSalvar,
+}: {
+  ponto: PontoControle
+  ocupado: boolean
+  aoSalvar: (data: string | null, mensagem: string) => Promise<unknown>
+}) {
+  const [data, setData] = useState(ponto.limpeza_informada ?? '')
+  const salvar = () => {
+    if (data === (ponto.limpeza_informada ?? '')) return
+    void aoSalvar(
+      data || null,
+      data
+        ? `${ponto.area}: última limpeza em ${formatarData(data)}.`
+        : `${ponto.area}: data da última limpeza retirada.`,
+    )
+  }
+  return (
+    <label className="flex items-center gap-1 text-sm text-texto-suave">
+      Última limpeza
+      <Input
+        type="date"
+        className="w-40"
+        aria-label={`Data da última limpeza de ${ponto.area}`}
+        disabled={ocupado}
+        value={data}
+        onChange={(e) => setData(e.target.value)}
+        onBlur={salvar}
+      />
+    </label>
   )
 }

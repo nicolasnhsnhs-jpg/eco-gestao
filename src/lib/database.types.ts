@@ -4038,6 +4038,7 @@ export type Database = {
           criado_por: string | null
           forma_iscagem: string | null
           id: string
+          limpeza_informada: string | null
           marca: string | null
           material: string | null
           modelo_armadilha: string | null
@@ -4064,6 +4065,7 @@ export type Database = {
           criado_por?: string | null
           forma_iscagem?: string | null
           id?: string
+          limpeza_informada?: string | null
           marca?: string | null
           material?: string | null
           modelo_armadilha?: string | null
@@ -4090,6 +4092,7 @@ export type Database = {
           criado_por?: string | null
           forma_iscagem?: string | null
           id?: string
+          limpeza_informada?: string | null
           marca?: string | null
           material?: string | null
           modelo_armadilha?: string | null
@@ -4334,7 +4337,9 @@ export type Database = {
           observacoes: string | null
           pagamento_fixo: boolean
           prazo_pagamento_dias: number | null
+          prazos_pagamento: number[] | null
           status: Database['public']['Enums']['status_proposta']
+          texto_atendimento: string | null
           tipo: string
           validade: string | null
           valor_total: number
@@ -4369,7 +4374,9 @@ export type Database = {
           observacoes?: string | null
           pagamento_fixo?: boolean
           prazo_pagamento_dias?: number | null
+          prazos_pagamento?: number[] | null
           status?: Database['public']['Enums']['status_proposta']
+          texto_atendimento?: string | null
           tipo?: string
           validade?: string | null
           valor_total?: number
@@ -4404,7 +4411,9 @@ export type Database = {
           observacoes?: string | null
           pagamento_fixo?: boolean
           prazo_pagamento_dias?: number | null
+          prazos_pagamento?: number[] | null
           status?: Database['public']['Enums']['status_proposta']
+          texto_atendimento?: string | null
           tipo?: string
           validade?: string | null
           valor_total?: number
@@ -5554,8 +5563,10 @@ export type Database = {
           observacoes: string | null
           pagamento_fixo: boolean | null
           prazo_pagamento_dias: number | null
+          prazos_pagamento: number[] | null
           situacao: string | null
           status: Database['public']['Enums']['status_proposta'] | null
+          texto_atendimento: string | null
           tipo: string | null
           validade: string | null
           valor_total: number | null
@@ -5591,8 +5602,10 @@ export type Database = {
           observacoes?: string | null
           pagamento_fixo?: boolean | null
           prazo_pagamento_dias?: number | null
+          prazos_pagamento?: number[] | null
           situacao?: never
           status?: Database['public']['Enums']['status_proposta'] | null
+          texto_atendimento?: string | null
           tipo?: string | null
           validade?: string | null
           valor_total?: number | null
@@ -5628,8 +5641,10 @@ export type Database = {
           observacoes?: string | null
           pagamento_fixo?: boolean | null
           prazo_pagamento_dias?: number | null
+          prazos_pagamento?: number[] | null
           situacao?: never
           status?: Database['public']['Enums']['status_proposta'] | null
+          texto_atendimento?: string | null
           tipo?: string | null
           validade?: string | null
           valor_total?: number | null

@@ -75,7 +75,8 @@ export function useProposta(id: string | undefined) {
 
 export type PropostaCompleta = NonNullable<ReturnType<typeof useProposta>['data']>
 
-const CAMPOS_PAGAMENTO = 'prazo_pagamento_dias, condicao_pagamento, cartao_parcelas, cartao_juros'
+const CAMPOS_PAGAMENTO =
+  'prazo_pagamento_dias, prazos_pagamento, condicao_pagamento, cartao_parcelas, cartao_juros'
 
 /**
  * O que a proposta nova do cliente puxa das anteriores (sem mexer no cadastro):

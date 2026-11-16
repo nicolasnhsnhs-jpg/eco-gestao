@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/Card'
 import { Input, Select } from '@/components/ui/Campo'
 import { Carregando } from '@/components/ui/Carregando'
 import { Etiqueta } from '@/components/ui/Etiqueta'
-import { formatarData } from '@/lib/datas'
+import { formatarData, hojeISO } from '@/lib/datas'
 import { formatarReais } from '@/lib/dinheiro'
 import { mensagemDeErro } from '@/lib/erros'
 import { cn } from '@/lib/utils'
@@ -25,6 +25,25 @@ const sem = (t: string) =>
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase()
+
+/** Filtros das aprovadas pelo dia da execução (para o vendedor acompanhar). */
+const FILTROS_EXECUCAO = {
+  agendadas: {
+    nome: 'Agendadas (a executar)',
+    aceita: (p: PropostaResumo, hoje: string) =>
+      p.status === 'aprovada' && !!p.execucao_data && p.execucao_data >= hoje,
+  },
+  executadas: {
+    nome: 'Agendadas já passadas',
+    aceita: (p: PropostaResumo, hoje: string) =>
+      p.status === 'aprovada' && !!p.execucao_data && p.execucao_data < hoje,
+  },
+  sem_data: {
+    nome: 'Aprovadas sem agendamento',
+    aceita: (p: PropostaResumo) => p.status === 'aprovada' && !p.execucao_data,
+  },
+}
+type FiltroExecucao = keyof typeof FILTROS_EXECUCAO
 
 /** Abas: as propostas já criadas e a criação de uma nova. */
 export function PropostasLayout() {
@@ -74,14 +93,26 @@ export function PropostasPage() {
   }
 
   const todas = propostas.data ?? []
+  const hoje = hojeISO()
   const filtradas = todas.filter((p) => {
-    if (situacao !== 'todas' && p.situacao !== situacao) return false
+    if (situacao in FILTROS_EXECUCAO) {
+      if (!FILTROS_EXECUCAO[situacao as FiltroExecucao].aceita(p, hoje)) return false
+    } else if (situacao !== 'todas' && p.situacao !== situacao) return false
     if (!busca.trim()) return true
     const alvo = sem(
       [p.numero, p.cliente?.nome, p.cliente?.nome_fantasia, p.vendedor?.nome].join(' '),
     )
     return alvo.includes(sem(busca.trim()))
   })
+  // Agendadas: na ordem do dia da execução (as próximas primeiro).
+  if (situacao in FILTROS_EXECUCAO) {
+    filtradas.sort(
+      (a, b) =>
+        `${a.execucao_data ?? ''} ${a.execucao_hora ?? ''}`.localeCompare(
+          `${b.execucao_data ?? ''} ${b.execucao_hora ?? ''}`,
+        ) * (situacao === 'executadas' ? -1 : 1),
+    )
+  }
 
   const aguardando = todas.filter((p) => p.status === 'enviada')
   const somar = (lista: PropostaResumo[]) => lista.reduce((s, p) => s + Number(p.valor_total), 0)
@@ -133,6 +164,13 @@ export function PropostasPage() {
               {NOME_SITUACAO_PROPOSTA[s]}
             </option>
           ))}
+          <optgroup label="Aprovadas">
+            {(Object.keys(FILTROS_EXECUCAO) as FiltroExecucao[]).map((f) => (
+              <option key={f} value={f}>
+                {FILTROS_EXECUCAO[f].nome}
+              </option>
+            ))}
+          </optgroup>
         </Select>
       </Card>
 

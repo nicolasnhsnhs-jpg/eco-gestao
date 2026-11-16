@@ -88,6 +88,8 @@ const NOME_CAMPO: Record<string, string> = {
   data_resposta: 'Respondida em',
   motivo_recusa: 'Motivo da recusa',
   prazo_pagamento_dias: 'Prazo (dias)',
+  prazos_pagamento: 'Prazos parcelados (dias)',
+  texto_atendimento: 'Texto do atendimento fora do horário',
   condicao_pagamento: 'Condição de pagamento',
   cartao_parcelas: 'Parcelas no cartão',
   cartao_juros: 'Juros no cartão',

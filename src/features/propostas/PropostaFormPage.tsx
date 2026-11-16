@@ -12,7 +12,7 @@ import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
 import { SelectForm } from '@/components/ui/SelectForm'
 import { hojeISO, somarDias } from '@/lib/datas'
-import { formatarReais, mascaraValor, valorParaCampo } from '@/lib/dinheiro'
+import { formatarReais, lerValor, mascaraValor, valorParaCampo } from '@/lib/dinheiro'
 import { formatarTelefone } from '@/lib/documentos'
 import { juntarEmails } from '@/lib/emails'
 import { mensagemDeErro } from '@/lib/erros'
@@ -30,7 +30,7 @@ import {
   type PagamentoFixo,
   type PropostaCompleta,
 } from './api'
-import { introducaoContrato, textoContratoPadrao } from './contratual'
+import { introducaoContrato, textoContratoPadrao, textoTaxaContrato } from './contratual'
 import {
   esquemaProposta,
   formParaBase,
@@ -53,6 +53,11 @@ import {
   valorFrequencia,
   ehCartao,
   ehPix,
+  descreverPrazos,
+  lerPrazos,
+  prazosDe,
+  prazosParaCampo,
+  textoAtendimento,
   type ChaveModelo,
 } from './modelos'
 import { valoresDoContrato, valorAnualDosItens } from './pdf/dadosPdf'
@@ -101,7 +106,7 @@ function valoresIniciais(
       contato_telefone: proposta.contato_telefone ?? '',
       contato_email: proposta.contato_email ?? '',
       introducao: proposta.introducao ?? '',
-      prazo_pagamento_dias: proposta.prazo_pagamento_dias?.toString() ?? '',
+      prazo_pagamento_dias: prazosParaCampo(proposta),
       condicao_pagamento: proposta.condicao_pagamento ?? '',
       cartao_parcelas: proposta.cartao_parcelas?.toString() ?? '',
       pagamento_fixo: proposta.pagamento_fixo ?? false,
@@ -110,6 +115,7 @@ function valoresIniciais(
         proposta.acrescimo_fora_horario == null
           ? ''
           : valorParaCampo(Number(proposta.acrescimo_fora_horario)),
+      texto_atendimento: proposta.texto_atendimento ?? '',
       custos_detalhados: proposta.custos_detalhados ?? true,
       observacoes: proposta.observacoes ?? '',
       itens: proposta.itens.map((i) => ({
@@ -154,6 +160,7 @@ function valoresIniciais(
     cartao_juros: false,
     pagamento_fixo: false,
     acrescimo_fora_horario: valorParaCampo(UNIDADE.proposta.acrescimoPadrao),
+    texto_atendimento: '',
     custos_detalhados: true,
     observacoes: '',
     itens: [{ ...ITEM_VAZIO }],
@@ -203,10 +210,7 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
     preenchidoPara.current = c.id
     const { fixo, contato: ultimo } = anteriores.data ?? {}
 
-    form.setValue(
-      'prazo_pagamento_dias',
-      fixo ? (fixo.prazo_pagamento_dias?.toString() ?? '') : '28',
-    )
+    form.setValue('prazo_pagamento_dias', fixo ? prazosParaCampo(fixo) : '28')
     form.setValue('condicao_pagamento', fixo?.condicao_pagamento ?? 'boleto bancário')
     form.setValue('cartao_parcelas', fixo?.cartao_parcelas?.toString() ?? '')
     form.setValue('cartao_juros', fixo?.cartao_juros ?? false)
@@ -579,6 +583,7 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
                 <span className="text-texto-suave">Desmarcado, o PDF mostra só o total.</span>
               </span>
             </label>
+            <TextoAtendimento form={form} completo={completo} />
             <Campo
               rotulo="Observações (vão nos custos)"
               htmlFor="obs"
@@ -1042,11 +1047,36 @@ function CamposPagamento({
         dica={
           semPrazo
             ? 'Sem prazo: o PDF não fala em dias e a conta a receber vence no dia do serviço.'
-            : 'Também gera a conta a receber quando o serviço for concluído.'
+            : (lerPrazos(prazo)?.length ?? 0) > 1
+              ? `Parcelado: ${descreverPrazos(lerPrazos(prazo)!)}.`
+              : 'Parcelado? Separe os dias por barra: 21/42 = duas vezes.'
         }
       >
         {!semPrazo && (
-          <Input id="prazo" inputMode="numeric" {...form.register('prazo_pagamento_dias')} />
+          <>
+            <Input
+              id="prazo"
+              placeholder="28 ou 21/42"
+              {...form.register('prazo_pagamento_dias')}
+            />
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {PRAZOS_RAPIDOS.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => form.setValue('prazo_pagamento_dias', p, mudar)}
+                  className={cn(
+                    'rounded-full border px-2.5 py-0.5 text-xs font-semibold',
+                    prazo.trim() === p
+                      ? 'border-verde bg-verde text-white'
+                      : 'border-borda text-texto-suave hover:border-verde',
+                  )}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </>
         )}
         {podeSemPrazo && (
           <label className="mt-1.5 flex items-center gap-2 text-sm">
@@ -1124,7 +1154,7 @@ function mesmoPagamento(
   const parcelas = ehCartao(atual.condicao) ? atual.parcelas.trim() : ''
   return (
     (fixo.condicao_pagamento ?? '').trim().toLowerCase() === atual.condicao.trim().toLowerCase() &&
-    (fixo.prazo_pagamento_dias?.toString() ?? '') === atual.prazo.trim() &&
+    prazosParaCampo(fixo) === (lerPrazos(atual.prazo) ?? []).join('/') &&
     (fixo.cartao_parcelas?.toString() ?? '') === parcelas &&
     (Number(parcelas) > 1 ? !!fixo.cartao_juros === atual.juros : true)
   )
@@ -1132,7 +1162,7 @@ function mesmoPagamento(
 
 function descreverPagamento(p: PagamentoFixo) {
   return [
-    p.prazo_pagamento_dias != null ? `${p.prazo_pagamento_dias} dias` : 'sem prazo',
+    descreverPrazos(prazosDe(p)) || 'sem prazo',
     p.condicao_pagamento,
     p.cartao_parcelas ? `${p.cartao_parcelas}x` : null,
   ]
@@ -1184,7 +1214,7 @@ function PagamentoFixoDoCliente({
 
   function voltarAoFixo(f: PagamentoFixo) {
     const opcoes = { shouldDirty: true, shouldValidate: true } as const
-    form.setValue('prazo_pagamento_dias', f.prazo_pagamento_dias?.toString() ?? '', opcoes)
+    form.setValue('prazo_pagamento_dias', prazosParaCampo(f), opcoes)
     form.setValue('condicao_pagamento', f.condicao_pagamento ?? '', opcoes)
     form.setValue('cartao_parcelas', f.cartao_parcelas?.toString() ?? '', opcoes)
     form.setValue('cartao_juros', f.cartao_juros ?? false, opcoes)
@@ -1225,3 +1255,90 @@ function PagamentoFixoDoCliente({
     </div>
   )
 }
+
+const PRAZOS_RAPIDOS = ['28', '21/42', '30/60', '30/60/90']
+
+/** Texto padrão do atendimento fora do horário para o que está no formulário (sem negrito). */
+function textoAtendimentoPadrao(acrescimo: string, completo: boolean) {
+  const valor = acrescimo.trim() ? lerValor(acrescimo) : null
+  const texto = completo ? (valor == null ? '' : textoTaxaContrato(valor)) : textoAtendimento(valor)
+  return texto.replace(/\*\*/g, '')
+}
+
+/**
+ * O parágrafo "após as 18h, aos sábados, domingos e feriados…" do PDF. Vazio usa o
+ * padrão; dá para escrever outro (ex.: o valor já inclui o sábado).
+ */
+function TextoAtendimento({
+  form,
+  completo,
+}: {
+  form: UseFormReturn<FormProposta>
+  completo: boolean
+}) {
+  const [texto, acrescimo] = useWatch({
+    control: form.control,
+    name: ['texto_atendimento', 'acrescimo_fora_horario'],
+  })
+  const [editando, setEditando] = useState(false)
+  const mudar = { shouldDirty: true, shouldValidate: true } as const
+  const padrao = textoAtendimentoPadrao(acrescimo ?? '', completo)
+  const proprio = !!texto?.trim()
+
+  if (!proprio && !editando) {
+    return (
+      <div className="flex flex-col gap-1.5 rounded-xl border border-borda px-3 py-2 text-sm sm:col-span-2">
+        <span className="font-semibold">Texto do atendimento fora do horário</span>
+        <span className="text-texto-suave">{padrao || 'Sem texto (sem acréscimo).'}</span>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            className="font-semibold text-verde underline"
+            onClick={() => {
+              form.setValue('texto_atendimento', padrao, mudar)
+              setEditando(true)
+            }}
+          >
+            Mudar este texto
+          </button>
+          <button
+            type="button"
+            className="font-semibold text-verde underline"
+            onClick={() => {
+              form.setValue('texto_atendimento', TEXTO_JA_INCLUSO, mudar)
+              setEditando(true)
+            }}
+          >
+            Já está incluso
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="sm:col-span-2">
+      <Campo
+        rotulo="Texto do atendimento fora do horário"
+        htmlFor="texto_atendimento"
+        erro={form.formState.errors.texto_atendimento?.message}
+        dica="Sai no PDF no lugar do texto padrão. Para destacar, use **negrito**."
+      >
+        <Textarea id="texto_atendimento" rows={3} {...form.register('texto_atendimento')} />
+      </Campo>
+      <button
+        type="button"
+        className="mt-1 text-sm font-semibold text-verde underline"
+        onClick={() => {
+          form.setValue('texto_atendimento', '', mudar)
+          setEditando(false)
+        }}
+      >
+        Voltar ao texto padrão
+      </button>
+    </div>
+  )
+}
+
+const TEXTO_JA_INCLUSO =
+  'Valor já considera o atendimento após as 18h, aos sábados, domingos e feriados, sem acréscimo.'

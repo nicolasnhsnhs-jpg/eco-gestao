@@ -46,6 +46,8 @@ export function propostaGravadaParaBase(p: PropostaCompleta): PropostaBase {
       p.acrescimo_fora_horario == null ? null : Number(p.acrescimo_fora_horario),
     custos_detalhados: p.custos_detalhados ?? true,
     prazo_pagamento_dias: p.prazo_pagamento_dias,
+    prazos_pagamento: p.prazos_pagamento,
+    texto_atendimento: p.texto_atendimento,
     condicao_pagamento: p.condicao_pagamento,
     cartao_parcelas: p.cartao_parcelas ?? null,
     cartao_juros: p.cartao_juros ?? null,

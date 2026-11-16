@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   textoPagamento,
+  lerPrazos,
   ehCartao,
   ehPix,
   MODELOS,
@@ -388,5 +389,41 @@ describe('ehPix / ehCartao', () => {
     expect(ehPix('pix ou boleto')).toBe(true)
     expect(ehPix('boleto bancário')).toBe(false)
     expect(ehCartao('Cartão de crédito')).toBe(true)
+  })
+})
+
+describe('prazo parcelado e texto do atendimento', () => {
+  it('lê o prazo com barra, traço ou vírgula, em ordem', () => {
+    expect(lerPrazos('21/42')).toEqual([21, 42])
+    expect(lerPrazos('30-60-90')).toEqual([30, 60, 90])
+    expect(lerPrazos(' 28 ')).toEqual([28])
+    expect(lerPrazos('')).toEqual([])
+    expect(lerPrazos('42/21')).toBeNull()
+    expect(lerPrazos('21/abc')).toBeNull()
+    expect(lerPrazos('400')).toBeNull()
+  })
+
+  it('escreve o prazo parcelado no PDF', () => {
+    expect(textoPagamento([21, 42], 'boleto bancário')).toBe(
+      '**21/42 dias** boleto bancário, em 2 parcelas',
+    )
+    expect(textoPagamento([28], 'boleto bancário')).toBe('**28 dias** boleto bancário')
+  })
+
+  it('usa o texto próprio do atendimento no lugar do padrão', () => {
+    const d = montarDadosPdf(
+      base({
+        prazo_pagamento_dias: 21,
+        prazos_pagamento: [21, 42],
+        texto_atendimento: 'Valor já considera o atendimento aos sábados.',
+      }),
+      cliente,
+      null,
+      vendedor,
+    )
+    const custos = d.custos.map((c) => c.texto).join('\n')
+    expect(custos).toContain('**21/42 dias** boleto bancário, em 2 parcelas')
+    expect(custos).toContain('Valor já considera o atendimento aos sábados.')
+    expect(custos).not.toContain('acréscimo de')
   })
 })

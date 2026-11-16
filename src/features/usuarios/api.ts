@@ -293,3 +293,15 @@ export function useTransferirCarteira() {
     onSuccess: atualizar,
   })
 }
+
+/** Telefone do usuário: sai abaixo do nome do vendedor responsável na proposta. */
+export function useAlterarTelefone() {
+  const atualizar = useAtualizarListas()
+  return useMutation({
+    mutationFn: async ({ usuarioId, telefone }: { usuarioId: string; telefone: string | null }) => {
+      const { error } = await supabase.from('perfis').update({ telefone }).eq('id', usuarioId)
+      if (error) throw error
+    },
+    onSuccess: atualizar,
+  })
+}

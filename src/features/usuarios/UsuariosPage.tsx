@@ -12,6 +12,7 @@ import { Campo, Input, Select } from '@/components/ui/Campo'
 import { Carregando } from '@/components/ui/Carregando'
 import { Etiqueta } from '@/components/ui/Etiqueta'
 import { Modal } from '@/components/ui/Modal'
+import { formatarTelefone, soNumeros, telefoneValido } from '@/lib/documentos'
 import { mensagemDeErro } from '@/lib/erros'
 import { UNIDADE } from '@/lib/unidade'
 import {
@@ -28,6 +29,7 @@ import {
   useAlterarComissao,
   useAlterarEmail,
   useAlterarNome,
+  useAlterarTelefone,
   useReenviarAcesso,
   useAlterarAtendeWhatsapp,
   useAlterarPapel,
@@ -59,6 +61,7 @@ export function UsuariosPage() {
   const carteiras = useClientesPorVendedor()
   const alterarPapel = useAlterarPapel()
   const alterarNome = useAlterarNome()
+  const alterarTelefone = useAlterarTelefone()
   const alterarComissao = useAlterarComissao()
   const alterarAtende = useAlterarAtendeWhatsapp()
   const alternarAtivo = useAlternarAtivo()
@@ -182,6 +185,35 @@ export function UsuariosPage() {
                       </BotaoIcone>
                     )}
                   </p>
+                  {u.papel !== 'operador' && (
+                    <button
+                      type="button"
+                      className="text-sm text-texto-suave underline"
+                      onClick={() => {
+                        const resposta = window.prompt(
+                          `Telefone de ${u.nome} com DDD (sai abaixo do nome do vendedor na proposta; vazio = sem telefone):`,
+                          formatarTelefone(u.telefone),
+                        )
+                        if (resposta === null) return
+                        const telefone = soNumeros(resposta) || null
+                        if (telefone && !telefoneValido(telefone)) {
+                          setErro(
+                            'Telefone inválido: informe o DDD e o número, ex.: (51) 99234-1221.',
+                          )
+                          return
+                        }
+                        if (telefone === u.telefone) return
+                        void executar(
+                          () => alterarTelefone.mutateAsync({ usuarioId: u.id, telefone }),
+                          telefone
+                            ? `Telefone de ${u.nome} salvo: ${formatarTelefone(telefone)}.`
+                            : `Telefone de ${u.nome} retirado.`,
+                        )
+                      }}
+                    >
+                      Telefone: {u.telefone ? formatarTelefone(u.telefone) : 'não informado'}
+                    </button>
+                  )}
                   {clientes > 0 && (
                     <p className="text-sm text-texto-suave">
                       {clientes} {clientes === 1 ? 'cliente' : 'clientes'} na carteira

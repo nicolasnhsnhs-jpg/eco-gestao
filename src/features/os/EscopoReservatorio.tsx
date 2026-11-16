@@ -8,6 +8,7 @@ import { Carregando } from '@/components/ui/Carregando'
 import { formatarData } from '@/lib/datas'
 import { mensagemDeErro } from '@/lib/erros'
 
+import { DataUltimaLimpeza } from './EscopoBebedouro'
 import { usePontosModelo, useSalvarPontos, type AlvoEscopo } from './pragasApi'
 
 /**
@@ -55,7 +56,8 @@ export const ETAPAS_RESERVATORIO = 1
 /**
  * Escopo da limpeza de reservatórios (escritório): os reservatórios do local, com
  * localização, quantidade, capacidade (m³) e se dá para limpar com chuva. Ficam no modelo e valem para as próximas
- * visitas; a data da última limpeza vem das OS concluídas.
+ * visitas; a data da última limpeza vem das OS concluídas ou do escritório
+ * (DataUltimaLimpeza), a mais recente das duas.
  */
 export function EscopoReservatorio({ alvo }: { alvo: AlvoEscopo }) {
   const { modeloId, antesDeComecar } = alvo
@@ -96,7 +98,7 @@ export function EscopoReservatorio({ alvo }: { alvo: AlvoEscopo }) {
       {pontos.isPending && <Carregando />}
       <ul className="flex flex-col gap-1">
         {ativos.map((r) => (
-          <li key={r.id} className="flex items-center gap-2">
+          <li key={r.id} className="flex flex-wrap items-center gap-2">
             <span className="flex-1">
               <strong>{r.area}</strong> · {descreverReservatorio(r)}
             </span>
@@ -120,6 +122,19 @@ export function EscopoReservatorio({ alvo }: { alvo: AlvoEscopo }) {
               <option value="sim">Com chuva: Sim</option>
               <option value="nao">Com chuva: Não</option>
             </Select>
+            <DataUltimaLimpeza
+              ponto={r}
+              ocupado={salvarPontos.isPending}
+              aoSalvar={(data, mensagem) =>
+                executar(
+                  () =>
+                    salvarPontos.mutateAsync({
+                      alterar: { id: r.id, dados: { limpeza_informada: data } },
+                    }),
+                  mensagem,
+                )
+              }
+            />
             <Button
               variante="fantasma"
               disabled={salvarPontos.isPending}

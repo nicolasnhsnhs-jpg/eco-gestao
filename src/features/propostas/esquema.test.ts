@@ -55,6 +55,7 @@ describe('esquemaProposta', () => {
     cartao_juros: false,
     pagamento_fixo: false,
     acrescimo_fora_horario: '480,00',
+    texto_atendimento: '',
     custos_detalhados: true,
     observacoes: '',
     itens: [{ ...ITEM_VAZIO, descricao: 'Limpeza de coifa', valor_unitario: '500,00' }],
@@ -67,6 +68,13 @@ describe('esquemaProposta', () => {
   it('exige pelo menos um item e validade depois do envio', () => {
     expect(esquemaProposta.safeParse({ ...base, itens: [] }).success).toBe(false)
     expect(esquemaProposta.safeParse({ ...base, validade: '2026-10-01' }).success).toBe(false)
+  })
+
+  it('aceita prazo parcelado com barra e recusa fora de ordem', () => {
+    expect(esquemaProposta.safeParse({ ...base, prazo_pagamento_dias: '21/42' }).success).toBe(true)
+    expect(esquemaProposta.safeParse({ ...base, prazo_pagamento_dias: '42/21' }).success).toBe(
+      false,
+    )
   })
 
   it('recusa periodicidade fora de 1 a 60 meses', () => {

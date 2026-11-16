@@ -6,9 +6,9 @@ import { Carregando } from '@/components/ui/Carregando'
 import { mensagemDeErro } from '@/lib/erros'
 
 import type { CamposExecucao, OsCompleta } from '../api'
-import { descreverReservatorio, ultimaLimpeza } from '../EscopoReservatorio'
+import { descreverReservatorio } from '../EscopoReservatorio'
 import { useAnotarPontos, usePontosOs, type PontoOs } from '../pragasApi'
-import { Etapa, Pergunta } from './ExecucaoBebedouro'
+import { Etapa, Pergunta, UltimaLimpeza } from './ExecucaoBebedouro'
 import { BotoesCodigo } from './ExecucaoPragas'
 
 type Props = {
@@ -83,7 +83,7 @@ function Reservatorio({
       <p className="font-semibold">
         {r.area} · {descreverReservatorio(r)}
       </p>
-      <p className="text-sm text-texto-suave">{ultimaLimpeza(r.ultima_limpeza)}</p>
+      <UltimaLimpeza data={r.ultima_limpeza} />
       <Pergunta texto="Limpo hoje? *">
         <BotoesCodigo
           opcoes={SIM_NAO}

@@ -17,7 +17,8 @@ import {
   juntarMetodologias,
   nomeFrequencia,
   sufixoCobranca,
-  textoAtendimento,
+  prazosDe,
+  textoAtendimentoDaProposta,
   textoPagamento,
   tituloComFrequencia,
   valorComExtenso,
@@ -64,8 +65,12 @@ export type PropostaBase = {
   contato_email: string | null
   introducao: string | null
   acrescimo_fora_horario: number | null
+  /** Texto próprio do atendimento fora do horário (vazio = padrão). */
+  texto_atendimento?: string | null
   custos_detalhados: boolean
   prazo_pagamento_dias: number | null
+  /** Parcelado: todos os prazos (ex.: [21, 42]). */
+  prazos_pagamento?: number[] | null
   condicao_pagamento: string | null
   cartao_parcelas: number | null
   cartao_juros: boolean | null
@@ -240,7 +245,7 @@ export function montarDadosPdf(
     custos.push({ tipo: 'espaco', texto: '' })
     custos.push({
       tipo: 'linha',
-      texto: `Forma de pagamento: ${textoPagamento(p.prazo_pagamento_dias, p.condicao_pagamento, {
+      texto: `Forma de pagamento: ${textoPagamento(prazosDe(p), p.condicao_pagamento, {
         parcelas: p.cartao_parcelas,
         juros: p.cartao_juros,
       })}.`,
@@ -253,7 +258,7 @@ export function montarDadosPdf(
     }
   }
   custos.push({ tipo: 'espaco', texto: '' })
-  custos.push({ tipo: 'paragrafo', texto: textoAtendimento(p.acrescimo_fora_horario) })
+  custos.push({ tipo: 'paragrafo', texto: textoAtendimentoDaProposta(p) })
   if (p.validade) {
     custos.push({ tipo: 'espaco', texto: '' })
     custos.push({ tipo: 'linha', texto: `Proposta válida até **${formatarData(p.validade)}**.` })
@@ -341,7 +346,7 @@ function memorialDescritivo(p: PropostaBase, cliente: string) {
   custos.push({ tipo: 'espaco', texto: '' })
   custos.push({
     tipo: 'linha',
-    texto: `Forma de pagamento: ${textoPagamento(p.prazo_pagamento_dias, p.condicao_pagamento, {
+    texto: `Forma de pagamento: ${textoPagamento(prazosDe(p), p.condicao_pagamento, {
       parcelas: p.cartao_parcelas,
       juros: p.cartao_juros,
     })}.`,
@@ -352,9 +357,14 @@ function memorialDescritivo(p: PropostaBase, cliente: string) {
       custos.push({ tipo: 'paragrafo', texto: l.trim() })
     }
   }
-  if (p.acrescimo_fora_horario != null) {
+  const taxa = p.texto_atendimento?.trim()
+    ? p.texto_atendimento.trim()
+    : p.acrescimo_fora_horario != null
+      ? textoTaxaContrato(p.acrescimo_fora_horario)
+      : null
+  if (taxa) {
     custos.push({ tipo: 'espaco', texto: '' })
-    custos.push({ tipo: 'paragrafo', texto: textoTaxaContrato(p.acrescimo_fora_horario) })
+    custos.push({ tipo: 'paragrafo', texto: taxa })
   }
   custos.push({ tipo: 'espaco', texto: '' })
   custos.push({ tipo: 'linha', texto: 'Prazo de entrega: **imediato**.' })
