@@ -16,22 +16,42 @@ export function Assinatura({ aoConfirmar, ocupado }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const desenhando = useRef(false)
   const [vazio, setVazio] = useState(true)
+  const vazioRef = useRef(true)
+  const [erro, setErro] = useState<string | null>(null)
 
   // Ajusta a resolução do quadro à tela (senão o traço fica borrado no celular).
+  // Refaz quando o quadro muda de tamanho (girar o celular, teclado fechando…),
+  // só enquanto está em branco, para não apagar uma assinatura já feita.
   useEffect(() => {
     const c = canvas.current
     if (!c) return
-    const escala = window.devicePixelRatio || 1
-    c.width = c.clientWidth * escala
-    c.height = c.clientHeight * escala
-    const ctx = c.getContext('2d')
-    if (!ctx) return
-    ctx.scale(escala, escala)
-    ctx.lineWidth = 2.5
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
-    ctx.strokeStyle = '#1f4d1a'
+    const ajustar = () => {
+      if (!vazioRef.current && c.width > 0) return
+      const escala = window.devicePixelRatio || 1
+      const largura = Math.round(c.clientWidth * escala)
+      const altura = Math.round(c.clientHeight * escala)
+      if (largura === 0 || altura === 0 || (c.width === largura && c.height === altura)) return
+      c.width = largura
+      c.height = altura
+      const ctx = c.getContext('2d')
+      if (!ctx) return
+      ctx.scale(escala, escala)
+      ctx.lineWidth = 2.5
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      ctx.strokeStyle = '#1f4d1a'
+    }
+    ajustar()
+    if (typeof ResizeObserver === 'undefined') return
+    const observador = new ResizeObserver(ajustar)
+    observador.observe(c)
+    return () => observador.disconnect()
   }, [])
+
+  const marcarVazio = (v: boolean) => {
+    vazioRef.current = v
+    setVazio(v)
+  }
 
   function ponto(e: React.PointerEvent<HTMLCanvasElement>) {
     const r = e.currentTarget.getBoundingClientRect()
@@ -55,19 +75,33 @@ export function Assinatura({ aoConfirmar, ocupado }: Props) {
     const { x, y } = ponto(e)
     ctx.lineTo(x, y)
     ctx.stroke()
-    setVazio(false)
+    if (vazioRef.current) marcarVazio(false)
+    setErro(null)
   }
 
   function limpar() {
     const c = canvas.current
     c?.getContext('2d')?.clearRect(0, 0, c.width, c.height)
-    setVazio(true)
+    marcarVazio(true)
+    setErro(null)
   }
 
   function confirmar() {
-    canvas.current?.toBlob((imagem) => {
-      if (imagem) void aoConfirmar(imagem)
-    }, 'image/png')
+    const c = canvas.current
+    const falhou = () => {
+      // Quadro sem imagem (o celular não gerou o desenho): limpa para assinar de novo.
+      limpar()
+      setErro('A assinatura não foi gravada. Assine de novo no quadro.')
+    }
+    if (!c || c.width === 0 || c.height === 0) return falhou()
+    try {
+      c.toBlob((imagem) => {
+        if (imagem && imagem.size > 0) void aoConfirmar(imagem)
+        else falhou()
+      }, 'image/png')
+    } catch {
+      falhou()
+    }
   }
 
   return (
@@ -81,6 +115,11 @@ export function Assinatura({ aoConfirmar, ocupado }: Props) {
         onPointerUp={() => (desenhando.current = false)}
         onPointerCancel={() => (desenhando.current = false)}
       />
+      {erro && (
+        <p className="text-sm font-semibold text-perigo" role="alert">
+          {erro}
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-2">
         <Button type="button" variante="secundario" onClick={limpar} disabled={vazio || ocupado}>
           Limpar

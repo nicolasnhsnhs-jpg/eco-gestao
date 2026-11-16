@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { CloudOff, RefreshCw, TriangleAlert } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -38,6 +39,17 @@ export function TarjaEnvio() {
 
   const problemas = fila.itens.filter((i) => i.erro)
   const esperando = fila.itens.length - problemas.length
+  const queryClient = useQueryClient()
+
+  // Conclusão recusada: a OS ficou "concluída" só no celular. Busca de novo o
+  // status no banco para a tela reabrir e o operador corrigir o que falta.
+  const conclusoesRecusadas = problemas
+    .filter((i) => i.tipo === 'concluir')
+    .map((i) => i.chave)
+    .join()
+  useEffect(() => {
+    if (conclusoesRecusadas) void queryClient.invalidateQueries({ queryKey: ['os'] })
+  }, [conclusoesRecusadas, queryClient])
 
   if (online && fila.itens.length === 0) return null
 
@@ -83,8 +95,14 @@ export function TarjaEnvio() {
                     <Button
                       variante="fantasma"
                       onClick={() => {
-                        if (window.confirm('Descartar esta alteração? Ela não será enviada.')) {
-                          void descartar(i.chave)
+                        const aviso =
+                          i.tipo === 'arquivo' && i.registro.categoria === 'assinatura'
+                            ? 'Descartar esta assinatura? Depois abra a OS e assine de novo.'
+                            : 'Descartar esta alteração? Ela não será enviada.'
+                        if (window.confirm(aviso)) {
+                          void descartar(i.chave).then(() =>
+                            queryClient.invalidateQueries({ queryKey: ['os'] }),
+                          )
                         }
                       }}
                     >

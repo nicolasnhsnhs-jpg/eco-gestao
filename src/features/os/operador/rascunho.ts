@@ -54,6 +54,30 @@ export async function enviarRascunhoGuardado(osId: string) {
   guardar(osId, null)
 }
 
+/** A fila avisa quando um arquivo subiu ou foi descartado (detalhe: id / {osId, id}). */
+export const EVENTO_ARQUIVO_ENVIADO = 'eco-arquivo-enviado'
+export const EVENTO_ARQUIVO_DESCARTADO = 'eco-arquivo-descartado'
+
+const ASSINATURAS = ['assinatura_cliente_id', 'assinatura_operador_id'] as const
+
+/** O arquivo da assinatura foi descartado: tira o id do rascunho guardado no celular. */
+export function esquecerArquivoNoRascunho(osId: string, id: string) {
+  const guardado = lerRascunho(osId)
+  if (!guardado) return
+  let mudou = false
+  const campos = { ...guardado.campos }
+  for (const k of ASSINATURAS) {
+    if (campos[k] === id) {
+      campos[k] = null
+      mudou = true
+    }
+  }
+  if (mudou) guardar(osId, { campos, pendente: true })
+}
+
+/** Erro de chave estrangeira: a assinatura aponta para um arquivo que ainda não subiu. */
+const ehArquivoQueFalta = (erro: unknown) => (erro as { code?: string } | null)?.code === '23503'
+
 const ESPERA_ENVIO_MS = 1500
 
 export function useRascunhoExecucao(osId: string, doBanco: CamposExecucao, podeEditar: boolean) {
@@ -77,11 +101,21 @@ export function useRascunhoExecucao(osId: string, doBanco: CamposExecucao, podeE
     if (Object.keys(lote).length === 0) return true
     setEstado('enviando')
     try {
-      await gravarExecucao(osId, lote)
+      let enviado: CamposExecucao = lote
+      try {
+        await gravarExecucao(osId, lote)
+      } catch (erro) {
+        // A assinatura ainda está subindo pela fila: manda o resto agora e a
+        // assinatura fica guardada até o arquivo chegar (aí envia de novo).
+        if (!ehArquivoQueFalta(erro)) throw erro
+        enviado = { ...lote }
+        for (const k of ASSINATURAS) delete enviado[k]
+        await gravarExecucao(osId, enviado)
+      }
       // Só limpa o que foi enviado (o operador pode ter mexido durante o envio).
       const restante = { ...pendentes.current }
-      for (const k of Object.keys(lote) as (keyof CamposExecucao)[]) {
-        if (restante[k] === lote[k]) delete restante[k]
+      for (const k of Object.keys(enviado) as (keyof CamposExecucao)[]) {
+        if (restante[k] === enviado[k]) delete restante[k]
       }
       pendentes.current = restante
       const aindaFalta = Object.keys(restante).length > 0
@@ -107,16 +141,38 @@ export function useRascunhoExecucao(osId: string, doBanco: CamposExecucao, podeE
     [enviar, osId, podeEditar],
   )
 
-  // Voltou o sinal (ou o celular saiu do modo avião): envia o que ficou guardado.
+  // Voltou o sinal (ou o celular saiu do modo avião), ou subiu o arquivo de uma
+  // assinatura: envia o que ficou guardado.
   useEffect(() => {
     const aoVoltar = () => void enviar()
     window.addEventListener('online', aoVoltar)
+    window.addEventListener(EVENTO_ARQUIVO_ENVIADO, aoVoltar)
     if (Object.keys(pendentes.current).length > 0) void enviar()
     return () => {
       window.removeEventListener('online', aoVoltar)
+      window.removeEventListener(EVENTO_ARQUIVO_ENVIADO, aoVoltar)
       clearTimeout(temporizador.current)
     }
   }, [enviar])
+
+  // Assinatura descartada na tarja vermelha: o quadro volta para assinar de novo.
+  useEffect(() => {
+    const aoDescartar = (e: Event) => {
+      const { osId: daOs, id } = (e as CustomEvent<{ osId: string; id: string }>).detail
+      if (daOs !== osId) return
+      setCampos((atual) => {
+        const novos: CamposExecucao = {}
+        for (const k of ASSINATURAS) if (atual[k] === id) novos[k] = null
+        if (Object.keys(novos).length === 0) return atual
+        pendentes.current = { ...pendentes.current, ...novos }
+        guardar(osId, { campos: pendentes.current, pendente: true })
+        setEstado('salvo_no_celular')
+        return { ...atual, ...novos }
+      })
+    }
+    window.addEventListener(EVENTO_ARQUIVO_DESCARTADO, aoDescartar)
+    return () => window.removeEventListener(EVENTO_ARQUIVO_DESCARTADO, aoDescartar)
+  }, [osId])
 
   /** Envia já tudo o que falta (usado antes de concluir). Devolve se deu certo. */
   const enviarAgora = useCallback(() => {

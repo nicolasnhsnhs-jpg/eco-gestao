@@ -41,6 +41,9 @@ export function mensagemDeErro(erro: unknown): string {
   if (e.message?.includes('horarios_em_ordem')) {
     return 'Os horários estão fora de ordem (chegada, início, término e saída). Corrija na OS e toque em "Tentar de novo".'
   }
+  if (e.message?.includes('row-level security')) {
+    return 'A OS não está mais aberta para você (o escritório pode ter mudado o operador, o cliente ou o status, ou ela já foi concluída). Avise o escritório.'
+  }
   if (e.message === 'No content provided') {
     return 'A foto ou assinatura ficou vazia no celular. Descarte este item e faça de novo.'
   }

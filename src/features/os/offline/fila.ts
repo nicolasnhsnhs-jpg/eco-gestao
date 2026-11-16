@@ -6,7 +6,12 @@ import { mensagemDeErro } from '@/lib/erros'
 import { estaOnline } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
 
-import { enviarRascunhoGuardado } from '../operador/rascunho'
+import {
+  enviarRascunhoGuardado,
+  esquecerArquivoNoRascunho,
+  EVENTO_ARQUIVO_DESCARTADO,
+  EVENTO_ARQUIVO_ENVIADO,
+} from '../operador/rascunho'
 
 /*
  * Fila de envio do operador. Tudo o que ele faz na OS (anotar pontos, produtos,
@@ -77,6 +82,10 @@ export async function enfileirar(operacao: Operacao, arquivo?: Blob) {
       throw new Error('A foto ou assinatura saiu vazia. Tente de novo.')
     }
     await set(chaveArquivo(operacao.registro.id), guardado)
+  }
+  // Concluir de novo (depois de corrigir o que foi recusado): a conclusão antiga sai.
+  if (operacao.tipo === 'concluir') {
+    itens = itens.filter((i) => !(i.tipo === 'concluir' && i.osId === operacao.osId))
   }
   itens.push({ ...operacao, chave: crypto.randomUUID(), criadoEm: new Date().toISOString() })
   await salvar()
@@ -156,6 +165,8 @@ async function executar(item: ItemFila) {
         (await supabase.from('arquivos').upsert(item.registro, { ignoreDuplicates: true })).error,
       )
       await del(chaveArquivo(item.registro.id))
+      // A tela pode mandar agora a assinatura que esperava este arquivo subir.
+      window.dispatchEvent(new CustomEvent(EVENTO_ARQUIVO_ENVIADO, { detail: item.registro.id }))
       return
     }
     case 'concluir': {
@@ -164,6 +175,11 @@ async function executar(item: ItemFila) {
         await enviarRascunhoGuardado(item.osId)
       } catch (erro) {
         if (ehErroDeRede(erro)) throw erro
+        if ((erro as { code?: string }).code === '23503') {
+          throw new RecusaDoBanco(
+            'Uma assinatura não chegou ao sistema. Toque em Descartar, abra a OS, assine de novo e conclua.',
+          )
+        }
         throw new RecusaDoBanco(mensagemDeErro(erro))
       }
       return falhou((await supabase.rpc('concluir_os', { os: item.osId })).error)
@@ -229,16 +245,30 @@ export async function tentarDeNovo(chave: string) {
 
 /** Remove da fila um item com problema (o operador desiste daquela alteração). */
 export async function descartar(chave: string) {
+  const item = itens.find((i) => i.chave === chave)
   itens = itens.filter((i) => i.chave !== chave)
   await salvar()
+  if (item?.tipo === 'arquivo') esquecerArquivo(item.osId, item.registro.id)
+}
+
+/**
+ * A foto/assinatura não vai mais subir: se era uma assinatura, ela sai da OS no
+ * celular (o quadro volta a aparecer para assinar de novo). Sem isso a OS ficava
+ * apontando para um arquivo que não existe e nada mais era aceito.
+ */
+function esquecerArquivo(osId: string, id: string) {
+  esquecerArquivoNoRascunho(osId, id)
+  window.dispatchEvent(new CustomEvent(EVENTO_ARQUIVO_DESCARTADO, { detail: { osId, id } }))
 }
 
 /** Tira da fila uma foto que ainda não subiu (o operador apagou a foto errada). */
 export async function desistirDoArquivo(id: string) {
   await carregar()
+  const item = itens.find((i) => i.tipo === 'arquivo' && i.registro.id === id)
   itens = itens.filter((i) => !(i.tipo === 'arquivo' && i.registro.id === id))
   await salvar()
   await del(chaveArquivo(id))
+  if (item) esquecerArquivo(item.osId, id)
 }
 
 // Envia sozinho: ao abrir o app, ao voltar o sinal e enquanto houver pendências.
