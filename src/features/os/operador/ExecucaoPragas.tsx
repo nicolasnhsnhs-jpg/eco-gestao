@@ -1,3 +1,4 @@
+import { Trash2 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 
 import { Aviso } from '@/components/ui/Aviso'
@@ -428,7 +429,8 @@ function ExcecoesPortaIscas({
       <p className="text-sm text-texto-suave">
         Todos começam como <strong>MS</strong> (placas de cola: <strong>M</strong>). Digite só os
         números das exceções, ex.: <strong>12, 15, 40-45</strong> (ou com espaço:{' '}
-        <strong>12 15 40-45</strong>).
+        <strong>12 15 40-45</strong>) e toque em <strong>Aplicar</strong>. Os aplicados ficam
+        guardados embaixo; para tirar um, toque na lixeira.
       </p>
       {temIsca &&
         Object.entries(SITUACOES_ISCA)
@@ -438,14 +440,13 @@ function ExcecoesPortaIscas({
               key={`isca-${area}-${codigo}`}
               codigo={codigo}
               nome={nome}
+              padrao="MS"
               pontos={pontos.filter((p) => p.tipo_isca !== 'CO')}
+              aplicados={todos.filter((p) => p.tipo_isca !== 'CO' && p.situacao === codigo)}
               aberta={aberta}
               ocupado={anotar.isPending}
-              aoAplicar={(ids, voltar) =>
-                anotar
-                  .mutateAsync({ ids, campos: { situacao: codigo } })
-                  .then(() => anotar.mutateAsync({ ids: voltar, campos: { situacao: 'MS' } }))
-              }
+              aoAplicar={(ids) => anotar.mutateAsync({ ids, campos: { situacao: codigo } })}
+              aoRemover={(ids) => anotar.mutateAsync({ ids, campos: { situacao: 'MS' } })}
             />
           ))}
       {temPlaca && (
@@ -458,14 +459,13 @@ function ExcecoesPortaIscas({
                 key={`placa-${area}-${codigo}`}
                 codigo={codigo}
                 nome={nome}
+                padrao="M"
                 pontos={pontos.filter((p) => p.tipo_isca === 'CO')}
+                aplicados={todos.filter((p) => p.tipo_isca === 'CO' && p.situacao === codigo)}
                 aberta={aberta}
                 ocupado={anotar.isPending}
-                aoAplicar={(ids, voltar) =>
-                  anotar
-                    .mutateAsync({ ids, campos: { situacao: codigo } })
-                    .then(() => anotar.mutateAsync({ ids: voltar, campos: { situacao: 'M' } }))
-                }
+                aoAplicar={(ids) => anotar.mutateAsync({ ids, campos: { situacao: codigo } })}
+                aoRemover={(ids) => anotar.mutateAsync({ ids, campos: { situacao: 'M' } })}
               />
             ))}
         </>
@@ -474,28 +474,45 @@ function ExcecoesPortaIscas({
   )
 }
 
+/**
+ * Uma situação (MC, CT, …): o técnico digita números e aplica. Aplicar só
+ * acrescenta; o que já foi aplicado fica listado embaixo e só sai pela lixeira
+ * (com confirmação), para não perder nada apagando o campo sem querer.
+ */
 function LinhaExcecao({
   codigo,
   nome,
+  padrao,
   pontos,
+  aplicados,
   aberta,
   ocupado,
   aoAplicar,
+  aoRemover,
 }: {
   codigo: string
   nome: string
+  /** Situação para onde o porta-isca volta quando sai daqui (MS ou M). */
+  padrao: string
+  /** Onde os números digitados são procurados (a área escolhida, se houver). */
   pontos: PontoOs[]
+  /** Todos os que estão nesta situação, de todas as áreas. */
+  aplicados: PontoOs[]
   aberta: boolean
   ocupado: boolean
-  aoAplicar: (ids: string[], voltarAoPadrao: string[]) => Promise<void>
+  aoAplicar: (ids: string[]) => Promise<void>
+  aoRemover: (ids: string[]) => Promise<void>
 }) {
-  const atuais = pontos.filter((p) => p.situacao === codigo).map((p) => p.numero)
-  const [texto, setTexto] = useState(escreverFaixas(atuais))
+  const [texto, setTexto] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const id = `exc-${codigo}-${pontos[0]?.tipo_isca === 'CO' ? 'placa' : 'isca'}`
 
+  const semSinal = (e: unknown) =>
+    navigator.onLine ? mensagemDeErro(e) : 'Sem sinal: tente de novo quando a internet voltar.'
+
   async function aplicar() {
     setErro(null)
+    if (!texto.trim()) return
     const { numeros, invalidos } = lerFaixas(texto)
     const porNumero = new Map(pontos.map((p) => [p.numero, p]))
     const inexistentes = numeros.filter((n) => !porNumero.has(n))
@@ -510,19 +527,35 @@ function LinhaExcecao({
       )
       return
     }
-    const ids = numeros.map((n) => porNumero.get(n)!.id)
-    const voltar = pontos
-      .filter((p) => p.situacao === codigo && !numeros.includes(p.numero))
+    const ids = numeros
+      .map((n) => porNumero.get(n)!)
+      .filter((p) => p.situacao !== codigo)
       .map((p) => p.id)
     try {
-      await aoAplicar(ids, voltar)
-      setTexto(escreverFaixas(numeros))
+      if (ids.length) await aoAplicar(ids)
+      setTexto('')
     } catch (e) {
-      setErro(
-        navigator.onLine ? mensagemDeErro(e) : 'Sem sinal: tente de novo quando a internet voltar.',
-      )
+      setErro(semSinal(e))
     }
   }
+
+  async function remover(p: PontoOs) {
+    const ok = window.confirm(
+      `Tem certeza que deseja apagar o porta-isca ${p.numero} (${p.area}) de ${codigo} · ${nome}?\n` +
+        `Ele volta para ${padrao}.`,
+    )
+    if (!ok) return
+    setErro(null)
+    try {
+      await aoRemover([p.id])
+    } catch (e) {
+      setErro(semSinal(e))
+    }
+  }
+
+  const ordenados = [...aplicados].sort(
+    (a, b) => a.area.localeCompare(b.area) || a.numero - b.numero,
+  )
 
   return (
     <div className="flex flex-col gap-1">
@@ -532,70 +565,70 @@ function LinhaExcecao({
         </span>
         <span>{nome}</span>
       </label>
-      <div className="flex gap-2">
-        <Input
-          id={id}
-          // Teclado normal: o numérico do iPhone não tem vírgula nem hífen ("12, 40-45").
-          inputMode="text"
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="off"
-          spellCheck={false}
-          enterKeyHint="done"
-          placeholder="nenhum"
-          disabled={!aberta}
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          onKeyDown={(e) => {
-            // "OK" do teclado: fecha o teclado e o onBlur aplica.
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              e.currentTarget.blur()
-            }
-          }}
-          onBlur={() => {
-            if (texto !== escreverFaixas(atuais)) void aplicar()
-          }}
-        />
-        {aberta && (
+      {aberta && (
+        <div className="flex gap-2">
+          <Input
+            id={id}
+            // Teclado normal: o numérico do iPhone não tem vírgula nem hífen ("12, 40-45").
+            inputMode="text"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            enterKeyHint="done"
+            placeholder="Números, ex.: 3, 7, 10-12"
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            onKeyDown={(e) => {
+              // "OK" do teclado: fecha o teclado e o onBlur aplica.
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                e.currentTarget.blur()
+              }
+            }}
+            onBlur={() => void aplicar()}
+          />
           <Button
             type="button"
             variante="secundario"
-            disabled={ocupado}
+            disabled={ocupado || !texto.trim()}
             onClick={() => void aplicar()}
           >
             Aplicar
           </Button>
-        )}
-      </div>
+        </div>
+      )}
       {erro && <p className="text-sm text-perigo">{erro}</p>}
-      <AplicadosPorArea pontos={pontos.filter((p) => p.situacao === codigo)} />
+      {ordenados.length > 0 && (
+        <div className="rounded-xl border border-borda bg-fundo-suave p-2">
+          <p className="mb-1 text-xs font-semibold text-texto-suave">
+            {ordenados.length} {ordenados.length === 1 ? 'aplicado' : 'aplicados'} em {codigo}
+          </p>
+          <ul className="flex flex-wrap gap-1.5">
+            {ordenados.map((p) => (
+              <li
+                key={p.id}
+                className="flex items-center gap-1 rounded-lg border border-borda bg-white py-0.5 pr-0.5 pl-2 text-sm"
+              >
+                <strong>{String(p.numero).padStart(2, '0')}</strong>
+                <span className="text-texto-suave">· {p.area}</span>
+                {aberta && (
+                  <button
+                    type="button"
+                    className="grid size-8 place-items-center rounded-md text-perigo hover:bg-red-50 disabled:opacity-50"
+                    aria-label={`Apagar o porta-isca ${p.numero} (${p.area}) de ${codigo}`}
+                    disabled={ocupado}
+                    onClick={() => void remover(p)}
+                  >
+                    <Trash2 className="size-4" aria-hidden />
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
-  )
-}
-
-/**
- * O que já ficou gravado nesta situação, por setor, em letra pequena: para o
- * técnico revisar antes de concluir. Ex.: "3 aplicados · Granja: 108-110".
- */
-function AplicadosPorArea({ pontos }: { pontos: PontoOs[] }) {
-  if (pontos.length === 0) return null
-  const porArea = new Map<string, number[]>()
-  for (const p of [...pontos].sort((a, b) => a.numero - b.numero)) {
-    porArea.set(p.area, [...(porArea.get(p.area) ?? []), p.numero])
-  }
-  return (
-    <p className="text-xs text-texto-suave">
-      <strong>
-        {pontos.length} {pontos.length === 1 ? 'aplicado' : 'aplicados'}
-      </strong>
-      {[...porArea].map(([area, numeros]) => (
-        <span key={area}>
-          {' · '}
-          {area}: <strong>{escreverFaixas(numeros)}</strong>
-        </span>
-      ))}
-    </p>
   )
 }
 
