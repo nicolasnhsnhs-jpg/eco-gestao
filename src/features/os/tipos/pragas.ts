@@ -109,8 +109,11 @@ export const FORMAS_PRODUTO = {
   semente: 'Semente de girassol',
   granulada: 'Isca granulada',
   po: 'Pó de contato',
+  polvilhamento: 'Pó (polvilhamento)',
   placa: 'Placa adesiva',
   liquido: 'Líquido (pulverização)',
+  atomizacao: 'Líquido (atomização)',
+  nebulizacao: 'Líquido (nebulização)',
   outro: 'Outro',
 } as const
 
