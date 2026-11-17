@@ -69,6 +69,11 @@ export const UNIDADES = {
       succao: null,
       acrescimoPadrao: 480,
     },
+    /**
+     * Relatório técnico mensal (Administrativo > Relatórios). PROVISÓRIO: o modelo veio
+     * do RS; falta o nome e o registro da responsável técnica de SC para a assinatura.
+     */
+    relatorio: { assinatura: [] as readonly string[] },
     /** Dados que já vêm preenchidos no gerador de assinatura de e-mail (Administrativo). */
     assinatura: {
       email: 'adm@ecoambientalsc.com.br',
@@ -157,6 +162,14 @@ export const UNIDADES = {
         licenca: 'LO / Licença de operação sob nº 02663/2025',
       },
       acrescimoPadrao: 480,
+    },
+    /** Relatório técnico mensal: quem assina no fim (modelo da Naturovos). */
+    relatorio: {
+      assinatura: [
+        'Andréia S. H. Semensato',
+        'CRQ – V 05407339',
+        'AFT Sob n° 251319',
+      ] as readonly string[],
     },
     /** Assinatura de e-mail (dados e serviços da assinatura que o RS já usa). */
     assinatura: {

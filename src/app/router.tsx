@@ -61,12 +61,14 @@ import { AssinaturasCertificadoPage } from '@/features/certificados/AssinaturasC
 import { CertificadoFormPage } from '@/features/certificados/CertificadoFormPage'
 import { CertificadosPage } from '@/features/certificados/CertificadosPage'
 import { ProdutosCertificadoPage } from '@/features/certificados/ProdutosCertificadoPage'
+import { RelatoriosPage } from '@/features/relatorios/RelatoriosPage'
 import {
   PAPEIS,
   PAPEIS_ACESSO_TOTAL,
   PAPEIS_CERTIFICADOS,
   PAPEIS_ESCRITORIO_OS,
   PAPEIS_GESTAO,
+  PAPEIS_RELATORIOS,
   PAPEIS_VER_CERTIFICADOS,
 } from '@/lib/papeis'
 
@@ -372,6 +374,14 @@ export const router = createBrowserRouter([
             ],
           },
         ],
+      },
+      {
+        path: 'relatorios',
+        element: (
+          <ExigePapel papeis={PAPEIS_RELATORIOS}>
+            <RelatoriosPage />
+          </ExigePapel>
+        ),
       },
       { path: 'avisos', element: <AvisosPage /> },
       { path: '*', element: <NaoEncontradaPage /> },

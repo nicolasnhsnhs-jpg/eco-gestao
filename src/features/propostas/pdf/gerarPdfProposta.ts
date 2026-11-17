@@ -69,7 +69,7 @@ async function carregar(caminho: string) {
 
 // Fontes e logo ficam guardados: a prévia gera o PDF de novo a cada mudança.
 let recursos: Promise<Uint8Array[]> | null = null
-function recursosPdf() {
+export function recursosPdf() {
   const pasta = '/certificados/fontes/PlusJakartaSans_'
   recursos ??= Promise.all([
     carregar(`${pasta}400Regular.ttf`),

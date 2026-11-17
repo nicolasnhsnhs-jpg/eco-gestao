@@ -5,6 +5,7 @@ import {
   Building2,
   Calculator,
   CalendarDays,
+  ChartColumn,
   ClipboardList,
   FileText,
   HandCoins,
@@ -22,6 +23,7 @@ import {
   PAPEIS_ACESSO_TOTAL,
   PAPEIS_ESCRITORIO_OS,
   PAPEIS_GESTAO,
+  PAPEIS_RELATORIOS,
   PAPEIS_VER_CERTIFICADOS,
   type Papel,
 } from '@/lib/papeis'
@@ -139,6 +141,14 @@ export const MENU: readonly ItemMenu[] = [
     caminho: '/certificados',
     icone: Award,
     papeis: PAPEIS_VER_CERTIFICADOS,
+    grupo: 'administrativo',
+  },
+  {
+    // Relatório técnico mensal para o cliente, a partir das OS do mês.
+    rotulo: 'Relatórios',
+    caminho: '/relatorios',
+    icone: ChartColumn,
+    papeis: PAPEIS_RELATORIOS,
     grupo: 'administrativo',
   },
   {

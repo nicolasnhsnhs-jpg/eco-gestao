@@ -37,6 +37,7 @@ describe('menuDoPapel', () => {
       '/servicos',
       '/os',
       '/certificados',
+      '/relatorios',
       '/contratos',
       '/administrativo',
       '/avisos',
@@ -92,7 +93,7 @@ describe('entradasDoPapel', () => {
       '/',
       '/clientes',
       'Propostas: /propostas /orcamentos',
-      'Administrativo: /servicos /os /certificados /contratos /administrativo',
+      'Administrativo: /servicos /os /certificados /relatorios /contratos /administrativo',
       '/avisos',
     ])
   })

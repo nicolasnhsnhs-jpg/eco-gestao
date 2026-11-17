@@ -65,6 +65,12 @@ export const PAPEIS_VER_AGENDA: readonly Papel[] = [
 /** Quem emite certificados de serviço. */
 export const PAPEIS_CERTIFICADOS: readonly Papel[] = ['admin', 'administrativo']
 
+/**
+ * Quem monta o relatório técnico mensal para o cliente (Administrativo > Relatórios).
+ * Os mesmos de quem emite certificado: usa a assinatura escaneada da responsável técnica.
+ */
+export const PAPEIS_RELATORIOS: readonly Papel[] = PAPEIS_CERTIFICADOS
+
 /** Quem vê a lista de certificados e baixa o PDF. O vendedor só consulta (os da carteira dele). */
 export const PAPEIS_VER_CERTIFICADOS: readonly Papel[] = [...PAPEIS_CERTIFICADOS, 'vendedor']
 
