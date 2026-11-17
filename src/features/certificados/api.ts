@@ -535,9 +535,10 @@ export type ResultadoEnvioDocumentos = { para: string[]; os: string[] }
 
 /** Manda os PDFs (já montados) para a função "documentos", que envia pelo e-mail do ADM. */
 export async function enviarDocumentosAoCliente(corpo: {
-  certificadoId: string
+  /** Sem certificado vai só a OS (serviços que não emitem certificado). */
+  certificadoId?: string
   para?: string
-  certificado: string
+  certificado?: string
   os: { id: string; pdf: string }[]
 }): Promise<ResultadoEnvioDocumentos> {
   const { data, error } = await supabase.functions.invoke('documentos', {

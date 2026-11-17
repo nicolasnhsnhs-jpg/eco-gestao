@@ -7,8 +7,8 @@ export type DadosEmailDocumentos = {
   /** "Eco Ambiental RS" */
   empresa: string
   cliente: string
-  /** "CERT-2026-0012" */
-  certificado: string
+  /** "CERT-2026-0012"; null quando vai só a OS (serviço sem certificado). */
+  certificado: string | null
   /** "Controle de pragas" */
   servico: string
   /** Data do serviço (AAAA-MM-DD). */
@@ -28,21 +28,27 @@ const escapar = (s: string) =>
 const FONTE = "font-family: 'Segoe UI', Arial, sans-serif;"
 
 export function assuntoDocumentos(d: DadosEmailDocumentos) {
+  if (!d.certificado)
+    return `${d.ordens.length > 1 ? 'Ordens de serviço' : 'Ordem de serviço'} – ${d.servico} · ${d.empresa}`
   const os = d.ordens.length ? ' e ordem de serviço' : ''
   return `Certificado${os} – ${d.servico} · ${d.empresa}`
 }
 
-/** "o certificado" / "o certificado e a ordem de serviço" / "… e as ordens de serviço". */
+/** "o certificado" / "o certificado e a ordem de serviço" / "a ordem de serviço"… */
 function anexos(d: DadosEmailDocumentos) {
+  const os = d.ordens.length > 1 ? 'as ordens de serviço' : 'a ordem de serviço'
+  if (!d.certificado) return os
   if (d.ordens.length === 0) return 'o certificado'
-  return d.ordens.length === 1
-    ? 'o certificado e a ordem de serviço'
-    : 'o certificado e as ordens de serviço'
+  return `o certificado e ${os}`
 }
+
+/** "Segue" para um anexo, "Seguem" para mais de um. */
+const segue = (d: DadosEmailDocumentos) =>
+  (d.certificado ? 1 : 0) + d.ordens.length > 1 ? 'Seguem' : 'Segue'
 
 function linhas(d: DadosEmailDocumentos): [string, string][] {
   return [
-    ['Certificado', d.certificado],
+    ...(d.certificado ? ([['Certificado', d.certificado]] as [string, string][]) : []),
     ['Serviço', d.servico],
     ...(d.local ? ([['Local', d.local]] as [string, string][]) : []),
     ...(d.dataServico ? ([['Data do serviço', data(d.dataServico)]] as [string, string][]) : []),
@@ -65,7 +71,6 @@ export function htmlDocumentos(d: DadosEmailDocumentos): string {
                     </tr>`,
     )
     .join('')
-  const plural = d.ordens.length > 0
 
   return `<!doctype html>
 <html lang="pt-BR">
@@ -76,7 +81,7 @@ export function htmlDocumentos(d: DadosEmailDocumentos): string {
   </head>
   <body style="margin: 0; padding: 0; background-color: #f5f8f1">
     <div style="display: none; max-height: 0; overflow: hidden">
-      Segue${plural ? 'm' : ''} em anexo ${anexos(d)} do serviço de ${escapar(d.servico)}.
+      ${segue(d)} em anexo ${anexos(d)} do serviço de ${escapar(d.servico)}.
     </div>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f5f8f1">
       <tr>
@@ -92,13 +97,13 @@ export function htmlDocumentos(d: DadosEmailDocumentos): string {
             <tr>
               <td style="padding: 16px 32px 0; ${FONTE} color: #1e2a1c">
                 <h1 style="margin: 0 0 16px; font-size: 22px; line-height: 1.3; color: #1f4d1a">
-                  Seu certificado chegou 🌱
+                  ${d.certificado ? 'Seu certificado chegou' : 'Sua ordem de serviço chegou'} 🌱
                 </h1>
                 <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6">
                   Olá${d.cliente ? `, <strong>${escapar(d.cliente)}</strong>` : ''}!
                 </p>
                 <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6">
-                  Obrigado por contar com a ${escapar(d.empresa)}. Segue${plural ? 'm' : ''} em anexo
+                  Obrigado por contar com a ${escapar(d.empresa)}. ${segue(d)} em anexo
                   ${anexos(d)} do serviço realizado. Os detalhes:
                 </p>
               </td>
@@ -116,7 +121,7 @@ export function htmlDocumentos(d: DadosEmailDocumentos): string {
                   📎 Os PDFs estão anexados a este e-mail.
                 </p>
                 <p style="margin: 0; font-size: 14px; line-height: 1.6">
-                  Alguma dúvida sobre o serviço ou o certificado? É só responder este e-mail.
+                  Alguma dúvida sobre o serviço${d.certificado ? ' ou o certificado' : ''}? É só responder este e-mail.
                 </p>
               </td>
             </tr>
@@ -141,7 +146,7 @@ export function textoDocumentos(d: DadosEmailDocumentos): string {
   return [
     `Olá${d.cliente ? `, ${d.cliente}` : ''}!`,
     '',
-    `Segue${d.ordens.length ? 'm' : ''} em anexo ${anexos(d)} do serviço realizado.`,
+    `${segue(d)} em anexo ${anexos(d)} do serviço realizado.`,
     '',
     ...linhas(d).map(([r, v]) => `${r}: ${v}`),
     '',

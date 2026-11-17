@@ -21,13 +21,7 @@ export async function enviarCertificadoEOs(
 ) {
   aoAvancar?.('Montando o certificado…')
   const certificado = await base64DoBlob(await pdfFinalCertificado(c))
-  const os: { id: string; pdf: string }[] = []
-  for (const id of osIds) {
-    const dados = await queryClient.fetchQuery(consultaOs(id))
-    if (!dados) throw new Error('OS não encontrada.')
-    aoAvancar?.(`Montando a ${dados.numero}…`)
-    os.push({ id, pdf: await base64DoBlob(await montarPdfOs(dados)) })
-  }
+  const os = await pdfsDasOs(queryClient, osIds, aoAvancar)
   aoAvancar?.('Enviando o e-mail…')
   return enviarDocumentosAoCliente({
     certificadoId: c.id,
@@ -35,4 +29,31 @@ export async function enviarCertificadoEOs(
     certificado,
     os,
   })
+}
+
+/** Só as OS, sem certificado (serviços que não emitem certificado). */
+export async function enviarSoOs(
+  queryClient: QueryClient,
+  osIds: string[],
+  para: string,
+  aoAvancar?: (etapa: string) => void,
+) {
+  const os = await pdfsDasOs(queryClient, osIds, aoAvancar)
+  aoAvancar?.('Enviando o e-mail…')
+  return enviarDocumentosAoCliente({ para: para.trim() || undefined, os })
+}
+
+async function pdfsDasOs(
+  queryClient: QueryClient,
+  osIds: string[],
+  aoAvancar?: (etapa: string) => void,
+) {
+  const os: { id: string; pdf: string }[] = []
+  for (const id of osIds) {
+    const dados = await queryClient.fetchQuery(consultaOs(id))
+    if (!dados) throw new Error('OS não encontrada.')
+    aoAvancar?.(`Montando a ${dados.numero}…`)
+    os.push({ id, pdf: await base64DoBlob(await montarPdfOs(dados)) })
+  }
+  return os
 }

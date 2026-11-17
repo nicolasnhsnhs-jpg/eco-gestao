@@ -15,6 +15,7 @@ import { mensagemDeErro } from '@/lib/erros'
 import { PAPEIS_CERTIFICADOS, PAPEIS_ESCRITORIO_OS } from '@/lib/papeis'
 
 import { ListaArquivos } from '../arquivos/ListaArquivos'
+import { EnviarOsAoCliente } from '../certificados/EnviarOsAoCliente'
 import { usePerfil } from '../auth/useAuth'
 import {
   COR_STATUS_OS,
@@ -153,6 +154,12 @@ export function OsPage() {
                 <Link to={`/certificados/novo?os=${o.id}`}>
                   <Button variante="secundario">Emitir certificado</Button>
                 </Link>
+              )}
+            {/* Serviço sem certificado: manda só a OS por e-mail (com cópia para o ADM). */}
+            {PAPEIS_CERTIFICADOS.includes(perfil.papel) &&
+              !o.treinamento &&
+              (o.status === 'concluida' || o.status === 'conferida') && (
+                <EnviarOsAoCliente os={o} />
               )}
             {escritorio && (
               <Link to={`/os/nova?cliente=${o.cliente_id}`}>
