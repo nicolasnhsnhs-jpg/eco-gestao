@@ -89,6 +89,8 @@ export function pendenciasLocais(
   fotos?: FotosDaOs,
   /** Ocorrência que o escritório escreveu na OS (o técnico confirma que resolveu). */
   ocorrencia?: string | null,
+  /** Subtipo do controle de pragas (escopo da OS): "insetos_roedores" exige o monitoramento. */
+  subtipoPragas?: string | null,
 ): string[] {
   const falta: string[] = []
   if (!e.data) falta.push('data')
@@ -113,6 +115,9 @@ export function pendenciasLocais(
     const c = (e.checklist ?? {}) as ChecklistPragas
     if (!c.nivel_infestacao || !['B', 'M', 'A'].includes(c.nivel_infestacao)) {
       falta.push('nível de infestação de roedores')
+    }
+    if (subtipoPragas === 'insetos_roedores' && typeof c.monitoramento_insetos !== 'boolean') {
+      falta.push('monitoramento de insetos (realizado ou não)')
     }
     const semSituacao = pontos
       .filter((p) => p.tipo === 'armadilha_luminosa' && !p.situacao_armadilha)

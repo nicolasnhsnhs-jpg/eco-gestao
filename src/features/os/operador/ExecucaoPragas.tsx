@@ -223,16 +223,28 @@ export function ExecucaoPragas({ os, campos, alterar, aberta, primeira }: Props)
               <span className="font-semibold">Pragas combatidas:</span> {escopo.pragas_insetos}
             </p>
           )}
-          <label className="flex min-h-11 items-center gap-3">
-            <input
-              type="checkbox"
-              className="size-5 accent-verde"
-              disabled={!aberta}
-              checked={checklist.monitoramento_insetos ?? false}
-              onChange={(e) => mudar({ monitoramento_insetos: e.target.checked })}
+          <div className="flex flex-col gap-2">
+            <p className="font-semibold">
+              Monitoramento de insetos <span className="text-perigo">*</span>
+            </p>
+            <BotoesCodigo
+              opcoes={{
+                sim: 'Realizado monitoramento programado nas áreas',
+                nao: 'Não realizado controle de insetos',
+              }}
+              valor={
+                checklist.monitoramento_insetos == null
+                  ? null
+                  : checklist.monitoramento_insetos
+                    ? 'sim'
+                    : 'nao'
+              }
+              desabilitado={!aberta}
+              aoMudar={(v) =>
+                mudar({ monitoramento_insetos: v === null ? undefined : v === 'sim' })
+              }
             />
-            Realizado monitoramento programado nas áreas
-          </label>
+          </div>
           <Insetos osId={os.id} aberta={aberta} />
         </Etapa>
       )}

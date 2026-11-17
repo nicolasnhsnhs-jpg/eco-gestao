@@ -89,6 +89,18 @@ describe('pendenciasLocais', () => {
     ).toEqual([])
   })
 
+  it('pragas com insetos: exige marcar realizado ou não realizado', () => {
+    const c = (checklist: Record<string, string | boolean>) =>
+      pendenciasLocais('pragas', { ...comum, checklist }, [], undefined, null, 'insetos_roedores')
+    expect(c({ nivel_infestacao: 'B' })).toEqual(['monitoramento de insetos (realizado ou não)'])
+    expect(c({ nivel_infestacao: 'B', monitoramento_insetos: true })).toEqual([])
+    expect(c({ nivel_infestacao: 'B', monitoramento_insetos: false })).toEqual([])
+    // Só roedores: não pergunta.
+    expect(
+      pendenciasLocais('pragas', { ...comum, checklist: { nivel_infestacao: 'B' } }, []),
+    ).toEqual([])
+  })
+
   it('coifa: liberação, sujidade, produto e conferência final', () => {
     const coifas = [
       { tipo: 'coifa', numero: 1, area: 'Coifa do fogão', sujidade: null },

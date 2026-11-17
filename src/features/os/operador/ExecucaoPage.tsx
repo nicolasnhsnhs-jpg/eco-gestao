@@ -236,6 +236,8 @@ function Execucao({ os }: { os: OsCompleta }) {
     }
   }
 
+  const subtipoPragas = (os.escopo as { subtipo?: string } | null)?.subtipo
+
   async function finalizar() {
     setErro(null)
     setTentativa((t) => t + 1)
@@ -246,6 +248,7 @@ function Execucao({ os }: { os: OsCompleta }) {
       pontos.data ?? [],
       fotos,
       os.ocorrencia,
+      subtipoPragas,
     )
     setMostrarFalta(pendencias.length > 0)
     if (pendencias.length > 0) return
@@ -265,7 +268,14 @@ function Execucao({ os }: { os: OsCompleta }) {
 
   const foraDeOrdem = horariosForaDeOrdem(campos)
   const falta = mostrarFalta
-    ? pendenciasLocais(os.tipo?.formulario_os, comData, pontos.data ?? [], fotos, os.ocorrencia)
+    ? pendenciasLocais(
+        os.tipo?.formulario_os,
+        comData,
+        pontos.data ?? [],
+        fotos,
+        os.ocorrencia,
+        subtipoPragas,
+      )
     : []
   // Preencheu tudo: a lista some de vez (até o próximo toque em "Concluir").
   if (mostrarFalta && falta.length === 0) setMostrarFalta(false)
