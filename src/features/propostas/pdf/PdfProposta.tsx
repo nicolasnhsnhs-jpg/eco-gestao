@@ -8,6 +8,7 @@ import { UNIDADE } from '@/lib/unidade'
 
 import type { ClienteCompleto } from '../../clientes/api'
 import type { PropostaCompleta } from '../api'
+import { EnviarPropostaPorEmail } from '../EnviarPropostaPorEmail'
 import {
   copiarPropostaNoDrive,
   nomeArquivoProposta,
@@ -220,6 +221,13 @@ export function AcoesPdfProposta({
         <Button variante="secundario" onClick={() => void salvar()} disabled={!pronto || ocupado}>
           <Download className="size-4" aria-hidden /> Baixar
         </Button>
+        <EnviarPropostaPorEmail
+          p={p}
+          desativado={!pronto || ocupado}
+          gerarPdf={() =>
+            pdfDaProposta(propostaGravadaParaBase(p), cliente, p.endereco_id, vendedor.data)
+          }
+        />
       </div>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
     </div>
