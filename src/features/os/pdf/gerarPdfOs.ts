@@ -269,6 +269,23 @@ class Escritor {
       font: negrito ? this.negrito : this.normal,
     })
   }
+
+  /**
+   * Texto quebrado dentro de uma coluna, a partir da altura atual (sem descer o cursor).
+   * Devolve quantas linhas ocupou.
+   */
+  textoNaColuna(texto: string, x: number, largura: number, tamanho = 9, negrito = false) {
+    const linhas = quebrarLinhas(texto, negrito ? this.negrito : this.normal, tamanho, largura)
+    for (const [i, linha] of linhas.entries()) {
+      this.pagina.drawText(linha, {
+        x,
+        y: this.y - tamanho - i * (tamanho + 2.5),
+        size: tamanho,
+        font: negrito ? this.negrito : this.normal,
+      })
+    }
+    return linhas.length
+  }
 }
 
 export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: DadosPragas) {
@@ -442,13 +459,13 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
   // Sem acompanhamento o técnico ainda pode pegar a assinatura de quem recebeu na saída
   // (portaria, recepção…), para mostrar que esteve lá.
   const quemAssinou = [e?.responsavel_nome, e?.responsavel_setor].filter(Boolean).join(' · ')
-  const acompanhou = e?.sem_acompanhamento
-    ? ['Não houve acompanhamento', quemAssinou && `Recebeu: ${quemAssinou}`]
-        .filter(Boolean)
-        .join(' · ')
+  const rotuloCliente = !e?.sem_acompanhamento
+    ? 'Acompanhou pelo cliente'
     : quemAssinou
+      ? 'Recebeu pelo cliente (não houve acompanhamento)'
+      : 'Não houve acompanhamento'
   for (const [arquivo, rotulo, nome] of [
-    [assinaturaCliente, e?.sem_acompanhamento ? 'Cliente' : 'Acompanhou pelo cliente', acompanhou],
+    [assinaturaCliente, rotuloCliente, quemAssinou],
     [assinaturaOperador, 'Operador', e?.operador_nome ?? ''],
   ] as const) {
     const bytes = arquivo && imagens.get(arquivo.id)
@@ -464,7 +481,7 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
   }
 
   w.secao('Assinaturas')
-  w.garantir(124)
+  w.garantir(150)
   const espaco = 16
   const coluna = (LARGURA_UTIL - espaco * (quadros.length - 1)) / quadros.length
   const xDe = (i: number) => MARGEM + i * (coluna + espaco)
@@ -492,14 +509,27 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
     }
   }
   w.y -= 76
-  for (const [i, q] of quadros.entries()) w.texto(q.nome || '—', xDe(i), 9.5, true)
-  w.y -= 12
-  for (const [i, q] of quadros.entries()) w.texto(q.rotulo, xDe(i), 8.5)
-  w.y -= 12
-  if (quadros.some((q) => q.extra)) {
-    for (const [i, q] of quadros.entries()) if (q.extra) w.texto(q.extra, xDe(i), 8.5)
-    w.y -= 12
+  // Cada linha de texto quebra dentro da própria coluna (nome comprido não invade a do lado).
+  const linhaDeTexto = (textos: (string | undefined)[], tamanho: number, negrito = false) => {
+    let maior = 0
+    for (const [i, t] of textos.entries()) {
+      if (t) maior = Math.max(maior, w.textoNaColuna(t, xDe(i), coluna - 4, tamanho, negrito))
+    }
+    if (maior) w.y -= maior * (tamanho + 2.5) + 2.5
   }
+  linhaDeTexto(
+    quadros.map((q) => q.nome || '—'),
+    9.5,
+    true,
+  )
+  linhaDeTexto(
+    quadros.map((q) => q.rotulo),
+    8.5,
+  )
+  linhaDeTexto(
+    quadros.map((q) => q.extra),
+    8.5,
+  )
 
   return pdf.save()
 }
