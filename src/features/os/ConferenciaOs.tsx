@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
 import { Etiqueta } from '@/components/ui/Etiqueta'
 import { formatarData, formatarDataHora, hojeISO, somarDias } from '@/lib/datas'
-import { formatarReais, lerValor, mascaraValor } from '@/lib/dinheiro'
+import { formatarReais, lerValor, mascaraValor, valorParaCampo } from '@/lib/dinheiro'
 import { mensagemDeErro } from '@/lib/erros'
 import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
 
@@ -18,6 +18,7 @@ import {
   useConferirOs,
   useFaturarOs,
   useSalvarConferencia,
+  useValorPropostaDaOs,
   type Conferencia,
   type StatusOs,
 } from './api'
@@ -272,6 +273,7 @@ function FormConferencia({
 
 function FormFaturar({ osId }: { osId: string }) {
   const faturar = useFaturarOs(osId)
+  const proposta = useValorPropostaDaOs(osId)
   const [valor, setValor] = useState('')
   const [vencimento, setVencimento] = useState(somarDias(hojeISO(), 10))
   const [numeroNf, setNumeroNf] = useState('')
@@ -294,6 +296,32 @@ function FormFaturar({ osId }: { osId: string }) {
   return (
     <div className="flex flex-col gap-3">
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
+      {proposta.data ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-lima-claro p-3 text-sm">
+          <span>
+            Proposta nº {proposta.data.numero}:{' '}
+            <strong>{formatarReais(proposta.data.valor)}</strong>
+            {proposta.data.valor !== proposta.data.total &&
+              ` (total da proposta ${formatarReais(proposta.data.total)})`}
+          </span>
+          <Link className="text-verde underline" to={`/propostas/${proposta.data.id}`}>
+            Ver proposta
+          </Link>
+          <Button
+            variante="secundario"
+            className="ml-auto min-h-9"
+            onClick={() => setValor(valorParaCampo(proposta.data!.valor))}
+          >
+            Usar este valor
+          </Button>
+        </div>
+      ) : (
+        proposta.isSuccess && (
+          <p className="text-sm text-texto-suave">
+            Sem proposta ligada a esta OS: confira o valor com o ADM.
+          </p>
+        )
+      )}
       <div className="grid gap-3 sm:grid-cols-3">
         <Campo rotulo="Valor (R$)" htmlFor="fat-valor" obrigatorio>
           <Input

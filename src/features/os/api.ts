@@ -9,6 +9,7 @@ import {
 
 import type { Database, Enums, Json, Tables, TablesUpdate } from '@/lib/database.types'
 import { hojeISO } from '@/lib/datas'
+import { paraCentavos } from '@/lib/dinheiro'
 import { supabase } from '@/lib/supabase'
 
 import { enfileirar } from './offline/fila'
@@ -262,6 +263,8 @@ export type DadosAgendamento = {
   observacoesAdm: string
   /** Ocorrência que o técnico precisa confirmar que resolveu (vazio: nenhuma). */
   ocorrencia?: string
+  /** Proposta aprovada de onde a OS saiu (o financeiro vê o valor no "A faturar"). */
+  propostaId?: string | null
   /** Gravar operadores, veículo e observações como padrão das próximas visitas. */
   salvarComoPadrao: boolean
 }
@@ -320,10 +323,13 @@ export function useAgendarOs() {
         observacoes_adm: d.observacoesAdm || undefined,
       })
       if (error) throw error
-      if (d.ocorrencia) {
+      if (d.ocorrencia || d.propostaId) {
         const r = await supabase
           .from('ordens_servico')
-          .update({ ocorrencia: d.ocorrencia })
+          .update({
+            ...(d.ocorrencia ? { ocorrencia: d.ocorrencia } : {}),
+            ...(d.propostaId ? { proposta_id: d.propostaId } : {}),
+          })
           .eq('id', osId)
         if (r.error) throw r.error
       }
@@ -582,6 +588,36 @@ export function useConferirOs(osId: string) {
       if (error) throw error
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
+  })
+}
+
+/**
+ * Valor sugerido para faturar a OS, pela proposta de onde ela saiu: os itens do
+ * mesmo serviço da OS ou, se nenhum bater, o total da proposta.
+ */
+export function useValorPropostaDaOs(osId: string) {
+  return useQuery({
+    queryKey: ['os', osId, 'valor-proposta'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ordens_servico')
+        .select(
+          `tipo_servico_id, proposta:propostas(id, numero, valor_total,
+             itens:proposta_itens(quantidade, valor_unitario, tipo_servico_id))`,
+        )
+        .eq('id', osId)
+        .single()
+      if (error) throw error
+      const p = data.proposta
+      if (!p) return null
+      const doServico = p.itens.filter((i) => i.tipo_servico_id === data.tipo_servico_id)
+      const valor =
+        doServico.length > 0 && doServico.length < p.itens.length
+          ? doServico.reduce((soma, i) => soma + paraCentavos(i.quantidade * i.valor_unitario), 0) /
+            100
+          : p.valor_total
+      return { id: p.id, numero: p.numero, valor, total: p.valor_total }
+    },
   })
 }
 
@@ -944,7 +980,9 @@ export function useOsAFaturar() {
         .select(
           `os_id, liberada_financeiro_em, observacoes, tem_pedido_compra, pedido_compra,
            os:ordens_servico!inner(id, numero, data_agendada, ficha_cliente, cliente_id, treinamento,
-             tipo:tipos_servico(nome), operadores:os_operadores(operador:perfis(id, nome)))`,
+             tipo_servico_id, tipo:tipos_servico(nome), operadores:os_operadores(operador:perfis(id, nome)),
+             proposta:propostas(id, numero, valor_total,
+               itens:proposta_itens(id, ordem, descricao, quantidade, valor_unitario, tipo_servico_id)))`,
         )
         .not('liberada_financeiro_em', 'is', null)
         .or('taxa_faturada.is.null,taxa_faturada.eq.false')

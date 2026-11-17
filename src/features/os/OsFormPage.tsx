@@ -193,6 +193,7 @@ export function OsFormPage() {
                   enderecoId={unidade || null}
                   tipoId={tipoId}
                   modelo={modelo.data}
+                  propostaId={p?.id ?? null}
                   sugestao={
                     p
                       ? {
@@ -219,6 +220,7 @@ function FormAgendamento({
   enderecoId,
   tipoId,
   modelo,
+  propostaId,
   sugestao,
 }: {
   categoria: CategoriaOs
@@ -226,6 +228,8 @@ function FormAgendamento({
   enderecoId: string | null
   tipoId: string
   modelo: Tables<'os_modelos'> | null
+  /** Proposta aberta ao lado: fica gravada na OS. */
+  propostaId: string | null
   /** Da proposta aprovada aberta ao lado: dia/horário combinados e o serviço. */
   sugestao?: { data: string | null; hora: string | null; descricao: string | null }
 }) {
@@ -267,6 +271,7 @@ function FormAgendamento({
         descricao: descricao.trim(),
         observacoesAdm: observacoes.trim(),
         ocorrencia: ocorrencia.trim(),
+        propostaId,
         salvarComoPadrao,
       })
       navigate(`/os/${id}`)

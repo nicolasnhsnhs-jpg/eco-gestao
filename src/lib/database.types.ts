@@ -2994,6 +2994,7 @@ export type Database = {
           numero: string
           observacoes_adm: string | null
           ocorrencia: string | null
+          proposta_id: string | null
           reaberta_em: string | null
           reaberta_por: string | null
           servico_id: string | null
@@ -3025,6 +3026,7 @@ export type Database = {
           numero: string
           observacoes_adm?: string | null
           ocorrencia?: string | null
+          proposta_id?: string | null
           reaberta_em?: string | null
           reaberta_por?: string | null
           servico_id?: string | null
@@ -3056,6 +3058,7 @@ export type Database = {
           numero?: string
           observacoes_adm?: string | null
           ocorrencia?: string | null
+          proposta_id?: string | null
           reaberta_em?: string | null
           reaberta_por?: string | null
           servico_id?: string | null
@@ -3112,6 +3115,20 @@ export type Database = {
             columns: ['modelo_id']
             isOneToOne: false
             referencedRelation: 'os_modelos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ordens_servico_proposta_id_fkey'
+            columns: ['proposta_id']
+            isOneToOne: false
+            referencedRelation: 'propostas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ordens_servico_proposta_id_fkey'
+            columns: ['proposta_id']
+            isOneToOne: false
+            referencedRelation: 'v_propostas'
             referencedColumns: ['id']
           },
           {

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
 import { formatarData, formatarDataHora } from '@/lib/datas'
+import { formatarReais } from '@/lib/dinheiro'
 import { mensagemDeErro } from '@/lib/erros'
 
 import { fichaDaOs, useMarcarOsFaturada, useOsAFaturar, type OsAFaturar } from '../os/api'
@@ -41,6 +42,43 @@ export function AFaturarPage() {
   )
 }
 
+/**
+ * O valor vem da proposta de onde a OS saiu: o item do mesmo serviço em destaque
+ * e o total da proposta. OS sem proposta ligada: o valor é combinado com o ADM.
+ */
+function ValorDaProposta({ item }: { item: OsAFaturar }) {
+  const proposta = item.os.proposta
+  if (!proposta) {
+    return (
+      <p className="rounded-xl bg-fundo-suave p-3 text-sm text-texto-suave">
+        Sem proposta ligada a esta OS: confira o valor com o ADM.
+      </p>
+    )
+  }
+  const itens = [...proposta.itens].sort((a, b) => a.ordem - b.ordem)
+  const doServico = itens.filter((i) => i.tipo_servico_id === item.os.tipo_servico_id)
+  return (
+    <div className="flex flex-col gap-1 rounded-xl border-2 border-verde/40 bg-lima-claro p-3">
+      <div className="flex flex-wrap items-baseline gap-2">
+        <span className="font-semibold text-verde-escuro">Proposta nº {proposta.numero}</span>
+        <span className="ml-auto text-lg font-bold">{formatarReais(proposta.valor_total)}</span>
+      </div>
+      {itens.length > 1 &&
+        (doServico.length > 0 ? doServico : itens).map((i) => (
+          <p key={i.id} className="text-sm">
+            {i.descricao}
+            {i.quantidade !== 1 && ` · ${i.quantidade} × ${formatarReais(i.valor_unitario)}`}
+            {' = '}
+            <strong>{formatarReais(i.quantidade * i.valor_unitario)}</strong>
+          </p>
+        ))}
+      <Link className="text-sm text-verde underline" to={`/propostas/${proposta.id}`}>
+        Ver proposta
+      </Link>
+    </div>
+  )
+}
+
 function CartaoAFaturar({ item }: { item: OsAFaturar }) {
   const marcar = useMarcarOsFaturada()
   const [confirmando, setConfirmando] = useState(false)
@@ -69,6 +107,7 @@ function CartaoAFaturar({ item }: { item: OsAFaturar }) {
           Emitir com pedido de compra nº {item.pedido_compra}
         </div>
       )}
+      <ValorDaProposta item={item} />
       {item.observacoes && (
         <p className="text-sm">
           <strong>Obs. do escritório:</strong> {item.observacoes}
