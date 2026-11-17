@@ -12,6 +12,7 @@ import {
 } from '../contratual'
 import {
   assuntoDosItens,
+  introducaoFinal,
   introducaoPadrao,
   juntarLinhas,
   juntarMetodologias,
@@ -268,8 +269,9 @@ export function montarDadosPdf(
     ...comum,
     rotuloNumero: 'PROPOSTA Nº',
     tituloCustos: 'Custos',
-    introducao:
-      p.introducao?.trim() || introducaoPadrao(nomeApresentacao, assuntoDosItens(p.itens)),
+    introducao: introducaoFinal(p.introducao, () =>
+      introducaoPadrao(nomeApresentacao, assuntoDosItens(p.itens)),
+    ),
     itens,
     metodologia,
     recursos,
@@ -375,7 +377,7 @@ function memorialDescritivo(p: PropostaBase, cliente: string) {
   return {
     rotuloNumero: 'MEMORIAL DESCRITIVO Nº',
     tituloCustos: 'Investimento',
-    introducao: p.introducao?.trim() || introducaoContrato(cliente),
+    introducao: introducaoFinal(p.introducao, () => introducaoContrato(cliente)),
     itens,
     metodologia: [],
     recursos: [],

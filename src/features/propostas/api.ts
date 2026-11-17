@@ -204,3 +204,30 @@ export function usePropostasAgendadas(de: string, ate: string) {
 }
 
 export type PropostaAgendada = NonNullable<ReturnType<typeof usePropostasAgendadas>['data']>[number]
+
+/**
+ * Vendas do mês: propostas aprovadas com a data da aprovação dentro do mês
+ * ("2026-11"). Sem vendedor, traz de todos (o banco já limita o que cada um vê).
+ */
+export function useVendasDoMes(mes: string, vendedorId?: string) {
+  return useQuery({
+    queryKey: ['propostas', 'vendas', mes, vendedorId ?? 'todos'],
+    queryFn: async () => {
+      const inicio = `${mes}-01`
+      const [ano, m] = mes.split('-').map(Number)
+      const fim = new Date(Date.UTC(ano, m, 1)).toISOString().slice(0, 10)
+      let consulta = supabase
+        .from('v_propostas')
+        .select(`*, ${RELACOES}`)
+        .eq('status', 'aprovada')
+        .gte('data_resposta', inicio)
+        .lt('data_resposta', fim)
+        .order('data_resposta', { ascending: true })
+        .order('numero', { ascending: true })
+      if (vendedorId) consulta = consulta.eq('vendedor_id', vendedorId)
+      const { data, error } = await consulta
+      if (error) throw error
+      return data
+    },
+  })
+}

@@ -52,6 +52,7 @@ export function PropostasLayout() {
   const abas = [
     { rotulo: 'Propostas criadas', caminho: '/propostas', fim: true },
     { rotulo: 'Agendadas', caminho: '/propostas/agendadas', fim: true },
+    { rotulo: 'Vendas do mês', caminho: '/propostas/vendas', fim: true },
     { rotulo: 'Nova proposta', caminho: '/propostas/nova', fim: true },
   ]
   return (

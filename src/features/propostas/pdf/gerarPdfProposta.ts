@@ -253,9 +253,11 @@ export async function gerarPdfProposta(d: DadosPdfProposta): Promise<Blob> {
   // ---------------------------------------------------------------------------
   // Apresentação
   // ---------------------------------------------------------------------------
-  y -= 4
-  rico(partesRicas(d.introducao), { justificar: true })
-  y -= 2
+  if (d.introducao) {
+    y -= 4
+    rico(partesRicas(d.introducao), { justificar: true })
+    y -= 2
+  }
 
   // Uma seção por serviço
   for (const item of d.itens) {

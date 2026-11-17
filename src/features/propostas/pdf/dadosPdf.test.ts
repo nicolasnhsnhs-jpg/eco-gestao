@@ -74,6 +74,14 @@ const cliente = {
 const vendedor = { nome: 'Nicolas Hernandes', telefone: '(51) 99234-1221', email: null }
 
 describe('montarDadosPdf', () => {
+  it('sai sem apresentação quando o vendedor removeu', () => {
+    const d = montarDadosPdf(base({ introducao: '(sem apresentação)' }), cliente, null, vendedor)
+    expect(d.introducao).toBe('')
+    expect(
+      montarDadosPdf(base({ introducao: '  ' }), cliente, null, vendedor).introducao,
+    ).toContain('Vimos a V.S.')
+  })
+
   it('monta uma proposta de um serviço só (coifa)', () => {
     const m = MODELOS.coifa
     const d = montarDadosPdf(

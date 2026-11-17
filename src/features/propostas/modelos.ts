@@ -396,6 +396,19 @@ const sem = (t: string) =>
 // Frases padrão
 // -----------------------------------------------------------------------------
 
+/**
+ * Gravado em "introducao" quando o vendedor remove a apresentação: a proposta sai
+ * sem esse parágrafo (em branco continua indo o texto padrão).
+ */
+export const SEM_INTRODUCAO = '(sem apresentação)'
+
+/** Texto de apresentação que vai no PDF: o escrito, o padrão, ou nada se foi removido. */
+export function introducaoFinal(escrita: string | null | undefined, padrao: () => string) {
+  const t = escrita?.trim()
+  if (t === SEM_INTRODUCAO) return ''
+  return t || padrao()
+}
+
 /** "Vimos a V.S. apresentar…", com o nome do cliente em negrito. */
 export function introducaoPadrao(cliente: string, assunto: string) {
   const servicos = assunto ? `serviços ${assunto}` : 'serviços'

@@ -47,6 +47,7 @@ import {
   COBRANCAS,
   FREQUENCIAS,
   introducaoPadrao,
+  SEM_INTRODUCAO,
   MODELOS,
   modeloDe,
   recursosDoModelo,
@@ -544,25 +545,47 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
                 </Campo>
               </div>
             )}
-            <Campo
-              rotulo="Apresentação"
-              htmlFor="introducao"
-              className="sm:col-span-2"
-              dica="Em branco, vai o texto padrão (o que aparece aqui dentro, em cinza)."
-            >
-              <Textarea
-                id="introducao"
-                rows={4}
-                placeholder={(completo
-                  ? introducaoContrato(nomeApresentacao || '...')
-                  : introducaoPadrao(
-                      nomeApresentacao || '...',
-                      assuntoDosItens(valores.itens ?? []),
-                    )
-                ).replace(/\*\*/g, '')}
-                {...form.register('introducao')}
-              />
-            </Campo>
+            {valores.introducao?.trim() === SEM_INTRODUCAO ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-dashed border-borda p-3 sm:col-span-2">
+                <p className="text-sm text-texto-suave">
+                  <strong className="text-texto">Apresentação removida.</strong> A proposta começa
+                  direto nos serviços.
+                </p>
+                <Button
+                  variante="fantasma"
+                  onClick={() => form.setValue('introducao', '', { shouldDirty: true })}
+                >
+                  <RotateCcw className="size-4" aria-hidden /> Mostrar apresentação
+                </Button>
+              </div>
+            ) : (
+              <Campo
+                rotulo="Apresentação"
+                htmlFor="introducao"
+                className="sm:col-span-2"
+                dica="Em branco, vai o texto padrão (o que aparece aqui dentro, em cinza)."
+              >
+                <Textarea
+                  id="introducao"
+                  rows={4}
+                  placeholder={(completo
+                    ? introducaoContrato(nomeApresentacao || '...')
+                    : introducaoPadrao(
+                        nomeApresentacao || '...',
+                        assuntoDosItens(valores.itens ?? []),
+                      )
+                  ).replace(/\*\*/g, '')}
+                  {...form.register('introducao')}
+                />
+                <Button
+                  variante="fantasma"
+                  className="mt-1 self-start text-perigo"
+                  onClick={() => form.setValue('introducao', SEM_INTRODUCAO, { shouldDirty: true })}
+                >
+                  <Trash2 className="size-4" aria-hidden /> Remover apresentação
+                </Button>
+              </Campo>
+            )}
             <CamposPagamento form={form} fixo={pagamentoFixo} temCliente={!!clienteId} />
             <CampoValor
               form={form}
