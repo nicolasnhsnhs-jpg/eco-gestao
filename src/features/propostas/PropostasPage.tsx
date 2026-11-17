@@ -12,6 +12,8 @@ import { formatarReais } from '@/lib/dinheiro'
 import { mensagemDeErro } from '@/lib/erros'
 import { cn } from '@/lib/utils'
 
+import { usePerfil } from '../auth/useAuth'
+
 import {
   COR_SITUACAO_PROPOSTA,
   NOME_SITUACAO_PROPOSTA,
@@ -84,6 +86,7 @@ export function PropostasPage() {
   const situacao = parametros.get('situacao') ?? 'todas'
   const busca = parametros.get('q') ?? ''
   const propostas = usePropostas()
+  const perfil = usePerfil()
 
   function mudar(chave: string, valor: string) {
     const novos = new URLSearchParams(parametros)
@@ -92,7 +95,11 @@ export function PropostasPage() {
     setParametros(novos, { replace: true })
   }
 
-  const todas = propostas.data ?? []
+  // O vendedor, ao abrir Propostas, vê só as que ele mesmo fez. Quando pesquisa,
+  // aparecem todas as que ele pode ver (o banco ainda limita às da carteira dele).
+  const pesquisando = busca.trim() !== ''
+  const soAsDele = perfil.papel === 'vendedor' && !pesquisando
+  const todas = (propostas.data ?? []).filter((p) => !soAsDele || p.vendedor_id === perfil.id)
   const hoje = hojeISO()
   const filtradas = todas.filter((p) => {
     if (situacao in FILTROS_EXECUCAO) {
@@ -130,6 +137,12 @@ export function PropostasPage() {
           </Link>
         }
       />
+
+      {soAsDele && propostas.isSuccess && (
+        <p className="mb-2 text-sm text-texto-suave">
+          Mostrando só as suas propostas. Pesquise para encontrar as de outro vendedor.
+        </p>
+      )}
 
       {propostas.isSuccess && aguardando.length > 0 && (
         <p className="mb-4 text-sm text-texto-suave">
