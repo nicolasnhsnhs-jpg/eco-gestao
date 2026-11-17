@@ -16,6 +16,7 @@ export type Arranjo =
   | 'areas_produtos' // áreas à esquerda, produtos à direita (pragas)
   | 'produtos_areas' // produtos à esquerda, áreas à direita (coifa)
   | 'reservatorios' // tabela quantidade · local · m³ · produto (reservatório)
+  | 'bebedouros' // tabela nº · local · data da limpeza · troca de filtro (bebedouro)
   | 'descricao' // descrição no centro, com MTR e volume (sucção)
 
 export type Modelo = {
@@ -73,11 +74,11 @@ export const MODELO: Record<ModeloCertificado, Modelo> = {
   bebedouro: {
     nome: 'Limpeza de bebedouros',
     destaque: AZUL,
-    arranjo: 'areas_produtos',
+    arranjo: 'bebedouros',
     temPragas: false,
     responsavelSuccao: false,
-    tituloAreas: 'Bebedouros atendidos',
-    exemploAreas: '4 bebedouros - Refeitório',
+    tituloAreas: 'Descrição',
+    exemploAreas: 'Troca de filtros em todos',
     padrao: {
       titulo: 'LIMPEZA E HIGIENIZAÇÃO DE BEBEDOUROS',
       servicoDescrito: 'LIMPEZA E HIGIENIZAÇÃO de BEBEDOUROS',
@@ -295,6 +296,19 @@ export type ProdutoCertificado = {
   validade: string
 }
 
+/** Um bebedouro atendido: etiqueta, local, dia da limpeza (AAAA-MM-DD) e troca de filtro. */
+export type BebedouroCertificado = {
+  numero: string
+  local: string
+  data: string
+  /** "sim", "nao" ou "" (não informado) */
+  filtro: string
+}
+
+/** "Sim" / "Não" / "-" na coluna da troca de filtro. */
+export const textoFiltro = (filtro: string) =>
+  filtro === 'sim' ? 'Sim' : filtro === 'nao' ? 'Não' : '-'
+
 export type ReservatorioCertificado = {
   quantidade: string
   local: string
@@ -376,4 +390,17 @@ export function lerReservatorios(valor: unknown): ReservatorioCertificado[] {
       produto: texto(r.produto),
     }))
     .filter((r) => Object.values(r).some((v) => v.trim() !== ''))
+}
+
+export function lerBebedouros(valor: unknown): BebedouroCertificado[] {
+  if (!Array.isArray(valor)) return []
+  return valor
+    .filter((b): b is Record<string, unknown> => !!b && typeof b === 'object')
+    .map((b) => ({
+      numero: texto(b.numero),
+      local: texto(b.local),
+      data: texto(b.data),
+      filtro: texto(b.filtro),
+    }))
+    .filter((b) => b.numero.trim() !== '' || b.local.trim() !== '')
 }

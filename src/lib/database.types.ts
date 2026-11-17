@@ -885,6 +885,7 @@ export type Database = {
           assinatura_digital: boolean
           atualizado_em: string
           atualizado_por: string | null
+          bebedouros: Json
           cancelado_em: string | null
           cancelado_por: string | null
           cliente_id: string
@@ -927,6 +928,7 @@ export type Database = {
           assinatura_digital?: boolean
           atualizado_em?: string
           atualizado_por?: string | null
+          bebedouros?: Json
           cancelado_em?: string | null
           cancelado_por?: string | null
           cliente_id: string
@@ -969,6 +971,7 @@ export type Database = {
           assinatura_digital?: boolean
           atualizado_em?: string
           atualizado_por?: string | null
+          bebedouros?: Json
           cancelado_em?: string | null
           cancelado_por?: string | null
           cliente_id?: string

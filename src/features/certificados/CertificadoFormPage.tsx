@@ -40,6 +40,7 @@ import { EnviarAoCliente } from './EnviarAoCliente'
 import { PainelOs } from './PainelOs'
 import {
   calcularValidade,
+  lerBebedouros,
   lerProdutos,
   lerReservatorios,
   linhasDoProduto,
@@ -91,6 +92,9 @@ const esquema = z.object({
       produto: z.string(),
     }),
   ),
+  bebedouros: z.array(
+    z.object({ numero: z.string(), local: z.string(), data: z.string(), filtro: z.string() }),
+  ),
   descricao: z.string(),
   mtr: z.string().trim(),
   volume: z.string().trim(),
@@ -127,6 +131,9 @@ export function CertificadoFormPage() {
   )
 }
 
+const RESERVATORIO_VAZIO = { quantidade: '', local: '', metragem: '', produto: '' }
+const BEBEDOURO_VAZIO = { numero: '', local: '', data: '', filtro: '' }
+
 const ouNulo = (v: string) => (v.trim() === '' ? null : v.trim())
 
 type Tipo = NonNullable<ReturnType<typeof useTiposServico>['data']>[number]
@@ -150,6 +157,7 @@ function valoresIniciais(tipos: Tipo[], c?: CertificadoResumo, origem?: Origem):
       areas: c.areas ?? '',
       produtos: lerProdutos(c.produtos),
       reservatorios: lerReservatorios(c.reservatorios),
+      bebedouros: lerBebedouros(c.bebedouros),
       descricao: c.descricao ?? '',
       mtr: c.mtr ?? '',
       volume: c.volume ?? '',
@@ -163,6 +171,13 @@ function valoresIniciais(tipos: Tipo[], c?: CertificadoResumo, origem?: Origem):
   const modelo = modeloDoTipo(tipo)
   const padrao = padraoDoModelo(modelo, tipo?.nome ?? '')
   const meses = origem?.periodicidade ?? tipo?.periodicidade_meses_padrao ?? null
+  // Reservatórios e bebedouros vêm da OS, um por linha (quando a OS tem a lista).
+  const daOsReservatorios = origem?.reservatorios ?? []
+  const daOsBebedouros = (origem?.bebedouros ?? []).map((b) => ({
+    ...b,
+    data: b.data || (origem?.dataExecucao ?? ''),
+  }))
+  const arranjo = MODELO[modelo].arranjo
   return {
     cliente_id: origem?.clienteId ?? '',
     cliente_nome: origem?.clienteNome ?? '',
@@ -177,12 +192,26 @@ function valoresIniciais(tipos: Tipo[], c?: CertificadoResumo, origem?: Origem):
     outras_datas: [],
     tipo_validade: origem?.deContrato ? 'contrato' : 'avulso',
     validade_meses: meses?.toString() ?? '',
-    // No modelo de sucção a descrição da OS vai para "Descrição do serviço".
-    areas: MODELO[modelo].arranjo === 'descricao' ? '' : (origem?.areas ?? ''),
+    // No modelo de sucção a descrição da OS vai para "Descrição do serviço"; com a lista
+    // de bebedouros da OS, a tabela já diz tudo.
+    areas:
+      arranjo === 'descricao' || (arranjo === 'bebedouros' && daOsBebedouros.length > 0)
+        ? ''
+        : (origem?.areas ?? ''),
     produtos: origem?.produtos ?? [],
     reservatorios:
-      modelo === 'reservatorio' ? [{ quantidade: '', local: '', metragem: '', produto: '' }] : [],
-    descricao: MODELO[modelo].arranjo === 'descricao' ? (origem?.descricao ?? '') : '',
+      arranjo !== 'reservatorios'
+        ? []
+        : daOsReservatorios.length > 0
+          ? daOsReservatorios
+          : [RESERVATORIO_VAZIO],
+    bebedouros:
+      arranjo !== 'bebedouros'
+        ? []
+        : daOsBebedouros.length > 0
+          ? daOsBebedouros
+          : [{ ...BEBEDOURO_VAZIO, data: origem?.dataExecucao ?? hojeISO() }],
+    descricao: arranjo === 'descricao' ? (origem?.descricao ?? '') : '',
     mtr: '',
     volume: '',
     observacao_final: '',
@@ -220,6 +249,7 @@ function Formulario({
   const outrasDatas = useFieldArray({ control: form.control, name: 'outras_datas' })
   const produtos = useFieldArray({ control: form.control, name: 'produtos' })
   const reservatorios = useFieldArray({ control: form.control, name: 'reservatorios' })
+  const bebedouros = useFieldArray({ control: form.control, name: 'bebedouros' })
   const [clienteId, clienteNome, enderecoId, tipoId, modelo, dataExecucao, meses, tipoValidade] =
     useWatch({
       control: form.control,
@@ -282,6 +312,8 @@ function Formulario({
         areas: c.areas ?? '',
         produtos: lerProdutos(c.produtos).map(doCadastro),
         reservatorios: lerReservatorios(c.reservatorios),
+        // Bebedouros: os mesmos do último, com a data deste serviço.
+        bebedouros: lerBebedouros(c.bebedouros).map((b) => ({ ...b, data: atual.data_execucao })),
         descricao: c.descricao ?? '',
         mtr: '', // o MTR muda a cada transporte
         volume: c.volume ?? '',
@@ -334,8 +366,10 @@ function Formulario({
     ] as const
     for (const [campo, valor] of campos)
       if (!form.getFieldState(campo).isDirty) form.setValue(campo, valor)
-    if (novo === 'reservatorio' && form.getValues('reservatorios').length === 0)
-      reservatorios.append({ quantidade: '', local: '', metragem: '', produto: '' })
+    if (MODELO[novo].arranjo === 'reservatorios' && form.getValues('reservatorios').length === 0)
+      reservatorios.append(RESERVATORIO_VAZIO)
+    if (MODELO[novo].arranjo === 'bebedouros' && form.getValues('bebedouros').length === 0)
+      bebedouros.append({ ...BEBEDOURO_VAZIO, data: form.getValues('data_execucao') })
   }
 
   function adicionarProduto(item: ProdutoCatalogo) {
@@ -385,7 +419,9 @@ function Formulario({
             ) || null,
           areas: ouNulo(d.areas),
           produtos: d.produtos,
-          reservatorios: d.modelo === 'reservatorio' ? lerReservatorios(d.reservatorios) : [],
+          reservatorios:
+            MODELO[d.modelo].arranjo === 'reservatorios' ? lerReservatorios(d.reservatorios) : [],
+          bebedouros: MODELO[d.modelo].arranjo === 'bebedouros' ? lerBebedouros(d.bebedouros) : [],
           descricao: ouNulo(d.descricao),
           mtr: ouNulo(d.mtr),
           volume: ouNulo(d.volume),
@@ -800,8 +836,8 @@ function Formulario({
             ) : (
               <Card className="grid gap-4">
                 <h2 className="font-bold">
-                  {m.arranjo === 'reservatorios'
-                    ? 'Áreas (opcional)'
+                  {m.arranjo === 'reservatorios' || m.arranjo === 'bebedouros'
+                    ? `${m.tituloAreas ?? 'Áreas'} (opcional)`
                     : (m.tituloAreas ?? 'Áreas atendidas')}
                 </h2>
                 <Campo
@@ -850,11 +886,73 @@ function Formulario({
                 <Button
                   variante="fantasma"
                   className="self-start"
-                  onClick={() =>
-                    reservatorios.append({ quantidade: '', local: '', metragem: '', produto: '' })
-                  }
+                  onClick={() => reservatorios.append(RESERVATORIO_VAZIO)}
                 >
                   <Plus className="size-4" aria-hidden /> Adicionar reservatório
+                </Button>
+              </Card>
+            )}
+
+            {m.arranjo === 'bebedouros' && (
+              <Card className="flex flex-col gap-3">
+                <h2 className="font-bold">Bebedouros ({bebedouros.fields.length})</h2>
+                <p className="text-sm text-texto-suave">
+                  Um por linha, com o número da etiqueta e o dia em que foi limpo.
+                </p>
+                {bebedouros.fields.map((campo, i) => (
+                  <div
+                    key={campo.id}
+                    className="grid grid-cols-[5rem_1fr] gap-2 rounded-xl border border-borda p-3 sm:grid-cols-[5rem_2fr_10rem_10rem_auto]"
+                  >
+                    <Input
+                      aria-label="Nº da etiqueta"
+                      placeholder="01"
+                      {...form.register(`bebedouros.${i}.numero`)}
+                    />
+                    <Input
+                      aria-label="Local"
+                      placeholder="Refeitório"
+                      {...form.register(`bebedouros.${i}.local`)}
+                    />
+                    <Input
+                      type="date"
+                      aria-label="Data da limpeza"
+                      className="col-span-2 sm:col-span-1"
+                      {...form.register(`bebedouros.${i}.data`)}
+                    />
+                    <div className="col-span-2 flex items-center gap-2 sm:col-span-2">
+                      <Select
+                        aria-label="Troca de filtro"
+                        {...form.register(`bebedouros.${i}.filtro`)}
+                      >
+                        <option value="">Filtro: —</option>
+                        <option value="sim">Filtro trocado</option>
+                        <option value="nao">Filtro não trocado</option>
+                      </Select>
+                      <BotaoIcone
+                        rotulo="Tirar este bebedouro"
+                        onClick={() => bebedouros.remove(i)}
+                      >
+                        <Trash2 className="size-5" aria-hidden />
+                      </BotaoIcone>
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  variante="fantasma"
+                  className="self-start"
+                  onClick={() => {
+                    const ultimo = form.getValues('bebedouros').at(-1)
+                    const n = Number(ultimo?.numero)
+                    bebedouros.append({
+                      ...BEBEDOURO_VAZIO,
+                      numero: Number.isInteger(n) && n > 0 ? String(n + 1).padStart(2, '0') : '',
+                      data: ultimo?.data || form.getValues('data_execucao'),
+                      filtro: ultimo?.filtro ?? '',
+                    })
+                  }}
+                >
+                  <Plus className="size-4" aria-hidden /> Adicionar bebedouro
                 </Button>
               </Card>
             )}

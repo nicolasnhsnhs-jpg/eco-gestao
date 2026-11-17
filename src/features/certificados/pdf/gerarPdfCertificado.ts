@@ -17,7 +17,9 @@ import {
 import {
   declaracao,
   lerProdutos,
+  lerBebedouros,
   lerReservatorios,
+  textoFiltro,
   linhasDoProduto,
   localEData,
   MODELO,
@@ -644,8 +646,35 @@ export async function gerarPdfCertificado(
       topoCorpo,
     )
   } else if (modelo.arranjo === 'reservatorios') {
-    const yTabela = tabelaReservatorios(p, f, c, topoCorpo, destaque)
+    const yTabela = tabela(
+      p,
+      f,
+      topoCorpo,
+      limite,
+      destaque,
+      ['Quantidade', 'Local', 'Metragem cúbica', 'Produto utilizado'],
+      [0.17, 0.37, 0.2, 0.26],
+      lerReservatorios(c.reservatorios).map((r) => [r.quantidade, r.local, r.metragem, r.produto]),
+    )
     meio([blocoProdutos, blocoAreas], yTabela - 12)
+  } else if (modelo.arranjo === 'bebedouros') {
+    const yTabela = tabela(
+      p,
+      f,
+      topoCorpo,
+      limite,
+      destaque,
+      ['Nº', 'Local', 'Data da limpeza', 'Troca de filtro'],
+      [0.1, 0.5, 0.2, 0.2],
+      lerBebedouros(c.bebedouros).map((b) => [
+        b.numero,
+        b.local,
+        b.data ? formatarData(b.data) : '',
+        textoFiltro(b.filtro),
+      ]),
+      ['Nº', 'Local', 'Limpeza', 'Filtro'],
+    )
+    meio([blocoAreas, blocoProdutos], yTabela - 12)
   } else {
     // Sucção: descrição, com MTR e volume
     const itens: Item[] = [
@@ -707,59 +736,111 @@ export async function gerarPdfCertificado(
   return new Blob([bytes as BlobPart], { type: 'application/pdf' })
 }
 
-/** Tabela dos reservatórios: quantidade · local · m³ · produto. Devolve o y de baixo. */
-function tabelaReservatorios(
+/**
+ * Tabela do meio (reservatórios, bebedouros): faixa colorida com os títulos e uma
+ * linha por item. Com muitas linhas a letra e o espaço diminuem; se ainda assim não
+ * cabe, a lista vira duas tabelas lado a lado. Fica lugar para os produtos embaixo.
+ * Devolve o y de baixo.
+ */
+function tabela(
   p: PDFPage,
   f: Fontes,
-  c: CertificadoResumo,
-  y: number,
+  yTopo: number,
+  yLimite: number,
   destaque: RGB,
+  cabecalho: string[],
+  proporcoes: number[],
+  linhas: string[][],
+  /** Títulos mais curtos para quando a lista vira duas tabelas. */
+  cabecalhoCurto = cabecalho,
 ) {
-  const linhas = lerReservatorios(c.reservatorios)
-  const cabecalho = ['Quantidade', 'Local', 'Metragem cúbica', 'Produto utilizado']
-  const larguras = [0.17, 0.37, 0.2, 0.26].map((r) => r * LARGURA_BLOCOS)
-  const xs = larguras.map((_, i) => M + larguras.slice(0, i).reduce((s, v) => s + v, 0))
-  const t = 9
-  cartao(p, M, y - 26, LARGURA_BLOCOS, 26, 10, { cor: destaque })
-  cabecalho.forEach((h, i) =>
-    texto(p, h.toUpperCase(), xs[i] + 12, y - 16.5, 6.8, f.negrito, COR.branco, 'esquerda', 0.8),
-  )
-  y -= 26
-  linhas.forEach((r, n) => {
-    const celulas = [r.quantidade, r.local, r.metragem, r.produto].map((v, i) =>
-      quebrarLinhas(v || '-', f.normal, t, larguras[i] - 20),
-    )
-    const altura = Math.max(...celulas.map((l) => l.length)) * t * 1.35 + 12
-    if (n % 2 === 1)
-      p.drawRectangle({
-        x: M,
-        y: y - altura,
-        width: LARGURA_BLOCOS,
-        height: altura,
-        color: COR.fundoSuave,
+  const ALTURA_CABECALHO = 26
+  const VAO = 12
+  // Espaço para a tabela: tudo menos um bloco de produtos (~90pt) embaixo.
+  const disponivel = yTopo - ALTURA_CABECALHO - yLimite - 90
+
+  const arrumar = (colunas: number, tMinimo: number) => {
+    const largura = (LARGURA_BLOCOS - VAO * (colunas - 1)) / colunas
+    const larguras = proporcoes.map((r) => r * largura)
+    const porColuna = Math.ceil(linhas.length / colunas)
+    let t = 9
+    let folga = 12
+    const medir = () =>
+      linhas.map((linha) => {
+        const celulas = linha.map((v, i) => quebrarLinhas(v || '-', f.normal, t, larguras[i] - 20))
+        return { celulas, altura: Math.max(...celulas.map((l) => l.length)) * t * 1.35 + folga }
       })
-    celulas.forEach((cel, i) =>
-      cel.forEach((l, j) =>
-        texto(
-          p,
-          l,
-          xs[i] + 12,
-          y - 6 - t - j * t * 1.35,
-          t,
-          i === 0 ? f.medio : f.normal,
-          COR.texto,
+    const alturaMaior = (m: ReturnType<typeof medir>) =>
+      Math.max(
+        ...Array.from({ length: colunas }, (_, k) =>
+          m.slice(k * porColuna, (k + 1) * porColuna).reduce((s, x) => s + x.altura, 0),
         ),
-      ),
+      )
+    let medidas = medir()
+    while (t > tMinimo && alturaMaior(medidas) > disponivel) {
+      t -= 0.25
+      folga = Math.max(4, folga - 1)
+      medidas = medir()
+    }
+    return {
+      colunas,
+      largura,
+      larguras,
+      porColuna,
+      t,
+      folga,
+      medidas,
+      cabe: alturaMaior(medidas) <= disponivel,
+    }
+  }
+
+  let a = arrumar(1, 7)
+  if (!a.cabe && linhas.length > 1) a = arrumar(2, 6.5)
+
+  let yFim = yTopo
+  for (let k = 0; k < a.colunas; k++) {
+    const x0 = M + k * (a.largura + VAO)
+    const xs = a.larguras.map((_, i) => x0 + a.larguras.slice(0, i).reduce((s, v) => s + v, 0))
+    let y = yTopo
+    cartao(p, x0, y - ALTURA_CABECALHO, a.largura, ALTURA_CABECALHO, 10, { cor: destaque })
+    const titulos = a.colunas > 1 ? cabecalhoCurto : cabecalho
+    titulos.forEach((h, i) =>
+      texto(p, h.toUpperCase(), xs[i] + 12, y - 16.5, 6.8, f.negrito, COR.branco, 'esquerda', 0.8),
     )
-    y -= altura
-    p.drawLine({
-      start: { x: M, y },
-      end: { x: M + LARGURA_BLOCOS, y },
-      thickness: 0.5,
-      color: COR.borda,
+    y -= ALTURA_CABECALHO
+    a.medidas.slice(k * a.porColuna, (k + 1) * a.porColuna).forEach(({ celulas, altura }, n) => {
+      if (n % 2 === 1)
+        p.drawRectangle({
+          x: x0,
+          y: y - altura,
+          width: a.largura,
+          height: altura,
+          color: COR.fundoSuave,
+        })
+      celulas.forEach((cel, i) =>
+        cel.forEach((l, j) =>
+          texto(
+            p,
+            l,
+            xs[i] + 12,
+            y - a.folga / 2 - a.t - j * a.t * 1.35,
+            a.t,
+            i === 0 ? f.medio : f.normal,
+            COR.texto,
+          ),
+        ),
+      )
+      y -= altura
+      p.drawLine({
+        start: { x: x0, y },
+        end: { x: x0 + a.largura, y },
+        thickness: 0.5,
+        color: COR.borda,
+      })
     })
-  })
-  return y
+    yFim = Math.min(yFim, y)
+  }
+  return yFim
 }
 
 /**

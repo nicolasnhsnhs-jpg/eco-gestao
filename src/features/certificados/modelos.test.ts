@@ -4,11 +4,13 @@ import {
   calcularValidade,
   declaracao,
   fimDoMes,
+  lerBebedouros,
   lerProdutos,
   linhasDoProduto,
   localEData,
   modeloDoTipo,
   textoDias,
+  textoFiltro,
   textoValidadeMeses,
 } from './modelos'
 
@@ -139,5 +141,24 @@ describe('responsavelDoModelo', () => {
     })
     expect(responsavelDoModelo('succao').nome).toBe('BARBARA EHLERS FRANKE DE OLIVEIRA')
     vi.unstubAllEnvs()
+  })
+})
+
+describe('bebedouros', () => {
+  it('lê a lista e descarta linhas vazias', () => {
+    expect(
+      lerBebedouros([
+        { numero: '01', local: 'Refeitório', data: '2026-11-17', filtro: 'sim' },
+        { numero: '', local: '  ', data: '2026-11-17', filtro: '' },
+        null,
+      ]),
+    ).toEqual([{ numero: '01', local: 'Refeitório', data: '2026-11-17', filtro: 'sim' }])
+    expect(lerBebedouros('x')).toEqual([])
+  })
+
+  it('escreve a troca de filtro', () => {
+    expect(textoFiltro('sim')).toBe('Sim')
+    expect(textoFiltro('nao')).toBe('Não')
+    expect(textoFiltro('')).toBe('-')
   })
 })

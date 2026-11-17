@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { areasAtendidas } from '@/features/os/EscopoAreas'
+import { litrosParaM3 } from '@/features/os/EscopoReservatorio'
 import { FunctionsHttpError } from '@supabase/supabase-js'
 
 import type { Tables, TablesInsert, TablesUpdate } from '@/lib/database.types'
 import { supabase } from '@/lib/supabase'
 
-import type { ProdutoCertificado } from './modelos'
+import type { BebedouroCertificado, ProdutoCertificado, ReservatorioCertificado } from './modelos'
 
 /*
  * Certificados de serviço e catálogo de produtos.
@@ -261,6 +262,48 @@ export type Origem = {
   pragasAlvo: string
   /** Produtos do catálogo que o técnico marcou na OS (com o lote atual). */
   produtos: ProdutoCertificado[]
+  /** Reservatórios limpos na OS, um por linha. */
+  reservatorios: ReservatorioCertificado[]
+  /** Bebedouros limpos na OS, um por linha (a data vazia = a da execução). */
+  bebedouros: BebedouroCertificado[]
+}
+
+/**
+ * Reservatórios e bebedouros da OS para o certificado: entram os marcados como limpos;
+ * se a OS ainda não teve nenhum marcado, entram todos (menos os "não limpo").
+ */
+export async function pontosDaOs(
+  osId: string,
+): Promise<{ reservatorios: ReservatorioCertificado[]; bebedouros: BebedouroCertificado[] }> {
+  const { data, error } = await supabase
+    .from('os_pontos')
+    .select('tipo, numero, area, quantidade, capacidade_litros, limpo, filtro_trocado')
+    .eq('os_id', osId)
+    .in('tipo', ['reservatorio', 'bebedouro', 'bebedouro_garrafao'])
+    .order('tipo')
+    .order('numero')
+  if (error) throw error
+  const escolher = (lista: typeof data) =>
+    lista.some((p) => p.limpo)
+      ? lista.filter((p) => p.limpo)
+      : lista.filter((p) => p.limpo !== false)
+  const reservatorios = escolher(data.filter((p) => p.tipo === 'reservatorio')).map((r) => {
+    const q = r.quantidade ?? 1
+    const m3 = litrosParaM3(r.capacidade_litros)
+    return {
+      quantidade: `${String(q).padStart(2, '0')} ${q === 1 ? 'Reservatório' : 'Reservatórios'}`,
+      local: r.area,
+      metragem: m3 ? `${m3}m³${q > 1 ? '/cada' : ''}` : '',
+      produto: '',
+    }
+  })
+  const bebedouros = escolher(data.filter((p) => p.tipo !== 'reservatorio')).map((b) => ({
+    numero: String(b.numero).padStart(2, '0'),
+    local: b.tipo === 'bebedouro_garrafao' ? `${b.area} (garrafão)` : b.area,
+    data: '',
+    filtro: b.filtro_trocado == null ? '' : b.filtro_trocado ? 'sim' : 'nao',
+  }))
+  return { reservatorios, bebedouros }
 }
 
 /** "a, b e c" */
@@ -362,6 +405,7 @@ export function useOrigemOs(osId: string | null) {
         descricao,
         pragasAlvo: pragas ? juntarComE(pragas.map((x) => x.toLowerCase())) : '',
         produtos: await produtosDaOs(data.id),
+        ...(await pontosDaOs(data.id)),
       }
     },
   })
@@ -399,6 +443,8 @@ export function useOrigemServico(servicoId: string | null) {
         descricao: '',
         pragasAlvo: '',
         produtos: [],
+        reservatorios: [],
+        bebedouros: [],
       }
     },
   })
