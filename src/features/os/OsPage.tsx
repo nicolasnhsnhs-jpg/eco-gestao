@@ -27,6 +27,7 @@ import {
   useReabrirOs,
 } from './api'
 import { nomeVeiculo } from './nomeVeiculo'
+import { formatarM3, nomeResiduo, quantidadeValida, residuoDoChecklist } from './tipos/residuo'
 import { ConferenciaOs } from './ConferenciaOs'
 import { EditarOs } from './EditarOs'
 import { EscopoAgua } from './EscopoAgua'
@@ -280,6 +281,18 @@ export function OsPage() {
                 {hora(e.hora_termino)} · Saída {hora(e.hora_saida)}
               </Linha>
               <Linha rotulo="KM na chegada">{e.km_chegada?.toLocaleString('pt-BR') ?? '—'}</Linha>
+              {o.tipo?.registra_residuo && (
+                <>
+                  <Linha rotulo="Quantidade sugada">
+                    {quantidadeValida(residuoDoChecklist(e.checklist))
+                      ? formatarM3(residuoDoChecklist(e.checklist).quantidade_m3!)
+                      : '—'}
+                  </Linha>
+                  <Linha rotulo="Resíduo">
+                    {nomeResiduo(residuoDoChecklist(e.checklist).codigo) ?? '—'}
+                  </Linha>
+                </>
+              )}
               <Linha rotulo="Resultado">{e.resultado || '—'}</Linha>
               <Linha rotulo="Observações">{e.observacoes || '—'}</Linha>
               {o.ocorrencia && (

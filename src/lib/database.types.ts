@@ -4684,6 +4684,7 @@ export type Database = {
           id: string
           nome: string
           periodicidade_meses_padrao: number | null
+          registra_residuo: boolean
           tipo_vencimento: Database['public']['Enums']['tipo_vencimento'] | null
         }
         Insert: {
@@ -4698,6 +4699,7 @@ export type Database = {
           id?: string
           nome: string
           periodicidade_meses_padrao?: number | null
+          registra_residuo?: boolean
           tipo_vencimento?: Database['public']['Enums']['tipo_vencimento'] | null
         }
         Update: {
@@ -4712,6 +4714,7 @@ export type Database = {
           id?: string
           nome?: string
           periodicidade_meses_padrao?: number | null
+          registra_residuo?: boolean
           tipo_vencimento?: Database['public']['Enums']['tipo_vencimento'] | null
         }
         Relationships: [

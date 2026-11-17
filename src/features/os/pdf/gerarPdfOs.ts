@@ -23,6 +23,7 @@ import {
   type DadosPragas,
 } from './pragasPdf'
 import { escreverTelas } from './telasPdf'
+import { formatarM3, nomeResiduo, quantidadeValida, residuoDoChecklist } from '../tipos/residuo'
 
 /*
  * PDF da OS para enviar ao cliente e arquivar. Feito no navegador com pdf-lib
@@ -384,6 +385,11 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
     'Horários',
     `Chegada ${hora(e?.hora_chegada ?? null)} · Início ${hora(e?.hora_inicio ?? null)} · Término ${hora(e?.hora_termino ?? null)} · Saída ${hora(e?.hora_saida ?? null)}`,
   )
+  if (os.tipo?.registra_residuo) {
+    const r = residuoDoChecklist(e?.checklist)
+    w.campo('Quantidade sugada', quantidadeValida(r) ? formatarM3(r.quantidade_m3!) : '')
+    w.campo('Resíduo', nomeResiduo(r.codigo) ?? '')
+  }
   if (os.tipo?.formulario_os === 'generico') w.campo('Resultado', e?.resultado)
   if (pragas && os.tipo?.formulario_os === 'reservatorio') {
     const lista = pragas.pontos.filter((p) => p.tipo === 'reservatorio')

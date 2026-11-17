@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { etapaDaPendencia, horariosForaDeOrdem, pendenciasLocais } from './pendencias'
+import type { Json } from '@/lib/database.types'
 
 // Os mesmos casos de supabase/tests/os*.sql, para a regra do celular não se
 // afastar da regra do banco.
@@ -241,6 +242,22 @@ describe('reservatórios', () => {
     expect(pendenciasLocais('reservatorio', comum, pontos)).toEqual(['reservatórios: Terraço'])
     expect(pendenciasLocais('reservatorio', comum, [{ ...pontos[0], limpo: false }])).toEqual([])
     expect(etapaDaPendencia('reservatórios: Terraço')).toBe('Reservatórios')
+  })
+
+  it('sucção exige quantidade sugada (m³) e o código do resíduo', () => {
+    const feita = { ...comum, resultado: 'ok' }
+    const pend = (checklist: Json) =>
+      pendenciasLocais('generico', { ...feita, checklist }, [], undefined, null, null, true)
+    expect(pend(null)).toEqual(['quantidade sugada', 'tipo de resíduo sugado'])
+    expect(pend({ residuo: { quantidade_m3: 0, codigo: '999999' } })).toEqual([
+      'quantidade sugada',
+      'tipo de resíduo sugado',
+    ])
+    expect(pend({ residuo: { quantidade_m3: 4.5, codigo: '200304' } })).toEqual([])
+    // Tipo sem a marcação: não pede nada disso.
+    expect(pendenciasLocais('generico', feita, [])).toEqual([])
+    expect(etapaDaPendencia('quantidade sugada')).toBe('Serviço realizado')
+    expect(etapaDaPendencia('tipo de resíduo sugado')).toBe('Serviço realizado')
   })
 })
 

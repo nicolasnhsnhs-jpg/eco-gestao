@@ -4,11 +4,12 @@ import { aparelhoIncompleto, type ChecklistAr } from '../tipos/arCondicionado'
 import type { ChecklistBebedouro } from '../tipos/bebedouro'
 import type { ChecklistCoifa } from '../tipos/coifa'
 import { ESPECIES, type ChecklistPragas } from '../tipos/pragas'
+import { codigoValido, quantidadeValida, residuoDoChecklist } from '../tipos/residuo'
 import type { ChecklistTelas } from '../tipos/telas'
 
 /*
  * O que falta para concluir a OS — a MESMA regra de privado.pendencias_os no banco
- * (migration 20261227120100_os_agua_ar_condicionado.sql). O celular usa esta cópia para concluir
+ * (migration 20270111120000_os_residuo_succao.sql). O celular usa esta cópia para concluir
  * sem internet; quando o sinal volta, o banco confere de novo e é quem garante.
  * Se mudar uma, mude a outra (os testes de pendencias.test.ts e de os*.sql ajudam).
  */
@@ -91,6 +92,8 @@ export function pendenciasLocais(
   ocorrencia?: string | null,
   /** Subtipo do controle de pragas (escopo da OS): "insetos_roedores" exige o monitoramento. */
   subtipoPragas?: string | null,
+  /** Tipo de serviço de sucção: pede a quantidade sugada e o código do resíduo. */
+  registraResiduo?: boolean,
 ): string[] {
   const falta: string[] = []
   if (!e.data) falta.push('data')
@@ -215,6 +218,12 @@ export function pendenciasLocais(
     if (typeof c.produto_ml !== 'number') falta.push('quantidade de produto')
   }
 
+  if (registraResiduo) {
+    const r = residuoDoChecklist(e.checklist)
+    if (!quantidadeValida(r)) falta.push('quantidade sugada')
+    if (!codigoValido(r)) falta.push('tipo de resíduo sugado')
+  }
+
   // Serviços de limpeza: pelo menos uma foto de antes e uma de depois.
   if (fotos?.exigidas) {
     if (fotos.antes === 0) falta.push('foto antes do serviço')
@@ -232,7 +241,13 @@ export function etapaDaPendencia(pendencia: string): string | null {
     return 'Término e saída'
   }
   if (pendencia === 'data' || pendencia.startsWith('horário de')) return 'Chegada e horários'
-  if (pendencia === 'resultado do serviço') return 'Serviço realizado'
+  if (
+    pendencia === 'resultado do serviço' ||
+    pendencia === 'quantidade sugada' ||
+    pendencia === 'tipo de resíduo sugado'
+  ) {
+    return 'Serviço realizado'
+  }
   if (pendencia === 'nome do operador' || pendencia === 'visto do operador') return 'Operador'
   if (pendencia.includes('quem acompanhou')) return 'Quem acompanhou (cliente)'
   if (pendencia === 'confirmação da ocorrência') return 'Ocorrência'

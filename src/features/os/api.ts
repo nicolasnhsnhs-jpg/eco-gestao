@@ -84,7 +84,7 @@ export function enderecoDaFicha(ficha: FichaCliente) {
 }
 
 const RELACOES = `
-  tipo:tipos_servico(id, nome, formulario_os, fotos_antes_depois),
+  tipo:tipos_servico(id, nome, formulario_os, fotos_antes_depois, registra_residuo),
   veiculo:veiculos(id, placa, descricao, sigla),
   operadores:os_operadores(operador:perfis(id, nome))
 `
@@ -649,7 +649,7 @@ export function useFaturarOs(osId: string) {
 const RELACOES_MODELO = `
   cliente:clientes(id, nome, nome_fantasia, cpf_cnpj),
   endereco:enderecos(id, apelido, logradouro, numero, cidade, uf),
-  tipo:tipos_servico(id, nome, formulario_os, fotos_antes_depois)
+  tipo:tipos_servico(id, nome, formulario_os, fotos_antes_depois, registra_residuo)
 `
 
 /** Quantas O.S salvas a lista carrega de cada vez enquanto a pessoa rola a tela. */
