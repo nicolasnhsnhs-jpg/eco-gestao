@@ -46,3 +46,26 @@ describe('esquecerArquivoNoRascunho', () => {
     vi.unstubAllGlobals()
   })
 })
+
+describe('aplicarNaOsGuardada', () => {
+  it('a cópia da OS no celular passa a ter os horários registrados', async () => {
+    const { QueryClient } = await import('@tanstack/react-query')
+    const { aplicarNaOsGuardada } = await import('./rascunho')
+    const qc = new QueryClient()
+    qc.setQueryData(['os', 'os-1'], {
+      id: 'os-1',
+      execucao: { os_id: 'os-1', hora_chegada: null, hora_inicio: null, checklist: {} },
+    })
+    aplicarNaOsGuardada(qc, 'os-1', { hora_chegada: '2026-11-17T11:00:00.000Z' })
+    aplicarNaOsGuardada(qc, 'os-1', { hora_inicio: '2026-11-17T11:05:00.000Z' })
+    await vi.waitFor(() =>
+      expect(qc.getQueryData(['os', 'os-1'])).toMatchObject({
+        execucao: {
+          hora_chegada: '2026-11-17T11:00:00.000Z',
+          hora_inicio: '2026-11-17T11:05:00.000Z',
+          checklist: {},
+        },
+      }),
+    )
+  })
+})

@@ -1,6 +1,7 @@
+import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { gravarExecucao, type CamposExecucao } from '../api'
+import { gravarExecucao, type CamposExecucao, type OsCompleta } from '../api'
 
 /*
  * Rascunho local da execução: cada alteração fica salva no celular na hora
@@ -44,6 +45,26 @@ export function mesclarComRascunho(
 }
 
 /**
+ * Põe as alterações também na cópia da OS guardada no celular (cache da
+ * consulta ['os', id], que fica salvo entre aberturas do app). Sem isso, depois
+ * que o rascunho era enviado e apagado, reabrir a OS mostrava a cópia antiga —
+ * baixada de manhã, sem chegada e início — e os horários pareciam ter sumido.
+ */
+export function aplicarNaOsGuardada(
+  queryClient: QueryClient,
+  osId: string,
+  novos: CamposExecucao,
+) {
+  // Uma busca da OS que saiu antes desta alteração traria a versão antiga.
+  // Cancela antes de gravar: o cancelamento devolve a cópia ao estado anterior.
+  void queryClient.cancelQueries({ queryKey: ['os', osId], exact: true }).then(() =>
+    queryClient.setQueryData<OsCompleta | null>(['os', osId], (os) =>
+      os?.execucao ? { ...os, execucao: { ...os.execucao, ...novos } } : os,
+    ),
+  )
+}
+
+/**
  * Envia o que ficou só no celular (usado pela fila antes de concluir a OS).
  * Lança o erro se não conseguir, para a fila tentar de novo depois.
  */
@@ -81,6 +102,7 @@ const ehArquivoQueFalta = (erro: unknown) => (erro as { code?: string } | null)?
 const ESPERA_ENVIO_MS = 1500
 
 export function useRascunhoExecucao(osId: string, doBanco: CamposExecucao, podeEditar: boolean) {
+  const queryClient = useQueryClient()
   const [campos, setCampos] = useState<CamposExecucao>(() =>
     mesclarComRascunho(doBanco, lerRascunho(osId)),
   )
@@ -134,12 +156,23 @@ export function useRascunhoExecucao(osId: string, doBanco: CamposExecucao, podeE
       setCampos((atual) => ({ ...atual, ...novos }))
       pendentes.current = { ...pendentes.current, ...novos }
       guardar(osId, { campos: pendentes.current, pendente: true })
+      aplicarNaOsGuardada(queryClient, osId, novos)
       setEstado('salvo_no_celular')
       clearTimeout(temporizador.current)
       temporizador.current = setTimeout(() => void enviar(), ESPERA_ENVIO_MS)
     },
-    [enviar, osId, podeEditar],
+    [enviar, osId, podeEditar, queryClient],
   )
+
+  // Chegou uma versão nova da OS (abriu com a cópia do celular e o banco
+  // respondeu depois): a tela passa a mostrar o que está no banco, mantendo por
+  // cima o que o operador mudou e ainda não foi enviado.
+  const bancoAnterior = useRef(doBanco)
+  useEffect(() => {
+    if (bancoAnterior.current === doBanco) return
+    bancoAnterior.current = doBanco
+    setCampos({ ...doBanco, ...pendentes.current })
+  }, [doBanco])
 
   // Voltou o sinal (ou o celular saiu do modo avião), ou subiu o arquivo de uma
   // assinatura: envia o que ficou guardado.
