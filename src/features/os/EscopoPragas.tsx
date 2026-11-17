@@ -19,6 +19,7 @@ import {
   escreverFaixas,
   FORMAS_ISCAGEM,
   lerFaixas,
+  nomeModeloArmadilha,
   PRAGAS_ALVO,
   TIPOS_ISCA,
   type EscopoPragas as Escopo,
@@ -73,6 +74,7 @@ export function EscopoPragas({ alvo }: { alvo: AlvoEscopo }) {
         {pontos.isPending && <Carregando />}
         <ResumoPorArea pontos={portaIscas} />
         <FormLote
+          pontos={portaIscas}
           ocupado={salvarPontos.isPending}
           aoAdicionar={(novos) =>
             executar(
@@ -102,7 +104,7 @@ export function EscopoPragas({ alvo }: { alvo: AlvoEscopo }) {
           aoRemover={(p) =>
             executar(
               () => salvarPontos.mutateAsync({ alterar: { id: p.id, dados: { ativo: false } } }),
-              `Porta-isca ${p.numero} retirado. O histórico dele continua guardado.`,
+              `Porta-isca ${p.numero} (${p.area}) retirado. O histórico dele continua guardado.`,
             )
           }
         />
@@ -381,13 +383,100 @@ function ResumoPorArea({ pontos }: { pontos: PontoControle[] }) {
 
 type NovoPortaIsca = { numero: number; area: string; forma_iscagem: string; tipo_isca: string }
 
+const mesmaArea = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
+
+/** Áreas já cadastradas, sem repetir (a primeira grafia vale). */
+function areasDe(pontos: PontoControle[]) {
+  const areas: string[] = []
+  for (const p of pontos) if (!areas.some((a) => mesmaArea(a, p.area))) areas.push(p.area)
+  return areas
+}
+
+const NOVA_AREA = '__nova__'
+
+/**
+ * Escolhe uma área já cadastrada ou cria uma nova. A numeração pode recomeçar
+ * em cada área (Cozinha 1-5, Saguão 1-10).
+ */
+function CampoArea({
+  id,
+  rotulo = 'Área',
+  areas,
+  valor,
+  aoMudar,
+  podeCriar,
+  opcaoTodas,
+}: {
+  id: string
+  rotulo?: string
+  areas: string[]
+  valor: string
+  aoMudar: (area: string) => void
+  podeCriar?: boolean
+  opcaoTodas?: string
+}) {
+  const [criando, setCriando] = useState(false)
+  if (podeCriar && (criando || areas.length === 0)) {
+    return (
+      <Campo rotulo={`${rotulo} (nova)`} htmlFor={id}>
+        <div className="flex gap-1">
+          <Input
+            id={id}
+            autoFocus={areas.length > 0}
+            placeholder="Ex.: Cozinha"
+            value={valor}
+            onChange={(e) => aoMudar(e.target.value)}
+          />
+          {areas.length > 0 && (
+            <Button
+              variante="fantasma"
+              title="Escolher uma área já cadastrada"
+              onClick={() => {
+                setCriando(false)
+                aoMudar('')
+              }}
+            >
+              Lista
+            </Button>
+          )}
+        </div>
+      </Campo>
+    )
+  }
+  return (
+    <Campo rotulo={rotulo} htmlFor={id}>
+      <Select
+        id={id}
+        value={valor}
+        onChange={(e) => {
+          if (e.target.value === NOVA_AREA) {
+            setCriando(true)
+            aoMudar('')
+          } else aoMudar(e.target.value)
+        }}
+      >
+        <option value="">{opcaoTodas ?? 'Escolha a área'}</option>
+        {areas.map((a) => (
+          <option key={a} value={a}>
+            {a}
+          </option>
+        ))}
+        {podeCriar && <option value={NOVA_AREA}>+ Nova área…</option>}
+      </Select>
+    </Campo>
+  )
+}
+
 function FormLote({
+  pontos,
   ocupado,
   aoAdicionar,
 }: {
+  pontos: PontoControle[]
   ocupado: boolean
   aoAdicionar: (novos: NovoPortaIsca[]) => Promise<void>
 }) {
+  const areas = areasDe(pontos)
   const [area, setArea] = useState('')
   const [numeros, setNumeros] = useState('')
   const [forma, setForma] = useState('PIE')
@@ -397,9 +486,14 @@ function FormLote({
   async function adicionar() {
     setErro(null)
     const { numeros: lista, invalidos } = lerFaixas(numeros)
-    if (!area.trim()) return setErro('Informe a área.')
+    if (!area.trim()) return setErro('Escolha ou crie a área.')
     if (invalidos.length) return setErro(`Não entendi: ${invalidos.join(', ')}.`)
     if (lista.length === 0) return setErro('Informe os números (ex.: 1-25).')
+    const repetidos = lista.filter((n) =>
+      pontos.some((p) => p.numero === n && mesmaArea(p.area, area)),
+    )
+    if (repetidos.length)
+      return setErro(`Já existe em ${area.trim()}: ${escreverFaixas(repetidos)}.`)
     await aoAdicionar(
       lista.map((numero) => ({ numero, area: area.trim(), forma_iscagem: forma, tipo_isca: tipo })),
     )
@@ -407,15 +501,13 @@ function FormLote({
   }
 
   return (
-    <div className="grid gap-2 rounded-xl bg-fundo-suave p-3 sm:grid-cols-[1fr_7rem_9rem_9rem_auto] sm:items-end">
+    <div className="grid gap-2 rounded-xl bg-fundo-suave p-3 sm:grid-cols-2 sm:items-end lg:grid-cols-[minmax(12rem,1fr)_7rem_9rem_9rem_auto]">
       {erro && (
-        <div className="sm:col-span-5">
+        <div className="col-span-full">
           <Aviso tipo="erro">{erro}</Aviso>
         </div>
       )}
-      <Campo rotulo="Área" htmlFor="lote-area">
-        <Input id="lote-area" value={area} onChange={(e) => setArea(e.target.value)} />
-      </Campo>
+      <CampoArea id="lote-area" areas={areas} valor={area} aoMudar={setArea} podeCriar />
       <Campo rotulo="Números" htmlFor="lote-numeros" dica="Ex.: 1-25">
         <Input id="lote-numeros" value={numeros} onChange={(e) => setNumeros(e.target.value)} />
       </Campo>
@@ -445,6 +537,24 @@ function FormLote({
 }
 
 /**
+ * Acha os porta-iscas pelos números dentro da área escolhida. Sem área, só
+ * funciona se o número não se repetir em outra área.
+ */
+function acharPorNumero(pontos: PontoControle[], area: string, lista: number[]) {
+  const daArea = area ? pontos.filter((p) => mesmaArea(p.area, area)) : pontos
+  const escolhidos: PontoControle[] = []
+  const faltando: number[] = []
+  const ambiguos: number[] = []
+  for (const n of lista) {
+    const achados = daArea.filter((p) => p.numero === n)
+    if (achados.length === 0) faltando.push(n)
+    else if (achados.length > 1) ambiguos.push(n)
+    else escolhidos.push(achados[0])
+  }
+  return { escolhidos, faltando, ambiguos }
+}
+
+/**
  * Muda a área (nome), a iscagem ou o tipo de isca de um porta-isca ou de vários
  * ("1-10"). Fica gravado no local e vale para as próximas O.S.
  */
@@ -457,6 +567,8 @@ function FormEditar({
   ocupado: boolean
   aoSalvar: (ids: string[], dados: TablesUpdate<'pontos_controle'>) => Promise<void>
 }) {
+  const areas = areasDe(pontos)
+  const [areaAtual, setAreaAtual] = useState('')
   const [numeros, setNumeros] = useState('')
   const [area, setArea] = useState('')
   const [forma, setForma] = useState('')
@@ -465,27 +577,33 @@ function FormEditar({
   if (pontos.length === 0) return null
 
   const { numeros: lista, invalidos } = lerFaixas(numeros)
-  const escolhidos = pontos.filter((p) => lista.includes(p.numero))
-  const faltando = lista.filter((n) => !pontos.some((p) => p.numero === n))
+  const { escolhidos, faltando, ambiguos } = acharPorNumero(pontos, areaAtual, lista)
 
-  function escolher(texto: string) {
+  function escolher(texto: string, daArea = areaAtual) {
     setNumeros(texto)
     setErro(null)
     // Com um número só, já mostra o que ele tem hoje para facilitar a correção.
     const um = lerFaixas(texto).numeros
-    const p = um.length === 1 ? pontos.find((x) => x.numero === um[0]) : undefined
-    if (p) {
-      setArea(p.area)
-      setForma(p.forma_iscagem ?? '')
-      setTipo(p.tipo_isca ?? '')
+    const achado = um.length === 1 ? acharPorNumero(pontos, daArea, um).escolhidos[0] : undefined
+    if (achado) {
+      setArea(achado.area)
+      setForma(achado.forma_iscagem ?? '')
+      setTipo(achado.tipo_isca ?? '')
     }
   }
 
   async function salvar() {
     setErro(null)
     if (invalidos.length) return setErro(`Não entendi: ${invalidos.join(', ')}.`)
-    if (escolhidos.length === 0) return setErro('Informe o número do porta-isca (ex.: 5 ou 1-10).')
-    if (faltando.length) return setErro(`Não há porta-isca com o número ${faltando.join(', ')}.`)
+    if (lista.length === 0) return setErro('Informe o número do porta-isca (ex.: 5 ou 1-10).')
+    if (ambiguos.length)
+      return setErro(
+        `O número ${ambiguos.join(', ')} existe em mais de uma área: escolha a área primeiro.`,
+      )
+    if (faltando.length)
+      return setErro(
+        `Não há porta-isca com o número ${faltando.join(', ')}${areaAtual ? ` em ${areaAtual}` : ''}.`,
+      )
     const dados: TablesUpdate<'pontos_controle'> = {}
     if (area.trim()) dados.area = area.trim()
     if (forma) dados.forma_iscagem = forma
@@ -506,16 +624,26 @@ function FormEditar({
       <summary className="cursor-pointer font-semibold">
         Alterar porta-isca (nome da área, isca)
       </summary>
-      <div className="mt-2 grid gap-2 sm:grid-cols-[7rem_1fr_9rem_9rem_auto] sm:items-end">
+      <div className="mt-2 grid gap-2 sm:grid-cols-2 sm:items-end xl:grid-cols-[11rem_6rem_1fr_9rem_9rem_auto]">
         {erro && (
-          <div className="sm:col-span-5">
+          <div className="col-span-full">
             <Aviso tipo="erro">{erro}</Aviso>
           </div>
         )}
+        <CampoArea
+          id="editar-area-atual"
+          areas={areas}
+          valor={areaAtual}
+          opcaoTodas="Todas as áreas"
+          aoMudar={(a) => {
+            setAreaAtual(a)
+            escolher(numeros, a)
+          }}
+        />
         <Campo rotulo="Números" htmlFor="editar-numeros" dica="Ex.: 5 ou 1-10">
           <Input id="editar-numeros" value={numeros} onChange={(e) => escolher(e.target.value)} />
         </Campo>
-        <Campo rotulo="Nova área" htmlFor="editar-area">
+        <Campo rotulo="Novo nome da área" htmlFor="editar-area">
           <Input id="editar-area" value={area} onChange={(e) => setArea(e.target.value)} />
         </Campo>
         <Campo rotulo="Iscagem" htmlFor="editar-forma">
@@ -546,6 +674,7 @@ function FormEditar({
   )
 }
 
+/** Retira um porta-isca: primeiro a área, depois o número (a numeração pode repetir). */
 function FormRemover({
   pontos,
   ocupado,
@@ -555,11 +684,20 @@ function FormRemover({
   ocupado: boolean
   aoRemover: (p: PontoControle) => Promise<void>
 }) {
+  const areas = areasDe(pontos)
+  const [escolhida, setEscolhida] = useState('')
   const [numero, setNumero] = useState('')
   if (pontos.length === 0) return null
-  const alvo = pontos.find((p) => p.numero === Number(numero))
+  // Com uma área só, ela já vem escolhida.
+  const area = escolhida || (areas.length === 1 ? areas[0] : '')
+  const alvo = area
+    ? pontos.find((p) => mesmaArea(p.area, area) && p.numero === Number(numero))
+    : undefined
   return (
     <div className="flex flex-wrap items-end gap-2">
+      <div className="w-52">
+        <CampoArea id="remover-area" areas={areas} valor={area} aoMudar={setEscolhida} />
+      </div>
       <Campo rotulo="Retirar o porta-isca nº" htmlFor="remover-numero">
         <Input
           id="remover-numero"
@@ -580,6 +718,11 @@ function FormRemover({
       >
         Retirar
       </Button>
+      {area && numero && !alvo && (
+        <p className="w-full text-sm text-perigo">
+          Não há porta-isca {numero} em {area}.
+        </p>
+      )}
     </div>
   )
 }
@@ -639,6 +782,7 @@ function FormArmadilha({
       <Campo rotulo="Modelo" htmlFor="arm-modelo">
         <Select id="arm-modelo" value={modelo} onChange={(e) => setModelo(e.target.value)}>
           <option value="P">P · Branca</option>
+          <option value="M">M</option>
           <option value="G">G · Inox</option>
         </Select>
       </Campo>
@@ -668,8 +812,7 @@ function ArmadilhaItem({
     <li className="flex flex-col gap-2 rounded-xl border border-borda p-3">
       <div className="flex items-center gap-2">
         <span className="flex-1 font-semibold">
-          {String(a.numero).padStart(2, '0')} · {a.area} ·{' '}
-          {a.modelo_armadilha === 'P' ? 'Branca (P)' : 'Inox (G)'}
+          {String(a.numero).padStart(2, '0')} · {a.area} · {nomeModeloArmadilha(a.modelo_armadilha)}
         </span>
         <Button
           variante="fantasma"

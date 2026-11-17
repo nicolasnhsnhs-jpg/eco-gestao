@@ -34,6 +34,7 @@ import {
   FORMAS_PRODUTO,
   HIGIENE,
   NIVEIS,
+  nomeModeloArmadilha,
   OCORRENCIAS,
   PRAGAS_ALVO,
   PRAGAS_INSETOS,
@@ -503,7 +504,7 @@ function escreverPragas(f: Folha, os: OsCompleta, pontos: PontoOs[]) {
           [`${String(a.numero).padStart(2, '0')} · ${a.area}`, a.observacao_fixa?.trim()]
             .filter(Boolean)
             .join(' · Obs.: '),
-          a.modelo_armadilha === 'P' ? 'Branca (P)' : a.modelo_armadilha === 'G' ? 'Inox (G)' : '',
+          nomeModeloArmadilha(a.modelo_armadilha),
           a.ultima_troca_lampada ? formatarData(a.ultima_troca_lampada) : 'sem registro',
           '',
           '',

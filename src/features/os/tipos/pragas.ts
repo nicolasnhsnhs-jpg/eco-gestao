@@ -50,6 +50,11 @@ export const SITUACOES_ARMADILHA = {
   LT: 'Lâmpada trocada',
 } as const
 
+/** Modelos de armadilha luminosa (P branca, M, G inox). */
+export const MODELOS_ARMADILHA = { P: 'Branca (P)', M: 'Modelo M', G: 'Inox (G)' } as const
+export const nomeModeloArmadilha = (modelo: string | null | undefined) =>
+  (modelo && MODELOS_ARMADILHA[modelo as keyof typeof MODELOS_ARMADILHA]) ?? modelo ?? ''
+
 export const REFIL = { M: 'Mantido', T: 'Trocado', I: 'Inexistente' } as const
 export const HIGIENE = { S: 'Satisfatória', R: 'Regular', I: 'Insuficiente' } as const
 export const ESPECIES = { M: 'Mosca', MQ: 'Mosquito', MA: 'Mariposa', B: 'Besouro' } as const

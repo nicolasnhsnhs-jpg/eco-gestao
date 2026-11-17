@@ -29,6 +29,7 @@ import {
   FORMAS_PRODUTO,
   HIGIENE,
   lerFaixas,
+  nomeModeloArmadilha,
   NIVEIS,
   OCORRENCIAS,
   PRAGAS_ALVO,
@@ -377,7 +378,7 @@ export function ExecucaoPragas({ os, campos, alterar, aberta, primeira }: Props)
  */
 function ExcecoesPortaIscas({
   osId,
-  pontos,
+  pontos: todos,
   aberta,
 }: {
   osId: string
@@ -385,18 +386,45 @@ function ExcecoesPortaIscas({
   aberta: boolean
 }) {
   const anotar = useAnotarPontos(osId)
+  const contagem = new Map<string, number>()
+  for (const p of todos) contagem.set(p.situacao ?? '—', (contagem.get(p.situacao ?? '—') ?? 0) + 1)
+
+  // Cliente que recomeça a numeração em cada área (Cozinha 1-5, Saguão 1-10):
+  // o técnico escolhe a área e digita os números dela.
+  const areas = [...new Set(todos.map((p) => p.area))]
+  const vistos = new Set<string>()
+  const repete = todos.some((p) => {
+    const chave = `${p.tipo_isca === 'CO'}-${p.numero}`
+    if (vistos.has(chave)) return true
+    vistos.add(chave)
+    return false
+  })
+  const [areaEscolhida, setAreaEscolhida] = useState('')
+  const area = repete ? areaEscolhida || areas[0] : ''
+  const pontos = area ? todos.filter((p) => p.area === area) : todos
   const temPlaca = pontos.some((p) => p.tipo_isca === 'CO')
   const temIsca = pontos.some((p) => p.tipo_isca !== 'CO')
-  const contagem = new Map<string, number>()
-  for (const p of pontos)
-    contagem.set(p.situacao ?? '—', (contagem.get(p.situacao ?? '—') ?? 0) + 1)
 
   return (
     <div className="flex flex-col gap-3">
       <p className="rounded-xl bg-lima-claro p-3 text-verde-escuro">
-        <strong>{pontos.length} porta-iscas:</strong>{' '}
+        <strong>{todos.length} porta-iscas:</strong>{' '}
         {[...contagem].map(([codigo, n]) => `${n} ${codigo}`).join(' · ')}
       </p>
+      {repete && (
+        <label className="flex flex-col gap-1">
+          <span className="font-semibold">
+            Área (a numeração recomeça em cada área: escolha a área e digite os números dela)
+          </span>
+          <Select value={area} onChange={(e) => setAreaEscolhida(e.target.value)}>
+            {areas.map((a) => (
+              <option key={a} value={a}>
+                {a} ({todos.filter((p) => p.area === a).length})
+              </option>
+            ))}
+          </Select>
+        </label>
+      )}
       <p className="text-sm text-texto-suave">
         Todos começam como <strong>MS</strong> (placas de cola: <strong>M</strong>). Digite só os
         números das exceções, ex.: <strong>12, 15, 40-45</strong> (ou com espaço:{' '}
@@ -407,7 +435,7 @@ function ExcecoesPortaIscas({
           .filter(([codigo]) => codigo !== 'MS')
           .map(([codigo, nome]) => (
             <LinhaExcecao
-              key={`isca-${codigo}`}
+              key={`isca-${area}-${codigo}`}
               codigo={codigo}
               nome={nome}
               pontos={pontos.filter((p) => p.tipo_isca !== 'CO')}
@@ -427,7 +455,7 @@ function ExcecoesPortaIscas({
             .filter(([codigo]) => codigo !== 'M')
             .map(([codigo, nome]) => (
               <LinhaExcecao
-                key={`placa-${codigo}`}
+                key={`placa-${area}-${codigo}`}
                 codigo={codigo}
                 nome={nome}
                 pontos={pontos.filter((p) => p.tipo_isca === 'CO')}
@@ -582,7 +610,7 @@ function Armadilha({ osId, ponto, aberta }: { osId: string; ponto: PontoOs; aber
     <div className="flex flex-col gap-3 rounded-xl border border-borda p-3">
       <p className="font-semibold">
         {String(ponto.numero).padStart(2, '0')} · {ponto.area} ·{' '}
-        {ponto.modelo_armadilha === 'P' ? 'Branca (P)' : 'Inox (G)'}
+        {nomeModeloArmadilha(ponto.modelo_armadilha)}
       </p>
       <p className="-mt-2 text-sm text-texto-suave">
         Última troca de lâmpada:{' '}

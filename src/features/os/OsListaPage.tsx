@@ -69,6 +69,27 @@ export function OsListaPage() {
   }, [lista.data, busca, operadorId])
   const filtrando = !!busca.trim() || !!operadorId
 
+  // Quantas OS cada operador tem no que está na tela (para escolher um e ver as dele).
+  const porOperador = useMemo(() => {
+    const contagem = new Map<string, { nome: string; qtd: number }>()
+    for (const os of filtradas) {
+      for (const o of os.operadores) {
+        if (!o.operador) continue
+        const linha = contagem.get(o.operador.id) ?? { nome: o.operador.nome, qtd: 0 }
+        linha.qtd += 1
+        contagem.set(o.operador.id, linha)
+      }
+    }
+    return [...contagem].sort((a, b) => b[1].qtd - a[1].qtd || a[1].nome.localeCompare(b[1].nome))
+  }, [filtradas])
+  const nomeOperador = operadores.data?.find((o) => o.id === operadorId)?.nome
+  const NOME_PERIODO: Record<Periodo, string> = {
+    hoje: 'hoje',
+    semana: 'nos próximos 7 dias',
+    proximas: 'nas próximas datas',
+    passadas: 'nas datas anteriores',
+  }
+
   return (
     <>
       <PageHeader
@@ -173,6 +194,42 @@ export function OsListaPage() {
 
       {lista.isPending && <Carregando />}
       {lista.isError && <Aviso tipo="erro">{mensagemDeErro(lista.error)}</Aviso>}
+      {lista.isSuccess && filtradas.length > 0 && (
+        <div className="mb-3 flex flex-col gap-1 rounded-2xl border border-borda bg-white p-4">
+          <p>
+            <strong className="text-lg text-verde-escuro">{filtradas.length}</strong>{' '}
+            {filtradas.length === 1 ? 'OS emitida' : 'OS emitidas'}
+            {nomeOperador && (
+              <>
+                {' '}
+                para <strong>{nomeOperador}</strong>
+              </>
+            )}{' '}
+            {dia ? (
+              <>
+                em <strong>{formatarData(dia)}</strong>
+              </>
+            ) : (
+              NOME_PERIODO[periodo]
+            )}
+            {status && ` · ${NOME_STATUS_OS[status]}`}
+          </p>
+          {!operadorId && porOperador.length > 1 && (
+            <p className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-texto-suave">
+              {porOperador.map(([id, o]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className="underline hover:text-verde"
+                  onClick={() => setOperadorId(id)}
+                >
+                  {o.nome}: <strong className="text-texto">{o.qtd}</strong>
+                </button>
+              ))}
+            </p>
+          )}
+        </div>
+      )}
       {lista.isSuccess && filtradas.length === 0 && (
         <p className="rounded-2xl border border-borda bg-white p-6 text-center text-texto-suave">
           {filtrando
