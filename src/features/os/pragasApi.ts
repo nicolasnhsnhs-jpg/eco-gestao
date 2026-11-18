@@ -213,6 +213,10 @@ export function useCatalogoProdutos() {
   return useQuery(consultaCatalogoProdutos())
 }
 
+/** mL em texto: "150 mL"; de 1.000 mL para cima, em litros ("1,5 L"). */
+export const textoMl = (ml: number) =>
+  ml >= 1000 ? `${(ml / 1000).toLocaleString('pt-BR')} L` : `${ml.toLocaleString('pt-BR')} mL`
+
 /** "FENDONA (Alfa-Cipermetrina)" ou só o princípio ativo. */
 export const nomeDoProduto = (p: { nome_comercial: string | null; principio_ativo: string }) =>
   p.nome_comercial ? `${p.nome_comercial} (${p.principio_ativo})` : p.principio_ativo

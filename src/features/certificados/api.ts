@@ -6,7 +6,14 @@ import { FunctionsHttpError } from '@supabase/supabase-js'
 import type { Tables, TablesInsert, TablesUpdate } from '@/lib/database.types'
 import { supabase } from '@/lib/supabase'
 
+import {
+  dosesMarcadas,
+  type ChecklistProgramas,
+  type EscopoProgramas,
+} from '@/features/os/tipos/programas'
+
 import type { BebedouroCertificado, ProdutoCertificado, ReservatorioCertificado } from './modelos'
+import { juntarProdutos, type ProdutoCitado } from './produtosDaOs'
 
 /*
  * Certificados de serviço e catálogo de produtos.
@@ -311,52 +318,59 @@ export function juntarComE(itens: string[]) {
   return itens.length <= 1 ? (itens[0] ?? '') : `${itens.slice(0, -1).join(', ')} e ${itens.at(-1)}`
 }
 
-/** Produtos da OS que vieram do catálogo, um por produto, com a quantidade somada. */
-async function produtosDaOs(osId: string): Promise<ProdutoCertificado[]> {
-  const { data, error } = await supabase
-    .from('os_produtos')
-    .select(
-      'unidades, gramas, ml, produto:produtos_certificado(id, nome_comercial, principio_ativo, registro, lote, fabricacao, validade, quantidade_padrao)',
-    )
-    .eq('os_id', osId)
-    .not('produto_id', 'is', null)
-    .order('criado_em')
-  if (error) throw error
-  const porProduto = new Map<
-    string,
-    { item: ProdutoCatalogoResumo; un: number; g: number; ml: number }
-  >()
-  for (const linha of data) {
-    if (!linha.produto) continue
-    const atual = porProduto.get(linha.produto.id) ?? { item: linha.produto, un: 0, g: 0, ml: 0 }
-    atual.un += linha.unidades ?? 0
-    atual.g += linha.gramas ?? 0
-    atual.ml += linha.ml ?? 0
-    porProduto.set(linha.produto.id, atual)
-  }
-  const num = (n: number) => n.toLocaleString('pt-BR')
-  return [...porProduto.values()].map(({ item, un, g, ml }) => ({
-    nome_comercial: item.nome_comercial ?? '',
-    principio_ativo: item.principio_ativo,
-    registro: item.registro ?? '',
-    quantidade: g ? `${num(g)}g` : ml ? `${num(ml)} mL` : un ? `${num(un)} un` : '',
-    lote: item.lote ?? '',
-    fabricacao: item.fabricacao ?? '',
-    validade: item.validade ?? '',
-  }))
+/**
+ * Todos os produtos que o técnico citou na OS, um por produto, com a quantidade
+ * somada: os de "Produtos utilizados", os do controle localizado de insetos e as
+ * doses marcadas nos programas. Os do catálogo vêm com o lote atual.
+ */
+async function produtosDaOs(
+  osId: string,
+  escopo: unknown,
+  checklist: unknown,
+): Promise<ProdutoCertificado[]> {
+  const [anotados, insetos, catalogo] = await Promise.all([
+    supabase
+      .from('os_produtos')
+      .select('produto_id, nome_comercial, principio_ativo, unidades, gramas, ml')
+      .eq('os_id', osId)
+      .order('criado_em'),
+    supabase
+      .from('os_insetos')
+      .select('principio_ativo, quantidade')
+      .eq('os_id', osId)
+      .order('criado_em'),
+    supabase
+      .from('produtos_certificado')
+      .select('id, nome_comercial, principio_ativo, registro, lote, fabricacao, validade')
+      // Pelo nome, vale o produto ativo (com o lote atual) antes de um antigo.
+      .order('ativo', { ascending: false }),
+  ])
+  for (const r of [anotados, insetos, catalogo]) if (r.error) throw r.error
+  const programas = ((escopo ?? {}) as EscopoProgramas).programas ?? []
+  const marcacoes = ((checklist ?? {}) as ChecklistProgramas).programas ?? {}
+  const citados: ProdutoCitado[] = [
+    ...(anotados.data ?? []).map((p) => ({
+      produtoId: p.produto_id,
+      nome_comercial: p.nome_comercial,
+      principio_ativo: p.principio_ativo,
+      g: p.gramas,
+      ml: p.ml,
+      un: p.unidades,
+    })),
+    ...(insetos.data ?? []).map((i) => ({
+      principio_ativo: i.principio_ativo,
+      quantidade: i.quantidade,
+    })),
+    ...programas.flatMap((g) =>
+      dosesMarcadas(g, marcacoes[g.id]).map(({ produto, dose }) => ({
+        nome_comercial: produto.nome_comercial,
+        principio_ativo: produto.principio_ativo,
+        quantidade: dose.qnt,
+      })),
+    ),
+  ]
+  return juntarProdutos(citados, catalogo.data ?? [])
 }
-
-type ProdutoCatalogoResumo = Pick<
-  ProdutoCatalogo,
-  | 'id'
-  | 'nome_comercial'
-  | 'principio_ativo'
-  | 'registro'
-  | 'lote'
-  | 'fabricacao'
-  | 'validade'
-  | 'quantidade_padrao'
->
 
 export function useOrigemOs(osId: string | null) {
   return useQuery({
@@ -404,7 +418,7 @@ export function useOrigemOs(osId: string | null) {
         areas: [descricao, areasInsetos].filter(Boolean).join('\n'),
         descricao,
         pragasAlvo: pragas ? juntarComE(pragas.map((x) => x.toLowerCase())) : '',
-        produtos: await produtosDaOs(data.id),
+        produtos: await produtosDaOs(data.id, data.escopo, execucao?.checklist),
         ...(await pontosDaOs(data.id)),
       }
     },

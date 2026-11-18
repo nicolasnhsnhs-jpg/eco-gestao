@@ -13,6 +13,7 @@ import { mensagemDeErro } from '@/lib/erros'
 import type { CamposExecucao, OsCompleta } from '../api'
 import {
   nomeDoProduto,
+  textoMl,
   useAnotarPontos,
   useCatalogoProdutos,
   useGravarInseto,
@@ -951,10 +952,12 @@ export function Produtos({ osId, aberta }: { osId: string; aberta: boolean }) {
   const [produtoId, setProdutoId] = useState('')
   const escolhido = catalogo.data?.find((c) => c.id === produtoId)
   const [forma, setForma] = useState('bloco')
-  const [unidades, setUnidades] = useState('')
-  const [gramas, setGramas] = useState('')
-  const [ml, setMl] = useState('')
-  const numero = (t: string) => (t ? Number(t.replace(',', '.')) : null)
+  // Uma quantidade e a unidade dela (litro vai para o campo de mL: 1 L = 1.000 mL).
+  const [quantidade, setQuantidade] = useState('')
+  const [unidade, setUnidade] = useState<'un' | 'g' | 'mL' | 'L'>('g')
+  const valor = quantidade ? Number(quantidade.replace(',', '.')) : null
+  const emMl =
+    valor == null ? null : unidade === 'L' ? valor * 1000 : unidade === 'mL' ? valor : null
 
   return (
     <div className="flex flex-col gap-3">
@@ -967,7 +970,7 @@ export function Produtos({ osId, aberta }: { osId: string; aberta: boolean }) {
               {FORMAS_PRODUTO[p.forma as keyof typeof FORMAS_PRODUTO]}
               {p.unidades != null && ` · ${p.unidades} un`}
               {p.gramas != null && ` · ${p.gramas} g`}
-              {p.ml != null && ` · ${p.ml} mL`}
+              {p.ml != null && ` · ${textoMl(p.ml)}`}
             </span>
             {aberta && (
               <Button variante="fantasma" onClick={() => gravar.mutate({ remover: p.id })}>
@@ -1020,30 +1023,28 @@ export function Produtos({ osId, aberta }: { osId: string; aberta: boolean }) {
               </Select>
             </Campo>
           </div>
-          <div className="col-span-2 grid grid-cols-3 gap-2">
-            <Campo rotulo="Unidades" htmlFor="prod-unidades">
-              <Input
-                id="prod-unidades"
-                inputMode="decimal"
-                value={unidades}
-                onChange={(e) => setUnidades(e.target.value)}
-              />
-            </Campo>
-            <Campo rotulo="Gramas" htmlFor="prod-gramas">
-              <Input
-                id="prod-gramas"
-                inputMode="decimal"
-                value={gramas}
-                onChange={(e) => setGramas(e.target.value)}
-              />
-            </Campo>
-            <Campo rotulo="mL" htmlFor="prod-ml">
-              <Input
-                id="prod-ml"
-                inputMode="decimal"
-                value={ml}
-                onChange={(e) => setMl(e.target.value)}
-              />
+          <div className="col-span-2">
+            <Campo rotulo="Quantidade" htmlFor="prod-quantidade">
+              <div className="flex gap-1">
+                <Input
+                  id="prod-quantidade"
+                  inputMode="decimal"
+                  className="min-w-0"
+                  value={quantidade}
+                  onChange={(e) => setQuantidade(e.target.value.replace(/[^\d.,]/g, ''))}
+                />
+                <Select
+                  aria-label="Unidade"
+                  className="w-24 shrink-0"
+                  value={unidade}
+                  onChange={(e) => setUnidade(e.target.value as typeof unidade)}
+                >
+                  <option value="g">g</option>
+                  <option value="mL">mL</option>
+                  <option value="L">L</option>
+                  <option value="un">un</option>
+                </Select>
+              </div>
             </Campo>
           </div>
           <Button
@@ -1059,17 +1060,15 @@ export function Produtos({ osId, aberta }: { osId: string; aberta: boolean }) {
                     nome_comercial: escolhido.nome_comercial,
                     principio_ativo: escolhido.principio_ativo,
                     forma,
-                    unidades: numero(unidades),
-                    gramas: numero(gramas),
-                    ml: numero(ml),
+                    unidades: unidade === 'un' ? valor : null,
+                    gramas: unidade === 'g' ? valor : null,
+                    ml: emMl,
                   },
                 },
                 {
                   onSuccess: () => {
                     setProdutoId('')
-                    setUnidades('')
-                    setGramas('')
-                    setMl('')
+                    setQuantidade('')
                   },
                 },
               )
@@ -1083,9 +1082,16 @@ export function Produtos({ osId, aberta }: { osId: string; aberta: boolean }) {
   )
 }
 
+const UNIDADES_APLICACAO = ['mL', 'L', 'g', 'pts'] as const
+type UnidadeAplicacao = (typeof UNIDADES_APLICACAO)[number]
+
 function Insetos({ osId, aberta }: { osId: string; aberta: boolean }) {
   const insetos = useInsetos(osId)
   const gravar = useGravarInseto(osId)
+  const catalogo = useCatalogoProdutos()
+  // Quantidade em número + unidade (sai "100 mL" na OS e no certificado).
+  const [qtd, setQtd] = useState('')
+  const [unidade, setUnidade] = useState<UnidadeAplicacao>('mL')
   const [novo, setNovo] = useState({
     area: '',
     praga: 'B',
@@ -1156,19 +1162,51 @@ function Insetos({ osId, aberta }: { osId: string; aberta: boolean }) {
               </Select>
             </Campo>
           ))}
-          <Campo rotulo="Princípio ativo" htmlFor="ins-principio">
-            <Input
-              id="ins-principio"
-              value={novo.principio_ativo}
-              onChange={(e) => setNovo({ ...novo, principio_ativo: e.target.value })}
-            />
-          </Campo>
-          <Campo rotulo="QNT (g/ml/pts)" htmlFor="ins-quantidade">
-            <Input
-              id="ins-quantidade"
-              value={novo.quantidade}
-              onChange={(e) => setNovo({ ...novo, quantidade: e.target.value })}
-            />
+          {/* Da lista de produtos (sem digitar: evita erro de escrita, ex.: "diclocos"). */}
+          <div className="col-span-2">
+            <Campo
+              rotulo="Produto (princípio ativo)"
+              htmlFor="ins-principio"
+              dica="Não achou o produto? Peça ao escritório para cadastrar."
+            >
+              <Select
+                id="ins-principio"
+                value={novo.principio_ativo}
+                onChange={(e) => setNovo({ ...novo, principio_ativo: e.target.value })}
+              >
+                <option value="">
+                  {catalogo.isPending ? 'Carregando produtos…' : 'Escolha o produto…'}
+                </option>
+                {catalogo.data?.map((c) => (
+                  <option key={c.id} value={nomeDoProduto(c)}>
+                    {nomeDoProduto(c)}
+                  </option>
+                ))}
+              </Select>
+            </Campo>
+          </div>
+          <Campo rotulo="QNT" htmlFor="ins-quantidade">
+            <div className="flex gap-1">
+              <Input
+                id="ins-quantidade"
+                inputMode="decimal"
+                className="min-w-0"
+                value={qtd}
+                onChange={(e) => setQtd(e.target.value.replace(/[^\d.,]/g, ''))}
+              />
+              <Select
+                aria-label="Unidade da quantidade"
+                className="w-20 shrink-0"
+                value={unidade}
+                onChange={(e) => setUnidade(e.target.value as UnidadeAplicacao)}
+              >
+                {UNIDADES_APLICACAO.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </Campo>
           <Campo rotulo="Diluente" htmlFor="ins-diluente">
             <Select
@@ -1193,21 +1231,24 @@ function Insetos({ osId, aberta }: { osId: string; aberta: boolean }) {
           </Campo>
           <Button
             className="col-span-2"
-            disabled={!novo.area.trim() || gravar.isPending}
+            disabled={!novo.area.trim() || !novo.principio_ativo || gravar.isPending}
             onClick={() =>
               gravar.mutate(
                 {
                   adicionar: {
                     os_id: osId,
                     ...novo,
+                    quantidade: qtd ? `${qtd} ${unidade}` : null,
                     area: novo.area.trim(),
                     calda: novo.calda.trim() || null,
                     pronto_uso: novo.diluente === 'pronto',
                   },
                 },
                 {
-                  onSuccess: () =>
-                    setNovo({ ...novo, area: '', principio_ativo: '', quantidade: '', calda: '' }),
+                  onSuccess: () => {
+                    setNovo({ ...novo, area: '', principio_ativo: '', quantidade: '', calda: '' })
+                    setQtd('')
+                  },
                 },
               )
             }

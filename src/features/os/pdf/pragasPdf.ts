@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 
 import type { OsCompleta } from '../api'
 import { quebrarLinhas, textoSeguro } from './gerarPdfOs'
-import { nomeDoProduto, type InsetoOs, type PontoOs, type ProdutoOs } from '../pragasApi'
+import { nomeDoProduto, textoMl, type InsetoOs, type PontoOs, type ProdutoOs } from '../pragasApi'
 import {
   CONDICOES,
   DILUENTES,
@@ -615,7 +615,7 @@ export function escreverProdutos(w: EscritorPdf, produtos: ProdutoOs[]) {
         FORMAS_PRODUTO[p.forma as keyof typeof FORMAS_PRODUTO],
         p.unidades != null && `${p.unidades.toLocaleString('pt-BR')} un`,
         p.gramas != null && `${p.gramas.toLocaleString('pt-BR')} g`,
-        p.ml != null && `${p.ml.toLocaleString('pt-BR')} mL`,
+        p.ml != null && textoMl(p.ml),
       ]
         .filter(Boolean)
         .join(' · '),
