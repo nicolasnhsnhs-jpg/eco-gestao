@@ -77,6 +77,42 @@ export function useNotasFiscais(filtro: FiltroNotas) {
 
 export type NotaFiscalCompleta = NonNullable<ReturnType<typeof useNotasFiscais>['data']>[number]
 
+/**
+ * Faturamento: notas emitidas com data de emissão de `de` até `ate` (inclusive),
+ * na ordem em que foram emitidas (dia e depois número da nota).
+ */
+export function useFaturamento(de: string, ate: string) {
+  return useQuery({
+    queryKey: ['financeiro', 'notas', 'faturamento', de, ate],
+    enabled: !!de && !!ate && de <= ate,
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const notas: NotaFiscalCompleta[] = []
+      // Em páginas de 1000 (limite do Supabase), para um ano inteiro não ficar cortado.
+      for (let inicio = 0; ; inicio += 1000) {
+        const { data, error } = await supabase
+          .from('notas_fiscais')
+          .select(`*, ${RELACOES}`)
+          .eq('status', 'emitida')
+          .gte('data_emissao', de)
+          .lte('data_emissao', ate)
+          .order('data_emissao')
+          .order('id')
+          .range(inicio, inicio + 999)
+        if (error) throw error
+        notas.push(...data)
+        if (data.length < 1000) break
+      }
+      // O número é texto ("99" viria depois de "100"): compara como número.
+      return notas.sort(
+        (a, b) =>
+          a.data_emissao.localeCompare(b.data_emissao) ||
+          (a.numero ?? '').localeCompare(b.numero ?? '', 'pt-BR', { numeric: true }),
+      )
+    },
+  })
+}
+
 export function useNotaFiscal(id: string | undefined) {
   return useQuery({
     queryKey: ['financeiro', 'nota', id],

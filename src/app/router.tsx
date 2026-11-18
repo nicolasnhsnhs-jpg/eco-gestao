@@ -21,6 +21,7 @@ import { AntecipacoesPage } from '@/features/financeiro/AntecipacoesPage'
 import { CadastrosPage } from '@/features/financeiro/CadastrosPage'
 import { CartoesPage } from '@/features/financeiro/CartoesPage'
 import { ContasFixasPage } from '@/features/financeiro/ContasFixasPage'
+import { FaturamentoPage } from '@/features/financeiro/FaturamentoPage'
 import { FinanceiroLayout } from '@/features/financeiro/FinanceiroLayout'
 import { InvestimentosPage } from '@/features/financeiro/InvestimentosPage'
 import { LancamentoFormPage } from '@/features/financeiro/LancamentoFormPage'
@@ -241,6 +242,7 @@ export const router = createBrowserRouter([
           { path: 'notas', element: <NotasFiscaisPage /> },
           { path: 'notas/nova', element: <NotaFiscalFormPage /> },
           { path: 'notas/:id', element: <NotaFiscalFormPage /> },
+          { path: 'faturamento', element: <FaturamentoPage /> },
           { path: 'contas-fixas', element: <ContasFixasPage /> },
           { path: 'investimentos', element: <InvestimentosPage /> },
           { path: 'cartoes', element: <CartoesPage /> },

@@ -7,6 +7,7 @@ const ABAS = [
   { rotulo: 'A faturar', caminho: '/financeiro/a-faturar', fim: false },
   { rotulo: 'Lançamentos', caminho: '/financeiro/lancamentos', fim: false },
   { rotulo: 'Notas fiscais', caminho: '/financeiro/notas', fim: false },
+  { rotulo: 'Faturamento', caminho: '/financeiro/faturamento', fim: false },
   { rotulo: 'Contas fixas', caminho: '/financeiro/contas-fixas', fim: false },
   { rotulo: 'Investimentos', caminho: '/financeiro/investimentos', fim: false },
   { rotulo: 'Cartões', caminho: '/financeiro/cartoes', fim: false },
