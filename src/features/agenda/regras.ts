@@ -492,12 +492,17 @@ export function proximoF(item: Conferencia, i: number, n: number) {
   }
 }
 
-/** Resumo da linha no quadro: tudo feito, parte feita ou nada. */
+/**
+ * Resumo da linha no quadro. R: tudo feito, parte feita (amarelo) ou nada.
+ * F não tem meio-termo: cobrou (algum serviço faturado) ou não cobrou. Numa linha
+ * com um serviço feito e outro não, o que não foi feito não se cobra.
+ */
 export function resumoConferencia(
   item: Conferencia,
   n: number,
   letra: 'R' | 'F',
 ): 'tudo' | 'parte' | 'nada' {
+  if (letra === 'F') return todas(n).some((i) => estaFaturado(item, i, n)) ? 'tudo' : 'nada'
   const marcados = todas(n).filter((i) =>
     letra === 'R' ? estadoR(item, i, n) === 'feito' : estaFaturado(item, i, n),
   ).length

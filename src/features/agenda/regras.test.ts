@@ -375,4 +375,10 @@ describe('conferência por serviço', () => {
     expect(proximoF(x, 1, 3)).toEqual({ faturado_partes: [0, 2], faturado: false })
     expect(resumoConferencia(x, 3, 'F')).toBe('tudo')
   })
+  it('F não fica amarelo: cobrou um serviço, a linha está cobrada', () => {
+    const x = item({ realizado_partes: [0], parcial_partes: [1], faturado_partes: [0] })
+    expect(resumoConferencia(x, 2, 'R')).toBe('parte')
+    expect(resumoConferencia(x, 2, 'F')).toBe('tudo')
+    expect(resumoConferencia(item({}), 2, 'F')).toBe('nada')
+  })
 })

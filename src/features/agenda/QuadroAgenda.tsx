@@ -157,7 +157,7 @@ function Almoco({ valor }: { valor: string }) {
   return <span className="aq-st aq-traco">–</span>
 }
 
-/** Conferência da linha: verde = todos os serviços; amarelo = só uma parte. */
+/** Conferência da linha: verde = feito/cobrado; amarelo (só no R) = só uma parte feita. */
 function Feito({ x, letra }: { x: AgendaItem; letra: 'R' | 'F' }) {
   const r = resumoConferencia(x, servicosDaLinha(x.descricao).length, letra)
   if (r === 'tudo') return <span className="aq-st aq-verde">{CHECK}</span>
@@ -444,7 +444,7 @@ export function QuadroAgenda({ dia, itens, veiculos, modo, onClicarItem, ref, st
                 <span className="aq-chip aq-taxa">$ Taxa</span> Taxa a cobrar
               </span>
             )}
-            {interno && <span>R realizado · F faturado (amarelo: só uma parte)</span>}
+            {interno && <span>R realizado (amarelo: só uma parte) · F faturado</span>}
           </div>
         </section>
 
