@@ -39,6 +39,7 @@ export const SITUACOES_PLACA = {
   SC: 'Substituído c/ captura',
   I: 'Inexistente',
   T: 'Trocado',
+  Q: 'Quebrado',
   SA: 'Sem acesso',
   NE: 'Não encontrado',
 } as const
