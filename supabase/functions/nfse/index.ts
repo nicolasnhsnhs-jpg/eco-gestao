@@ -99,13 +99,14 @@ async function enderecoDoTomador(
     throw new Falha('O cliente não tem endereço cadastrado (a nota exige o endereço do tomador).')
   if (!e.cep) throw new Falha('O endereço do cliente está sem CEP.')
 
-  let ibge = e.codigo_ibge
-  if (!ibge) {
-    ibge = await ibgePeloCep(e.cep)
-    if (!ibge)
-      throw new Falha(`Não achei o município do CEP ${e.cep}. Confira o endereço do cliente.`)
-    await admin.from('enderecos').update({ codigo_ibge: ibge }).eq('id', e.id)
-  }
+  // O município sai sempre do CEP (ViaCEP): o código gravado pode ter vindo da consulta
+  // do CNPJ ou de um CEP antigo, e a Sefin recusa CEP de outra cidade (E0240).
+  const doCep = await ibgePeloCep(e.cep.replace(/\D/g, ''))
+  const ibge = doCep ?? e.codigo_ibge
+  if (!ibge)
+    throw new Falha(`Não achei o município do CEP ${e.cep}. Confira o endereço do cliente.`)
+  if (doCep && doCep !== e.codigo_ibge)
+    await admin.from('enderecos').update({ codigo_ibge: doCep }).eq('id', e.id)
   return {
     codigoIbge: ibge,
     cep: e.cep,
@@ -433,6 +434,7 @@ async function marcarSubstituida(
  *    01/12/2026, na produção; se a data da virada mudar, tenta o outro.
  *  - E0120: o município não tem a inscrição municipal no cadastro nacional (CNC), então
  *    ela não pode ir na nota; reenvia sem.
+ *  - E0240: a Sefin não reconhece o CEP do tomador; reenvia sem o endereço dele.
  *  - E0312: a cidade de incidência só tem o serviço com código municipal próprio
  *    (07.10.01.001…); acha o código no ADN e reenvia com o cTribMun.
  * Recusa não gasta o número da DPS, então o reenvio usa o mesmo.
@@ -484,6 +486,11 @@ async function enviarDps(
       atual.valores.informarAliquotaIss
     ) {
       atual = { ...atual, valores: { ...atual.valores, informarAliquotaIss: false } }
+      r = await enviar()
+    } else if (tem(r, 'E0240') && atual.tomador.endereco) {
+      // A base de CEPs da Sefin não tem esse CEP (comum em CEP novo ou de loteamento),
+      // mesmo ele existindo nos Correios. O endereço do tomador é opcional: vai sem.
+      atual = { ...atual, tomador: { ...atual.tomador, endereco: null } }
       r = await enviar()
     } else if (tem(r, 'E0120') && atual.prestador.inscricaoMunicipal) {
       atual = { ...atual, prestador: { ...atual.prestador, inscricaoMunicipal: null } }
