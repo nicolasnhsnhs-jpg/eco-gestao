@@ -130,6 +130,12 @@ begin
   end;
 end $$;
 
+-- A armadilha luminosa já começa com 0 em todos os insetos.
+select pg_temp.conferir('capturas da armadilha começam em 0',
+  (select count(*) from public.os_pontos
+    where os_id = (select id from ids where nome = 'os1') and tipo = 'armadilha_luminosa'
+      and capturas = '{"M": 0, "MQ": 0, "MA": 0, "B": 0}'), 1);
+
 update public.os_execucao set checklist = '{"nivel_infestacao": "B"}'
  where os_id = (select id from ids where nome = 'os1');
 update public.os_pontos set situacao_armadilha = 'LT', lampadas_trocadas = true, refil = 'T',

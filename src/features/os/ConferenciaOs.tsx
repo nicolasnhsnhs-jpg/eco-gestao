@@ -22,6 +22,7 @@ import {
   type Conferencia,
   type StatusOs,
 } from './api'
+import { usePontosOs } from './pragasApi'
 
 /**
  * Conferência interna da OS (3ª camada): administrativo, logística, financeiro e
@@ -112,6 +113,7 @@ function FormConferencia({
       )}
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       {sucesso && <Aviso tipo="sucesso">{sucesso}</Aviso>}
+      <ObservacoesArmadilhas osId={osId} />
 
       <Grupo titulo="Administrativo">
         <div className="grid gap-3 sm:grid-cols-3">
@@ -383,5 +385,30 @@ function SimNaoCampo({
         <option value="nao">Não</option>
       </Select>
     </label>
+  )
+}
+
+/**
+ * O que o técnico anotou nas armadilhas luminosas para a próxima visita (ex.:
+ * lâmpada queimada, levar lâmpada). Aparece aqui para o escritório já se preparar.
+ */
+function ObservacoesArmadilhas({ osId }: { osId: string }) {
+  const pontos = usePontosOs(osId)
+  const notas = (pontos.data ?? [])
+    .filter((p) => p.tipo === 'armadilha_luminosa' && p.observacao?.trim())
+    .sort((a, b) => a.numero - b.numero)
+  if (notas.length === 0) return null
+  return (
+    <Aviso tipo="info">
+      <p className="font-semibold">Armadilhas luminosas: anotar para a próxima visita</p>
+      <ul className="mt-1 flex flex-col gap-1">
+        {notas.map((p) => (
+          <li key={p.id}>
+            • <strong>{String(p.numero).padStart(2, '0')}</strong> · {p.area}:{' '}
+            {p.observacao!.trim()}
+          </li>
+        ))}
+      </ul>
+    </Aviso>
   )
 }

@@ -636,6 +636,7 @@ function Armadilha({ osId, ponto, aberta }: { osId: string; ponto: PontoOs; aber
   const anotar = useAnotarPontos(osId)
   const capturas = (ponto.capturas ?? {}) as Record<string, number>
   const completas = capturasCompletas(capturas)
+  const [obs, setObs] = useState(ponto.observacao ?? '')
   const gravar = (campos: Parameters<typeof anotar.mutate>[0]['campos']) =>
     anotar.mutate({ ids: [ponto.id], campos })
 
@@ -733,6 +734,22 @@ function Armadilha({ osId, ponto, aberta }: { osId: string; ponto: PontoOs; aber
           </p>
         )}
       </div>
+      {/* Vai para o escritório na conferência, para preparar a próxima visita. */}
+      <Campo
+        rotulo="Observação para a próxima visita"
+        htmlFor={`arm-obs-${ponto.id}`}
+        dica={aberta ? 'Ex.: lâmpada queimada, levar lâmpada para trocar.' : undefined}
+      >
+        <Input
+          id={`arm-obs-${ponto.id}`}
+          disabled={!aberta}
+          value={obs}
+          onChange={(e) => setObs(e.target.value)}
+          onBlur={() => {
+            if (obs.trim() !== (ponto.observacao ?? '')) gravar({ observacao: obs.trim() || null })
+          }}
+        />
+      </Campo>
     </div>
   )
 }
