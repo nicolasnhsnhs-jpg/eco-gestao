@@ -429,6 +429,29 @@ async function marcarSubstituida(
 }
 
 /**
+ * A nota que esta DPS já gerou no governo, ou null. Tenta três vezes (a Sefin às vezes
+ * demora uns segundos para achar a nota recém-autorizada); falha de consulta conta como
+ * "não achei" só depois das três.
+ */
+async function notaDaDps(
+  sefin: Sefin,
+  id: string,
+): Promise<{ chave: string; xml: string } | null> {
+  for (const espera of [0, 3_000, 6_000]) {
+    if (espera) await new Promise((ok) => setTimeout(ok, espera))
+    try {
+      const chave = await sefin.chaveDaDps(id)
+      if (!chave) continue
+      const xml = await sefin.xmlDaNota(chave)
+      if (xml) return { chave, xml }
+    } catch (e) {
+      console.error('Consulta da DPS falhou', id, e)
+    }
+  }
+  return null
+}
+
+/**
  * Manda a DPS e se ajusta às recusas que dependem do cadastro do governo, não da nota:
  *  - E1235 (esquema): leiaute errado — o novo (NT 009) vale nos testes e, a partir de
  *    01/12/2026, na produção; se a data da virada mudar, tenta o outro.
@@ -574,12 +597,30 @@ async function emitir(
       )
     } catch (e) {
       // Sem resposta (queda, tempo esgotado): confere se a nota saiu mesmo assim.
-      const chave = await sefin.chaveDaDps(id).catch(() => null)
-      const xml = chave ? await sefin.xmlDaNota(chave).catch(() => null) : null
-      if (chave && xml) return await concluir(admin, montada, usuarioId, chave, xml, origem, enviar)
-      throw new Falha(`A Sefin Nacional não respondeu (${(e as Error).message}). Tente de novo.`)
+      const achada = await notaDaDps(sefin, id)
+      if (achada)
+        return await concluir(admin, montada, usuarioId, achada.chave, achada.xml, origem, enviar)
+      throw new Falha(
+        `A Sefin Nacional não respondeu (${(e as Error).message}). A nota pode ter saído: ` +
+          `NÃO emita pelo portal. Clique em Emitir de novo aqui — o sistema procura esta ` +
+          `mesma nota no governo antes de mandar outra.`,
+      )
     }
-    if (!r.ok) throw new Falha(`Recusada pela Sefin: ${textoDosErros(r.erros)}`)
+    if (!r.ok) {
+      // Antes de dar como recusada, confere no governo: uma das tentativas (ou um envio
+      // anterior sem resposta) pode ter virado nota. Nota emitida nunca fica como rascunho.
+      const achada = await notaDaDps(sefin, id)
+      if (achada)
+        return await concluir(admin, montada, usuarioId, achada.chave, achada.xml, origem, enviar)
+      const semCodigo = r.erros.every((x) => !x.codigo)
+      throw new Falha(
+        semCodigo
+          ? `Resposta estranha da Sefin: ${textoDosErros(r.erros)}. A nota pode ter saído: ` +
+              `NÃO emita pelo portal. Clique em Emitir de novo aqui — o sistema procura esta ` +
+              `mesma nota no governo antes de mandar outra.`
+          : `Recusada pela Sefin: ${textoDosErros(r.erros)}`,
+      )
+    }
     return await concluir(admin, montada, usuarioId, r.chaveAcesso, r.xml, origem, enviar)
   } catch (e) {
     await soltar((e as Error).message)
