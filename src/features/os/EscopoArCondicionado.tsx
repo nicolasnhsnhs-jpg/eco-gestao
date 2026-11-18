@@ -17,6 +17,7 @@ import {
 } from './pragasApi'
 import { PRODUTO_PADRAO_AR, type EscopoAr } from './tipos/arCondicionado'
 import { etiqueta } from './tipos/bebedouro'
+import { DataUltimaLimpeza } from './EscopoBebedouro'
 
 type DadosAparelho = {
   area: string
@@ -29,7 +30,8 @@ const soNumero = (texto: string) => texto.replace(/\D/g, '')
 
 /**
  * Escopo da limpeza de ar-condicionado (escritório): os aparelhos do local (nº da
- * etiqueta, localização, BTU, marca/modelo e nº de série) e o produto. Ficam no
+ * etiqueta, localização, BTU, marca/modelo, nº de série e a data da última limpeza
+ * informada) e o produto. Ficam no
  * modelo e valem para as próximas visitas.
  */
 export function EscopoArCondicionado({ alvo }: { alvo: AlvoEscopo }) {
@@ -217,7 +219,7 @@ function Aparelho({
   aparelho: PontoControle
   ocupado: boolean
   aoAlterar: (
-    dados: Partial<DadosAparelho> & { ativo?: boolean },
+    dados: Partial<DadosAparelho> & { ativo?: boolean; limpeza_informada?: string | null },
     mensagem: string,
   ) => Promise<void>
 }) {
@@ -226,7 +228,14 @@ function Aparelho({
   const mudou = JSON.stringify(valor) !== JSON.stringify(original)
   return (
     <li className="flex flex-col gap-1 rounded-xl border border-borda p-3">
-      <p className="font-semibold">Etiqueta {etiqueta(aparelho.numero)}</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-semibold">Etiqueta {etiqueta(aparelho.numero)}</p>
+        <DataUltimaLimpeza
+          ponto={aparelho}
+          ocupado={ocupado}
+          aoSalvar={(data, mensagem) => aoAlterar({ limpeza_informada: data }, mensagem)}
+        />
+      </div>
       <div className={GRADE}>
         <CamposAparelho
           id={`ar-${aparelho.id}`}
