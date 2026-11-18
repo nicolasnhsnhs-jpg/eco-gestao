@@ -139,6 +139,9 @@ function Execucao({ os }: { os: OsCompleta }) {
   // Fica gravada junto com o primeiro horário (ou quando ele mexe nela).
   const dataServico = campos.data ?? os.data_agendada ?? hojeISO()
   const comData = campos.data ? campos : { ...campos, data: dataServico }
+  // Serviço não realizado: o formulário recolhe, só o motivo é obrigatório e a OS
+  // conclui como cancelada (o escritório reagenda).
+  const naoRealizado = !!campos.nao_realizado
   const pragas = os.tipo?.formulario_os === 'pragas'
   const pontos = usePontosOs(os.id)
   // Etapas: 1 chegada, depois as do tipo de serviço, depois fotos, cliente e operador.
@@ -242,6 +245,26 @@ function Execucao({ os }: { os: OsCompleta }) {
   async function finalizar() {
     setErro(null)
     setTentativa((t) => t + 1)
+    if (naoRealizado) {
+      setMostrarFalta(false)
+      if ((campos.motivo_nao_realizado ?? '').trim().length < 5) {
+        setErro('Escreva o motivo de o serviço não ter sido realizado.')
+        irParaEtapa('Término e saída')
+        return
+      }
+      if (foraDeOrdem) {
+        setErro(`Confira os horários: ${foraDeOrdem}.`)
+        return
+      }
+      void enviarAgora()
+      try {
+        await concluir.mutateAsync(true)
+        navigate('/', { replace: true })
+      } catch (e) {
+        setErro(mensagemDeErro(e))
+      }
+      return
+    }
     // Confere no próprio celular (funciona sem sinal); o banco confere de novo ao receber.
     const pendencias = pendenciasLocais(
       os.tipo?.formulario_os,
@@ -261,7 +284,7 @@ function Execucao({ os }: { os: OsCompleta }) {
     // Tenta mandar agora o que foi digitado; sem sinal, vai junto com a conclusão.
     void enviarAgora()
     try {
-      await concluir.mutateAsync()
+      await concluir.mutateAsync(false)
       navigate('/', { replace: true })
     } catch (e) {
       setErro(mensagemDeErro(e))
@@ -269,19 +292,20 @@ function Execucao({ os }: { os: OsCompleta }) {
   }
 
   const foraDeOrdem = horariosForaDeOrdem(campos)
-  const falta = mostrarFalta
-    ? pendenciasLocais(
-        os.tipo?.formulario_os,
-        comData,
-        pontos.data ?? [],
-        fotos,
-        os.ocorrencia,
-        subtipoPragas,
-        os.tipo?.registra_residuo,
-      )
-    : []
+  const falta =
+    mostrarFalta && !naoRealizado
+      ? pendenciasLocais(
+          os.tipo?.formulario_os,
+          comData,
+          pontos.data ?? [],
+          fotos,
+          os.ocorrencia,
+          subtipoPragas,
+          os.tipo?.registra_residuo,
+        )
+      : []
   // Preencheu tudo: a lista some de vez (até o próximo toque em "Concluir").
-  if (mostrarFalta && falta.length === 0) setMostrarFalta(false)
+  if (mostrarFalta && falta.length === 0 && !naoRealizado) setMostrarFalta(false)
   const campo = (nome: keyof CamposExecucao) => (campos[nome] as string | null | undefined) ?? ''
 
   return (
@@ -339,10 +363,12 @@ function Execucao({ os }: { os: OsCompleta }) {
             Concluída no celular, aguardando envio. Ela sobe sozinha quando houver sinal.
           </Aviso>
         ) : (
-          <Aviso tipo="sucesso">
-            {os.treinamento
-              ? 'Teste concluído! Você preencheu tudo certo.'
-              : 'OS concluída. Para mudar algo, fale com o escritório.'}
+          <Aviso tipo={os.status === 'cancelada' ? 'info' : 'sucesso'}>
+            {os.status === 'cancelada'
+              ? 'Serviço não realizado: a OS foi cancelada e o escritório vai reagendar.'
+              : os.treinamento
+                ? 'Teste concluído! Você preencheu tudo certo.'
+                : 'OS concluída. Para mudar algo, fale com o escritório.'}
           </Aviso>
         ))}
 
@@ -417,276 +443,304 @@ function Execucao({ os }: { os: OsCompleta }) {
         )}
       </Card>
 
-      <Etapa numero={1} titulo="Chegada e horários">
-        <div className="grid grid-cols-2 gap-3">
-          <Campo
-            rotulo="Data"
-            htmlFor="ex-data"
-            dica={aberta && !campos.data ? 'Dia agendado. Mude se for outro dia.' : undefined}
-          >
-            <Input
-              id="ex-data"
-              type="date"
-              required
-              disabled={!aberta}
-              value={dataServico}
-              onChange={(e) => alterar({ data: e.target.value || null })}
-            />
-          </Campo>
-          <Campo rotulo="KM na chegada" htmlFor="ex-km">
-            <Input
-              id="ex-km"
-              inputMode="numeric"
-              disabled={!aberta}
-              value={campos.km_chegada?.toString() ?? ''}
-              onChange={(e) => {
-                const digitos = e.target.value.replace(/\D/g, '')
-                alterar({ km_chegada: digitos ? Number(digitos) : null })
-              }}
-            />
-          </Campo>
-        </div>
-        <Campo rotulo="Veículo" htmlFor="ex-veiculo">
-          <Select
-            id="ex-veiculo"
-            disabled={!aberta}
-            value={campo('veiculo_id')}
-            onChange={(e) => alterar({ veiculo_id: e.target.value || null })}
-          >
-            <option value="">Escolha…</option>
-            {veiculos.data?.map((v) => (
-              <option key={v.id} value={v.id}>
-                {nomeVeiculo(v)}
-              </option>
-            ))}
-          </Select>
-        </Campo>
-        {gradeHorarios(HORARIOS.slice(0, 2))}
-        {os.tipo?.fotos_antes_depois && (
-          // Serviço de limpeza: a foto de antes fica logo na chegada, para não
-          // começar o serviço sem ela. A de depois fica no fim da OS.
-          <div className="flex flex-col gap-2 rounded-xl border-2 border-alerta/40 bg-alerta/10 p-3">
-            <h3 className="font-semibold text-verde-escuro">
-              Foto antes do serviço <span className="text-perigo">*</span>
-            </h3>
-            <p className="text-sm text-texto-suave">
-              Tire antes de começar a limpeza. Pode mandar várias (ex.: uma de cada reservatório ou
-              coifa).
-            </p>
-            <FotosOs
-              clienteId={os.cliente_id}
-              osId={os.id}
-              aberta={aberta}
-              categoria="foto_antes"
-              textoVazio="Nenhuma foto de antes ainda."
-            />
-          </div>
-        )}
-      </Etapa>
-
-      {pragas ? (
-        <ExecucaoPragas os={os} campos={campos} alterar={alterar} aberta={aberta} primeira={2} />
-      ) : coifa ? (
-        <ExecucaoCoifa os={os} campos={campos} alterar={alterar} aberta={aberta} primeira={2} />
-      ) : bebedouro ? (
-        <ExecucaoBebedouro os={os} campos={campos} alterar={alterar} aberta={aberta} primeira={2} />
-      ) : telas ? (
-        <ExecucaoTelas os={os} campos={campos} alterar={alterar} aberta={aberta} primeira={2} />
-      ) : reservatorio ? (
-        <ExecucaoReservatorio
-          os={os}
-          campos={campos}
-          alterar={alterar}
-          aberta={aberta}
-          primeira={2}
-        />
-      ) : agua ? (
-        <ExecucaoAgua os={os} campos={campos} alterar={alterar} aberta={aberta} primeira={2} />
-      ) : arCondicionado ? (
-        <ExecucaoArCondicionado
-          os={os}
-          campos={campos}
-          alterar={alterar}
-          aberta={aberta}
-          primeira={2}
-        />
+      {naoRealizado ? (
+        <Aviso tipo="info">
+          <strong>Serviço não realizado.</strong> As etapas do serviço foram recolhidas e não são
+          obrigatórias. Escreva o motivo no fim da OS e conclua. Para voltar a preencher, desmarque
+          “Serviço não realizado”.
+        </Aviso>
       ) : (
-        <Etapa numero={2} titulo="Serviço realizado">
-          {simples && (
-            <>
-              <p>
-                <strong>Áreas atendidas:</strong> {areasAtendidas(os.escopo) || '—'}
-              </p>
-              <label className="flex min-h-11 items-center gap-2 font-semibold">
-                <input
-                  type="checkbox"
-                  className="size-5 accent-verde"
+        <>
+          <Etapa numero={1} titulo="Chegada e horários">
+            <div className="grid grid-cols-2 gap-3">
+              <Campo
+                rotulo="Data"
+                htmlFor="ex-data"
+                dica={aberta && !campos.data ? 'Dia agendado. Mude se for outro dia.' : undefined}
+              >
+                <Input
+                  id="ex-data"
+                  type="date"
+                  required
                   disabled={!aberta}
-                  checked={(campos.checklist as ChecklistAreas | null)?.conforme_planejado === true}
-                  onChange={(e) =>
-                    alterar({
-                      checklist: {
-                        ...((campos.checklist ?? {}) as object),
-                        conforme_planejado: e.target.checked,
-                      },
-                    })
-                  }
+                  value={dataServico}
+                  onChange={(e) => alterar({ data: e.target.value || null })}
                 />
-                Serviço feito conforme planejado
-              </label>
-            </>
+              </Campo>
+              <Campo rotulo="KM na chegada" htmlFor="ex-km">
+                <Input
+                  id="ex-km"
+                  inputMode="numeric"
+                  disabled={!aberta}
+                  value={campos.km_chegada?.toString() ?? ''}
+                  onChange={(e) => {
+                    const digitos = e.target.value.replace(/\D/g, '')
+                    alterar({ km_chegada: digitos ? Number(digitos) : null })
+                  }}
+                />
+              </Campo>
+            </div>
+            <Campo rotulo="Veículo" htmlFor="ex-veiculo">
+              <Select
+                id="ex-veiculo"
+                disabled={!aberta}
+                value={campo('veiculo_id')}
+                onChange={(e) => alterar({ veiculo_id: e.target.value || null })}
+              >
+                <option value="">Escolha…</option>
+                {veiculos.data?.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {nomeVeiculo(v)}
+                  </option>
+                ))}
+              </Select>
+            </Campo>
+            {gradeHorarios(HORARIOS.slice(0, 2))}
+            {os.tipo?.fotos_antes_depois && (
+              // Serviço de limpeza: a foto de antes fica logo na chegada, para não
+              // começar o serviço sem ela. A de depois fica no fim da OS.
+              <div className="flex flex-col gap-2 rounded-xl border-2 border-alerta/40 bg-alerta/10 p-3">
+                <h3 className="font-semibold text-verde-escuro">
+                  Foto antes do serviço <span className="text-perigo">*</span>
+                </h3>
+                <p className="text-sm text-texto-suave">
+                  Tire antes de começar a limpeza. Pode mandar várias (ex.: uma de cada reservatório
+                  ou coifa).
+                </p>
+                <FotosOs
+                  clienteId={os.cliente_id}
+                  osId={os.id}
+                  aberta={aberta}
+                  categoria="foto_antes"
+                  textoVazio="Nenhuma foto de antes ainda."
+                />
+              </div>
+            )}
+          </Etapa>
+
+          {pragas ? (
+            <ExecucaoPragas
+              os={os}
+              campos={campos}
+              alterar={alterar}
+              aberta={aberta}
+              primeira={2}
+            />
+          ) : coifa ? (
+            <ExecucaoCoifa os={os} campos={campos} alterar={alterar} aberta={aberta} primeira={2} />
+          ) : bebedouro ? (
+            <ExecucaoBebedouro
+              os={os}
+              campos={campos}
+              alterar={alterar}
+              aberta={aberta}
+              primeira={2}
+            />
+          ) : telas ? (
+            <ExecucaoTelas os={os} campos={campos} alterar={alterar} aberta={aberta} primeira={2} />
+          ) : reservatorio ? (
+            <ExecucaoReservatorio
+              os={os}
+              campos={campos}
+              alterar={alterar}
+              aberta={aberta}
+              primeira={2}
+            />
+          ) : agua ? (
+            <ExecucaoAgua os={os} campos={campos} alterar={alterar} aberta={aberta} primeira={2} />
+          ) : arCondicionado ? (
+            <ExecucaoArCondicionado
+              os={os}
+              campos={campos}
+              alterar={alterar}
+              aberta={aberta}
+              primeira={2}
+            />
+          ) : (
+            <Etapa numero={2} titulo="Serviço realizado">
+              {simples && (
+                <>
+                  <p>
+                    <strong>Áreas atendidas:</strong> {areasAtendidas(os.escopo) || '—'}
+                  </p>
+                  <label className="flex min-h-11 items-center gap-2 font-semibold">
+                    <input
+                      type="checkbox"
+                      className="size-5 accent-verde"
+                      disabled={!aberta}
+                      checked={
+                        (campos.checklist as ChecklistAreas | null)?.conforme_planejado === true
+                      }
+                      onChange={(e) =>
+                        alterar({
+                          checklist: {
+                            ...((campos.checklist ?? {}) as object),
+                            conforme_planejado: e.target.checked,
+                          },
+                        })
+                      }
+                    />
+                    Serviço feito conforme planejado
+                  </label>
+                </>
+              )}
+              {os.tipo?.registra_residuo && (
+                <ExecucaoResiduo campos={campos} alterar={alterar} aberta={aberta} />
+              )}
+              <Campo
+                rotulo={simples ? 'O que foi feito' : 'Resultado'}
+                htmlFor="ex-resultado"
+                obrigatorio
+                dica={
+                  simples
+                    ? 'Ex.: iscagem exposta nas áreas externas, pulverização na cozinha.'
+                    : undefined
+                }
+              >
+                <Textarea
+                  id="ex-resultado"
+                  rows={4}
+                  disabled={!aberta}
+                  value={campo('resultado')}
+                  onChange={(e) => alterar({ resultado: e.target.value })}
+                />
+              </Campo>
+              <Campo rotulo="Observações" htmlFor="ex-observacoes">
+                <Textarea
+                  id="ex-observacoes"
+                  rows={3}
+                  disabled={!aberta}
+                  value={campo('observacoes')}
+                  onChange={(e) => alterar({ observacoes: e.target.value })}
+                />
+              </Campo>
+            </Etapa>
           )}
-          {os.tipo?.registra_residuo && (
-            <ExecucaoResiduo campos={campos} alterar={alterar} aberta={aberta} />
+          {simples && (
+            <Etapa numero={3} titulo="Produtos utilizados">
+              <MarcarProdutosProgramados
+                escopo={os.escopo}
+                checklist={(campos.checklist ?? {}) as ChecklistProgramas}
+                aberta={aberta}
+                mudar={(parcial) =>
+                  alterar({ checklist: { ...((campos.checklist ?? {}) as object), ...parcial } })
+                }
+              />
+              <Produtos osId={os.id} aberta={aberta} />
+            </Etapa>
           )}
-          <Campo
-            rotulo={simples ? 'O que foi feito' : 'Resultado'}
-            htmlFor="ex-resultado"
-            obrigatorio
-            dica={
-              simples
-                ? 'Ex.: iscagem exposta nas áreas externas, pulverização na cozinha.'
-                : undefined
-            }
-          >
-            <Textarea
-              id="ex-resultado"
-              rows={4}
+
+          {os.tipo?.fotos_antes_depois ? (
+            <Etapa numero={depois} titulo="Relatório fotográfico">
+              <p className="text-sm text-texto-suave">
+                A foto de antes fica na etapa 1. Aqui vai a de depois, tirada com a limpeza pronta.
+                Pode mandar várias (ex.: uma de cada reservatório ou coifa).
+              </p>
+              <h3 className="font-semibold text-verde-escuro">
+                Foto após o serviço <span className="text-perigo">*</span>
+              </h3>
+              <FotosOs
+                clienteId={os.cliente_id}
+                osId={os.id}
+                aberta={aberta}
+                categoria="foto_depois"
+                textoVazio="Nenhuma foto de depois ainda."
+              />
+              <h3 className="mt-2 font-semibold text-verde-escuro">Outras fotos (opcional)</h3>
+              <FotosOs
+                clienteId={os.cliente_id}
+                osId={os.id}
+                aberta={aberta}
+                textoVazio="Nenhuma outra foto."
+              />
+            </Etapa>
+          ) : (
+            <Etapa numero={depois} titulo="Fotos">
+              <FotosOs clienteId={os.cliente_id} osId={os.id} aberta={aberta} />
+            </Etapa>
+          )}
+
+          <Etapa numero={depois + 1} titulo="Quem acompanhou (cliente)">
+            {/* Ninguém do cliente acompanhou: nome, setor e assinatura ficam opcionais (ex.: portaria na saída). */}
+            <button
+              type="button"
               disabled={!aberta}
-              value={campo('resultado')}
-              onChange={(e) => alterar({ resultado: e.target.value })}
+              aria-pressed={!!campos.sem_acompanhamento}
+              onClick={() => alterar({ sem_acompanhamento: !campos.sem_acompanhamento })}
+              className={
+                campos.sem_acompanhamento
+                  ? 'min-h-12 rounded-xl border-2 border-verde bg-verde px-4 font-bold text-white'
+                  : 'min-h-12 rounded-xl border-2 border-borda bg-white px-4 font-bold'
+              }
+            >
+              Não houve acompanhamento
+            </button>
+            {campos.sem_acompanhamento && (
+              <Aviso tipo="info">
+                Ninguém do cliente acompanhou o serviço. Se der, peça na saída a assinatura de quem
+                recebeu (portaria, recepção…) para mostrar que você esteve lá; não é obrigatório. Se
+                alguém acompanhou, toque de novo no botão para desmarcar.
+              </Aviso>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <Campo rotulo="Nome" htmlFor="ex-resp-nome" obrigatorio={!campos.sem_acompanhamento}>
+                <Input
+                  id="ex-resp-nome"
+                  disabled={!aberta}
+                  value={campo('responsavel_nome')}
+                  onChange={(e) => alterar({ responsavel_nome: e.target.value })}
+                />
+              </Campo>
+              <Campo
+                rotulo="Setor"
+                htmlFor="ex-resp-setor"
+                obrigatorio={!campos.sem_acompanhamento}
+              >
+                <Input
+                  id="ex-resp-setor"
+                  disabled={!aberta}
+                  placeholder={campos.sem_acompanhamento ? 'Ex.: Portaria' : 'Ex.: Manutenção'}
+                  value={campo('responsavel_setor')}
+                  onChange={(e) => alterar({ responsavel_setor: e.target.value })}
+                />
+              </Campo>
+            </div>
+            <QuadroAssinatura
+              titulo={
+                campos.sem_acompanhamento
+                  ? 'Assinatura de quem recebeu na saída (opcional)'
+                  : 'Assinatura de quem acompanhou'
+              }
+              feita={!!campos.assinatura_cliente_id}
+              aberta={aberta}
+              ocupado={assinando === 'cliente'}
+              aoConfirmar={(img) => assinar('cliente', img)}
+              aoRefazer={() => alterar({ assinatura_cliente_id: null })}
             />
-          </Campo>
-          <Campo rotulo="Observações" htmlFor="ex-observacoes">
-            <Textarea
-              id="ex-observacoes"
-              rows={3}
-              disabled={!aberta}
-              value={campo('observacoes')}
-              onChange={(e) => alterar({ observacoes: e.target.value })}
+          </Etapa>
+
+          <Etapa numero={depois + 2} titulo="Operador">
+            <Campo rotulo="Seu nome completo" htmlFor="ex-operador" obrigatorio>
+              <Input
+                id="ex-operador"
+                disabled={!aberta}
+                value={campo('operador_nome')}
+                onChange={(e) => alterar({ operador_nome: e.target.value })}
+              />
+            </Campo>
+            <QuadroAssinatura
+              titulo="Seu visto"
+              feita={!!campos.assinatura_operador_id}
+              aberta={aberta}
+              ocupado={assinando === 'operador'}
+              aoConfirmar={(img) => assinar('operador', img)}
+              aoRefazer={() => alterar({ assinatura_operador_id: null })}
             />
-          </Campo>
-        </Etapa>
+          </Etapa>
+        </>
       )}
-      {simples && (
-        <Etapa numero={3} titulo="Produtos utilizados">
-          <MarcarProdutosProgramados
-            escopo={os.escopo}
-            checklist={(campos.checklist ?? {}) as ChecklistProgramas}
-            aberta={aberta}
-            mudar={(parcial) =>
-              alterar({ checklist: { ...((campos.checklist ?? {}) as object), ...parcial } })
-            }
-          />
-          <Produtos osId={os.id} aberta={aberta} />
-        </Etapa>
-      )}
 
-      {os.tipo?.fotos_antes_depois ? (
-        <Etapa numero={depois} titulo="Relatório fotográfico">
-          <p className="text-sm text-texto-suave">
-            A foto de antes fica na etapa 1. Aqui vai a de depois, tirada com a limpeza pronta. Pode
-            mandar várias (ex.: uma de cada reservatório ou coifa).
-          </p>
-          <h3 className="font-semibold text-verde-escuro">
-            Foto após o serviço <span className="text-perigo">*</span>
-          </h3>
-          <FotosOs
-            clienteId={os.cliente_id}
-            osId={os.id}
-            aberta={aberta}
-            categoria="foto_depois"
-            textoVazio="Nenhuma foto de depois ainda."
-          />
-          <h3 className="mt-2 font-semibold text-verde-escuro">Outras fotos (opcional)</h3>
-          <FotosOs
-            clienteId={os.cliente_id}
-            osId={os.id}
-            aberta={aberta}
-            textoVazio="Nenhuma outra foto."
-          />
-        </Etapa>
-      ) : (
-        <Etapa numero={depois} titulo="Fotos">
-          <FotosOs clienteId={os.cliente_id} osId={os.id} aberta={aberta} />
-        </Etapa>
-      )}
-
-      <Etapa numero={depois + 1} titulo="Quem acompanhou (cliente)">
-        {/* Ninguém do cliente acompanhou: nome, setor e assinatura ficam opcionais (ex.: portaria na saída). */}
-        <button
-          type="button"
-          disabled={!aberta}
-          aria-pressed={!!campos.sem_acompanhamento}
-          onClick={() => alterar({ sem_acompanhamento: !campos.sem_acompanhamento })}
-          className={
-            campos.sem_acompanhamento
-              ? 'min-h-12 rounded-xl border-2 border-verde bg-verde px-4 font-bold text-white'
-              : 'min-h-12 rounded-xl border-2 border-borda bg-white px-4 font-bold'
-          }
-        >
-          Não houve acompanhamento
-        </button>
-        {campos.sem_acompanhamento && (
-          <Aviso tipo="info">
-            Ninguém do cliente acompanhou o serviço. Se der, peça na saída a assinatura de quem
-            recebeu (portaria, recepção…) para mostrar que você esteve lá; não é obrigatório. Se
-            alguém acompanhou, toque de novo no botão para desmarcar.
-          </Aviso>
-        )}
-        <div className="grid grid-cols-2 gap-3">
-          <Campo rotulo="Nome" htmlFor="ex-resp-nome" obrigatorio={!campos.sem_acompanhamento}>
-            <Input
-              id="ex-resp-nome"
-              disabled={!aberta}
-              value={campo('responsavel_nome')}
-              onChange={(e) => alterar({ responsavel_nome: e.target.value })}
-            />
-          </Campo>
-          <Campo rotulo="Setor" htmlFor="ex-resp-setor" obrigatorio={!campos.sem_acompanhamento}>
-            <Input
-              id="ex-resp-setor"
-              disabled={!aberta}
-              placeholder={campos.sem_acompanhamento ? 'Ex.: Portaria' : 'Ex.: Manutenção'}
-              value={campo('responsavel_setor')}
-              onChange={(e) => alterar({ responsavel_setor: e.target.value })}
-            />
-          </Campo>
-        </div>
-        <QuadroAssinatura
-          titulo={
-            campos.sem_acompanhamento
-              ? 'Assinatura de quem recebeu na saída (opcional)'
-              : 'Assinatura de quem acompanhou'
-          }
-          feita={!!campos.assinatura_cliente_id}
-          aberta={aberta}
-          ocupado={assinando === 'cliente'}
-          aoConfirmar={(img) => assinar('cliente', img)}
-          aoRefazer={() => alterar({ assinatura_cliente_id: null })}
-        />
-      </Etapa>
-
-      <Etapa numero={depois + 2} titulo="Operador">
-        <Campo rotulo="Seu nome completo" htmlFor="ex-operador" obrigatorio>
-          <Input
-            id="ex-operador"
-            disabled={!aberta}
-            value={campo('operador_nome')}
-            onChange={(e) => alterar({ operador_nome: e.target.value })}
-          />
-        </Campo>
-        <QuadroAssinatura
-          titulo="Seu visto"
-          feita={!!campos.assinatura_operador_id}
-          aberta={aberta}
-          ocupado={assinando === 'operador'}
-          aoConfirmar={(img) => assinar('operador', img)}
-          aoRefazer={() => alterar({ assinatura_operador_id: null })}
-        />
-      </Etapa>
-
-      <Etapa numero={depois + 3} titulo="Término e saída">
+      <Etapa numero={naoRealizado ? 1 : depois + 3} titulo="Término e saída">
         <p className="text-sm text-texto-suave">
           Registre ao terminar o serviço e ao sair do cliente. Depois toque em Concluir OS.
         </p>
@@ -696,6 +750,49 @@ function Execucao({ os }: { os: OsCompleta }) {
             Confira os horários: {foraDeOrdem}. A ordem é chegada, início, término e saída.
           </Aviso>
         )}
+        <div className="flex flex-col gap-2 border-t border-borda pt-3">
+          <button
+            type="button"
+            disabled={!aberta}
+            aria-pressed={naoRealizado}
+            onClick={() => {
+              setErro(null)
+              alterar({ nao_realizado: !naoRealizado })
+            }}
+            className={
+              naoRealizado
+                ? 'min-h-12 rounded-xl border-2 border-perigo bg-perigo px-4 font-bold text-white'
+                : 'min-h-12 rounded-xl border-2 border-perigo bg-white px-4 font-bold text-perigo'
+            }
+          >
+            {naoRealizado
+              ? 'Serviço não realizado (toque para desmarcar)'
+              : 'Serviço não realizado'}
+          </button>
+          {naoRealizado ? (
+            <Campo
+              rotulo="Motivo"
+              htmlFor="ex-motivo-nao-realizado"
+              obrigatorio
+              dica="Ex.: não havia ninguém para acompanhar; empresa em auditoria. A OS será cancelada e reagendada pelo escritório."
+            >
+              <Textarea
+                id="ex-motivo-nao-realizado"
+                rows={3}
+                disabled={!aberta}
+                value={campo('motivo_nao_realizado')}
+                onChange={(e) => alterar({ motivo_nao_realizado: e.target.value })}
+              />
+            </Campo>
+          ) : (
+            aberta && (
+              <p className="text-sm text-texto-suave">
+                Use só se não deu para fazer o serviço (ex.: ninguém para acompanhar, empresa em
+                auditoria).
+              </p>
+            )
+          )}
+        </div>
       </Etapa>
 
       {aberta && (
@@ -703,11 +800,16 @@ function Execucao({ os }: { os: OsCompleta }) {
           <div className="mx-auto max-w-xl">
             <Button
               className="w-full"
+              variante={naoRealizado ? 'perigo' : 'primario'}
               onClick={() => void finalizar()}
               disabled={concluir.isPending}
             >
               <CheckCircle2 className="size-5" aria-hidden />
-              {concluir.isPending ? 'Concluindo…' : 'Concluir OS'}
+              {concluir.isPending
+                ? 'Concluindo…'
+                : naoRealizado
+                  ? 'Concluir: serviço não realizado'
+                  : 'Concluir OS'}
             </Button>
           </div>
         </div>

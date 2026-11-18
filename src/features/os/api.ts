@@ -414,7 +414,8 @@ export type CamposExecucao = Omit<
 
 /**
  * O que o operador pode gravar na execução: a mesma lista do "grant update" do
- * banco (migrations 20261103120200_ordens_servico.sql, 20261217120000_os_sem_acompanhamento.sql e 20261220130000_os_ocorrencia.sql). Um campo fora dela faz o
+ * banco (migrations 20261103120200_ordens_servico.sql, 20261217120000_os_sem_acompanhamento.sql, 20261220130000_os_ocorrencia.sql e
+ * 20270114120000_os_nao_realizado.sql). Um campo fora dela faz o
  * banco recusar a gravação inteira ("permission denied for table os_execucao").
  */
 export const CAMPOS_EDITAVEIS_EXECUCAO = [
@@ -432,6 +433,8 @@ export const CAMPOS_EDITAVEIS_EXECUCAO = [
   'responsavel_setor',
   'sem_acompanhamento',
   'ocorrencia_resolvida',
+  'nao_realizado',
+  'motivo_nao_realizado',
   'assinatura_cliente_id',
   'assinatura_operador_id',
   'checklist',
@@ -485,8 +488,9 @@ export function useConcluirOs(id: string) {
   const mudarStatus = useMudarStatusLocal()
   return useMutation({
     networkMode: 'always',
-    mutationFn: async () => {
-      mudarStatus(id, 'concluida')
+    // Serviço não realizado: o banco conclui como cancelada (com o motivo).
+    mutationFn: async (naoRealizado: boolean = false) => {
+      mudarStatus(id, naoRealizado ? 'cancelada' : 'concluida')
       await enfileirar({ tipo: 'concluir', osId: id })
     },
   })

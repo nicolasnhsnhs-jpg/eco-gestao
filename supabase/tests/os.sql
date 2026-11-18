@@ -377,6 +377,42 @@ do $$ begin
         and cancelada_por = '00000000-0000-0000-0000-0000000005d1' and cancelada_em is not null), 1);
 end $$;
 
+-- Serviço não realizado: o operador marca, escreve o motivo e conclui sem o resto;
+-- a OS fica cancelada com o motivo e não registra serviço realizado.
+select pg_temp.como('00000000-0000-0000-0000-0000000005c1');
+set local role authenticated;
+insert into ids values
+  ('os_c', public.gerar_os_do_modelo('00000000-0000-0000-0000-000000005d01', '2026-11-08', null,
+                                     array['00000000-0000-0000-0000-0000000005e2'::uuid]));
+reset role;
+
+select pg_temp.como('00000000-0000-0000-0000-0000000005e2');
+set local role authenticated;
+update public.os_execucao set nao_realizado = true, motivo_nao_realizado = 'ok'
+ where os_id = (select id from ids where nome = 'os_c');
+do $$ begin
+  begin
+    perform public.concluir_os((select id from ids where nome = 'os_c'));
+    raise exception 'FALHOU: concluiu não realizado sem motivo';
+  exception when check_violation then null;
+  end;
+end $$;
+update public.os_execucao set motivo_nao_realizado = '  Empresa em auditoria, reagendar  '
+ where os_id = (select id from ids where nome = 'os_c');
+select public.concluir_os((select id from ids where nome = 'os_c'));
+-- A fila manda de novo (sinal fraco): não é erro.
+select public.concluir_os((select id from ids where nome = 'os_c'));
+reset role;
+
+do $$ begin
+  perform pg_temp.conferir('OS não realizada fica cancelada com o motivo',
+    (select count(*) from public.ordens_servico
+      where id = (select id from ids where nome = 'os_c') and status = 'cancelada'
+        and motivo_cancelamento = 'Serviço não realizado: Empresa em auditoria, reagendar'
+        and cancelada_por = '00000000-0000-0000-0000-0000000005e2'
+        and servico_id is null and concluida_em is null), 1);
+end $$;
+
 select 'Ordens de serviço: permissões e fluxo conferidos.' as resultado;
 
 rollback;

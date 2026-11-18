@@ -3312,6 +3312,8 @@ export type Database = {
           hora_saida: string | null
           hora_termino: string | null
           km_chegada: number | null
+          motivo_nao_realizado: string | null
+          nao_realizado: boolean
           observacoes: string | null
           ocorrencia_resolvida: boolean
           operador_nome: string | null
@@ -3336,6 +3338,8 @@ export type Database = {
           hora_saida?: string | null
           hora_termino?: string | null
           km_chegada?: number | null
+          motivo_nao_realizado?: string | null
+          nao_realizado?: boolean
           observacoes?: string | null
           ocorrencia_resolvida?: boolean
           operador_nome?: string | null
@@ -3360,6 +3364,8 @@ export type Database = {
           hora_saida?: string | null
           hora_termino?: string | null
           km_chegada?: number | null
+          motivo_nao_realizado?: string | null
+          nao_realizado?: boolean
           observacoes?: string | null
           ocorrencia_resolvida?: boolean
           operador_nome?: string | null
