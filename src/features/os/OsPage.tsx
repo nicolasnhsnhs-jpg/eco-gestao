@@ -74,7 +74,13 @@ export function OsPage() {
   const escritorio = PAPEIS_ESCRITORIO_OS.includes(perfil.papel) && !o.treinamento
   const antesDeComecar = o.status === 'rascunho' || o.status === 'agendada'
   const alvo: AlvoEscopo | null = o.modelo_id
-    ? { modeloId: o.modelo_id, escopo: o.escopo, osId: o.id, antesDeComecar }
+    ? {
+        modeloId: o.modelo_id,
+        escopo: o.escopo,
+        osId: o.id,
+        antesDeComecar,
+        emExecucao: o.status === 'em_execucao',
+      }
     : null
 
   async function baixarPdf() {

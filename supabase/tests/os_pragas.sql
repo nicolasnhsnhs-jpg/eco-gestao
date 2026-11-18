@@ -104,6 +104,26 @@ update public.os_execucao
  where os_id = (select id from ids where nome = 'os1');
 reset role;
 
+-- Com a OS em execução, o escritório cadastra um ponto novo: ele entra na OS e o
+-- que o técnico já anotou (porta-isca 2 com MC) fica como estava.
+select pg_temp.como('00000000-0000-0000-0000-0000000006c1');
+set local role authenticated;
+insert into public.pontos_controle (modelo_id, tipo, numero, area, forma_iscagem, tipo_isca) values
+  ('00000000-0000-0000-0000-000000006d01', 'porta_isca', 5, 'Depósito', 'PII', 'IP');
+select public.atualizar_pontos_os((select id from ids where nome = 'os1'));
+reset role;
+select pg_temp.conferir('ponto novo entrou na OS em execução',
+  (select count(*) from public.os_pontos where os_id = (select id from ids where nome = 'os1')), 6);
+select pg_temp.conferir('anotação do técnico mantida',
+  (select count(*) from public.os_pontos where os_id = (select id from ids where nome = 'os1')
+     and tipo = 'porta_isca' and numero = 2 and situacao = 'MC'), 1);
+select pg_temp.conferir('ponto novo começa MS',
+  (select count(*) from public.os_pontos where os_id = (select id from ids where nome = 'os1')
+     and tipo = 'porta_isca' and numero = 5 and situacao = 'MS' and incluido_na_execucao), 1);
+select pg_temp.conferir('pontos copiados antes da execução não ficam marcados como novos',
+  (select count(*) from public.os_pontos where os_id = (select id from ids where nome = 'os1')
+     and incluido_na_execucao), 1);
+
 insert into public.arquivos (id, cliente_id, os_id, caminho_storage, nome_original, categoria, enviado_por)
 select gen_random_uuid(), '00000000-0000-0000-0000-000000006c01', ids.id,
        'clientes/00000000-0000-0000-0000-000000006c01/os/' || ids.id || '/' || n || '.png',

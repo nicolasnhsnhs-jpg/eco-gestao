@@ -3648,6 +3648,7 @@ export type Database = {
           higiene: string | null
           hora_coleta: string | null
           id: string
+          incluido_na_execucao: boolean
           lampadas_trocadas: boolean | null
           limpeza_dreno: string | null
           limpeza_gabinete: string | null
@@ -3694,6 +3695,7 @@ export type Database = {
           higiene?: string | null
           hora_coleta?: string | null
           id?: string
+          incluido_na_execucao?: boolean
           lampadas_trocadas?: boolean | null
           limpeza_dreno?: string | null
           limpeza_gabinete?: string | null
@@ -3740,6 +3742,7 @@ export type Database = {
           higiene?: string | null
           hora_coleta?: string | null
           id?: string
+          incluido_na_execucao?: boolean
           lampadas_trocadas?: boolean | null
           limpeza_dreno?: string | null
           limpeza_gabinete?: string | null

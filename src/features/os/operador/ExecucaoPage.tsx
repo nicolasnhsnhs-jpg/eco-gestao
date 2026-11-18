@@ -54,6 +54,7 @@ import { MarcarProdutosProgramados } from '../ProdutosProgramados'
 import type { ChecklistProgramas } from '../tipos/programas'
 import { ExecucaoTelas } from './ExecucaoTelas'
 import { ExecucaoResiduo } from './ExecucaoResiduo'
+import { AvisoPontosNovos } from './AvisoPontosNovos'
 import { useRascunhoExecucao, type EstadoEnvio } from './rascunho'
 
 type CampoHora = 'hora_chegada' | 'hora_inicio' | 'hora_termino' | 'hora_saida'
@@ -326,6 +327,8 @@ function Execucao({ os }: { os: OsCompleta }) {
           aprender. Nada disto vai para o cliente.
         </Aviso>
       )}
+
+      {aberta && pontos.data && <AvisoPontosNovos osId={os.id} pontos={pontos.data} />}
 
       {falta.length > 0 && (
         <Aviso tipo="erro" tentativa={tentativa}>

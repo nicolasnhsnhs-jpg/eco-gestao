@@ -18,7 +18,7 @@ import { PARAMETROS_PADRAO, quantosPontos, type EscopoAgua as Escopo } from './t
 export function EscopoAgua({ alvo }: { alvo: AlvoEscopo }) {
   const { modeloId, antesDeComecar } = alvo
   const pontos = usePontosModelo(modeloId)
-  const salvarPontos = useSalvarPontos(alvo.osId, antesDeComecar)
+  const salvarPontos = useSalvarPontos(alvo.osId, antesDeComecar || !!alvo.emExecucao)
   const salvarEscopo = useSalvarEscopo(alvo.osId, alvo.modeloId)
   const escopo = (alvo.escopo ?? {}) as Escopo
   const [parametros, setParametros] = useState(escopo.parametros ?? PARAMETROS_PADRAO)
@@ -44,7 +44,10 @@ export function EscopoAgua({ alvo }: { alvo: AlvoEscopo }) {
     <Card className="flex flex-col gap-4">
       <h2 className="font-titulo text-lg font-bold text-verde-escuro">Escopo da análise de água</h2>
       {alvo.osId && !antesDeComecar && (
-        <Aviso tipo="info">A execução já começou: mudanças valem a partir da próxima visita.</Aviso>
+        <Aviso tipo="info">
+          A execução já começou: o que for <strong>adicionado</strong> entra nesta OS (o técnico
+          recebe quando tiver sinal). Mudanças no que já está nela valem a partir da próxima visita.
+        </Aviso>
       )}
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       {sucesso && <Aviso tipo="sucesso">{sucesso}</Aviso>}

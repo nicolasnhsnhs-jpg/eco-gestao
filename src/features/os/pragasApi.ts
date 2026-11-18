@@ -56,9 +56,14 @@ export type AlvoEscopo = {
   osId?: string
   /** A OS ainda não começou: a cópia dela acompanha o modelo. */
   antesDeComecar: boolean
+  /** A OS está em execução: só os pontos novos entram nela (o técnico recebe com sinal). */
+  emExecucao?: boolean
 }
 
-/** Grava pontos do modelo e, se a OS ainda não começou, atualiza a cópia dela. */
+/**
+ * Grava pontos do modelo e atualiza a OS: antes de começar, a cópia acompanha tudo;
+ * em execução, só ganha os pontos novos.
+ */
 export function useSalvarPontos(osId: string | undefined, podeAtualizarOs: boolean) {
   const atualizar = useAtualizarTudo()
   return useMutation({

@@ -37,7 +37,7 @@ const soNumero = (texto: string) => texto.replace(/\D/g, '')
 export function EscopoArCondicionado({ alvo }: { alvo: AlvoEscopo }) {
   const { modeloId, antesDeComecar } = alvo
   const pontos = usePontosModelo(modeloId)
-  const salvarPontos = useSalvarPontos(alvo.osId, antesDeComecar)
+  const salvarPontos = useSalvarPontos(alvo.osId, antesDeComecar || !!alvo.emExecucao)
   const [erro, setErro] = useState<string | null>(null)
   const [sucesso, setSucesso] = useState<string | null>(null)
   const todos = (pontos.data ?? []).filter((p) => p.tipo === 'ar_condicionado')
@@ -60,7 +60,10 @@ export function EscopoArCondicionado({ alvo }: { alvo: AlvoEscopo }) {
         Escopo da limpeza de ar-condicionado
       </h2>
       {alvo.osId && !antesDeComecar && (
-        <Aviso tipo="info">A execução já começou: mudanças valem a partir da próxima visita.</Aviso>
+        <Aviso tipo="info">
+          A execução já começou: o que for <strong>adicionado</strong> entra nesta OS (o técnico
+          recebe quando tiver sinal). Mudanças no que já está nela valem a partir da próxima visita.
+        </Aviso>
       )}
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       {sucesso && <Aviso tipo="sucesso">{sucesso}</Aviso>}

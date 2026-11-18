@@ -33,7 +33,7 @@ import {
 export function EscopoPragas({ alvo }: { alvo: AlvoEscopo }) {
   const { modeloId, antesDeComecar } = alvo
   const pontos = usePontosModelo(modeloId)
-  const salvarPontos = useSalvarPontos(alvo.osId, antesDeComecar)
+  const salvarPontos = useSalvarPontos(alvo.osId, antesDeComecar || !!alvo.emExecucao)
   const [erro, setErro] = useState<string | null>(null)
   const [sucesso, setSucesso] = useState<string | null>(null)
 
@@ -61,7 +61,9 @@ export function EscopoPragas({ alvo }: { alvo: AlvoEscopo }) {
       </h2>
       {alvo.osId && !antesDeComecar && (
         <Aviso tipo="info">
-          A execução já começou: mudanças nos pontos valem a partir da próxima visita.
+          A execução já começou: pontos <strong>adicionados</strong> entram nesta OS (o técnico
+          recebe quando tiver sinal). Mudanças nos pontos que já estão nela valem a partir da
+          próxima visita.
         </Aviso>
       )}
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
