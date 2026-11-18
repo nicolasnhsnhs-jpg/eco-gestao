@@ -135,7 +135,10 @@ export const consultaOs = (id: string) =>
     queryFn: async () => {
       const { data, error } = await supabase
         .from('ordens_servico')
-        .select(`*, ${RELACOES}, execucao:os_execucao(*)`)
+        .select(
+          `*, ${RELACOES}, execucao:os_execucao(*),
+          ocorrencias:os_ocorrencias(ocorrencia:ocorrencias(id, texto, criado_em, os_origem_id))`,
+        )
         .eq('id', id)
         .maybeSingle()
       if (error) throw error
@@ -261,8 +264,8 @@ export type DadosAgendamento = {
   veiculoId: string | null
   descricao: string
   observacoesAdm: string
-  /** Ocorrência que o técnico precisa confirmar que resolveu (vazio: nenhuma). */
-  ocorrencia?: string
+  /** Ocorrências novas (o técnico responde: sanado ou reforço na próxima visita). */
+  ocorrencias?: string[]
   /** Proposta aprovada de onde a OS saiu (o financeiro vê o valor no "A faturar"). */
   propostaId?: string | null
   /** Gravar operadores, veículo e observações como padrão das próximas visitas. */
@@ -323,14 +326,28 @@ export function useAgendarOs() {
         observacoes_adm: d.observacoesAdm || undefined,
       })
       if (error) throw error
-      if (d.ocorrencia || d.propostaId) {
+      if (d.propostaId) {
         const r = await supabase
           .from('ordens_servico')
-          .update({
-            ...(d.ocorrencia ? { ocorrencia: d.ocorrencia } : {}),
-            ...(d.propostaId ? { proposta_id: d.propostaId } : {}),
-          })
+          .update({ proposta_id: d.propostaId })
           .eq('id', osId)
+        if (r.error) throw r.error
+      }
+      const novas = (d.ocorrencias ?? []).map((t) => t.trim()).filter(Boolean)
+      if (novas.length) {
+        // A OS já nasce com as abertas do local: elas ficam, e as novas entram junto.
+        const { data: abertas, error: erroAbertas } = await supabase
+          .from('os_ocorrencias')
+          .select('ocorrencia:ocorrencias(id, texto)')
+          .eq('os_id', osId)
+        if (erroAbertas) throw erroAbertas
+        const r = await supabase.rpc('salvar_ocorrencias_os', {
+          os: osId,
+          itens: [
+            ...abertas.flatMap((l) => (l.ocorrencia ? [l.ocorrencia] : [])),
+            ...novas.map((texto) => ({ texto })),
+          ],
+        })
         if (r.error) throw r.error
       }
       return osId
@@ -377,6 +394,45 @@ export function useAtualizarOs(id: string) {
       }
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
+  })
+}
+
+/** Grava a lista de ocorrências da OS (com id: muda o texto; sem id: nova; fora: sai). */
+export function useSalvarOcorrencias(osId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (itens: { id?: string; texto: string }[]) => {
+      const { error } = await supabase.rpc('salvar_ocorrencias_os', { os: osId, itens })
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
+  })
+}
+
+/** Ocorrências ainda abertas do local (mesmo cliente, endereço e serviço): vão na OS nova. */
+export function useOcorrenciasAbertas(
+  clienteId: string,
+  enderecoId: string | null,
+  tipoId: string,
+) {
+  return useQuery({
+    queryKey: ['os', 'ocorrencias-abertas', clienteId, enderecoId, tipoId],
+    enabled: !!clienteId && !!tipoId,
+    queryFn: async () => {
+      let consulta = supabase
+        .from('ocorrencias')
+        .select('id, texto, criado_em')
+        .is('sanada_em', null)
+        .eq('cliente_id', clienteId)
+        .eq('tipo_servico_id', tipoId)
+        .order('criado_em')
+      consulta = enderecoId
+        ? consulta.eq('endereco_id', enderecoId)
+        : consulta.is('endereco_id', null)
+      const { data, error } = await consulta
+      if (error) throw error
+      return data
+    },
   })
 }
 
@@ -433,6 +489,7 @@ export const CAMPOS_EDITAVEIS_EXECUCAO = [
   'responsavel_setor',
   'sem_acompanhamento',
   'ocorrencia_resolvida',
+  'ocorrencias_resultado',
   'nao_realizado',
   'motivo_nao_realizado',
   'assinatura_cliente_id',

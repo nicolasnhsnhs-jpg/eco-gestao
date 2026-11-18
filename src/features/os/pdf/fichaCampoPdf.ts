@@ -67,6 +67,7 @@ import { EMPRESA_RODAPE, quebrarLinhas, textoSeguro } from './gerarPdfOs'
 import { buscarDadosPragas } from './pragasPdf'
 import { areasAtendidas } from '../EscopoAreas'
 import { descreverReservatorio } from '../EscopoReservatorio'
+import { ocorrenciasDaOs } from '../ocorrencias'
 
 /*
  * OS física (via de campo): a mesma OS da tela, impressa para o técnico preencher
@@ -961,10 +962,11 @@ export async function gerarFichaCampo(os: OsCompleta) {
   )
   if (os.descricao) f.dado('Descrição', os.descricao)
   if (os.observacoes_adm) f.dado('Observações ADM', os.observacoes_adm)
-  if (os.ocorrencia) {
-    f.dado('Ocorrência', os.ocorrencia)
-    f.opcoes('Ocorrência resolvida', ['Sim'])
-  }
+  ocorrenciasDaOs(os).forEach((oc, i, todas) => {
+    const rotulo = todas.length > 1 ? `Ocorrência ${i + 1}` : 'Ocorrência'
+    f.dado(rotulo, oc.texto)
+    f.opcoes(rotulo, ['Sanado', 'Necessita reforço na próxima visita'])
+  })
 
   f.secao('Chegada e horários')
   f.camposLinha([

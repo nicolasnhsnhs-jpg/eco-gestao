@@ -58,8 +58,8 @@ grant all on ids to authenticated;
 insert into ids values
   ('origem', public.gerar_os_do_modelo('00000000-0000-0000-0000-00000000a010', '2026-11-12'));
 -- Ocorrência do escritório (vai junto para o teste).
-update public.ordens_servico set ocorrencia = 'Roedores no setor de expedição'
- where id = (select id from ids where nome = 'origem');
+select public.salvar_ocorrencias_os((select id from ids where nome = 'origem'),
+  '[{"texto": "Roedores no setor de expedição"}]');
 reset role;
 
 create temp table contagem (servicos bigint, numero_os integer) on commit drop;
@@ -103,8 +103,8 @@ select pg_temp.conferir('numeração das OS não mudou',
              where chave = 'os-' || to_char(privado.hoje(), 'YYYY')), 0),
   (select numero_os from contagem));
 select pg_temp.conferir('ocorrência copiada para o teste',
-  (select count(*) from public.ordens_servico
-    where id = (select id from ids where nome = 'teste1') and ocorrencia like 'Roedores%'), 1);
+  (select count(*) from public.os_ocorrencias l join public.ocorrencias o on o.id = l.ocorrencia_id
+    where l.os_id = (select id from ids where nome = 'teste1') and o.texto like 'Roedores%'), 1);
 select pg_temp.conferir('pontos copiados sem ligação com o cliente',
   (select count(*) from public.os_pontos
     where os_id = (select id from ids where nome = 'teste1')
@@ -144,13 +144,17 @@ update public.os_execucao e
        hora_termino = '2026-11-12 09:30-03', hora_saida = '2026-11-12 09:40-03',
        operador_nome = 'Operador Treino 1', responsavel_nome = 'Fulano', responsavel_setor = 'Cozinha',
        checklist = '{"autorizado": {"sim": true}, "instaladas": {"sim": true}}',
-       ocorrencia_resolvida = true,
+       ocorrencias_resultado = (select jsonb_object_agg(l.ocorrencia_id::text, 'sanado')
+                                  from public.os_ocorrencias l where l.os_id = e.os_id),
        assinatura_cliente_id = (select a.id from public.arquivos a where a.os_id = e.os_id and a.nome_original = 'cliente.png'),
        assinatura_operador_id = (select a.id from public.arquivos a where a.os_id = e.os_id and a.nome_original = 'operador.png')
  where os_id = (select id from ids where nome = 'teste1');
 select public.concluir_os((select id from ids where nome = 'teste1'));
 reset role;
 
+select pg_temp.conferir('sanado no treinamento não encerra a ocorrência de verdade',
+  (select count(*) from public.ocorrencias
+    where os_origem_id = (select id from ids where nome = 'origem') and sanada_em is null), 1);
 select pg_temp.conferir('teste concluído',
   (select count(*) from public.ordens_servico
     where id = (select id from ids where nome = 'teste1') and status = 'concluida'

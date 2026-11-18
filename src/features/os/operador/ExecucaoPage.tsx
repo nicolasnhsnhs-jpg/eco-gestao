@@ -13,6 +13,7 @@ import { Etiqueta } from '@/components/ui/Etiqueta'
 import { formatarData, hojeISO } from '@/lib/datas'
 import { formatarTelefone } from '@/lib/documentos'
 import { mensagemDeErro } from '@/lib/erros'
+import { cn } from '@/lib/utils'
 
 import { useArquivos } from '../../arquivos/api'
 import { pendenteDaOs, useFila } from '../offline/fila'
@@ -36,6 +37,7 @@ import {
   type CamposExecucao,
   type OsCompleta,
 } from '../api'
+import { ocorrenciasDaOs, respostasDe, type RespostaOcorrencia } from '../ocorrencias'
 import { usePontosOs } from '../pragasApi'
 import { ETAPAS_AGUA } from '../tipos/agua'
 import { ETAPAS_AR } from '../tipos/arCondicionado'
@@ -129,6 +131,8 @@ function Execucao({ os }: { os: OsCompleta }) {
   const iniciar = useIniciarOs(os.id)
   const concluir = useConcluirOs(os.id)
   const { campos, alterar, estado, enviarAgora } = useRascunhoExecucao(os.id, execucao, aberta)
+  const ocorrencias = ocorrenciasDaOs(os)
+  const respostas = respostasDe(campos.ocorrencias_resultado)
   const [erro, setErro] = useState<string | null>(null)
   // Tocou em "Concluir" faltando algo: a lista do que falta aparece (e encolhe
   // conforme o operador preenche). Cada item leva à etapa dele.
@@ -272,7 +276,7 @@ function Execucao({ os }: { os: OsCompleta }) {
       comData,
       pontos.data ?? [],
       fotos,
-      os.ocorrencia,
+      ocorrencias.map((o) => o.id),
       subtipoPragas,
       os.tipo?.registra_residuo,
     )
@@ -300,7 +304,7 @@ function Execucao({ os }: { os: OsCompleta }) {
           comData,
           pontos.data ?? [],
           fotos,
-          os.ocorrencia,
+          ocorrencias.map((o) => o.id),
           subtipoPragas,
           os.tipo?.registra_residuo,
         )
@@ -411,31 +415,57 @@ function Execucao({ os }: { os: OsCompleta }) {
             <p className="whitespace-pre-line">{os.observacoes_adm}</p>
           </div>
         )}
-        {os.ocorrencia?.trim() && (
-          // Ocorrência do escritório: o técnico só conclui depois de confirmar que resolveu.
+        {ocorrencias.length > 0 && (
+          // Ocorrências do escritório: o técnico responde cada uma antes de concluir.
           <div
-            className="flex scroll-mt-20 flex-col gap-2 rounded-xl border-2 border-perigo/40 bg-red-50 p-3"
+            className="flex scroll-mt-20 flex-col gap-3 rounded-xl border-2 border-perigo/40 bg-red-50 p-3"
             data-etapa="Ocorrência"
           >
             <p className="text-sm font-bold text-perigo">
-              Ocorrência <span aria-hidden>*</span>
+              {ocorrencias.length > 1 ? 'Ocorrências' : 'Ocorrência'} <span aria-hidden>*</span>
             </p>
-            <p className="whitespace-pre-line">{os.ocorrencia}</p>
-            <button
-              type="button"
-              disabled={!aberta}
-              aria-pressed={!!campos.ocorrencia_resolvida}
-              onClick={() => alterar({ ocorrencia_resolvida: !campos.ocorrencia_resolvida })}
-              className={
-                campos.ocorrencia_resolvida
-                  ? 'min-h-12 rounded-xl border-2 border-verde bg-verde px-4 font-bold text-white'
-                  : 'min-h-12 rounded-xl border-2 border-perigo bg-white px-4 font-bold text-perigo'
-              }
-            >
-              {campos.ocorrencia_resolvida
-                ? 'Ocorrência resolvida (toque para desmarcar)'
-                : 'Confirmar que resolvi a ocorrência'}
-            </button>
+            {ocorrencias.map((oc, i) => {
+              const resposta = respostas[oc.id]
+              const responder = (r: RespostaOcorrencia) =>
+                alterar({ ocorrencias_resultado: { ...respostas, [oc.id]: r } })
+              return (
+                <div
+                  key={oc.id}
+                  className={cn('flex flex-col gap-2', i > 0 && 'border-t border-perigo/20 pt-3')}
+                >
+                  <p className="whitespace-pre-line">
+                    {ocorrencias.length > 1 && <strong>{i + 1}. </strong>}
+                    {oc.texto}
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      disabled={!aberta}
+                      aria-pressed={resposta === 'sanado'}
+                      onClick={() => responder('sanado')}
+                      className={cn(
+                        'min-h-12 rounded-xl border-2 border-verde px-3 font-bold',
+                        resposta === 'sanado' ? 'bg-verde text-white' : 'bg-white text-verde',
+                      )}
+                    >
+                      Sanado / resolvido
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!aberta}
+                      aria-pressed={resposta === 'reforco'}
+                      onClick={() => responder('reforco')}
+                      className={cn(
+                        'min-h-12 rounded-xl border-2 border-alerta px-3 font-bold',
+                        resposta === 'reforco' ? 'bg-alerta text-white' : 'bg-white text-alerta',
+                      )}
+                    >
+                      Necessita reforço na próxima visita
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
         {os.descricao && (

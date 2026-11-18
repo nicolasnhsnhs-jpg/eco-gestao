@@ -51,15 +51,24 @@ describe('pendenciasLocais', () => {
     expect(etapaDaPendencia('setor de quem acompanhou')).toBe('Quem acompanhou (cliente)')
   })
 
-  it('ocorrência do escritório: só conclui depois de o técnico confirmar', () => {
+  it('ocorrências do escritório: cada uma precisa de sanado ou reforço', () => {
     const completa = { ...comum, resultado: 'ok' }
-    const texto = 'Roedores na expedição'
-    expect(pendenciasLocais('generico', completa, [], undefined, texto)).toEqual([
+    const ids = ['a', 'b']
+    expect(pendenciasLocais('generico', completa, [], undefined, ids)).toEqual([
       'confirmação da ocorrência',
     ])
-    const confirmada = { ...completa, ocorrencia_resolvida: true }
-    expect(pendenciasLocais('generico', confirmada, [], undefined, texto)).toEqual([])
-    expect(pendenciasLocais('generico', completa, [], undefined, '  ')).toEqual([])
+    const umaSo = { ...completa, ocorrencias_resultado: { a: 'sanado' } }
+    expect(pendenciasLocais('generico', umaSo, [], undefined, ids)).toEqual([
+      'confirmação da ocorrência',
+    ])
+    const todas = { ...completa, ocorrencias_resultado: { a: 'sanado', b: 'reforco' } }
+    expect(pendenciasLocais('generico', todas, [], undefined, ids)).toEqual([])
+    // A confirmação antiga ("resolvi") não vale para as ocorrências novas.
+    const antiga = { ...completa, ocorrencia_resolvida: true }
+    expect(pendenciasLocais('generico', antiga, [], undefined, ids)).toEqual([
+      'confirmação da ocorrência',
+    ])
+    expect(pendenciasLocais('generico', completa, [], undefined, [])).toEqual([])
     expect(etapaDaPendencia('confirmação da ocorrência')).toBe('Ocorrência')
   })
 

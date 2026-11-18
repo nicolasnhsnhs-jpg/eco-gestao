@@ -2973,6 +2973,101 @@ export type Database = {
           },
         ]
       }
+      ocorrencias: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          cliente_id: string
+          criado_em: string
+          criado_por: string | null
+          endereco_id: string | null
+          id: string
+          os_origem_id: string | null
+          sanada_em: string | null
+          sanada_na_os_id: string | null
+          texto: string
+          tipo_servico_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cliente_id: string
+          criado_em?: string
+          criado_por?: string | null
+          endereco_id?: string | null
+          id?: string
+          os_origem_id?: string | null
+          sanada_em?: string | null
+          sanada_na_os_id?: string | null
+          texto: string
+          tipo_servico_id: string
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cliente_id?: string
+          criado_em?: string
+          criado_por?: string | null
+          endereco_id?: string | null
+          id?: string
+          os_origem_id?: string | null
+          sanada_em?: string | null
+          sanada_na_os_id?: string | null
+          texto?: string
+          tipo_servico_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'ocorrencias_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ocorrencias_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ocorrencias_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ocorrencias_endereco_id_fkey'
+            columns: ['endereco_id']
+            isOneToOne: false
+            referencedRelation: 'enderecos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ocorrencias_os_origem_id_fkey'
+            columns: ['os_origem_id']
+            isOneToOne: false
+            referencedRelation: 'ordens_servico'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ocorrencias_sanada_na_os_id_fkey'
+            columns: ['sanada_na_os_id']
+            isOneToOne: false
+            referencedRelation: 'ordens_servico'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ocorrencias_tipo_servico_id_fkey'
+            columns: ['tipo_servico_id']
+            isOneToOne: false
+            referencedRelation: 'tipos_servico'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       ordens_servico: {
         Row: {
           atualizado_em: string
@@ -3316,6 +3411,7 @@ export type Database = {
           nao_realizado: boolean
           observacoes: string | null
           ocorrencia_resolvida: boolean
+          ocorrencias_resultado: Json
           operador_nome: string | null
           os_id: string
           responsavel_nome: string | null
@@ -3342,6 +3438,7 @@ export type Database = {
           nao_realizado?: boolean
           observacoes?: string | null
           ocorrencia_resolvida?: boolean
+          ocorrencias_resultado?: Json
           operador_nome?: string | null
           os_id: string
           responsavel_nome?: string | null
@@ -3368,6 +3465,7 @@ export type Database = {
           nao_realizado?: boolean
           observacoes?: string | null
           ocorrencia_resolvida?: boolean
+          ocorrencias_resultado?: Json
           operador_nome?: string | null
           os_id?: string
           responsavel_nome?: string | null
@@ -3593,6 +3691,39 @@ export type Database = {
             columns: ['veiculo_padrao_id']
             isOneToOne: false
             referencedRelation: 'veiculos'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      os_ocorrencias: {
+        Row: {
+          incluida_em: string
+          ocorrencia_id: string
+          os_id: string
+        }
+        Insert: {
+          incluida_em?: string
+          ocorrencia_id: string
+          os_id: string
+        }
+        Update: {
+          incluida_em?: string
+          ocorrencia_id?: string
+          os_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'os_ocorrencias_ocorrencia_id_fkey'
+            columns: ['ocorrencia_id']
+            isOneToOne: false
+            referencedRelation: 'ocorrencias'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'os_ocorrencias_os_id_fkey'
+            columns: ['os_id']
+            isOneToOne: false
+            referencedRelation: 'ordens_servico'
             referencedColumns: ['id']
           },
         ]
@@ -6140,6 +6271,10 @@ export type Database = {
       }
       salvar_itens_proposta: {
         Args: { itens: Json; proposta: string }
+        Returns: undefined
+      }
+      salvar_ocorrencias_os: {
+        Args: { itens: Json; os: string }
         Returns: undefined
       }
       servicos_do_cliente_sem_valor: {

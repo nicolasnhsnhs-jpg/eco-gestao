@@ -28,6 +28,7 @@ import {
   useReabrirOs,
 } from './api'
 import { nomeVeiculo } from './nomeVeiculo'
+import { NOME_RESPOSTA, ocorrenciasDaOs, respostasDe } from './ocorrencias'
 import { formatarM3, nomeResiduo, quantidadeValida, residuoDoChecklist } from './tipos/residuo'
 import { ConferenciaOs } from './ConferenciaOs'
 import { EditarOs } from './EditarOs'
@@ -70,6 +71,7 @@ export function OsPage() {
   const o = os.data
   const ficha = fichaDaOs(o.ficha_cliente)
   const e = o.execucao
+  const ocorrencias = ocorrenciasDaOs(o)
   // No teste de treinamento o escritório só acompanha o que o técnico preencheu.
   const escritorio = PAPEIS_ESCRITORIO_OS.includes(perfil.papel) && !o.treinamento
   const antesDeComecar = o.status === 'rascunho' || o.status === 'agendada'
@@ -271,7 +273,18 @@ export function OsPage() {
               </Link>
             )}
           </Linha>
-          {o.ocorrencia && <Linha rotulo="Ocorrência">{o.ocorrencia}</Linha>}
+          {ocorrencias.length > 0 && (
+            <Linha rotulo={ocorrencias.length > 1 ? 'Ocorrências' : 'Ocorrência'}>
+              <ul className="flex flex-col gap-1">
+                {ocorrencias.map((oc) => (
+                  <li key={oc.id} className="whitespace-pre-line">
+                    {ocorrencias.length > 1 && '• '}
+                    {oc.texto}
+                  </li>
+                ))}
+              </ul>
+            </Linha>
+          )}
           {o.status === 'cancelada' && o.motivo_cancelamento && (
             <Aviso tipo="erro">
               Cancelada em {formatarDataHora(o.cancelada_em)}: {o.motivo_cancelamento}
@@ -308,13 +321,23 @@ export function OsPage() {
               )}
               <Linha rotulo="Resultado">{e.resultado || '—'}</Linha>
               <Linha rotulo="Observações">{e.observacoes || '—'}</Linha>
-              {o.ocorrencia && (
-                <Linha rotulo="Ocorrência">
-                  {e.ocorrencia_resolvida
-                    ? 'Técnico confirmou que resolveu'
-                    : 'Ainda não confirmada'}
-                </Linha>
-              )}
+              {ocorrencias.map((oc, i) => {
+                const r = respostasDe(e.ocorrencias_resultado)[oc.id]
+                return (
+                  <Linha
+                    key={oc.id}
+                    rotulo={ocorrencias.length > 1 ? `Ocorrência ${i + 1}` : 'Ocorrência'}
+                  >
+                    {r ? (
+                      <Etiqueta cor={r === 'sanado' ? 'verde' : 'alerta'}>
+                        {NOME_RESPOSTA[r]}
+                      </Etiqueta>
+                    ) : (
+                      'Técnico ainda não respondeu'
+                    )}
+                  </Linha>
+                )
+              })}
               <Linha rotulo="Operador">
                 {e.operador_nome || '—'}{' '}
                 {e.assinatura_operador_id && <Etiqueta cor="verde">Visto</Etiqueta>}

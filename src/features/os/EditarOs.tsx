@@ -6,7 +6,16 @@ import { Campo, Input, Select, Textarea } from '@/components/ui/Campo'
 import { Modal } from '@/components/ui/Modal'
 import { mensagemDeErro } from '@/lib/erros'
 
-import { useAtualizarOs, useOperadores, useSalvarModelo, useVeiculos, type OsCompleta } from './api'
+import {
+  useAtualizarOs,
+  useOperadores,
+  useSalvarModelo,
+  useSalvarOcorrencias,
+  useVeiculos,
+  type OsCompleta,
+} from './api'
+import { CampoOcorrencias, type ItemOcorrencia } from './CampoOcorrencias'
+import { ocorrenciasDaOs } from './ocorrencias'
 import { nomeVeiculo } from './nomeVeiculo'
 
 /**
@@ -43,7 +52,14 @@ function Formulario({ os, aoFechar }: { os: OsCompleta; aoFechar: () => void }) 
   const [veiculoId, setVeiculoId] = useState(os.veiculo_id ?? '')
   const [descricao, setDescricao] = useState(os.descricao ?? '')
   const [observacoes, setObservacoes] = useState(os.observacoes_adm ?? '')
-  const [ocorrencia, setOcorrencia] = useState(os.ocorrencia ?? '')
+  const salvarOcorrencias = useSalvarOcorrencias(os.id)
+  const [ocorrencias, setOcorrencias] = useState<ItemOcorrencia[]>(() =>
+    ocorrenciasDaOs(os).map((o) => ({
+      id: o.id,
+      texto: o.texto,
+      anterior: o.os_origem_id !== os.id,
+    })),
+  )
   const [erro, setErro] = useState<string | null>(null)
 
   async function salvar(e: React.FormEvent) {
@@ -65,10 +81,14 @@ function Formulario({ os, aoFechar }: { os: OsCompleta; aoFechar: () => void }) 
           veiculo_id: veiculoId || null,
           descricao: descricao.trim(),
           observacoes_adm: observacoes.trim() || null,
-          ocorrencia: ocorrencia.trim() || null,
         },
         operadores: escolhidos,
       })
+      await salvarOcorrencias.mutateAsync(
+        ocorrencias
+          .filter((o) => o.texto.trim())
+          .map((o) => ({ ...(o.id ? { id: o.id } : {}), texto: o.texto.trim() })),
+      )
       if (paraProximas && os.modelo_id) {
         await salvarModelo.mutateAsync({
           descricao: descricao.trim() || null,
@@ -156,18 +176,7 @@ function Formulario({ os, aoFechar }: { os: OsCompleta; aoFechar: () => void }) 
         />
       </Campo>
 
-      <Campo
-        rotulo="Ocorrência (o técnico precisa confirmar)"
-        htmlFor="ed-ocorrencia"
-        dica="Só quando houver. O técnico só conclui a OS depois de confirmar que resolveu."
-      >
-        <Textarea
-          id="ed-ocorrencia"
-          rows={2}
-          value={ocorrencia}
-          onChange={(e) => setOcorrencia(e.target.value)}
-        />
-      </Campo>
+      <CampoOcorrencias itens={ocorrencias} aoMudar={setOcorrencias} prefixoId="ed-ocorrencia" />
 
       {os.modelo_id && (
         <label className="flex items-start gap-3 rounded-xl border border-borda bg-fundo-suave p-3">
