@@ -36,6 +36,44 @@ export function registrarServiceWorker() {
   })
 }
 
+const CHAVE_RECARGA = 'eco-recarga-arquivo-antigo'
+
+/**
+ * Depois de publicar versão nova, quem estava com o sistema aberto ainda tem a
+ * versão antiga na tela, e ela pede arquivos (PDF, ficha...) que não existem mais
+ * ("Failed to fetch dynamically imported module"). Sair e entrar não resolve, só
+ * recarregar a página: então recarrega sozinho, uma vez (se falhar de novo logo
+ * em seguida, deixa o erro aparecer em vez de ficar recarregando sem parar).
+ */
+export function recarregarSeFaltarArquivo() {
+  window.addEventListener('vite:preloadError', (evento) => {
+    let ultima = 0
+    try {
+      ultima = Number(sessionStorage.getItem(CHAVE_RECARGA)) || 0
+    } catch {
+      // Sem sessionStorage (aba anônima): recarrega mesmo assim.
+    }
+    if (Date.now() - ultima < 30_000) return
+    try {
+      sessionStorage.setItem(CHAVE_RECARGA, String(Date.now()))
+    } catch {
+      // idem
+    }
+    evento.preventDefault()
+    window.location.reload()
+  })
+}
+
+/** O erro é de arquivo da versão antiga do sistema (veja recarregarSeFaltarArquivo). */
+export function ehArquivoDeVersaoAntiga(mensagem: string | undefined) {
+  return (
+    !!mensagem &&
+    /dynamically imported module|Importing a module script failed|error loading dynamically/i.test(
+      mensagem,
+    )
+  )
+}
+
 /** true quando a versão nova já foi baixada e falta só recarregar a página. */
 export function useNovaVersao() {
   return useSyncExternalStore(

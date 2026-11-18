@@ -13,6 +13,7 @@ import {
   diasDesde,
   DIAS_LIMPEZA_RECENTE,
   etiqueta,
+  filtrosParaLevar,
   PERGUNTAS_CONFERENCIA_BEBEDOURO,
   TIPOS_BEBEDOURO,
   TRABALHO,
@@ -59,6 +60,7 @@ export function ExecucaoBebedouro({ os, campos, alterar, aberta, primeira }: Pro
         {pontos.isPending && <Carregando />}
         {pontos.isError && <Aviso tipo="erro">{mensagemDeErro(pontos.error)}</Aviso>}
         {anotar.isError && <Aviso tipo="erro">{mensagemDeErro(anotar.error)}</Aviso>}
+        <FiltrosParaLevar pontos={pontos.data ?? []} />
         {(Object.keys(TIPOS_BEBEDOURO) as TipoBebedouro[]).map((tipo) => {
           const lista = pontos.data?.filter((p) => p.tipo === tipo) ?? []
           if (lista.length === 0) return null
@@ -118,6 +120,27 @@ export function ExecucaoBebedouro({ os, campos, alterar, aberta, primeira }: Pro
         </Campo>
       </Etapa>
     </>
+  )
+}
+
+/** Quantos filtros de cada código levar (somando os bebedouros do local). */
+function FiltrosParaLevar({ pontos }: { pontos: PontoOs[] }) {
+  const filtros = filtrosParaLevar(pontos)
+  if (filtros.length === 0) return null
+  return (
+    <div className="rounded-xl bg-fundo-suave p-3">
+      <p className="font-semibold text-verde-escuro">Filtros para levar</p>
+      <ul className="mt-1 flex flex-wrap gap-2">
+        {filtros.map((f) => (
+          <li
+            key={f.codigo}
+            className="rounded-lg border border-borda bg-white px-2 py-1 text-sm font-semibold"
+          >
+            {f.quantidade}× {f.codigo}
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 

@@ -148,11 +148,13 @@ describe('bebedouros', () => {
   it('lê a lista e descarta linhas vazias', () => {
     expect(
       lerBebedouros([
-        { numero: '01', local: 'Refeitório', data: '2026-11-17', filtro: 'sim' },
-        { numero: '', local: '  ', data: '2026-11-17', filtro: '' },
+        { numero: '01', local: 'Refeitório', data: '2026-11-17', filtro: 'sim', codigo: '1019' },
+        { numero: '', local: '  ', data: '2026-11-17', filtro: '', codigo: '' },
         null,
       ]),
-    ).toEqual([{ numero: '01', local: 'Refeitório', data: '2026-11-17', filtro: 'sim' }])
+    ).toEqual([
+      { numero: '01', local: 'Refeitório', data: '2026-11-17', filtro: 'sim', codigo: '1019' },
+    ])
     expect(lerBebedouros('x')).toEqual([])
   })
 
@@ -160,5 +162,7 @@ describe('bebedouros', () => {
     expect(textoFiltro('sim')).toBe('Sim')
     expect(textoFiltro('nao')).toBe('Não')
     expect(textoFiltro('')).toBe('-')
+    expect(textoFiltro('sim', '1019')).toBe('Sim · 1019')
+    expect(textoFiltro('', ' 1144 ')).toBe('1144')
   })
 })

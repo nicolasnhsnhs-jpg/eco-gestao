@@ -303,11 +303,16 @@ export type BebedouroCertificado = {
   data: string
   /** "sim", "nao" ou "" (não informado) */
   filtro: string
+  /** Código do filtro do bebedouro (ex.: 1019); vazio se não tem. */
+  codigo: string
 }
 
 /** "Sim" / "Não" / "-" na coluna da troca de filtro. */
-export const textoFiltro = (filtro: string) =>
-  filtro === 'sim' ? 'Sim' : filtro === 'nao' ? 'Não' : '-'
+export const textoFiltro = (filtro: string, codigo = '') => {
+  const troca = filtro === 'sim' ? 'Sim' : filtro === 'nao' ? 'Não' : ''
+  const cod = codigo.trim()
+  return [troca, cod].filter(Boolean).join(' · ') || '-'
+}
 
 export type ReservatorioCertificado = {
   quantidade: string
@@ -401,6 +406,7 @@ export function lerBebedouros(valor: unknown): BebedouroCertificado[] {
       local: texto(b.local),
       data: texto(b.data),
       filtro: texto(b.filtro),
+      codigo: texto(b.codigo),
     }))
     .filter((b) => b.numero.trim() !== '' || b.local.trim() !== '')
 }

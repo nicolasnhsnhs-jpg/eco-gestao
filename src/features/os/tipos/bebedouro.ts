@@ -58,3 +58,28 @@ export const diasDesde = (iso: string, hoje: string) =>
 
 /** Até quantos dias a limpeza conta como "recente" e fica em destaque para o técnico. */
 export const DIAS_LIMPEZA_RECENTE = 30
+
+/**
+ * Filtros que o técnico precisa levar: quantos de cada código, somando os
+ * bebedouros do local (os sem código ficam de fora). Ex.: "3× 1019 · 1× 1144".
+ */
+export function filtrosParaLevar(
+  bebedouros: { tipo: string; codigo_filtro?: string | null }[],
+): { codigo: string; quantidade: number }[] {
+  const contagem = new Map<string, { codigo: string; quantidade: number }>()
+  for (const b of bebedouros) {
+    const codigo = b.codigo_filtro?.trim()
+    if (!ehBebedouro(b.tipo) || !codigo) continue
+    const chave = codigo.toLowerCase()
+    const item = contagem.get(chave) ?? { codigo, quantidade: 0 }
+    item.quantidade += 1
+    contagem.set(chave, item)
+  }
+  return [...contagem.values()].sort(
+    (a, b) =>
+      b.quantidade - a.quantidade || a.codigo.localeCompare(b.codigo, 'pt-BR', { numeric: true }),
+  )
+}
+
+export const textoFiltrosParaLevar = (filtros: { codigo: string; quantidade: number }[]) =>
+  filtros.map((f) => `${f.quantidade}× ${f.codigo}`).join(' · ')

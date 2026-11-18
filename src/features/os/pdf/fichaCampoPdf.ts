@@ -12,6 +12,8 @@ import {
   TIPOS_BEBEDOURO,
   TRABALHO,
   etiqueta,
+  filtrosParaLevar,
+  textoFiltrosParaLevar,
   type TipoBebedouro,
 } from '../tipos/bebedouro'
 import {
@@ -748,6 +750,8 @@ function escreverTelas(f: Folha, pontos: PontoOs[]) {
 function escreverBebedouro(f: Folha, pontos: PontoOs[]) {
   f.secao('Trabalho a ser realizado')
   f.opcoes('Trabalho', Object.values(TRABALHO))
+  const filtros = filtrosParaLevar(pontos)
+  if (filtros.length > 0) f.dado('Filtros para levar', textoFiltrosParaLevar(filtros))
 
   let algum = false
   for (const tipo of Object.keys(TIPOS_BEBEDOURO) as TipoBebedouro[]) {

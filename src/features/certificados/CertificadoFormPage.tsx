@@ -93,7 +93,13 @@ const esquema = z.object({
     }),
   ),
   bebedouros: z.array(
-    z.object({ numero: z.string(), local: z.string(), data: z.string(), filtro: z.string() }),
+    z.object({
+      numero: z.string(),
+      local: z.string(),
+      data: z.string(),
+      filtro: z.string(),
+      codigo: z.string(),
+    }),
   ),
   descricao: z.string(),
   mtr: z.string().trim(),
@@ -132,7 +138,7 @@ export function CertificadoFormPage() {
 }
 
 const RESERVATORIO_VAZIO = { quantidade: '', local: '', metragem: '', produto: '' }
-const BEBEDOURO_VAZIO = { numero: '', local: '', data: '', filtro: '' }
+const BEBEDOURO_VAZIO = { numero: '', local: '', data: '', filtro: '', codigo: '' }
 
 const ouNulo = (v: string) => (v.trim() === '' ? null : v.trim())
 
@@ -902,7 +908,7 @@ function Formulario({
                 {bebedouros.fields.map((campo, i) => (
                   <div
                     key={campo.id}
-                    className="grid grid-cols-[5rem_1fr] gap-2 rounded-xl border border-borda p-3 sm:grid-cols-[5rem_2fr_10rem_10rem_auto]"
+                    className="grid grid-cols-[5rem_1fr] gap-2 rounded-xl border border-borda p-3 sm:grid-cols-[5rem_2fr_10rem_8rem_12rem]"
                   >
                     <Input
                       aria-label="Nº da etiqueta"
@@ -920,7 +926,13 @@ function Formulario({
                       className="col-span-2 sm:col-span-1"
                       {...form.register(`bebedouros.${i}.data`)}
                     />
-                    <div className="col-span-2 flex items-center gap-2 sm:col-span-2">
+                    <Input
+                      aria-label="Código do filtro"
+                      placeholder="Cód. filtro"
+                      className="col-span-2 sm:col-span-1"
+                      {...form.register(`bebedouros.${i}.codigo`)}
+                    />
+                    <div className="col-span-2 flex items-center gap-2 sm:col-span-1">
                       <Select
                         aria-label="Troca de filtro"
                         {...form.register(`bebedouros.${i}.filtro`)}
@@ -949,6 +961,7 @@ function Formulario({
                       numero: Number.isInteger(n) && n > 0 ? String(n + 1).padStart(2, '0') : '',
                       data: ultimo?.data || form.getValues('data_execucao'),
                       filtro: ultimo?.filtro ?? '',
+                      codigo: ultimo?.codigo ?? '',
                     })
                   }}
                 >

@@ -284,7 +284,9 @@ export async function pontosDaOs(
 ): Promise<{ reservatorios: ReservatorioCertificado[]; bebedouros: BebedouroCertificado[] }> {
   const { data, error } = await supabase
     .from('os_pontos')
-    .select('tipo, numero, area, quantidade, capacidade_litros, limpo, filtro_trocado')
+    .select(
+      'tipo, numero, area, quantidade, capacidade_litros, limpo, filtro_trocado, codigo_filtro',
+    )
     .eq('os_id', osId)
     .in('tipo', ['reservatorio', 'bebedouro', 'bebedouro_garrafao'])
     .order('tipo')
@@ -309,6 +311,7 @@ export async function pontosDaOs(
     local: b.tipo === 'bebedouro_garrafao' ? `${b.area} (garrafão)` : b.area,
     data: '',
     filtro: b.filtro_trocado == null ? '' : b.filtro_trocado ? 'sim' : 'nao',
+    codigo: b.codigo_filtro ?? '',
   }))
   return { reservatorios, bebedouros }
 }

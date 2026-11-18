@@ -664,13 +664,13 @@ export async function gerarPdfCertificado(
       topoCorpo,
       limite,
       destaque,
-      ['Nº', 'Local', 'Data da limpeza', 'Troca de filtro'],
-      [0.1, 0.5, 0.2, 0.2],
+      ['Nº', 'Local', 'Data da limpeza', 'Troca de filtro · cód.'],
+      [0.1, 0.44, 0.2, 0.26],
       lerBebedouros(c.bebedouros).map((b) => [
         b.numero,
         b.local,
         b.data ? formatarData(b.data) : '',
-        textoFiltro(b.filtro),
+        textoFiltro(b.filtro, b.codigo),
       ]),
       ['Nº', 'Local', 'Limpeza', 'Filtro'],
     )

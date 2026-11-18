@@ -2,6 +2,8 @@
  * Transforma erros do Supabase/PostgreSQL em mensagens em português para a tela.
  */
 
+import { ehArquivoDeVersaoAntiga } from '@/app/novaVersao'
+
 type ErroBanco = { code?: string; message?: string; details?: string }
 
 const MENSAGENS_POR_CODIGO: Record<string, string> = {
@@ -24,6 +26,9 @@ export function mensagemDeErro(erro: unknown): string {
   const e = erro as ErroBanco
 
   if (e.message && MENSAGENS_LOGIN[e.message]) return MENSAGENS_LOGIN[e.message]
+  if (ehArquivoDeVersaoAntiga(e.message)) {
+    return 'Saiu uma versão nova do sistema. Recarregue a página (F5 no computador) e tente de novo.'
+  }
   if (e.message?.includes('Password should be at least')) {
     return 'A senha é curta demais. Use pelo menos 8 caracteres.'
   }

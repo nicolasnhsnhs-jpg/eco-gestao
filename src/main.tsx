@@ -4,7 +4,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router/dom'
 
-import { registrarServiceWorker } from './app/novaVersao'
+import { recarregarSeFaltarArquivo, registrarServiceWorker } from './app/novaVersao'
 import { router } from './app/router'
 import { AuthProvider } from './features/auth/AuthProvider'
 import './index.css'
@@ -34,4 +34,7 @@ createRoot(document.getElementById('root')!).render(
 )
 
 // App instalável que abre sem internet (só no site publicado; em desenvolvimento não).
-if (import.meta.env.PROD) registrarServiceWorker()
+if (import.meta.env.PROD) {
+  registrarServiceWorker()
+  recarregarSeFaltarArquivo()
+}
