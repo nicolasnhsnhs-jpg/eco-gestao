@@ -182,6 +182,12 @@ export async function enviarNotaPorEmail(
       if (a) caminhos.push(a.caminho_storage)
     }
   }
+  // Nota de boleto marcada para ir com o boleto: sem boleto, não vai a nota sozinha
+  // (vale para o botão Enviar e para o envio automático ao anexar o PDF).
+  if (caminhos.length === 0 && nota.forma_pagamento === 'boleto' && nota.boleto_na_emissao)
+    return falhar(
+      'Esta nota é paga por boleto e ainda não tem boleto. Gere ou anexe o boleto e clique em Enviar nota e boleto.',
+    )
   const boletos: Blob[] = []
   for (const caminho of caminhos) {
     const r = await admin.storage.from('arquivos').download(caminho)
