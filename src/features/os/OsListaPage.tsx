@@ -20,6 +20,7 @@ import {
   NOME_STATUS_OS,
   useOperadores,
   useOrdensServico,
+  type CategoriaOs,
   type FiltroOs,
   type OsResumo,
   type StatusOs,
@@ -43,16 +44,18 @@ const simplificar = (texto: string) => texto.normalize('NFD').replace(/\p{M}/gu,
 
 export function OsListaPage() {
   const perfil = usePerfil()
-  const [periodo, setPeriodo] = useState<Periodo>('semana')
+  const [periodo, setPeriodo] = useState<Periodo>('hoje')
   const [status, setStatus] = useState<StatusOs | ''>('')
   const [busca, setBusca] = useState('')
   const [dia, setDia] = useState('')
   const [operadorId, setOperadorId] = useState('')
+  const [categoria, setCategoria] = useState<CategoriaOs | ''>('')
   const [veiculosAberto, setVeiculosAberto] = useState(false)
   const operadores = useOperadores()
   const lista = useOrdensServico({
     ...filtroDoPeriodo(periodo, dia),
     status: status || undefined,
+    categoria: categoria || undefined,
     treinamento: false,
   })
   // Nome e operador filtram o que já veio do período (no máximo 200 OS).
@@ -157,6 +160,16 @@ export function OsListaPage() {
             </option>
           ))}
         </Select>
+        <Select
+          aria-label="Contrato ou avulso"
+          className="sm:w-auto"
+          value={categoria}
+          onChange={(e) => setCategoria(e.target.value as CategoriaOs | '')}
+        >
+          <option value="">Contrato e avulso</option>
+          <option value="contrato">Serviço de contrato</option>
+          <option value="avulsa">Serviço avulso</option>
+        </Select>
         <Input
           aria-label="Dia"
           title="Dia da OS (vale mais que o período)"
@@ -178,13 +191,14 @@ export function OsListaPage() {
             </option>
           ))}
         </Select>
-        {(filtrando || dia) && (
+        {(filtrando || dia || categoria) && (
           <Button
             variante="fantasma"
             onClick={() => {
               setBusca('')
               setDia('')
               setOperadorId('')
+              setCategoria('')
             }}
           >
             Limpar filtros
@@ -213,6 +227,8 @@ export function OsListaPage() {
               NOME_PERIODO[periodo]
             )}
             {status && ` · ${NOME_STATUS_OS[status]}`}
+            {categoria &&
+              ` · ${categoria === 'contrato' ? 'serviço de contrato' : 'serviço avulso'}`}
           </p>
           {!operadorId && porOperador.length > 1 && (
             <p className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-texto-suave">
@@ -232,7 +248,7 @@ export function OsListaPage() {
       )}
       {lista.isSuccess && filtradas.length === 0 && (
         <p className="rounded-2xl border border-borda bg-white p-6 text-center text-texto-suave">
-          {filtrando
+          {filtrando || categoria
             ? 'Nenhuma OS encontrada com esses filtros.'
             : dia
               ? 'Nenhuma OS neste dia.'

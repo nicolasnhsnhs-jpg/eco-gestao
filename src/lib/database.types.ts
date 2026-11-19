@@ -3873,6 +3873,32 @@ export type Database = {
           },
         ]
       }
+      os_ordem_operador: {
+        Row: {
+          atualizado_em: string
+          operador_id: string
+          os_ids: string[]
+        }
+        Insert: {
+          atualizado_em?: string
+          operador_id: string
+          os_ids?: string[]
+        }
+        Update: {
+          atualizado_em?: string
+          operador_id?: string
+          os_ids?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'os_ordem_operador_operador_id_fkey'
+            columns: ['operador_id']
+            isOneToOne: true
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       os_pontos: {
         Row: {
           area: string

@@ -98,6 +98,8 @@ export type FiltroOs = {
   treinamento?: boolean
   /** Mais recentes primeiro (para as anteriores: o limite corta as mais antigas). */
   recentesPrimeiro?: boolean
+  /** Serviço de contrato ou avulso (pelo modelo de onde a OS saiu). */
+  categoria?: CategoriaOs
 }
 
 export function useOrdensServico(filtro: FiltroOs) {
@@ -107,8 +109,10 @@ export function useOrdensServico(filtro: FiltroOs) {
       let consulta = supabase
         .from('ordens_servico')
         .select(
-          `id, numero, status, data_agendada, hora_agendada, concluida_em, ficha_cliente, cliente_id, treinamento, ${RELACOES},
-          conferencia:os_conferencia(certificado, cronograma, liberada_financeiro_em, taxa_faturada)`,
+          `id, numero, status, data_agendada, hora_agendada, concluida_em, ficha_cliente, cliente_id, treinamento, observacoes_adm, ${RELACOES},
+          conferencia:os_conferencia(certificado, cronograma, liberada_financeiro_em, taxa_faturada),
+          modelo:os_modelos(categoria),
+          ocorrencias:os_ocorrencias(ocorrencia:ocorrencias(id, texto, criado_em, os_origem_id, sanada_em))`,
         )
         .order('data_agendada', { ascending: !filtro.recentesPrimeiro })
         .order('hora_agendada', { ascending: !filtro.recentesPrimeiro, nullsFirst: false })
@@ -119,6 +123,9 @@ export function useOrdensServico(filtro: FiltroOs) {
       if (filtro.clienteId) consulta = consulta.eq('cliente_id', filtro.clienteId)
       if (filtro.treinamento !== undefined)
         consulta = consulta.eq('treinamento', filtro.treinamento)
+      // O operador não enxerga os modelos (o modelo vem vazio para ele): o filtro é do escritório.
+      if (filtro.categoria)
+        consulta = consulta.eq('modelo.categoria', filtro.categoria).not('modelo', 'is', null)
       const { data, error } = await consulta
       if (error) throw error
       return data
