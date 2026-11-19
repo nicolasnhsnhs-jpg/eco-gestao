@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { avisosDasOs } from './avisosGerais'
+import { avisosDasOs, chavesDosAvisos, temAvisoNovo } from './avisosGerais'
 import { moverNaOrdem, ordenarPelaEscolha } from './ordemOs'
 
 const os = (id: string) => ({ id })
@@ -64,5 +64,23 @@ describe('aviso geral do operador', () => {
         ocorrencias: ['Baratas', 'Ratos no depósito'],
       },
     ])
+  })
+})
+
+describe('quando a caixa de avisos abre sozinha', () => {
+  const aviso = (osId: string, observacoes: string) => ({
+    osId,
+    cliente: 'C',
+    servico: '',
+    data: '2026-11-19',
+    observacoes,
+    ocorrencias: [],
+  })
+
+  it('abre com aviso novo ou texto mudado, e não quando uma OS sai da lista', () => {
+    const vistos = chavesDosAvisos([aviso('1', 'a'), aviso('2', 'b')])
+    expect(temAvisoNovo([aviso('2', 'b')], vistos)).toBe(false)
+    expect(temAvisoNovo([aviso('2', 'b mudou')], vistos)).toBe(true)
+    expect(temAvisoNovo([aviso('3', 'c')], vistos)).toBe(true)
   })
 })

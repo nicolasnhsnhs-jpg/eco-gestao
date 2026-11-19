@@ -13,10 +13,20 @@ import { usePerfil } from '../../auth/useAuth'
 import { osAberta, useOrdensServico } from '../api'
 import { useBaixarOsDoDia } from '../offline/baixar'
 import { CartaoOs } from '../OsListaPage'
-import { assinaturaDosAvisos, avisosDasOs, type AvisoDaOs } from './avisosGerais'
+import { avisosDasOs, chavesDosAvisos, temAvisoNovo, type AvisoDaOs } from './avisosGerais'
 import { moverNaOrdem, ordenarPelaEscolha, useOrdemDoOperador } from './ordemOs'
 
 const CHAVE_AVISOS_VISTOS = 'eco-os-avisos-vistos'
+
+/** Avisos já lidos nesta abertura do app (some ao fechar o app). */
+function avisosVistos(): string[] {
+  try {
+    const lidos: unknown = JSON.parse(sessionStorage.getItem(CHAVE_AVISOS_VISTOS) ?? '[]')
+    return Array.isArray(lidos) ? lidos.filter((c): c is string => typeof c === 'string') : []
+  } catch {
+    return []
+  }
+}
 
 /**
  * Início do operador: as OS dele, da semana passada (para terminar o que ficou
@@ -50,19 +60,12 @@ export function MinhasOsPage() {
   const [avisosAbertos, setAvisosAbertos] = useState(false)
   // Abre sozinho ao entrar, e de novo só quando o escritório escrever algo novo.
   useEffect(() => {
-    if (avisos.length === 0) return
-    const assinatura = assinaturaDosAvisos(avisos)
-    let vista: string | null = null
-    try {
-      vista = sessionStorage.getItem(CHAVE_AVISOS_VISTOS)
-    } catch {
-      // sem acesso: mostra
-    }
-    if (vista !== assinatura) setAvisosAbertos(true)
+    if (temAvisoNovo(avisos, avisosVistos())) setAvisosAbertos(true)
   }, [avisos])
   const fecharAvisos = () => {
     try {
-      sessionStorage.setItem(CHAVE_AVISOS_VISTOS, assinaturaDosAvisos(avisos))
+      const todos = new Set([...avisosVistos(), ...chavesDosAvisos(avisos)])
+      sessionStorage.setItem(CHAVE_AVISOS_VISTOS, JSON.stringify([...todos]))
     } catch {
       // sem acesso: volta a aparecer ao abrir o Início
     }
@@ -113,7 +116,7 @@ export function MinhasOsPage() {
         >
           <Megaphone className="size-6 shrink-0 text-alerta" aria-hidden />
           <span>
-            Avisos do escritório ({avisos.length} {avisos.length === 1 ? 'cliente' : 'clientes'})
+            Avisos do escritório ({avisos.length} OS)
             <span className="block text-sm font-normal text-texto-suave">Toque para ler</span>
           </span>
         </button>

@@ -47,7 +47,15 @@ export function avisosDasOs(lista: OsComAvisos[]): AvisoDaOs[] {
   })
 }
 
-/** Identifica o conjunto de avisos: muda quando o escritório escreve algo novo. */
-export function assinaturaDosAvisos(avisos: AvisoDaOs[]): string {
-  return JSON.stringify(avisos.map((a) => [a.osId, a.observacoes, a.ocorrencias]))
+/**
+ * Uma chave por aviso (OS + texto): a caixa só abre sozinha de novo quando
+ * aparece uma que o operador ainda não viu (uma OS concluída saindo não conta).
+ */
+export function chavesDosAvisos(avisos: AvisoDaOs[]): string[] {
+  return avisos.map((a) => JSON.stringify([a.osId, a.observacoes, a.ocorrencias]))
+}
+
+export function temAvisoNovo(avisos: AvisoDaOs[], vistos: readonly string[]): boolean {
+  const jaVistos = new Set(vistos)
+  return chavesDosAvisos(avisos).some((c) => !jaVistos.has(c))
 }
