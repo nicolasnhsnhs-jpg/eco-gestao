@@ -9,7 +9,7 @@ import { mensagemDeErro } from '@/lib/erros'
 
 import { useSalvarEscopo, type AlvoEscopo } from './pragasApi'
 
-/** Escopo da OS simples de insetos ou roedores (guardado no escopo da OS e do modelo). */
+/** Escopo da OS simples de insetos, roedores ou pragas diversas (guardado no escopo da OS e do modelo). */
 export type EscopoAreas = { areas_atendidas?: string; todas_areas?: boolean }
 export type ChecklistAreas = { conforme_planejado?: boolean }
 
