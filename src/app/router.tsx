@@ -5,6 +5,7 @@ import { PresencaPage } from '@/features/agenda/PresencaPage'
 import { AgendaTvPage } from '@/features/agenda/AgendaTvPage'
 import { AdministrativoLayout } from '@/features/administrativo/AdministrativoLayout'
 import { AssinaturaPage } from '@/features/administrativo/assinatura/AssinaturaPage'
+import { EmailsEnviadosPage } from '@/features/emails/EmailsEnviadosPage'
 import { AvisosPage } from '@/features/avisos/AvisosPage'
 import { CrmPage } from '@/features/crm/CrmPage'
 import { NotificacoesPage } from '@/features/crm/NotificacoesPage'
@@ -243,6 +244,7 @@ export const router = createBrowserRouter([
           { path: 'notas/nova', element: <NotaFiscalFormPage /> },
           { path: 'notas/:id', element: <NotaFiscalFormPage /> },
           { path: 'faturamento', element: <FaturamentoPage /> },
+          { path: 'emails', element: <EmailsEnviadosPage setor="financeiro" /> },
           { path: 'contas-fixas', element: <ContasFixasPage /> },
           { path: 'investimentos', element: <InvestimentosPage /> },
           { path: 'cartoes', element: <CartoesPage /> },
@@ -264,6 +266,7 @@ export const router = createBrowserRouter([
               { index: true, element: <PropostasPage /> },
               { path: 'agendadas', element: <PropostasAgendadasPage /> },
               { path: 'vendas', element: <VendasDoMesPage /> },
+              { path: 'emails', element: <EmailsEnviadosPage setor="comercial" /> },
               { path: 'nova', element: <PropostaFormPage /> },
             ],
           },
@@ -350,7 +353,8 @@ export const router = createBrowserRouter([
           </ExigePapel>
         ),
         children: [
-          { index: true, element: <Navigate to="assinatura" replace /> },
+          { index: true, element: <Navigate to="emails" replace /> },
+          { path: 'emails', element: <EmailsEnviadosPage setor="administrativo" /> },
           { path: 'assinatura', element: <AssinaturaPage /> },
         ],
       },

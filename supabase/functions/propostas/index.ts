@@ -21,6 +21,7 @@ import { decodeBase64 } from 'jsr:@std/encoding@1/base64'
 
 import { assuntoProposta, htmlProposta, textoProposta } from '../_shared/emailProposta.ts'
 import { emailDosDocumentos, enderecosEmail } from '../_shared/enviarNota.ts'
+import { registrarEmailEnviado } from '../_shared/registrarEmail.ts'
 import { clienteAdmin, CORS, nomeDaEmpresa, resposta } from '../_shared/servidor.ts'
 
 /** O Resend aceita até 40 MB por e-mail (já em base64); fica uma folga. */
@@ -107,7 +108,7 @@ Deno.serve(async (req) => {
   const { data: p } = await admin
     .from('propostas')
     .select(
-      'id, numero, cliente_id, validade, contato_nome, contato_email, vendedor:perfis!propostas_vendedor_id_fkey(nome, email, telefone, ativo), cliente:clientes(nome, nome_fantasia), endereco:enderecos(apelido, logradouro, numero, cidade, uf), itens:proposta_itens(titulo, descricao, ordem)',
+      'id, numero, cliente_id, validade, valor_total, contato_nome, contato_email, vendedor:perfis!propostas_vendedor_id_fkey(nome, email, telefone, ativo), cliente:clientes(nome, nome_fantasia), endereco:enderecos(apelido, logradouro, numero, cidade, uf), itens:proposta_itens(titulo, descricao, ordem)',
     )
     .eq('id', pedido.propostaId)
     .single()
@@ -117,6 +118,7 @@ Deno.serve(async (req) => {
     numero: string
     cliente_id: string
     validade: string | null
+    valor_total: number
     contato_nome: string | null
     contato_email: string | null
     vendedor: { nome: string; email: string; telefone: string | null; ativo: boolean } | null
@@ -174,20 +176,23 @@ Deno.serve(async (req) => {
   ].filter((e) => !para.includes(e))
 
   const nomeCliente = proposta.cliente?.nome_fantasia || proposta.cliente?.nome || 'cliente'
+  const nomeAnexo = `Proposta ${seguroNoNome(proposta.numero)} - ${seguroNoNome(nomeCliente)}.pdf`
+  const assunto = assuntoProposta(dados)
+  const remetente = `"${nomeNoRemetente(`${vendedor.nome} - ${empresa}`)}" <${emailVendedor}>`
   const envio = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${chave}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: `"${nomeNoRemetente(`${vendedor.nome} - ${empresa}`)}" <${emailVendedor}>`,
+      from: remetente,
       to: para,
       bcc: copia.length ? copia : undefined,
       reply_to: emailVendedor,
-      subject: assuntoProposta(dados),
+      subject: assunto,
       html: htmlProposta(dados),
       text: textoProposta(dados),
       attachments: [
         {
-          filename: `Proposta ${seguroNoNome(proposta.numero)} - ${seguroNoNome(nomeCliente)}.pdf`,
+          filename: nomeAnexo,
           content: pedido.pdf,
         },
       ],
@@ -213,5 +218,21 @@ Deno.serve(async (req) => {
     })
   }
 
+  await registrarEmailEnviado(admin, {
+    setor: 'comercial',
+    tipo: 'proposta',
+    clienteId: proposta.cliente_id,
+    clienteNome: proposta.cliente?.nome_fantasia || proposta.cliente?.nome || '',
+    para,
+    copiaOculta: copia,
+    remetente,
+    assunto,
+    descricao: `Proposta ${proposta.numero}`,
+    valor: Number(proposta.valor_total),
+    anexos: [nomeAnexo],
+    propostaId: proposta.id,
+    enviadoPor: quem.user.id,
+    respostaResend: await envio.json().catch(() => null),
+  })
   return resposta(200, { ok: true, para, de: emailVendedor, copia })
 })

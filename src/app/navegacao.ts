@@ -12,6 +12,7 @@ import {
   House,
   Mail,
   MessageCircle,
+  Send,
   UserCog,
   Users,
   Wallet,
@@ -159,8 +160,16 @@ export const MENU: readonly ItemMenu[] = [
     grupo: 'administrativo',
   },
   {
+    // Certificados e OS mandados ao cliente pelo sistema (o ADM confere sem abrir o e-mail).
+    rotulo: 'E-mails enviados',
+    caminho: '/administrativo/emails',
+    icone: Send,
+    papeis: PAPEIS_GESTAO,
+    grupo: 'administrativo',
+  },
+  {
     rotulo: 'Assinatura de e-mail',
-    caminho: '/administrativo',
+    caminho: '/administrativo/assinatura',
     icone: Mail,
     papeis: PAPEIS_GESTAO,
     grupo: 'administrativo',

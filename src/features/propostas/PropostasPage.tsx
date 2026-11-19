@@ -53,6 +53,7 @@ export function PropostasLayout() {
     { rotulo: 'Propostas criadas', caminho: '/propostas', fim: true },
     { rotulo: 'Agendadas', caminho: '/propostas/agendadas', fim: true },
     { rotulo: 'Vendas do mês', caminho: '/propostas/vendas', fim: true },
+    { rotulo: 'E-mails enviados', caminho: '/propostas/emails', fim: true },
     { rotulo: 'Nova proposta', caminho: '/propostas/nova', fim: true },
   ]
   return (

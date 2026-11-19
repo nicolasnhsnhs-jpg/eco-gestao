@@ -39,7 +39,8 @@ describe('menuDoPapel', () => {
       '/certificados',
       '/relatorios',
       '/contratos',
-      '/administrativo',
+      '/administrativo/emails',
+      '/administrativo/assinatura',
       '/avisos',
     ])
   })
@@ -54,9 +55,9 @@ describe('menuDoPapel', () => {
 
   it('admin, financeiro e ADM veem o administrativo', () => {
     for (const papel of ['admin', 'financeiro', 'administrativo'] as const)
-      expect(caminhos(papel)).toContain('/administrativo')
+      expect(caminhos(papel)).toContain('/administrativo/emails')
     for (const papel of ['vendedor', 'recepcao', 'operador'] as const)
-      expect(caminhos(papel)).not.toContain('/administrativo')
+      expect(caminhos(papel)).not.toContain('/administrativo/emails')
   })
 
   it('vendedor vê as próprias comissões; os outros perfis não têm esse item', () => {
@@ -93,7 +94,7 @@ describe('entradasDoPapel', () => {
       '/',
       '/clientes',
       'Propostas: /propostas /orcamentos',
-      'Administrativo: /servicos /os /certificados /relatorios /contratos /administrativo',
+      'Administrativo: /servicos /os /certificados /relatorios /contratos /administrativo/emails /administrativo/assinatura',
       '/avisos',
     ])
   })

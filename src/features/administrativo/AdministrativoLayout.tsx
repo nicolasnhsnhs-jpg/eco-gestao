@@ -2,7 +2,10 @@ import { NavLink, Outlet } from 'react-router'
 
 import { cn } from '@/lib/utils'
 
-const ABAS = [{ rotulo: 'Assinatura de e-mail', caminho: '/administrativo/assinatura', fim: false }]
+const ABAS = [
+  { rotulo: 'E-mails enviados', caminho: '/administrativo/emails', fim: false },
+  { rotulo: 'Assinatura de e-mail', caminho: '/administrativo/assinatura', fim: false },
+]
 
 /** Abas do administrativo, por cima de cada tela. */
 export function AdministrativoLayout() {

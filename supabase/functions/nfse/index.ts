@@ -398,7 +398,11 @@ async function concluir(
     }
   }
 
-  const envio = await enviarNotaPorEmail(admin, nota.id, { origem })
+  const envio = await enviarNotaPorEmail(admin, nota.id, {
+    origem,
+    enviadoPor: usuarioId,
+    automatico: true,
+  })
   return { numero, chave, envio }
 }
 
@@ -433,10 +437,7 @@ async function marcarSubstituida(
  * demora uns segundos para achar a nota recém-autorizada); falha de consulta conta como
  * "não achei" só depois das três.
  */
-async function notaDaDps(
-  sefin: Sefin,
-  id: string,
-): Promise<{ chave: string; xml: string } | null> {
+async function notaDaDps(sefin: Sefin, id: string): Promise<{ chave: string; xml: string } | null> {
   for (const espera of [0, 3_000, 6_000]) {
     if (espera) await new Promise((ok) => setTimeout(ok, espera))
     try {

@@ -26,6 +26,7 @@ Deno.serve(async (req) => {
   const r = await enviarNotaPorEmail(admin, pedido.notaId, {
     para: pedido.para,
     origem: req.headers.get('origin'),
+    enviadoPor: quem.usuarioId,
   })
   if (!r.enviada) return resposta(400, { erro: r.motivo, pendente: true })
   return resposta(200, { ok: true, para: r.para, comBoleto: r.comBoleto, boletos: r.boletos })

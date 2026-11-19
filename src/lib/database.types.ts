@@ -1808,6 +1808,121 @@ export type Database = {
         }
         Relationships: []
       }
+      emails_enviados: {
+        Row: {
+          anexos: string[]
+          assunto: string
+          automatico: boolean
+          busca: string | null
+          certificado_id: string | null
+          cliente_id: string | null
+          cliente_nome: string
+          copia_oculta: string | null
+          descricao: string
+          enviado_em: string
+          enviado_por: string | null
+          id: string
+          nota_id: string | null
+          os_ids: string[]
+          para: string
+          proposta_id: string | null
+          remetente: string | null
+          resend_id: string | null
+          setor: string
+          tipo: string
+          valor: number | null
+        }
+        Insert: {
+          anexos?: string[]
+          assunto: string
+          automatico?: boolean
+          busca?: string | null
+          certificado_id?: string | null
+          cliente_id?: string | null
+          cliente_nome?: string
+          copia_oculta?: string | null
+          descricao?: string
+          enviado_em?: string
+          enviado_por?: string | null
+          id?: string
+          nota_id?: string | null
+          os_ids?: string[]
+          para: string
+          proposta_id?: string | null
+          remetente?: string | null
+          resend_id?: string | null
+          setor: string
+          tipo: string
+          valor?: number | null
+        }
+        Update: {
+          anexos?: string[]
+          assunto?: string
+          automatico?: boolean
+          busca?: string | null
+          certificado_id?: string | null
+          cliente_id?: string | null
+          cliente_nome?: string
+          copia_oculta?: string | null
+          descricao?: string
+          enviado_em?: string
+          enviado_por?: string | null
+          id?: string
+          nota_id?: string | null
+          os_ids?: string[]
+          para?: string
+          proposta_id?: string | null
+          remetente?: string | null
+          resend_id?: string | null
+          setor?: string
+          tipo?: string
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'emails_enviados_certificado_id_fkey'
+            columns: ['certificado_id']
+            isOneToOne: false
+            referencedRelation: 'certificados'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'emails_enviados_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'emails_enviados_enviado_por_fkey'
+            columns: ['enviado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'emails_enviados_nota_id_fkey'
+            columns: ['nota_id']
+            isOneToOne: false
+            referencedRelation: 'notas_fiscais'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'emails_enviados_proposta_id_fkey'
+            columns: ['proposta_id']
+            isOneToOne: false
+            referencedRelation: 'propostas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'emails_enviados_proposta_id_fkey'
+            columns: ['proposta_id']
+            isOneToOne: false
+            referencedRelation: 'v_propostas'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       enderecos: {
         Row: {
           apelido: string | null

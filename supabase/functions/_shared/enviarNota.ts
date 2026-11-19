@@ -18,6 +18,7 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { encodeBase64 } from 'jsr:@std/encoding@1/base64'
 
 import { assuntoNota, htmlNota, textoNota, type DadosEmailNota } from './emailNota.ts'
+import { registrarEmailEnviado } from './registrarEmail.ts'
 import { nomeDaEmpresa } from './servidor.ts'
 
 const FORMAS: Record<string, string> = {
@@ -139,7 +140,19 @@ export type ResultadoEnvio =
 export async function enviarNotaPorEmail(
   admin: SupabaseClient,
   notaId: string,
-  { para: paraPedido, origem }: { para?: string; origem?: string | null },
+  {
+    para: paraPedido,
+    origem,
+    enviadoPor,
+    automatico,
+  }: {
+    para?: string
+    origem?: string | null
+    /** Quem clicou (ou quem emitiu, no envio logo depois da emissão). */
+    enviadoPor?: string | null
+    /** Saiu sozinho, logo depois de emitir. */
+    automatico?: boolean
+  },
 ): Promise<ResultadoEnvio> {
   const { data: nota } = await admin
     .from('notas_fiscais')
@@ -221,6 +234,11 @@ export async function enviarNotaPorEmail(
       : enderecosEmail(copiaSegredo ?? de.match(/<([^>]+)>/)?.[1] ?? de).filter(
           (e) => !para.includes(e),
         )
+  const nomePdf = `NF ${nomeNota}.pdf`
+  const nomesBoletos = boletos.map(
+    (_, i) => `Boleto${boletos.length > 1 ? ` ${i + 1}` : ''} NF ${nomeNota}.pdf`,
+  )
+  const assunto = assuntoNota(dados)
   const envio = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${chave}`, 'Content-Type': 'application/json' },
@@ -229,17 +247,17 @@ export async function enviarNotaPorEmail(
       to: para,
       bcc: copia.length ? copia : undefined,
       reply_to: segredo('EMAIL_NOTAS_RESPOSTA') || undefined,
-      subject: assuntoNota(dados),
+      subject: assunto,
       html: htmlNota(dados),
       text: textoNota(dados),
       attachments: [
         {
-          filename: `NF ${nomeNota}.pdf`,
+          filename: nomePdf,
           content: encodeBase64(new Uint8Array(await arquivo.arrayBuffer())),
         },
         ...(await Promise.all(
           boletos.map(async (boleto, i) => ({
-            filename: `Boleto${boletos.length > 1 ? ` ${i + 1}` : ''} NF ${nomeNota}.pdf`,
+            filename: nomesBoletos[i],
             content: encodeBase64(new Uint8Array(await boleto.arrayBuffer())),
           })),
         )),
@@ -270,5 +288,24 @@ export async function enviarNotaPorEmail(
       erro_envio: null,
     })
     .eq('id', notaId)
+  await registrarEmailEnviado(admin, {
+    setor: 'financeiro',
+    tipo: 'nota',
+    clienteId: nota.cliente_id,
+    clienteNome: dados.cliente,
+    para,
+    copiaOculta: copia,
+    remetente: de,
+    assunto,
+    descricao: `NF ${nomeNota}${
+      boletos.length ? ` + ${boletos.length > 1 ? `${boletos.length} boletos` : 'boleto'}` : ''
+    }`,
+    valor: Number(nota.valor_servico),
+    anexos: [nomePdf, ...nomesBoletos],
+    notaId,
+    enviadoPor: enviadoPor ?? null,
+    automatico: automatico ?? false,
+    respostaResend: await envio.json().catch(() => null),
+  })
   return { enviada: true, para, comBoleto: boletos.length > 0, boletos: boletos.length }
 }

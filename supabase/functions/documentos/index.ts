@@ -26,6 +26,7 @@ import {
   type DadosEmailDocumentos,
 } from '../_shared/emailDocumentos.ts'
 import { emailDosDocumentos, enderecosEmail } from '../_shared/enviarNota.ts'
+import { registrarEmailEnviado } from '../_shared/registrarEmail.ts'
 import { clienteAdmin, CORS, nomeDaEmpresa, resposta } from '../_shared/servidor.ts'
 
 /** O Resend aceita até 40 MB por e-mail (já em base64); fica uma folga. */
@@ -228,6 +229,16 @@ Deno.serve(async (req) => {
           (e) => !para.some((p) => p.toLowerCase() === e.toLowerCase()),
         )
 
+  const anexos = [
+    ...(cert
+      ? [{ filename: `Certificado ${seguroNoNome(cert.numero)}.pdf`, content: pedido.certificado }]
+      : []),
+    ...ordensPedidas.map((o) => ({
+      filename: `Ordem de Serviço ${seguroNoNome(numeroDa(o.id))}.pdf`,
+      content: o.pdf,
+    })),
+  ]
+  const assunto = assuntoDocumentos(dados)
   const envio = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${chave}`, 'Content-Type': 'application/json' },
@@ -236,23 +247,10 @@ Deno.serve(async (req) => {
       to: para,
       bcc: copia.length ? copia : undefined,
       reply_to: segredo('EMAIL_DOCUMENTOS_RESPOSTA') || undefined,
-      subject: assuntoDocumentos(dados),
+      subject: assunto,
       html: htmlDocumentos(dados),
       text: textoDocumentos(dados),
-      attachments: [
-        ...(cert
-          ? [
-              {
-                filename: `Certificado ${seguroNoNome(cert.numero)}.pdf`,
-                content: pedido.certificado,
-              },
-            ]
-          : []),
-        ...ordensPedidas.map((o) => ({
-          filename: `Ordem de Serviço ${seguroNoNome(numeroDa(o.id))}.pdf`,
-          content: o.pdf,
-        })),
-      ],
+      attachments: anexos,
     }),
   })
   if (!envio.ok) {
@@ -281,5 +279,24 @@ Deno.serve(async (req) => {
         erro_envio: null,
       })
       .eq('id', cert.id)
+  const listaOs = numerosOs.length ? `OS ${numerosOs.join(', ')}` : ''
+  await registrarEmailEnviado(admin, {
+    setor: 'administrativo',
+    tipo: cert ? 'certificado' : 'os',
+    clienteId,
+    clienteNome: dados.cliente,
+    para,
+    copiaOculta: copia,
+    remetente: de,
+    assunto,
+    descricao: [cert ? `Certificado ${cert.numero}` : '', listaOs, dados.servico]
+      .filter(Boolean)
+      .join(' · '),
+    anexos: anexos.map((a) => a.filename),
+    certificadoId: cert?.id ?? null,
+    osIds: ordensPedidas.map((o) => o.id),
+    enviadoPor: quem.user.id,
+    respostaResend: await envio.json().catch(() => null),
+  })
   return resposta(200, { ok: true, para, os: numerosOs })
 })
