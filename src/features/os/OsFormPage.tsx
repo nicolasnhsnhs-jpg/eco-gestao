@@ -403,7 +403,7 @@ function FormAgendamento({
         {(abertas.data?.length ?? 0) > 0 && (
           <Aviso tipo="info">
             <p className="font-semibold">
-              Ocorrências em aberto de visitas anteriores (vão junto nesta OS):
+              Ocorrências em aberto deste local (vão junto nesta OS):
             </p>
             <ul className="mt-1 list-disc pl-5">
               {abertas.data!.map((o) => (

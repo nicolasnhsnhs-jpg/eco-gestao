@@ -25,6 +25,7 @@ import {
   type CategoriaOs,
   type ModeloCompleto,
 } from './api'
+import { OcorrenciasOsSalva } from './OcorrenciasOsSalva'
 import { contagemPontos, linkAgendar, nomeCliente, nomeUnidade } from './modelosUtil'
 import { RotasLista } from './RotasPages'
 import { SeletorCategoria } from './SeletorCategoria'
@@ -341,6 +342,9 @@ export function ModeloOsPage() {
       <TrocarCategoria modelo={m} />
       <div className="mt-4">
         <DadosPadrao key={m.id} modelo={m} />
+      </div>
+      <div className="mt-4">
+        <OcorrenciasOsSalva key={m.id} modelo={m} />
       </div>
       {m.tipo?.formulario_os === 'pragas' && (
         <div className="mt-4">

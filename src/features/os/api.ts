@@ -416,6 +416,24 @@ export function useSalvarOcorrencias(osId: string) {
   })
 }
 
+/**
+ * Grava as ocorrências abertas do local na O.S salva, antes de agendar: a próxima OS
+ * (e as já agendadas e não começadas) já vem com elas.
+ */
+export function useSalvarOcorrenciasLocal(modeloId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (itens: { id?: string; texto: string }[]) => {
+      const { error } = await supabase.rpc('salvar_ocorrencias_local', {
+        modelo: modeloId,
+        itens,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
+  })
+}
+
 /** Ocorrências ainda abertas do local (mesmo cliente, endereço e serviço): vão na OS nova. */
 export function useOcorrenciasAbertas(
   clienteId: string,

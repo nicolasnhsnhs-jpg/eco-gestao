@@ -6414,6 +6414,10 @@ export type Database = {
         Args: { itens: Json; proposta: string }
         Returns: undefined
       }
+      salvar_ocorrencias_local: {
+        Args: { itens: Json; modelo: string }
+        Returns: undefined
+      }
       salvar_ocorrencias_os: {
         Args: { itens: Json; os: string }
         Returns: undefined
