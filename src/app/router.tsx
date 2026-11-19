@@ -202,7 +202,7 @@ export const router = createBrowserRouter([
           {
             path: ':id/executar',
             element: (
-              <ExigePapel papeis={['operador', 'admin']}>
+              <ExigePapel papeis={['operador', 'admin', 'administrativo']}>
                 <ExecucaoPage />
               </ExigePapel>
             ),

@@ -174,11 +174,13 @@ export function OsPage() {
                 <Button variante="secundario">Agendar próxima visita</Button>
               </Link>
             )}
-            {perfil.papel === 'admin' && osAberta(o.status) && (
-              <Link to={`/os/${o.id}/executar`}>
-                <Button variante="secundario">Preencher execução</Button>
-              </Link>
-            )}
+            {/* O Administrador e o ADM preenchem pelo escritório (ex.: OS em papel). */}
+            {(perfil.papel === 'admin' || perfil.papel === 'administrativo') &&
+              osAberta(o.status) && (
+                <Link to={`/os/${o.id}/executar`}>
+                  <Button variante="secundario">Preencher execução</Button>
+                </Link>
+              )}
             {/* Antes de começar dá para trocar técnicos, data, veículo… (de última hora). */}
             {escritorio && antesDeComecar && (
               <Button variante="secundario" onClick={() => setEditando(true)}>
