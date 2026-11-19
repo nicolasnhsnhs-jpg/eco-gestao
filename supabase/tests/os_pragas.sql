@@ -235,6 +235,21 @@ select pg_temp.conferir('data corrigida pelo escritório vai para a OS',
   (select count(*) from public.os_pontos where os_id = (select id from ids where nome = 'os3')
      and tipo = 'armadilha_luminosa' and ultima_troca_lampada = '2026-10-20'), 1);
 
+-- A data muda na armadilha (troca numa visita ou correção do escritório): as OS já
+-- agendadas e ainda não começadas também passam a mostrar a nova.
+select pg_temp.como('00000000-0000-0000-0000-0000000006c1');
+set local role authenticated;
+update public.pontos_controle set ultima_troca_lampada = '2026-11-25'
+ where modelo_id = '00000000-0000-0000-0000-000000006d01' and tipo = 'armadilha_luminosa';
+reset role;
+select pg_temp.conferir('OS já agendadas recebem a nova data da troca de lâmpada',
+  (select count(*) from public.os_pontos
+    where os_id in (select id from ids where nome in ('os2', 'os3'))
+      and tipo = 'armadilha_luminosa' and ultima_troca_lampada = '2026-11-25'), 2);
+select pg_temp.conferir('OS concluída guarda a data que tinha',
+  (select count(*) from public.os_pontos where os_id = (select id from ids where nome = 'os1')
+     and tipo = 'armadilha_luminosa' and ultima_troca_lampada = '2026-11-25'), 0);
+
 select 'Controle de pragas: pontos, exceções e histórico conferidos.' as resultado;
 
 rollback;
