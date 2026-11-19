@@ -48,6 +48,8 @@ let enviando = false
 // Chegou algo novo enquanto a fila enviava: ela roda de novo ao terminar.
 let chegouDuranteEnvio = false
 let temporizador: ReturnType<typeof setTimeout> | undefined
+// O login do celular venceu: a fila espera o operador entrar de novo.
+let semLogin = false
 const ouvintes = new Set<() => void>()
 
 function avisar() {
@@ -56,7 +58,10 @@ function avisar() {
 
 async function carregar() {
   if (carregada) return
-  itens = (await get<ItemFila[]>(CHAVE_FILA)) ?? []
+  // Recusas de permissão de antes desta versão eram login vencido: voltam a ser enviadas.
+  itens = ((await get<ItemFila[]>(CHAVE_FILA)) ?? []).map((i) =>
+    i.erro && ehErroDeLogin(i.erro) ? { ...i, erro: undefined } : i,
+  )
   carregada = true
   avisar()
 }
@@ -111,9 +116,28 @@ export function ehErroDeRede(erro: unknown) {
 
 class RecusaDoBanco extends Error {}
 
+/** O banco recusou por falta de permissão: quase sempre o envio saiu sem login. */
+class FaltaLogin extends Error {}
+
+/**
+ * "permission denied for table …" ou token vencido: o pedido chegou sem usuário
+ * (login vencido no celular). As recusas das regras do banco têm outra mensagem.
+ */
+export function ehErroDeLogin(erro: unknown) {
+  if (!erro) return false
+  const texto =
+    typeof erro === 'string' ? erro : erro instanceof Error ? erro.message : JSON.stringify(erro)
+  return /permission denied for (table|relation|schema|sequence|function)|JWT expired|invalid JWT/i.test(
+    texto,
+  )
+}
+
 async function executar(item: ItemFila) {
   const falhou = (erro: { message: string } | null) => {
-    if (erro) throw ehErroDeRede(erro) ? erro : new RecusaDoBanco(mensagemDeErro(erro))
+    if (!erro) return
+    if (ehErroDeRede(erro)) throw erro
+    if (ehErroDeLogin(erro)) throw new FaltaLogin(erro.message)
+    throw new RecusaDoBanco(mensagemDeErro(erro))
   }
 
   switch (item.tipo) {
@@ -175,6 +199,7 @@ async function executar(item: ItemFila) {
         await enviarRascunhoGuardado(item.osId)
       } catch (erro) {
         if (ehErroDeRede(erro)) throw erro
+        if (ehErroDeLogin(erro)) throw new FaltaLogin(String(erro))
         if ((erro as { code?: string }).code === '23503') {
           throw new RecusaDoBanco(
             'Uma assinatura não chegou ao sistema. Toque em Descartar, abra a OS, assine de novo e conclua.',
@@ -210,11 +235,32 @@ export async function processarFila() {
   avisar()
   clearTimeout(temporizador)
   try {
+    // Sem login não adianta enviar: tudo seria recusado. Espera entrar de novo.
+    if (itens.some((i) => !i.erro) && !(await temLogin())) {
+      semLogin = true
+      return
+    }
+    semLogin = false
     const travadas = new Set(itens.filter((i) => i.erro).map((i) => i.osId))
     for (const item of ordemDeEnvio(itens)) {
       if (item.erro || travadas.has(item.osId)) continue
       try {
-        await executar(item)
+        try {
+          await executar(item)
+        } catch (erro) {
+          if (!(erro instanceof FaltaLogin)) throw erro
+          // Login vencido de vez: segura a fila e a tarja pede para entrar de novo.
+          if (!(await temLogin(true))) {
+            semLogin = true
+            return
+          }
+          // Token renovado agora: tenta mais uma vez. Recusado de novo = recusa de verdade.
+          try {
+            await executar(item)
+          } catch (erro2) {
+            throw erro2 instanceof FaltaLogin ? new RecusaDoBanco(erro2.message) : erro2
+          }
+        }
         itens = itens.filter((i) => i.chave !== item.chave)
         await salvar()
       } catch (erro) {
@@ -234,6 +280,22 @@ export async function processarFila() {
     avisar()
   }
   if (chegouDuranteEnvio) void processarFila()
+}
+
+/**
+ * O celular tem um login que o banco aceita? Com `renovar`, pede um token novo
+ * (o antigo pode ter vencido). Erro de rede conta como "tem": o problema é o sinal.
+ */
+async function temLogin(renovar = false): Promise<boolean> {
+  const auth = supabase.auth
+  if (!auth) return true
+  try {
+    const { data, error } = renovar ? await auth.refreshSession() : await auth.getSession()
+    if (error) return ehErroDeRede(error)
+    return !!data.session
+  } catch (erro) {
+    return ehErroDeRede(erro)
+  }
 }
 
 /** O operador decide tentar de novo um item com problema (ex.: depois de falar com o escritório). */
@@ -272,17 +334,30 @@ export async function desistirDoArquivo(id: string) {
 }
 
 // Envia sozinho: ao abrir o app, ao voltar o sinal e enquanto houver pendências.
+// E ao entrar de novo no app (login vencido), manda o que estava esperando.
 if (typeof window !== 'undefined') {
   window.addEventListener('online', () => void processarFila())
+  supabase.auth?.onAuthStateChange((evento, sessao) => {
+    if (sessao && (evento === 'SIGNED_IN' || evento === 'TOKEN_REFRESHED') && semLogin) {
+      semLogin = false
+      avisar()
+      // Fora do aviso do Supabase (não pode chamar o auth de dentro dele).
+      setTimeout(() => void processarFila(), 0)
+    }
+  })
   void processarFila()
 }
 
-export type EstadoFila = { itens: ItemFila[]; enviando: boolean }
-let instantaneo: EstadoFila = { itens, enviando }
+export type EstadoFila = { itens: ItemFila[]; enviando: boolean; semLogin: boolean }
+let instantaneo: EstadoFila = { itens, enviando, semLogin }
 
 function lerEstado(): EstadoFila {
-  if (instantaneo.itens !== itens || instantaneo.enviando !== enviando) {
-    instantaneo = { itens, enviando }
+  if (
+    instantaneo.itens !== itens ||
+    instantaneo.enviando !== enviando ||
+    instantaneo.semLogin !== semLogin
+  ) {
+    instantaneo = { itens, enviando, semLogin }
   }
   return instantaneo
 }

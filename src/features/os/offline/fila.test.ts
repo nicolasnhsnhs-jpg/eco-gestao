@@ -29,3 +29,23 @@ describe('ordemDeEnvio', () => {
     expect(ordemDeEnvio(fila).map((i) => i.n)).toEqual([1, 2, 3])
   })
 })
+
+describe('ehErroDeLogin', () => {
+  it('reconhece envio sem login (permission denied / token vencido)', async () => {
+    const { ehErroDeLogin } = await import('./fila')
+    expect(ehErroDeLogin({ code: '42501', message: 'permission denied for table os_pontos' })).toBe(
+      true,
+    )
+    expect(ehErroDeLogin('permission denied for table os_pontos')).toBe(true)
+    expect(ehErroDeLogin({ code: 'PGRST301', message: 'JWT expired' })).toBe(true)
+  })
+
+  it('não confunde com recusa das regras do banco', async () => {
+    const { ehErroDeLogin } = await import('./fila')
+    expect(
+      ehErroDeLogin({ code: '42501', message: 'Somente o escritório muda as ocorrências.' }),
+    ).toBe(false)
+    expect(ehErroDeLogin({ code: '23514', message: 'Faltam: assinatura do cliente' })).toBe(false)
+    expect(ehErroDeLogin(null)).toBe(false)
+  })
+})

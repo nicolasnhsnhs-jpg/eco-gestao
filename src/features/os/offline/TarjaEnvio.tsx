@@ -1,9 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { CloudOff, RefreshCw, TriangleAlert } from 'lucide-react'
+import { CloudOff, LogIn, RefreshCw, TriangleAlert } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/Button'
 import { estaOnline } from '@/lib/offline'
+
+import { useAuth } from '../../auth/useAuth'
 
 import { descartar, tentarDeNovo, useFila, type ItemFila } from './fila'
 
@@ -40,6 +42,7 @@ export function TarjaEnvio() {
   const problemas = fila.itens.filter((i) => i.erro)
   const esperando = fila.itens.length - problemas.length
   const queryClient = useQueryClient()
+  const { sair } = useAuth()
 
   // Conclusão recusada: a OS ficou "concluída" só no celular. Busca de novo o
   // status no banco para a tela reabrir e o operador corrigir o que falta.
@@ -64,7 +67,18 @@ export function TarjaEnvio() {
           . Pode continuar trabalhando.
         </p>
       )}
-      {online && esperando > 0 && (
+      {online && fila.semLogin && fila.itens.length > 0 && (
+        <div className="flex flex-col gap-2 rounded-xl border border-alerta/40 bg-alerta/15 px-3 py-3 text-sm">
+          <p className="font-semibold">
+            Seu login no app venceu. O que você anotou está guardado no celular e vai assim que você
+            entrar de novo.
+          </p>
+          <Button onClick={() => void sair()}>
+            <LogIn className="size-5" aria-hidden /> Entrar de novo
+          </Button>
+        </div>
+      )}
+      {online && !fila.semLogin && esperando > 0 && (
         <p className="flex items-center gap-2 rounded-xl bg-lima-claro px-3 py-2 text-sm text-verde-escuro">
           <RefreshCw className={fila.enviando ? 'size-4 animate-spin' : 'size-4'} aria-hidden />
           Enviando {esperando} {esperando === 1 ? 'item' : 'itens'} guardado(s) no celular…
