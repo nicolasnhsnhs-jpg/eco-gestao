@@ -37,6 +37,7 @@ import {
   type ProdutoCatalogo,
 } from './api'
 import { EnviarAoCliente } from './EnviarAoCliente'
+import { lerMtrs, limparMtrs, MTR_VAZIA, resumoMtrs } from './mtrs'
 import { PainelOs } from './PainelOs'
 import {
   calcularValidade,
@@ -102,8 +103,8 @@ const esquema = z.object({
     }),
   ),
   descricao: z.string(),
-  mtr: z.string().trim(),
-  volume: z.string().trim(),
+  // Sucção: uma linha por MTR (número e quantidade retirada naquela MTR).
+  mtrs: z.array(z.object({ numero: z.string(), quantidade: z.string() })),
   observacao_final: z.string().trim(),
   responsavel_nome: z.string().trim(),
   responsavel_registro: z.string().trim(),
@@ -165,8 +166,7 @@ function valoresIniciais(tipos: Tipo[], c?: CertificadoResumo, origem?: Origem):
       reservatorios: lerReservatorios(c.reservatorios),
       bebedouros: lerBebedouros(c.bebedouros),
       descricao: c.descricao ?? '',
-      mtr: c.mtr ?? '',
-      volume: c.volume ?? '',
+      mtrs: lerMtrs(c).length ? lerMtrs(c) : [MTR_VAZIA],
       observacao_final: c.observacao_final ?? '',
       responsavel_nome: c.responsavel_nome ?? '',
       responsavel_registro: c.responsavel_registro ?? '',
@@ -218,8 +218,7 @@ function valoresIniciais(tipos: Tipo[], c?: CertificadoResumo, origem?: Origem):
           ? daOsBebedouros
           : [{ ...BEBEDOURO_VAZIO, data: origem?.dataExecucao ?? hojeISO() }],
     descricao: arranjo === 'descricao' ? (origem?.descricao ?? '') : '',
-    mtr: '',
-    volume: '',
+    mtrs: [MTR_VAZIA],
     observacao_final: '',
     responsavel_nome: '',
     responsavel_registro: '',
@@ -256,6 +255,7 @@ function Formulario({
   const produtos = useFieldArray({ control: form.control, name: 'produtos' })
   const reservatorios = useFieldArray({ control: form.control, name: 'reservatorios' })
   const bebedouros = useFieldArray({ control: form.control, name: 'bebedouros' })
+  const mtrs = useFieldArray({ control: form.control, name: 'mtrs' })
   const [clienteId, clienteNome, enderecoId, tipoId, modelo, dataExecucao, meses, tipoValidade] =
     useWatch({
       control: form.control,
@@ -321,8 +321,10 @@ function Formulario({
         // Bebedouros: os mesmos do último, com a data deste serviço.
         bebedouros: lerBebedouros(c.bebedouros).map((b) => ({ ...b, data: atual.data_execucao })),
         descricao: c.descricao ?? '',
-        mtr: '', // o MTR muda a cada transporte
-        volume: c.volume ?? '',
+        // O número da MTR muda a cada transporte; a quantidade costuma repetir.
+        mtrs: lerMtrs(c).length
+          ? lerMtrs(c).map((m) => ({ numero: '', quantidade: m.quantidade }))
+          : [MTR_VAZIA],
         observacao_final: c.observacao_final ?? '',
         responsavel_nome: c.responsavel_nome ?? '',
         responsavel_registro: c.responsavel_registro ?? '',
@@ -429,8 +431,9 @@ function Formulario({
             MODELO[d.modelo].arranjo === 'reservatorios' ? lerReservatorios(d.reservatorios) : [],
           bebedouros: MODELO[d.modelo].arranjo === 'bebedouros' ? lerBebedouros(d.bebedouros) : [],
           descricao: ouNulo(d.descricao),
-          mtr: ouNulo(d.mtr),
-          volume: ouNulo(d.volume),
+          ...(MODELO[d.modelo].arranjo === 'descricao'
+            ? { mtrs: limparMtrs(d.mtrs), ...resumoMtrs(d.mtrs) }
+            : { mtrs: [], mtr: null, volume: null }),
           observacao_final: ouNulo(d.observacao_final),
           responsavel_nome: ouNulo(d.responsavel_nome),
           responsavel_registro: ouNulo(d.responsavel_registro),
@@ -832,12 +835,46 @@ function Formulario({
                 >
                   <Textarea id="descricao" rows={5} {...form.register('descricao')} />
                 </Campo>
-                <Campo rotulo="Nº do MTR" htmlFor="mtr">
-                  <Input id="mtr" {...form.register('mtr')} />
-                </Campo>
-                <Campo rotulo="Quantidade retirada" htmlFor="volume" dica="Ex.: 2,000m³">
-                  <Input id="volume" {...form.register('volume')} />
-                </Campo>
+                <div className="flex flex-col gap-2 sm:col-span-2">
+                  <h3 className="font-semibold">MTR e quantidade retirada</h3>
+                  <p className="text-sm text-texto-suave">
+                    Uma linha para cada MTR, com a quantidade retirada naquela MTR (como está na
+                    MTR). Mais de uma sucção no serviço? Adicione outra MTR.
+                  </p>
+                  {mtrs.fields.map((campo, i) => (
+                    <div
+                      key={campo.id}
+                      className="grid grid-cols-[1fr_auto] gap-2 rounded-xl border border-borda p-3 sm:grid-cols-[1fr_1fr_auto]"
+                    >
+                      <Campo
+                        rotulo={`Nº da MTR ${mtrs.fields.length > 1 ? i + 1 : ''}`.trim()}
+                        htmlFor={`mtr-${i}`}
+                      >
+                        <Input id={`mtr-${i}`} {...form.register(`mtrs.${i}.numero`)} />
+                      </Campo>
+                      <Campo
+                        rotulo="Quantidade retirada"
+                        htmlFor={`mtr-qtd-${i}`}
+                        dica="Ex.: 2,000m³"
+                        className="col-start-1 sm:col-start-auto"
+                      >
+                        <Input id={`mtr-qtd-${i}`} {...form.register(`mtrs.${i}.quantidade`)} />
+                      </Campo>
+                      <div className="col-start-2 row-span-2 row-start-1 self-center sm:col-start-auto sm:row-span-1 sm:mt-6 sm:self-start">
+                        <BotaoIcone rotulo="Tirar esta MTR" onClick={() => mtrs.remove(i)}>
+                          <Trash2 className="size-5" aria-hidden />
+                        </BotaoIcone>
+                      </div>
+                    </div>
+                  ))}
+                  <Button
+                    variante="fantasma"
+                    className="self-start"
+                    onClick={() => mtrs.append(MTR_VAZIA)}
+                  >
+                    <Plus className="size-4" aria-hidden /> Adicionar MTR
+                  </Button>
+                </div>
               </Card>
             ) : (
               <Card className="grid gap-4">

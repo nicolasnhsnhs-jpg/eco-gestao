@@ -174,6 +174,15 @@ export function useSalvarNotaFiscal() {
   })
 }
 
+/** Liga a nota à conta a receber (a nota da OS, depois de faturar a OS). */
+export async function ligarNotaAoLancamento(notaId: string, lancamentoId: string) {
+  const { error } = await supabase
+    .from('notas_fiscais')
+    .update({ lancamento_id: lancamentoId })
+    .eq('id', notaId)
+  if (error) throw error
+}
+
 /** Mensalidades em aberto do contrato, para ligar a nota à conta a receber. */
 export function useMensalidadesDoContrato(contratoId: string | undefined) {
   return useQuery({

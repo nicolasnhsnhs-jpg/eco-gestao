@@ -93,7 +93,6 @@ function CartaoAFaturar({ item }: { item: OsAFaturar }) {
   const ficha = fichaDaOs(os.ficha_cliente)
   const nome = ficha.nome_fantasia || ficha.nome || ''
   const operadores = os.operadores.map((o) => o.operador?.nome).filter(Boolean)
-  const nota = new URLSearchParams({ cliente: os.cliente_id, cliente_nome: ficha.nome ?? nome })
 
   return (
     <Card className="flex flex-col gap-2">
@@ -116,6 +115,16 @@ function CartaoAFaturar({ item }: { item: OsAFaturar }) {
         </div>
       )}
       <ValorDaProposta item={item} />
+      {item.adicional_valor != null && (
+        <div className="flex flex-col gap-1 rounded-xl border-2 border-alerta bg-alerta/10 p-3">
+          <p className="font-bold">
+            Serviço adicional (fora da proposta): + {formatarReais(item.adicional_valor)}
+          </p>
+          {item.adicional_descricao && (
+            <p className="text-sm whitespace-pre-line">{item.adicional_descricao}</p>
+          )}
+        </div>
+      )}
       {item.observacoes && (
         <p className="text-sm">
           <strong>Obs. do escritório:</strong> {item.observacoes}
@@ -127,11 +136,8 @@ function CartaoAFaturar({ item }: { item: OsAFaturar }) {
       {marcar.isError && <Aviso tipo="erro">{mensagemDeErro(marcar.error)}</Aviso>}
       <div className="flex flex-wrap gap-2">
         <Link to={`/os/${os.id}`}>
-          <Button variante="secundario">Abrir OS e faturar</Button>
-        </Link>
-        <Link to={`/financeiro/notas/nova?${nota}`}>
-          <Button variante="secundario">
-            <FileText className="size-4" aria-hidden /> Emitir nota
+          <Button>
+            <FileText className="size-4" aria-hidden /> Abrir OS e faturar
           </Button>
         </Link>
         {confirmando ? (

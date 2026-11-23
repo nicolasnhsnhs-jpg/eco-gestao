@@ -1,8 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, Copy, MapPin, Search, Trash2 } from 'lucide-react'
+import { ArrowLeft, Copy, ExternalLink, MapPin, Search, Trash2 } from 'lucide-react'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { useForm, useWatch, type UseFormReturn } from 'react-hook-form'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { z } from 'zod'
 
 import { Aviso } from '@/components/ui/Aviso'
@@ -18,6 +18,8 @@ import { mensagemDeErro } from '@/lib/erros'
 
 import { ClienteSeletor, type ClienteEscolhido } from '../clientes/ClienteSeletor'
 import { useContratos } from '../contratos/api'
+import { textoPagamento, descreverPrazos, prazosDe } from '../propostas/modelos'
+import { fichaDaOs, useFaturarOs, useOsParaNota, type OsParaNotaCompleta } from '../os/api'
 import { BoletoNota } from './BoletoNota'
 import { CampoCodigoNfse } from './CampoCodigoNfse'
 import { AvisoSubstituicao, CancelamentoNota } from './CancelamentoNota'
@@ -37,6 +39,16 @@ import {
   vencimentoDoContrato,
 } from './notas'
 import {
+  descricaoDaOs,
+  formaDaProposta,
+  itensDaOs,
+  valorDaOs,
+  valorDaProposta,
+  vencimentoDaProposta,
+  type OsParaNota,
+} from './notaDaOs'
+import {
+  ligarNotaAoLancamento,
   useAliquotaCsll,
   useAliquotaIssDaCidade,
   useDescartarRascunho,
@@ -218,6 +230,13 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
   const [p] = useSearchParams()
   const salvar = useSalvarNotaFiscal()
   const descartar = useDescartarRascunho()
+  const location = useLocation()
+  const erroAoFaturar = (location.state as { erroOs?: string } | null)?.erroOs
+  // Nota a partir da OS (Abrir OS > Emitir nota): vem preenchida pela proposta e, ao
+  // registrar, a OS é faturada e a conta a receber fica ligada à nota.
+  const osId = editando ? null : p.get('os')
+  const osNota = useOsParaNota(osId)
+  const faturarOs = useFaturarOs(osId ?? '')
 
   const form = useForm<Dados>({
     resolver: zodResolver(esquema),
@@ -256,6 +275,23 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
     form.setValue('descricao', n.descricao)
     form.setValue('lancamento_id', mensalidade?.id ?? '')
   }, [editando, tipo, contratoEscolhido, mensalidades.isFetched, mensalidades.data, form])
+
+  const preenchidoDaOs = useRef(false)
+  useEffect(() => {
+    const os = osNota.data
+    if (!os || preenchidoDaOs.current) return
+    preenchidoDaOs.current = true
+    const dados = paraNota(os)
+    const ficha = fichaDaOs(os.ficha_cliente)
+    form.setValue('tipo', 'avulsa')
+    form.setValue('cliente_id', os.cliente_id)
+    form.setValue('cliente_nome', ficha.nome || ficha.nome_fantasia || '')
+    const valor = valorDaOs(dados)
+    if (valor != null) form.setValue('valor_servico', valorParaCampo(valor))
+    form.setValue('descricao', descricaoDaOs(dados))
+    form.setValue('vencimento', vencimentoDaProposta(dados.proposta))
+    form.setValue('forma_pagamento', formaDaProposta(dados.proposta?.condicao_pagamento))
+  }, [osNota.data, form])
 
   function aoEscolherCliente(c: ClienteEscolhido | null) {
     form.setValue('cliente_id', c?.id ?? '', { shouldValidate: !!c })
@@ -311,12 +347,29 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
   }
 
   async function enviar(d: Dados) {
+    let id: string
     try {
-      const id = await gravar(d)
-      navegar(`/financeiro/notas/${id}`, { replace: true })
+      id = await gravar(d)
     } catch (erro) {
       mostrarErro(erro)
+      return
     }
+    // Nota da OS: fatura a OS (conta a receber) e liga à nota. A nota já foi gravada;
+    // se faturar falhar, ela abre com o aviso e a OS continua em "A faturar".
+    let erroOs: string | undefined
+    if (osId && osNota.data && !osNota.data.conferencia?.lancamento_id) {
+      try {
+        const lancamento = await faturarOs.mutateAsync({
+          valor: lerValor(d.valor_servico)!,
+          vencimento: d.vencimento || vencimentoDaProposta(null),
+          numeroNf: d.numero,
+        })
+        await ligarNotaAoLancamento(id, lancamento)
+      } catch (e) {
+        erroOs = mensagemDeErro(e)
+      }
+    }
+    navegar(`/financeiro/notas/${id}`, { replace: true, state: erroOs ? { erroOs } : null })
   }
 
   /** Antes de emitir: grava o que foi conferido, ainda como rascunho. */
@@ -358,6 +411,25 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
       </button>
       <h1 className="text-2xl font-bold">{titulo}</h1>
       {errors.root && <Aviso tipo="erro">{errors.root.message}</Aviso>}
+      {erroAoFaturar && (
+        <Aviso tipo="erro">
+          A nota foi registrada, mas a OS não foi faturada: {erroAoFaturar} Fature pela OS (parte
+          Financeiro da conferência) para ela sair de &quot;A faturar&quot;.
+        </Aviso>
+      )}
+      {osId && osNota.isError && <Aviso tipo="erro">{mensagemDeErro(osNota.error)}</Aviso>}
+      {osNota.data?.conferencia?.lancamento_id && (
+        <Aviso tipo="erro">
+          Esta OS já foi faturada. Confira em Notas fiscais se a nota dela já existe antes de
+          registrar outra.
+        </Aviso>
+      )}
+      {osNota.data?.conferencia?.aguardando_pedido_compra && (
+        <Aviso tipo="erro">
+          Aguardando o pedido de compra: o ADM marcou que esta nota sai com o número do pedido, que
+          o cliente ainda não mandou. Não emita antes de ele chegar.
+        </Aviso>
+      )}
       {nota?.status === 'rascunho' && (
         <Aviso>
           Rascunho montado pelo sistema a partir da última nota do contrato. Confira e emita pelo
@@ -372,178 +444,193 @@ function Formulario({ nota }: { nota?: NotaFiscalCompleta }) {
         </Aviso>
       )}
 
-      <form onSubmit={form.handleSubmit(enviar)} noValidate className="flex flex-col gap-5">
-        <Card className="grid gap-4 sm:grid-cols-2">
-          <Campo rotulo="Tipo de nota" htmlFor="tipo" obrigatorio>
-            <SelectForm id="tipo" control={form.control} name="tipo">
-              <option value="contrato">Contrato (mensalidade)</option>
-              <option value="avulsa">Serviço avulso</option>
-            </SelectForm>
-          </Campo>
-          <Campo rotulo="Situação" htmlFor="status">
-            <SelectForm id="status" control={form.control} name="status">
-              <option value="rascunho">Rascunho (a emitir)</option>
-              <option value="emitida">Emitida</option>
-              <option value="cancelada">Cancelada</option>
-            </SelectForm>
-          </Campo>
-          <Campo
-            rotulo="Cliente (tomador)"
-            htmlFor="cliente"
-            obrigatorio
-            erro={errors.cliente_id?.message}
-            className="sm:col-span-2"
-          >
-            {editando ? (
-              <p className="flex min-h-11 items-center font-semibold">
-                <Link to={`/clientes/${clienteId}`} className="text-verde underline">
-                  {clienteNome}
-                </Link>
-              </p>
-            ) : (
-              <ClienteSeletor
-                id="cliente"
-                valor={clienteId ? { id: clienteId, nome: clienteNome } : null}
-                aoMudar={aoEscolherCliente}
-              />
-            )}
-          </Campo>
-          {tipo === 'contrato' && (
+      <div
+        className={
+          osId ? 'grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start' : 'contents'
+        }
+      >
+        {osId && (
+          <aside className="lg:sticky lg:top-4 lg:order-2">
+            {osNota.isPending ? <Carregando /> : osNota.data && <PropostaAoLado os={osNota.data} />}
+          </aside>
+        )}
+        <form
+          onSubmit={form.handleSubmit(enviar)}
+          noValidate
+          className="flex min-w-0 flex-col gap-5"
+        >
+          <Card className="grid gap-4 sm:grid-cols-2">
+            <Campo rotulo="Tipo de nota" htmlFor="tipo" obrigatorio>
+              <SelectForm id="tipo" control={form.control} name="tipo">
+                <option value="contrato">Contrato (mensalidade)</option>
+                <option value="avulsa">Serviço avulso</option>
+              </SelectForm>
+            </Campo>
+            <Campo rotulo="Situação" htmlFor="status">
+              <SelectForm id="status" control={form.control} name="status">
+                <option value="rascunho">Rascunho (a emitir)</option>
+                <option value="emitida">Emitida</option>
+                <option value="cancelada">Cancelada</option>
+              </SelectForm>
+            </Campo>
             <Campo
-              rotulo="Contrato"
-              htmlFor="contrato"
+              rotulo="Cliente (tomador)"
+              htmlFor="cliente"
               obrigatorio
-              erro={errors.contrato_id?.message}
+              erro={errors.cliente_id?.message}
               className="sm:col-span-2"
             >
-              <SelectForm
-                id="contrato"
-                control={form.control}
-                name="contrato_id"
-                disabled={!clienteId}
+              {editando ? (
+                <p className="flex min-h-11 items-center font-semibold">
+                  <Link to={`/clientes/${clienteId}`} className="text-verde underline">
+                    {clienteNome}
+                  </Link>
+                </p>
+              ) : (
+                <ClienteSeletor
+                  id="cliente"
+                  valor={clienteId ? { id: clienteId, nome: clienteNome } : null}
+                  aoMudar={aoEscolherCliente}
+                />
+              )}
+            </Campo>
+            {tipo === 'contrato' && (
+              <Campo
+                rotulo="Contrato"
+                htmlFor="contrato"
+                obrigatorio
+                erro={errors.contrato_id?.message}
+                className="sm:col-span-2"
               >
-                <option value="">{clienteId ? 'Escolha…' : 'Escolha o cliente antes'}</option>
-                {contratosDoCliente.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.descricao} · {formatarReais(c.valor_mensal)}/mês
-                    {c.status !== 'ativo' ? ` (${c.status})` : ''}
-                  </option>
-                ))}
-              </SelectForm>
-            </Campo>
-          )}
-          {!editando && tipo === 'contrato' && ultima.data && (
-            <CopiarUltima
-              form={form}
-              ultima={ultima.data}
-              valorContrato={contratosDoCliente.find((c) => c.id === contratoId)?.valor_mensal}
-              mensalidades={mensalidades.data ?? []}
-            />
-          )}
-          {!editando && tipo === 'avulsa' && clienteId && (
-            <CopiarDoSistemaNacional key={clienteId} form={form} clienteId={clienteId} />
-          )}
-        </Card>
+                <SelectForm
+                  id="contrato"
+                  control={form.control}
+                  name="contrato_id"
+                  disabled={!clienteId}
+                >
+                  <option value="">{clienteId ? 'Escolha…' : 'Escolha o cliente antes'}</option>
+                  {contratosDoCliente.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.descricao} · {formatarReais(c.valor_mensal)}/mês
+                      {c.status !== 'ativo' ? ` (${c.status})` : ''}
+                    </option>
+                  ))}
+                </SelectForm>
+              </Campo>
+            )}
+            {!editando && tipo === 'contrato' && ultima.data && (
+              <CopiarUltima
+                form={form}
+                ultima={ultima.data}
+                valorContrato={contratosDoCliente.find((c) => c.id === contratoId)?.valor_mensal}
+                mensalidades={mensalidades.data ?? []}
+              />
+            )}
+            {!editando && tipo === 'avulsa' && clienteId && (
+              <CopiarDoSistemaNacional key={clienteId} form={form} clienteId={clienteId} />
+            )}
+          </Card>
 
-        <Card className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Campo rotulo="Número da nota" htmlFor="numero" erro={errors.numero?.message}>
-            <Input id="numero" inputMode="numeric" {...form.register('numero')} />
-          </Campo>
-          <Campo
-            rotulo="Emitida em"
-            htmlFor="emissao"
-            obrigatorio
-            erro={errors.data_emissao?.message}
-          >
-            <Input id="emissao" type="date" {...form.register('data_emissao')} />
-          </Campo>
-          <Campo
-            rotulo="Mês de competência"
-            htmlFor="competencia"
-            obrigatorio
-            erro={errors.competencia?.message}
-          >
-            <Input id="competencia" type="month" {...form.register('competencia')} />
-          </Campo>
-          <Campo rotulo="Vencimento" htmlFor="vencimento">
-            <Input id="vencimento" type="date" {...form.register('vencimento')} />
-          </Campo>
-          <Campo rotulo="Forma de pagamento" htmlFor="forma">
-            <SelectForm id="forma" control={form.control} name="forma_pagamento">
-              <option value="">—</option>
-              {FORMAS.map((f) => (
-                <option key={f.valor} value={f.valor}>
-                  {f.rotulo}
-                </option>
-              ))}
-            </SelectForm>
-          </Campo>
-          {tipo === 'contrato' && contratoId && (
+          <Card className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Campo rotulo="Número da nota" htmlFor="numero" erro={errors.numero?.message}>
+              <Input id="numero" inputMode="numeric" {...form.register('numero')} />
+            </Campo>
             <Campo
-              rotulo="Conta a receber (mensalidade)"
-              htmlFor="lancamento"
-              className="sm:col-span-2 lg:col-span-3"
-              dica="O número da nota passa a aparecer nesta conta a receber."
+              rotulo="Emitida em"
+              htmlFor="emissao"
+              obrigatorio
+              erro={errors.data_emissao?.message}
             >
-              <SelectForm id="lancamento" control={form.control} name="lancamento_id">
-                <option value="">Não ligar</option>
-                {(mensalidades.data ?? []).map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {formatarMes(m.competencia)} · vence {formatarData(m.vencimento)} ·{' '}
-                    {formatarReais(m.valor)}
-                    {m.numero_nota_fiscal ? ` · NF ${m.numero_nota_fiscal}` : ''}
+              <Input id="emissao" type="date" {...form.register('data_emissao')} />
+            </Campo>
+            <Campo
+              rotulo="Mês de competência"
+              htmlFor="competencia"
+              obrigatorio
+              erro={errors.competencia?.message}
+            >
+              <Input id="competencia" type="month" {...form.register('competencia')} />
+            </Campo>
+            <Campo rotulo="Vencimento" htmlFor="vencimento">
+              <Input id="vencimento" type="date" {...form.register('vencimento')} />
+            </Campo>
+            <Campo rotulo="Forma de pagamento" htmlFor="forma">
+              <SelectForm id="forma" control={form.control} name="forma_pagamento">
+                <option value="">—</option>
+                {FORMAS.map((f) => (
+                  <option key={f.valor} value={f.valor}>
+                    {f.rotulo}
                   </option>
                 ))}
               </SelectForm>
             </Campo>
-          )}
-          <Campo
-            rotulo="Descrição do serviço (como na nota)"
-            htmlFor="descricao"
-            obrigatorio
-            erro={errors.descricao?.message}
-            className="sm:col-span-2 lg:col-span-3"
-          >
-            <Textarea id="descricao" rows={4} {...form.register('descricao')} />
-          </Campo>
-        </Card>
-
-        <Impostos form={form} />
-
-        <Card>
-          <Campo rotulo="Observações" htmlFor="obs">
-            <Textarea id="obs" {...form.register('observacoes')} />
-          </Campo>
-        </Card>
-
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          {nota?.status === 'rascunho' && (
-            <Button
-              variante="secundario"
-              className="sm:mr-auto"
-              disabled={descartar.isPending}
-              onClick={() => {
-                if (!window.confirm('Descartar este rascunho? Ele não vai ser emitido.')) return
-                descartar
-                  .mutateAsync(nota.id)
-                  .then(() => navegar('/financeiro/notas?status=rascunho', { replace: true }))
-                  .catch((e: unknown) => form.setError('root', { message: mensagemDeErro(e) }))
-              }}
+            {tipo === 'contrato' && contratoId && (
+              <Campo
+                rotulo="Conta a receber (mensalidade)"
+                htmlFor="lancamento"
+                className="sm:col-span-2 lg:col-span-3"
+                dica="O número da nota passa a aparecer nesta conta a receber."
+              >
+                <SelectForm id="lancamento" control={form.control} name="lancamento_id">
+                  <option value="">Não ligar</option>
+                  {(mensalidades.data ?? []).map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {formatarMes(m.competencia)} · vence {formatarData(m.vencimento)} ·{' '}
+                      {formatarReais(m.valor)}
+                      {m.numero_nota_fiscal ? ` · NF ${m.numero_nota_fiscal}` : ''}
+                    </option>
+                  ))}
+                </SelectForm>
+              </Campo>
+            )}
+            <Campo
+              rotulo="Descrição do serviço (como na nota)"
+              htmlFor="descricao"
+              obrigatorio
+              erro={errors.descricao?.message}
+              className="sm:col-span-2 lg:col-span-3"
             >
-              <Trash2 className="size-4" aria-hidden /> Descartar rascunho
+              <Textarea id="descricao" rows={4} {...form.register('descricao')} />
+            </Campo>
+          </Card>
+
+          <Impostos form={form} />
+
+          <Card>
+            <Campo rotulo="Observações" htmlFor="obs">
+              <Textarea id="obs" {...form.register('observacoes')} />
+            </Campo>
+          </Card>
+
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            {nota?.status === 'rascunho' && (
+              <Button
+                variante="secundario"
+                className="sm:mr-auto"
+                disabled={descartar.isPending}
+                onClick={() => {
+                  if (!window.confirm('Descartar este rascunho? Ele não vai ser emitido.')) return
+                  descartar
+                    .mutateAsync(nota.id)
+                    .then(() => navegar('/financeiro/notas?status=rascunho', { replace: true }))
+                    .catch((e: unknown) => form.setError('root', { message: mensagemDeErro(e) }))
+                }}
+              >
+                <Trash2 className="size-4" aria-hidden /> Descartar rascunho
+              </Button>
+            )}
+            <Link
+              to="/financeiro/notas"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl px-4 font-semibold text-verde-escuro hover:bg-lima-claro"
+            >
+              Cancelar
+            </Link>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Salvando…' : editando ? 'Salvar alterações' : 'Registrar nota'}
             </Button>
-          )}
-          <Link
-            to="/financeiro/notas"
-            className="inline-flex min-h-11 items-center justify-center rounded-xl px-4 font-semibold text-verde-escuro hover:bg-lima-claro"
-          >
-            Cancelar
-          </Link>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Salvando…' : editando ? 'Salvar alterações' : 'Registrar nota'}
-          </Button>
-        </div>
-      </form>
+          </div>
+        </form>
+      </div>
 
       {nota && nota.status !== 'cancelada' && <BoletoNota nota={nota} />}
       {nota && <AvisoSubstituicao nota={nota} />}
@@ -1196,5 +1283,183 @@ function CampoPercentual({
     <Campo rotulo={rotulo} htmlFor={nome} erro={form.formState.errors[nome]?.message}>
       <Input id={nome} inputMode="decimal" placeholder="0,00" {...form.register(nome)} />
     </Campo>
+  )
+}
+
+/** A OS no formato das contas da nota (notaDaOs.ts). */
+function paraNota(os: OsParaNotaCompleta): OsParaNota {
+  return {
+    numero: os.numero,
+    data_agendada: os.data_agendada,
+    tipo_servico_id: os.tipo_servico_id,
+    proposta: os.proposta,
+    adicional:
+      os.conferencia?.adicional_descricao && os.conferencia.adicional_valor != null
+        ? {
+            descricao: os.conferencia.adicional_descricao,
+            valor: Number(os.conferencia.adicional_valor),
+          }
+        : null,
+    pedidoCompra: os.conferencia?.aguardando_pedido_compra
+      ? null
+      : os.conferencia?.tem_pedido_compra
+        ? os.conferencia.pedido_compra
+        : null,
+  }
+}
+
+/**
+ * Rascunho da proposta ao lado da nota da OS: o financeiro confere se o que o sistema
+ * puxou (valor, serviço, prazo, pedido de compra) bate com a proposta.
+ */
+function PropostaAoLado({ os }: { os: OsParaNotaCompleta }) {
+  const dados = paraNota(os)
+  const p = os.proposta
+  const conf = os.conferencia
+  const ficha = fichaDaOs(os.ficha_cliente)
+  const daOs = new Set(itensDaOs(dados).map((i) => i.id))
+  const itens = [...(p?.itens ?? [])].sort((a, b) => a.ordem - b.ordem)
+  const valor = valorDaOs(dados)
+  const linha = 'flex justify-between gap-3'
+  const adicional = dados.adicional
+
+  return (
+    <Card className="flex flex-col gap-3 border-2 border-verde/40 bg-lima-claro/40 text-sm">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-titulo text-base font-bold text-verde-escuro">
+          {p ? `Proposta nº ${p.numero ?? '—'}` : 'Sem proposta'}
+        </h2>
+        {p && (
+          <a
+            href={`/propostas/${p.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 font-semibold text-verde underline"
+          >
+            Ver proposta <ExternalLink className="size-3.5" aria-hidden />
+          </a>
+        )}
+      </div>
+      <p className="text-texto-suave">
+        Confira se a nota ao lado puxou tudo certo da proposta antes de registrar.
+      </p>
+
+      <dl className="flex flex-col gap-1">
+        <div className={linha}>
+          <dt className="text-texto-suave">Cliente</dt>
+          <dd className="text-right font-semibold">{ficha.nome || ficha.nome_fantasia}</dd>
+        </div>
+        {ficha.cpf_cnpj && (
+          <div className={linha}>
+            <dt className="text-texto-suave">CPF/CNPJ</dt>
+            <dd className="text-right">{ficha.cpf_cnpj}</dd>
+          </div>
+        )}
+        <div className={linha}>
+          <dt className="text-texto-suave">OS</dt>
+          <dd className="text-right">
+            <Link to={`/os/${os.id}`} className="text-verde underline">
+              {os.numero}
+            </Link>
+            {os.data_agendada && ` · ${formatarData(os.data_agendada)}`}
+            {os.tipo?.nome && ` · ${os.tipo.nome}`}
+          </dd>
+        </div>
+      </dl>
+
+      {p ? (
+        <>
+          <ul className="flex flex-col gap-1.5 border-t border-borda pt-2">
+            {itens.map((i) => (
+              <li
+                key={i.id}
+                className={daOs.has(i.id) ? 'font-semibold' : 'text-texto-suave line-through'}
+                title={daOs.has(i.id) ? 'Entra nesta nota' : 'Outro serviço da proposta'}
+              >
+                <span className="block">{i.descricao.replace(/\*\*/g, '')}</span>
+                <span className="block text-right">
+                  {i.quantidade !== 1 && `${i.quantidade} × ${formatarReais(i.valor_unitario)} = `}
+                  {formatarReais(i.quantidade * i.valor_unitario)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <dl className="flex flex-col gap-1 border-t border-borda pt-2">
+            <div className={linha}>
+              <dt className="text-texto-suave">Total da proposta</dt>
+              <dd>{formatarReais(p.valor_total)}</dd>
+            </div>
+            {adicional && (
+              <div className={linha}>
+                <dt className="text-texto-suave">Desta OS, pela proposta</dt>
+                <dd>{formatarReais(valorDaProposta(dados))}</dd>
+              </div>
+            )}
+            {adicional && (
+              <div className={linha}>
+                <dt className="text-texto-suave">+ Serviço adicional</dt>
+                <dd>{formatarReais(adicional.valor)}</dd>
+              </div>
+            )}
+            <div className={`${linha} text-base font-bold`}>
+              <dt>Valor desta nota</dt>
+              <dd>{formatarReais(valor)}</dd>
+            </div>
+            <div className={linha}>
+              <dt className="text-texto-suave">Prazo</dt>
+              <dd className="text-right">
+                {p.prazo_pagamento_dias != null
+                  ? `${descreverPrazos(prazosDe(p))} após o serviço`
+                  : 'Sem prazo (10 dias)'}
+              </dd>
+            </div>
+            <div className={linha}>
+              <dt className="text-texto-suave">Pagamento</dt>
+              <dd className="text-right">
+                {textoPagamento(null, p.condicao_pagamento, {
+                  parcelas: p.cartao_parcelas,
+                  juros: p.cartao_juros,
+                }).replace(/\*\*/g, '')}
+              </dd>
+            </div>
+          </dl>
+          {p.observacoes && (
+            <p className="border-t border-borda pt-2">
+              <strong>Obs. da proposta:</strong> {p.observacoes}
+            </p>
+          )}
+        </>
+      ) : (
+        <p>Esta OS não saiu de uma proposta: confira o valor e a descrição com o ADM.</p>
+      )}
+
+      {adicional && (
+        <div className="flex flex-col gap-1 rounded-lg border-2 border-alerta bg-alerta/10 p-2">
+          <p className="font-bold">
+            Serviço adicional (fora da proposta): {formatarReais(adicional.valor)}
+          </p>
+          <p className="whitespace-pre-line">{adicional.descricao}</p>
+          {!p && <p>Já somado no valor da nota.</p>}
+        </div>
+      )}
+
+      <div className="flex flex-col gap-1 border-t border-borda pt-2">
+        <p>
+          <strong>Pedido de compra:</strong>{' '}
+          {conf?.aguardando_pedido_compra
+            ? 'aguardando (não emitir ainda)'
+            : conf?.tem_pedido_compra
+              ? `nº ${conf.pedido_compra}`
+              : conf?.tem_pedido_compra === false
+                ? 'não tem'
+                : 'não informado'}
+        </p>
+        {conf?.observacoes && (
+          <p>
+            <strong>Obs. do escritório:</strong> {conf.observacoes}
+          </p>
+        )}
+      </div>
+    </Card>
   )
 }

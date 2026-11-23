@@ -905,6 +905,7 @@ export type Database = {
           modelo: string
           motivo_cancelamento: string | null
           mtr: string | null
+          mtrs: Json
           numero: string
           observacao_final: string | null
           os_id: string | null
@@ -948,6 +949,7 @@ export type Database = {
           modelo?: string
           motivo_cancelamento?: string | null
           mtr?: string | null
+          mtrs?: Json
           numero: string
           observacao_final?: string | null
           os_id?: string | null
@@ -991,6 +993,7 @@ export type Database = {
           modelo?: string
           motivo_cancelamento?: string | null
           mtr?: string | null
+          mtrs?: Json
           numero?: string
           observacao_final?: string | null
           os_id?: string | null
@@ -3376,6 +3379,8 @@ export type Database = {
       }
       os_conferencia: {
         Row: {
+          adicional_descricao: string | null
+          adicional_valor: number | null
           aguardando_pedido_compra: boolean
           alteracoes: string | null
           atualizado_em: string
@@ -3406,6 +3411,8 @@ export type Database = {
           vencimento: string | null
         }
         Insert: {
+          adicional_descricao?: string | null
+          adicional_valor?: number | null
           aguardando_pedido_compra?: boolean
           alteracoes?: string | null
           atualizado_em?: string
@@ -3436,6 +3443,8 @@ export type Database = {
           vencimento?: string | null
         }
         Update: {
+          adicional_descricao?: string | null
+          adicional_valor?: number | null
           aguardando_pedido_compra?: boolean
           alteracoes?: string | null
           atualizado_em?: string

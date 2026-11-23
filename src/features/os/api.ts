@@ -707,6 +707,40 @@ export function useValorPropostaDaOs(osId: string) {
   })
 }
 
+/**
+ * Tudo o que a nota fiscal da OS precisa (Financeiro > Emitir nota a partir da OS): a
+ * OS, a proposta de onde ela saiu (com os itens) e a conferência do escritório.
+ */
+export function useOsParaNota(osId: string | null) {
+  return useQuery({
+    queryKey: ['os', osId, 'para-nota'],
+    enabled: !!osId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ordens_servico')
+        .select(
+          `id, numero, status, treinamento, data_agendada, cliente_id, ficha_cliente, tipo_servico_id,
+           tipo:tipos_servico(nome),
+           proposta:propostas(id, numero, valor_total, prazo_pagamento_dias, prazos_pagamento,
+             condicao_pagamento, cartao_parcelas, cartao_juros, observacoes,
+             itens:proposta_itens(id, ordem, descricao, quantidade, valor_unitario, tipo_servico_id)),
+           conferencia:os_conferencia(lancamento_id, tem_pedido_compra, pedido_compra,
+             aguardando_pedido_compra, observacoes, liberada_financeiro_em, adicional_descricao,
+             adicional_valor)`,
+        )
+        .eq('id', osId!)
+        .single()
+      if (error) throw error
+      const conferencia = Array.isArray(data.conferencia)
+        ? (data.conferencia[0] ?? null)
+        : data.conferencia
+      return { ...data, conferencia }
+    },
+  })
+}
+
+export type OsParaNotaCompleta = NonNullable<ReturnType<typeof useOsParaNota>['data']>
+
 /** Cria a conta a receber no financeiro e liga à OS (só Admin e Financeiro). */
 export function useFaturarOs(osId: string) {
   const queryClient = useQueryClient()
@@ -1064,7 +1098,7 @@ export function useOsAFaturar() {
       const { data, error } = await supabase
         .from('os_conferencia')
         .select(
-          `os_id, liberada_financeiro_em, observacoes, tem_pedido_compra, pedido_compra, aguardando_pedido_compra,
+          `os_id, liberada_financeiro_em, observacoes, tem_pedido_compra, pedido_compra, aguardando_pedido_compra, adicional_descricao, adicional_valor,
            os:ordens_servico!inner(id, numero, data_agendada, ficha_cliente, cliente_id, treinamento,
              tipo_servico_id, tipo:tipos_servico(nome), operadores:os_operadores(operador:perfis(id, nome)),
              proposta:propostas(id, numero, valor_total,

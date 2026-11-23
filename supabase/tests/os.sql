@@ -329,6 +329,18 @@ do $$ begin
   exception when check_violation then null;
   end;
 end $$;
+-- Serviço adicional: escopo e valor juntos (um sem o outro não grava).
+do $$ begin
+  begin
+    update public.os_conferencia set adicional_descricao = 'Caixa de gordura [teste]'
+     where os_id = (select id from ids where nome = 'os_a');
+    raise exception 'FALHOU: gravou adicional sem valor';
+  exception when check_violation then null;
+  end;
+end $$;
+update public.os_conferencia
+   set adicional_descricao = 'Caixa de gordura [teste]', adicional_valor = 250
+ where os_id = (select id from ids where nome = 'os_a');
 update public.os_conferencia set pedido_compra = 'PC-123 [teste]'
  where os_id = (select id from ids where nome = 'os_a');
 select public.conferir_os((select id from ids where nome = 'os_a'));

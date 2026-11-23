@@ -1,3 +1,4 @@
+import { Plus, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 
@@ -8,7 +9,7 @@ import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
 import { Etiqueta } from '@/components/ui/Etiqueta'
 import { formatarData, formatarDataHora, hojeISO, somarDias } from '@/lib/datas'
-import { formatarReais, lerValor, mascaraValor, valorParaCampo } from '@/lib/dinheiro'
+import { formatarReais, lerValor, mascaraValor, paraCentavos, valorParaCampo } from '@/lib/dinheiro'
 import { mensagemDeErro } from '@/lib/erros'
 import { PAPEIS_ACESSO_TOTAL } from '@/lib/papeis'
 
@@ -63,10 +64,26 @@ function FormConferencia({
   const concluida = status === 'concluida' || status === 'conferida'
   const muda = <K extends keyof Conferencia>(campo: K, valor: Conferencia[K]) =>
     setDados((d) => ({ ...d, [campo]: valor }))
+  // Serviço feito a mais, fora da proposta: vai junto com o OK para o financeiro.
+  const [adicionalAberto, setAdicionalAberto] = useState(!!inicial.adicional_descricao)
+  const [valorAdicional, setValorAdicional] = useState(valorParaCampo(inicial.adicional_valor))
+  const podeAdicional = concluida && !inicial.lancamento_id
 
   async function gravar(conferirDepois: boolean) {
     setErro(null)
     setSucesso(null)
+    const descricaoAdicional = adicionalAberto ? dados.adicional_descricao?.trim() || '' : ''
+    const valorDoAdicional = adicionalAberto ? lerValor(valorAdicional) : null
+    if (adicionalAberto && (descricaoAdicional || valorAdicional.trim())) {
+      if (!descricaoAdicional) {
+        setErro('Escreva o que foi feito a mais (o escopo do serviço adicional).')
+        return
+      }
+      if (!valorDoAdicional || valorDoAdicional <= 0) {
+        setErro('Informe o valor do serviço adicional.')
+        return
+      }
+    }
     if (conferirDepois && dados.tem_pedido_compra == null) {
       setErro('Responda se o serviço tem pedido de compra antes de dar o OK para o financeiro.')
       return
@@ -93,6 +110,8 @@ function FormConferencia({
         envio_relatorios: dados.envio_relatorios,
         envio_arquivo: dados.envio_arquivo,
         observacoes: dados.observacoes || null,
+        adicional_descricao: descricaoAdicional || null,
+        adicional_valor: descricaoAdicional ? valorDoAdicional : null,
         tem_pedido_compra: dados.tem_pedido_compra,
         aguardando_pedido_compra: !!dados.tem_pedido_compra && dados.aguardando_pedido_compra,
         pedido_compra:
@@ -245,7 +264,64 @@ function FormConferencia({
         />
       </Campo>
 
+      {adicionalAberto && (
+        <Grupo titulo="Serviço adicional (fora da proposta)">
+          <p className="text-sm text-texto-suave">
+            O que a equipe fez a mais. Vai junto com o OK para o financeiro, que soma na nota (a
+            forma de pagamento continua a do cliente).
+          </p>
+          <Campo rotulo="O que foi feito a mais (escopo)" htmlFor="conf-adicional" obrigatorio>
+            <Textarea
+              id="conf-adicional"
+              rows={3}
+              maxLength={2000}
+              value={dados.adicional_descricao ?? ''}
+              onChange={(e) => muda('adicional_descricao', e.target.value)}
+              placeholder="Ex.: desentupimento da caixa de gordura da cozinha, não previsto na proposta"
+            />
+          </Campo>
+          <div className="flex flex-wrap items-end gap-3">
+            <Campo
+              rotulo="Valor total do adicional (R$)"
+              htmlFor="conf-adicional-valor"
+              obrigatorio
+            >
+              <Input
+                id="conf-adicional-valor"
+                inputMode="numeric"
+                value={valorAdicional}
+                onChange={(e) => setValorAdicional(mascaraValor(e.target.value))}
+                placeholder="0,00"
+                className="max-w-48"
+              />
+            </Campo>
+            {podeAdicional && (
+              <Button
+                variante="fantasma"
+                onClick={() => {
+                  setAdicionalAberto(false)
+                  muda('adicional_descricao', null)
+                  setValorAdicional('')
+                }}
+              >
+                <X className="size-4" aria-hidden /> Tirar o adicional
+              </Button>
+            )}
+          </div>
+          {inicial.adicional_descricao && (
+            <p className="text-sm text-texto-suave">
+              Mudou algo? Clique em Salvar conferência para o financeiro ver a versão nova.
+            </p>
+          )}
+        </Grupo>
+      )}
+
       <div className="flex flex-wrap gap-2">
+        {podeAdicional && !adicionalAberto && (
+          <Button variante="secundario" onClick={() => setAdicionalAberto(true)}>
+            <Plus className="size-4" aria-hidden /> Adicionar valor
+          </Button>
+        )}
         <Button
           variante="secundario"
           onClick={() => void gravar(false)}
@@ -271,6 +347,8 @@ function FormConferencia({
             : inicial.tem_pedido_compra
               ? ` · pedido de compra ${inicial.pedido_compra}`
               : ' · sem pedido de compra'}
+          {inicial.adicional_valor != null &&
+            ` · adicional de ${formatarReais(inicial.adicional_valor)}`}
           {inicial.taxa_faturada ? ' · já faturada.' : ' · aguardando o faturamento.'}
         </Aviso>
       )}
@@ -294,7 +372,7 @@ function FormConferencia({
           </div>
         ) : PAPEIS_ACESSO_TOTAL.includes(perfil.papel) ? (
           concluida ? (
-            <FormFaturar osId={osId} />
+            <FormFaturar osId={osId} adicional={inicial.adicional_valor} />
           ) : (
             <p className="text-texto-suave">Fatura-se depois que o operador concluir a OS.</p>
           )
@@ -308,7 +386,8 @@ function FormConferencia({
   )
 }
 
-function FormFaturar({ osId }: { osId: string }) {
+function FormFaturar({ osId, adicional }: { osId: string; adicional: number | null }) {
+  const extra = adicional == null ? 0 : Number(adicional)
   const faturar = useFaturarOs(osId)
   const proposta = useValorPropostaDaOs(osId)
   const [valor, setValor] = useState('')
@@ -340,6 +419,12 @@ function FormFaturar({ osId }: { osId: string }) {
             <strong>{formatarReais(proposta.data.valor)}</strong>
             {proposta.data.valor !== proposta.data.total &&
               ` (total da proposta ${formatarReais(proposta.data.total)})`}
+            {extra > 0 && (
+              <>
+                {' '}
+                + adicional <strong>{formatarReais(extra)}</strong>
+              </>
+            )}
           </span>
           <Link className="text-verde underline" to={`/propostas/${proposta.data.id}`}>
             Ver proposta
@@ -347,7 +432,11 @@ function FormFaturar({ osId }: { osId: string }) {
           <Button
             variante="secundario"
             className="ml-auto min-h-9"
-            onClick={() => setValor(valorParaCampo(proposta.data!.valor))}
+            onClick={() =>
+              setValor(
+                valorParaCampo((paraCentavos(proposta.data!.valor) + paraCentavos(extra)) / 100),
+              )
+            }
           >
             Usar este valor
           </Button>

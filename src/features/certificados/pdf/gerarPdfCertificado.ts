@@ -27,6 +27,7 @@ import {
   textoDias,
   type ModeloCertificado,
 } from '../modelos'
+import { lerMtrs, linhasMtrs } from '../mtrs'
 
 /*
  * PDF do certificado, no navegador com pdf-lib (como o PDF da OS).
@@ -683,8 +684,8 @@ export async function gerarPdfCertificado(
         .map((l) => l.trim())
         .filter(Boolean)
         .map((l) => ({ principal: l })),
-      ...(c.mtr?.trim() ? [{ principal: `MTR nº ${c.mtr.trim()}` }] : []),
-      ...(c.volume?.trim() ? [{ principal: `Quantidade: ${c.volume.trim()}` }] : []),
+      // Uma linha por MTR, com a quantidade dela (os antigos têm só uma).
+      ...linhasMtrs(lerMtrs(c)).map((principal) => ({ principal })),
     ]
     meio([{ titulo: 'Descrição do serviço', itens }, blocoProdutos], topoCorpo)
   }

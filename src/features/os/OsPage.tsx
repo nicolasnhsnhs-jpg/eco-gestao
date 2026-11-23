@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { FileDown, Pencil, Printer } from 'lucide-react'
+import { FileDown, Pencil, Printer, Receipt } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 
@@ -12,7 +12,7 @@ import { Etiqueta } from '@/components/ui/Etiqueta'
 import { formatarData, formatarDataHora } from '@/lib/datas'
 import { formatarDocumento } from '@/lib/documentos'
 import { mensagemDeErro } from '@/lib/erros'
-import { PAPEIS_CERTIFICADOS, PAPEIS_ESCRITORIO_OS } from '@/lib/papeis'
+import { PAPEIS_ACESSO_TOTAL, PAPEIS_CERTIFICADOS, PAPEIS_ESCRITORIO_OS } from '@/lib/papeis'
 
 import { ListaArquivos } from '../arquivos/ListaArquivos'
 import { EnviarOsAoCliente } from '../certificados/EnviarOsAoCliente'
@@ -24,6 +24,7 @@ import {
   NOME_STATUS_OS,
   osAberta,
   useCancelarOs,
+  useConferencia,
   useOrdemServico,
   useReabrirOs,
 } from './api'
@@ -63,6 +64,8 @@ export function OsPage() {
   const [gerandoFicha, setGerandoFicha] = useState(false)
   const [editando, setEditando] = useState(false)
   const queryClient = useQueryClient()
+  const financeiro = PAPEIS_ACESSO_TOTAL.includes(perfil.papel)
+  const conferencia = useConferencia(id, financeiro)
 
   if (os.isPending) return <Carregando />
   if (os.isError) return <Aviso tipo="erro">{mensagemDeErro(os.error)}</Aviso>
@@ -75,6 +78,13 @@ export function OsPage() {
   // No teste de treinamento o escritório só acompanha o que o técnico preencheu.
   const escritorio = PAPEIS_ESCRITORIO_OS.includes(perfil.papel) && !o.treinamento
   const antesDeComecar = o.status === 'rascunho' || o.status === 'agendada'
+  // Com o OK do escritório e ainda não faturada (Financeiro > A faturar > Abrir OS).
+  const podeEmitirNota =
+    financeiro &&
+    !o.treinamento &&
+    (o.status === 'concluida' || o.status === 'conferida') &&
+    !!conferencia.data?.liberada_financeiro_em &&
+    !conferencia.data.lancamento_id
   const alvo: AlvoEscopo | null = o.modelo_id
     ? {
         modeloId: o.modelo_id,
@@ -139,8 +149,21 @@ export function OsPage() {
         descricao={`${ficha.nome_fantasia || ficha.nome}${ficha.unidade?.apelido ? ` · ${ficha.unidade.apelido}` : ''}`}
         acoes={
           <div className="flex flex-wrap gap-2">
+            {/* Financeiro: a nota já sai preenchida pela proposta e, ao registrar, a OS é faturada. */}
+            {podeEmitirNota && (
+              <Link to={`/financeiro/notas/nova?tipo=avulsa&os=${o.id}`}>
+                <Button>
+                  <Receipt className="size-5" aria-hidden />
+                  Emitir nota
+                </Button>
+              </Link>
+            )}
             {escritorio && (o.status === 'concluida' || o.status === 'conferida') && (
-              <Button onClick={() => void baixarPdf()} disabled={gerandoPdf}>
+              <Button
+                variante={podeEmitirNota ? 'secundario' : 'primario'}
+                onClick={() => void baixarPdf()}
+                disabled={gerandoPdf}
+              >
                 <FileDown className="size-5" aria-hidden />
                 {gerandoPdf ? 'Gerando PDF…' : 'PDF da OS'}
               </Button>
