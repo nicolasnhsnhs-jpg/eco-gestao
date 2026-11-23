@@ -159,6 +159,9 @@ function Execucao({ os }: { os: OsCompleta }) {
   const arCondicionado = os.tipo?.formulario_os === 'ar_condicionado'
   const fila = useFila()
   const aguardandoEnvio = pendenteDaOs(fila, os.id).length > 0
+  // As fotos o operador ainda troca depois de concluir, até o escritório conferir
+  // (o banco confere a mesma regra: privado.os_aceita_fotos).
+  const fotosAbertas = aberta || os.status === 'concluida'
   const fotos = useFotosAntesDepois(os, fila)
   const depois =
     2 +
@@ -375,7 +378,9 @@ function Execucao({ os }: { os: OsCompleta }) {
               ? 'Serviço não realizado: a OS foi cancelada e o escritório vai reagendar.'
               : os.treinamento
                 ? 'Teste concluído! Você preencheu tudo certo.'
-                : 'OS concluída. Para mudar algo, fale com o escritório.'}
+                : os.status === 'concluida'
+                  ? 'OS concluída. Mandou alguma foto errada? Dá para apagar e mandar outra até o escritório conferir. Para mudar o resto, fale com o escritório.'
+                  : 'OS concluída. Para mudar algo, fale com o escritório.'}
           </Aviso>
         ))}
 
@@ -543,7 +548,7 @@ function Execucao({ os }: { os: OsCompleta }) {
                 <FotosOs
                   clienteId={os.cliente_id}
                   osId={os.id}
-                  aberta={aberta}
+                  aberta={fotosAbertas}
                   categoria="foto_antes"
                   textoVazio="Nenhuma foto de antes ainda."
                 />
@@ -675,7 +680,7 @@ function Execucao({ os }: { os: OsCompleta }) {
               <FotosOs
                 clienteId={os.cliente_id}
                 osId={os.id}
-                aberta={aberta}
+                aberta={fotosAbertas}
                 categoria="foto_depois"
                 textoVazio="Nenhuma foto de depois ainda."
               />
@@ -683,13 +688,13 @@ function Execucao({ os }: { os: OsCompleta }) {
               <FotosOs
                 clienteId={os.cliente_id}
                 osId={os.id}
-                aberta={aberta}
+                aberta={fotosAbertas}
                 textoVazio="Nenhuma outra foto."
               />
             </Etapa>
           ) : (
             <Etapa numero={depois} titulo="Fotos">
-              <FotosOs clienteId={os.cliente_id} osId={os.id} aberta={aberta} />
+              <FotosOs clienteId={os.cliente_id} osId={os.id} aberta={fotosAbertas} />
             </Etapa>
           )}
 

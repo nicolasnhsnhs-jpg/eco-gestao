@@ -256,6 +256,36 @@ set local role authenticated;
 select public.concluir_os((select id from ids where nome = 'os_a'));
 reset role;
 
+-- OS concluída e ainda não conferida: o operador troca as próprias fotos (mandou a
+-- errada), mas a assinatura não.
+select pg_temp.como('00000000-0000-0000-0000-0000000005e1');
+set local role authenticated;
+delete from public.arquivos
+ where os_id = (select id from ids where nome = 'os_a') and nome_original = 'foto_antes1.jpg';
+insert into public.arquivos (cliente_id, os_id, caminho_storage, nome_original, categoria)
+select '00000000-0000-0000-0000-000000005c01', id,
+       'clientes/00000000-0000-0000-0000-000000005c01/os/' || id || '/certa.jpg', 'certa.jpg', 'foto_antes'
+  from ids where nome = 'os_a';
+do $$ begin
+  begin
+    insert into public.arquivos (cliente_id, os_id, caminho_storage, nome_original, categoria)
+    select '00000000-0000-0000-0000-000000005c01', id,
+           'clientes/00000000-0000-0000-0000-000000005c01/os/' || id || '/ass.png', 'ass.png', 'assinatura'
+      from ids where nome = 'os_a';
+    raise exception 'FALHOU: operador mandou assinatura com a OS concluída';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+select pg_temp.conferir('operador trocou a foto com a OS concluída',
+  (select count(*) from public.arquivos
+    where os_id = (select id from ids where nome = 'os_a')
+      and nome_original in ('certa.jpg', 'foto_antes1.jpg')
+      and nome_original = 'certa.jpg'), 1);
+select pg_temp.conferir('foto errada apagada pelo operador',
+  (select count(*) from public.arquivos
+    where os_id = (select id from ids where nome = 'os_a') and nome_original = 'foto_antes1.jpg'), 0);
+
 -- Recepção preenche a conferência e confere, mas não fatura
 select pg_temp.como('00000000-0000-0000-0000-0000000005c1');
 set local role authenticated;
@@ -278,6 +308,27 @@ do $$ begin
   exception when check_violation then null;
   end;
 end $$;
+-- "Aguardando" o pedido: passa sem número (testado e desfeito), mas só com tem_pedido_compra.
+do $$ begin
+  begin
+    perform public.conferir_os((select id from ids where nome = 'os_a'));
+    raise exception 'FALHOU: conferiu com pedido de compra sem número';
+  exception when check_violation then null;
+  end;
+  begin
+    update public.os_conferencia set aguardando_pedido_compra = true
+     where os_id = (select id from ids where nome = 'os_a');
+    perform public.conferir_os((select id from ids where nome = 'os_a'));
+    raise exception using errcode = 'P0099', message = 'desfazer';
+  exception when sqlstate 'P0099' then null;
+  end;
+  begin
+    update public.os_conferencia set tem_pedido_compra = false, aguardando_pedido_compra = true
+     where os_id = (select id from ids where nome = 'os_a');
+    raise exception 'FALHOU: aguardando sem pedido de compra';
+  exception when check_violation then null;
+  end;
+end $$;
 update public.os_conferencia set pedido_compra = 'PC-123 [teste]'
  where os_id = (select id from ids where nome = 'os_a');
 select public.conferir_os((select id from ids where nome = 'os_a'));
@@ -288,6 +339,27 @@ do $$ begin
     raise exception 'FALHOU: conferir não deu o OK para o financeiro';
   end if;
 end $$;
+reset role;
+-- Conferida pelo escritório: o operador não troca mais as fotos.
+select pg_temp.como('00000000-0000-0000-0000-0000000005e1');
+set local role authenticated;
+do $$ begin
+  begin
+    insert into public.arquivos (cliente_id, os_id, caminho_storage, nome_original, categoria)
+    select '00000000-0000-0000-0000-000000005c01', id,
+           'clientes/00000000-0000-0000-0000-000000005c01/os/' || id || '/tarde.jpg', 'tarde.jpg', 'foto_os'
+      from ids where nome = 'os_a';
+    raise exception 'FALHOU: operador mandou foto com a OS já conferida';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+delete from public.arquivos where os_id = (select id from ids where nome = 'os_a') and nome_original = 'certa.jpg';
+reset role;
+select pg_temp.conferir('operador não apaga foto da OS conferida',
+  (select count(*) from public.arquivos
+    where os_id = (select id from ids where nome = 'os_a') and nome_original = 'certa.jpg'), 1);
+select pg_temp.como('00000000-0000-0000-0000-0000000005c1');
+set local role authenticated;
 do $$ begin
   begin
     perform public.faturar_os((select id from ids where nome = 'os_a'), 350, '2026-11-20');

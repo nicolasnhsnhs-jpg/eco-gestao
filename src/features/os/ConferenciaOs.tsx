@@ -71,7 +71,12 @@ function FormConferencia({
       setErro('Responda se o serviço tem pedido de compra antes de dar o OK para o financeiro.')
       return
     }
-    if (conferirDepois && dados.tem_pedido_compra && !dados.pedido_compra?.trim()) {
+    if (
+      conferirDepois &&
+      dados.tem_pedido_compra &&
+      !dados.aguardando_pedido_compra &&
+      !dados.pedido_compra?.trim()
+    ) {
       setErro('Informe o número do pedido de compra.')
       return
     }
@@ -89,7 +94,11 @@ function FormConferencia({
         envio_arquivo: dados.envio_arquivo,
         observacoes: dados.observacoes || null,
         tem_pedido_compra: dados.tem_pedido_compra,
-        pedido_compra: dados.tem_pedido_compra ? dados.pedido_compra?.trim() || null : null,
+        aguardando_pedido_compra: !!dados.tem_pedido_compra && dados.aguardando_pedido_compra,
+        pedido_compra:
+          dados.tem_pedido_compra && !dados.aguardando_pedido_compra
+            ? dados.pedido_compra?.trim() || null
+            : null,
       })
       if (conferirDepois) await conferir.mutateAsync()
       setSucesso(
@@ -183,12 +192,34 @@ function FormConferencia({
 
       <Grupo titulo="Pedido de compra">
         <div className="grid gap-3 sm:grid-cols-2">
-          <SimNaoCampo
-            rotulo="Tem pedido de compra? *"
-            valor={dados.tem_pedido_compra}
-            aoMudar={(v) => muda('tem_pedido_compra', v)}
-          />
-          {dados.tem_pedido_compra && (
+          <label className="flex flex-col gap-1">
+            <span className="font-semibold">Tem pedido de compra? *</span>
+            <Select
+              value={
+                dados.tem_pedido_compra === null
+                  ? ''
+                  : !dados.tem_pedido_compra
+                    ? 'nao'
+                    : dados.aguardando_pedido_compra
+                      ? 'aguardando'
+                      : 'sim'
+              }
+              onChange={(e) => {
+                const v = e.target.value
+                setDados((d) => ({
+                  ...d,
+                  tem_pedido_compra: v === '' ? null : v !== 'nao',
+                  aguardando_pedido_compra: v === 'aguardando',
+                }))
+              }}
+            >
+              <option value="">—</option>
+              <option value="sim">Sim</option>
+              <option value="nao">Não</option>
+              <option value="aguardando">Aguardando (o cliente ainda não mandou)</option>
+            </Select>
+          </label>
+          {dados.tem_pedido_compra && !dados.aguardando_pedido_compra && (
             <Campo rotulo="Número do pedido de compra" htmlFor="conf-pedido" obrigatorio>
               <Input
                 id="conf-pedido"
@@ -199,7 +230,9 @@ function FormConferencia({
           )}
         </div>
         <p className="text-sm text-texto-suave">
-          Obrigatório para dar o OK para o financeiro: a nota sai com o número do pedido.
+          Obrigatório para dar o OK para o financeiro: a nota sai com o número do pedido. Com
+          &quot;Aguardando&quot;, o financeiro vê o serviço mas não emite a nota até o número
+          chegar.
         </p>
       </Grupo>
 
@@ -233,9 +266,11 @@ function FormConferencia({
       {inicial.liberada_financeiro_em && (
         <Aviso tipo="sucesso">
           OK para o financeiro dado em {formatarDataHora(inicial.liberada_financeiro_em)}
-          {inicial.tem_pedido_compra
-            ? ` · pedido de compra ${inicial.pedido_compra}`
-            : ' · sem pedido de compra'}
+          {inicial.aguardando_pedido_compra
+            ? ' · aguardando o pedido de compra'
+            : inicial.tem_pedido_compra
+              ? ` · pedido de compra ${inicial.pedido_compra}`
+              : ' · sem pedido de compra'}
           {inicial.taxa_faturada ? ' · já faturada.' : ' · aguardando o faturamento.'}
         </Aviso>
       )}

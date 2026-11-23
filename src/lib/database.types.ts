@@ -3376,6 +3376,7 @@ export type Database = {
       }
       os_conferencia: {
         Row: {
+          aguardando_pedido_compra: boolean
           alteracoes: string | null
           atualizado_em: string
           atualizado_por: string | null
@@ -3405,6 +3406,7 @@ export type Database = {
           vencimento: string | null
         }
         Insert: {
+          aguardando_pedido_compra?: boolean
           alteracoes?: string | null
           atualizado_em?: string
           atualizado_por?: string | null
@@ -3434,6 +3436,7 @@ export type Database = {
           vencimento?: string | null
         }
         Update: {
+          aguardando_pedido_compra?: boolean
           alteracoes?: string | null
           atualizado_em?: string
           atualizado_por?: string | null
@@ -4832,6 +4835,85 @@ export type Database = {
           {
             foreignKeyName: 'push_inscricoes_usuario_id_fkey'
             columns: ['usuario_id']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      recibos: {
+        Row: {
+          assinatura_digital: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          cancelado: boolean
+          cliente_id: string | null
+          criado_em: string
+          criado_por: string | null
+          data: string
+          descricao: string
+          forma_pagamento: string | null
+          id: string
+          numero: number
+          observacoes: string | null
+          pagador_documento: string | null
+          pagador_nome: string
+          valor: number
+        }
+        Insert: {
+          assinatura_digital?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cancelado?: boolean
+          cliente_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data?: string
+          descricao: string
+          forma_pagamento?: string | null
+          id?: string
+          numero?: never
+          observacoes?: string | null
+          pagador_documento?: string | null
+          pagador_nome: string
+          valor: number
+        }
+        Update: {
+          assinatura_digital?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cancelado?: boolean
+          cliente_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data?: string
+          descricao?: string
+          forma_pagamento?: string | null
+          id?: string
+          numero?: never
+          observacoes?: string | null
+          pagador_documento?: string | null
+          pagador_nome?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'recibos_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'recibos_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'recibos_criado_por_fkey'
+            columns: ['criado_por']
             isOneToOne: false
             referencedRelation: 'perfis'
             referencedColumns: ['id']

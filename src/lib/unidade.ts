@@ -7,6 +7,8 @@ export const UNIDADES = {
   sc: {
     nome: 'Eco Ambiental SC',
     uf: 'SC',
+    /** CNPJ que vai no recibo (Financeiro > Recibos). */
+    cnpj: '69.636.469/0001-18',
     cidade: 'Palhoça',
     /** Operadores entram com um login curto (ex.: "joao"), que vira joao@<este domínio>. */
     dominioOperador: 'op.ecoambientalsc.com.br',
@@ -95,6 +97,7 @@ export const UNIDADES = {
   rs: {
     nome: 'Eco Ambiental RS',
     uf: 'RS',
+    cnpj: '07.125.516/0001-01',
     cidade: 'Esteio',
     dominioOperador: 'op.ecoambientalrs.com.br',
     bancosBoleto: ['asaas', 'sicredi'],

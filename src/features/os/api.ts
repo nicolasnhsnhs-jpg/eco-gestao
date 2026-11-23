@@ -1064,7 +1064,7 @@ export function useOsAFaturar() {
       const { data, error } = await supabase
         .from('os_conferencia')
         .select(
-          `os_id, liberada_financeiro_em, observacoes, tem_pedido_compra, pedido_compra,
+          `os_id, liberada_financeiro_em, observacoes, tem_pedido_compra, pedido_compra, aguardando_pedido_compra,
            os:ordens_servico!inner(id, numero, data_agendada, ficha_cliente, cliente_id, treinamento,
              tipo_servico_id, tipo:tipos_servico(nome), operadores:os_operadores(operador:perfis(id, nome)),
              proposta:propostas(id, numero, valor_total,
@@ -1082,6 +1082,25 @@ export function useOsAFaturar() {
 }
 
 export type OsAFaturar = NonNullable<ReturnType<typeof useOsAFaturar>['data']>[number]
+
+/** Chegou o pedido de compra que estava "Aguardando": grava o número e tira o aviso. */
+export function useInformarPedidoCompra() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ osId, numero }: { osId: string; numero: string }) => {
+      const { error } = await supabase
+        .from('os_conferencia')
+        .update({
+          tem_pedido_compra: true,
+          aguardando_pedido_compra: false,
+          pedido_compra: numero.trim(),
+        })
+        .eq('os_id', osId)
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
+  })
+}
 
 /** Tira da lista "A faturar" sem criar lançamento (ex.: entrou na nota do contrato). */
 export function useMarcarOsFaturada() {

@@ -548,6 +548,18 @@ export async function assinarPdfCertificado(certificadoId: string, pdf: Blob): P
   return new Blob([volta as BlobPart], { type: 'application/pdf' })
 }
 
+/** O mesmo para o recibo do financeiro (Financeiro > Recibos). */
+export async function assinarPdfRecibo(reciboId: string, pdf: Blob): Promise<Blob> {
+  const bytes = new Uint8Array(await pdf.arrayBuffer())
+  const { pdf: assinado } = await chamarAssinatura<{ pdf: string }>({
+    acao: 'assinar_recibo',
+    reciboId,
+    pdf: paraBase64(bytes),
+  })
+  const volta = Uint8Array.from(atob(assinado), (c) => c.charCodeAt(0))
+  return new Blob([volta as BlobPart], { type: 'application/pdf' })
+}
+
 /** E-mails do cliente para certificado e OS (nunca os do financeiro, quando separados). */
 export function useEmailsDocumentos(clienteId: string | undefined) {
   return useQuery({

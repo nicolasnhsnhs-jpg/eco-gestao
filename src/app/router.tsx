@@ -30,6 +30,7 @@ import { LancamentosPage } from '@/features/financeiro/LancamentosPage'
 import { NotaFiscalFormPage } from '@/features/financeiro/NotaFiscalFormPage'
 import { NotasFiscaisPage } from '@/features/financeiro/NotasFiscaisPage'
 import { PainelPage } from '@/features/financeiro/PainelPage'
+import { RecibosPage } from '@/features/financeiro/RecibosPage'
 import { PropostaFormPage } from '@/features/propostas/PropostaFormPage'
 import { PropostaPage } from '@/features/propostas/PropostaPage'
 import { PropostasAgendadasPage } from '@/features/propostas/PropostasAgendadasPage'
@@ -243,6 +244,7 @@ export const router = createBrowserRouter([
           { path: 'notas', element: <NotasFiscaisPage /> },
           { path: 'notas/nova', element: <NotaFiscalFormPage /> },
           { path: 'notas/:id', element: <NotaFiscalFormPage /> },
+          { path: 'recibos', element: <RecibosPage /> },
           { path: 'faturamento', element: <FaturamentoPage /> },
           { path: 'emails', element: <EmailsEnviadosPage setor="financeiro" /> },
           { path: 'contas-fixas', element: <ContasFixasPage /> },

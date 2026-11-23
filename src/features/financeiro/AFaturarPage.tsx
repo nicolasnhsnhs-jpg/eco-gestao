@@ -4,13 +4,20 @@ import { Link } from 'react-router'
 
 import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Campo'
 import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
 import { formatarData, formatarDataHora } from '@/lib/datas'
 import { formatarReais } from '@/lib/dinheiro'
 import { mensagemDeErro } from '@/lib/erros'
 
-import { fichaDaOs, useMarcarOsFaturada, useOsAFaturar, type OsAFaturar } from '../os/api'
+import {
+  fichaDaOs,
+  useInformarPedidoCompra,
+  useMarcarOsFaturada,
+  useOsAFaturar,
+  type OsAFaturar,
+} from '../os/api'
 
 /**
  * Serviços a faturar: as OS que o escritório conferiu e deu o OK para o financeiro.
@@ -102,7 +109,8 @@ function CartaoAFaturar({ item }: { item: OsAFaturar }) {
         {os.tipo?.nome}
         {operadores.length > 0 && ` · ${operadores.join(', ')}`}
       </p>
-      {item.tem_pedido_compra && (
+      {item.aguardando_pedido_compra && <AguardandoPedido osId={os.id} />}
+      {item.tem_pedido_compra && !item.aguardando_pedido_compra && (
         <div className="rounded-xl border-2 border-alerta bg-alerta/10 p-3 text-lg font-bold">
           Emitir com pedido de compra nº {item.pedido_compra}
         </div>
@@ -142,5 +150,36 @@ function CartaoAFaturar({ item }: { item: OsAFaturar }) {
         )}
       </div>
     </Card>
+  )
+}
+
+/** O serviço precisa de pedido de compra e o cliente ainda não mandou: não emitir ainda. */
+function AguardandoPedido({ osId }: { osId: string }) {
+  const informar = useInformarPedidoCompra()
+  const [numero, setNumero] = useState('')
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border-2 border-alerta bg-alerta/10 p-3">
+      <p className="text-lg font-bold">Aguardando pedido de compra: não emitir a nota ainda</p>
+      <form
+        className="flex flex-wrap items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (numero.trim()) informar.mutate({ osId, numero })
+        }}
+      >
+        <Input
+          aria-label="Número do pedido de compra"
+          placeholder="Chegou? Número do pedido"
+          value={numero}
+          onChange={(e) => setNumero(e.target.value)}
+          maxLength={60}
+          className="max-w-64 flex-1"
+        />
+        <Button type="submit" variante="secundario" disabled={!numero.trim() || informar.isPending}>
+          {informar.isPending ? 'Salvando…' : 'Salvar número'}
+        </Button>
+      </form>
+      {informar.isError && <p className="text-sm text-perigo">{mensagemDeErro(informar.error)}</p>}
+    </div>
   )
 }

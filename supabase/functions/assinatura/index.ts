@@ -8,11 +8,14 @@
 // técnica), basta cadastrar ASSINATURA_CERTIFICADO / ASSINATURA_SENHA: eles têm preferência.
 // O .pfx nunca vai para o navegador.
 //
-// Ações (só Administrador e ADM, os perfis que emitem certificado):
-//   - situacao: diz se o certificado está cadastrado, de quem é e até quando vale;
-//   - assinar:  recebe o PDF montado na tela e devolve o mesmo PDF assinado. Só assina
-//               o PDF de um certificado marcado "assinatura digital", não cancelado, e
-//               cujo título do PDF começa pelo número dele.
+// Ações:
+//   - situacao:       diz se o certificado está cadastrado, de quem é e até quando vale;
+//   - assinar:        (Administrador e ADM, que emitem certificado) recebe o PDF montado
+//                     na tela e devolve o mesmo PDF assinado. Só assina o PDF de um
+//                     certificado marcado "assinatura digital", não cancelado, e cujo
+//                     título do PDF começa pelo número dele;
+//   - assinar_recibo: (Administrador e Financeiro) o mesmo para o recibo do financeiro;
+//                     o título do PDF começa por "Recibo 0001".
 
 import { decodeBase64, encodeBase64 } from 'jsr:@std/encoding@1/base64'
 import { PDFDocument } from 'npm:pdf-lib@1.17.1'
@@ -26,7 +29,14 @@ const DA_NOTA = { arquivo: 'NFSE_CERTIFICADO', senha: 'NFSE_SENHA' }
 /** PDF do certificado tem poucas centenas de KB; isto é só um teto. */
 const LIMITE_PDF = 15 * 1024 * 1024
 
-type Pedido = { acao: 'situacao' } | { acao: 'assinar'; certificadoId: string; pdf: string }
+type Pedido =
+  | { acao: 'situacao' }
+  | { acao: 'assinar'; certificadoId: string; pdf: string }
+  | { acao: 'assinar_recibo'; reciboId: string; pdf: string }
+
+/** Quem pode cada ação. */
+const PAPEIS_CERTIFICADO = ['admin', 'administrativo']
+const PAPEIS_RECIBO = ['admin', 'financeiro']
 
 let emCache: Certificado | null = null
 
@@ -67,8 +77,9 @@ Deno.serve(async (req) => {
       .select('papel, ativo')
       .eq('id', quem.user.id)
       .single()
-    if (!perfil?.ativo || !['admin', 'administrativo'].includes(perfil.papel)) {
-      return resposta(403, { erro: 'Somente quem emite certificados pode assinar.' })
+    const papeis = new Set([...PAPEIS_CERTIFICADO, ...PAPEIS_RECIBO])
+    if (!perfil?.ativo || !papeis.has(perfil.papel)) {
+      return resposta(403, { erro: 'Seu perfil não pode usar a assinatura digital.' })
     }
 
     let pedido: Pedido
@@ -92,7 +103,15 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (pedido.acao === 'assinar_recibo') {
+      if (!PAPEIS_RECIBO.includes(perfil.papel))
+        return resposta(403, { erro: 'Somente o financeiro pode assinar recibos.' })
+      return await assinarRecibo(admin, pedido)
+    }
+
     if (pedido.acao !== 'assinar') return resposta(400, { erro: 'Ação desconhecida.' })
+    if (!PAPEIS_CERTIFICADO.includes(perfil.papel))
+      return resposta(403, { erro: 'Somente quem emite certificados pode assinar.' })
     if (typeof pedido.certificadoId !== 'string' || typeof pedido.pdf !== 'string')
       return resposta(400, { erro: 'Pedido inválido.' })
 
@@ -110,35 +129,64 @@ Deno.serve(async (req) => {
         erro: 'Marque "Assinatura digital" no certificado e salve antes de assinar.',
       })
 
-    const a1 = certificado()
-    if (a1.validoAte.getTime() < Date.now()) {
-      return resposta(400, {
-        erro: `O certificado digital venceu em ${dataBr(a1.validoAte)}. Cadastre o novo nos segredos.`,
-      })
-    }
-
-    let bytes: Uint8Array
-    try {
-      bytes = decodeBase64(pedido.pdf)
-    } catch {
-      return resposta(400, { erro: 'O PDF não chegou inteiro. Tente de novo.' })
-    }
-    if (bytes.length > LIMITE_PDF) return resposta(400, { erro: 'O PDF é grande demais.' })
-
-    let pdf: PDFDocument
-    try {
-      pdf = await PDFDocument.load(bytes)
-    } catch {
-      return resposta(400, { erro: 'O arquivo enviado não é um PDF válido.' })
-    }
     // O PDF montado na tela tem o título "CERT-2026-0001 - …".
-    if (!(pdf.getTitle() ?? '').startsWith(cert.numero))
-      return resposta(400, { erro: 'Este PDF não é do certificado escolhido.' })
-
-    const assinado = await assinarPdf(pdf, a1, { motivo: `Certificado ${cert.numero}` })
-    return resposta(200, { pdf: encodeBase64(assinado) })
+    return await assinarPdfRecebido(pedido.pdf, cert.numero, `Certificado ${cert.numero}`)
   } catch (e) {
     console.error(e)
     return resposta(500, { erro: (e as Error).message ?? 'Erro ao assinar o PDF.' })
   }
 })
+
+async function assinarRecibo(
+  admin: ReturnType<typeof clienteAdmin>,
+  pedido: { reciboId: unknown; pdf: unknown },
+) {
+  if (typeof pedido.reciboId !== 'string' || typeof pedido.pdf !== 'string')
+    return resposta(400, { erro: 'Pedido inválido.' })
+  const { data: recibo, error } = await admin
+    .from('recibos')
+    .select('numero, assinatura_digital, cancelado')
+    .eq('id', pedido.reciboId)
+    .maybeSingle()
+  if (error) throw error
+  if (!recibo) return resposta(404, { erro: 'Recibo não encontrado.' })
+  if (recibo.cancelado)
+    return resposta(400, { erro: 'Recibo cancelado não recebe assinatura digital.' })
+  if (!recibo.assinatura_digital)
+    return resposta(400, {
+      erro: 'Marque "Assinatura digital" no recibo e salve antes de assinar.',
+    })
+  // O PDF montado na tela tem o título "Recibo 0001 - …".
+  const numero = `Recibo ${String(recibo.numero).padStart(4, '0')}`
+  return await assinarPdfRecebido(pedido.pdf, `${numero} `, numero)
+}
+
+/** Confere o PDF (tamanho, se é PDF, se o título é do documento certo) e assina. */
+async function assinarPdfRecebido(base64: string, inicioTitulo: string, motivo: string) {
+  const a1 = certificado()
+  if (a1.validoAte.getTime() < Date.now()) {
+    return resposta(400, {
+      erro: `O certificado digital venceu em ${dataBr(a1.validoAte)}. Cadastre o novo nos segredos.`,
+    })
+  }
+
+  let bytes: Uint8Array
+  try {
+    bytes = decodeBase64(base64)
+  } catch {
+    return resposta(400, { erro: 'O PDF não chegou inteiro. Tente de novo.' })
+  }
+  if (bytes.length > LIMITE_PDF) return resposta(400, { erro: 'O PDF é grande demais.' })
+
+  let pdf: PDFDocument
+  try {
+    pdf = await PDFDocument.load(bytes)
+  } catch {
+    return resposta(400, { erro: 'O arquivo enviado não é um PDF válido.' })
+  }
+  if (!(pdf.getTitle() ?? '').startsWith(inicioTitulo))
+    return resposta(400, { erro: 'Este PDF não é do documento escolhido.' })
+
+  const assinado = await assinarPdf(pdf, a1, { motivo })
+  return resposta(200, { pdf: encodeBase64(assinado) })
+}
