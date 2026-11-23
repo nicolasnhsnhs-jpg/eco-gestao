@@ -16,6 +16,8 @@ dist-ssr
 *.sql.gz
 *.dump
 backups/
+# Contratos digitalizados dos clientes (2,6 GB, dados de clientes): só no computador
+Contratos/
 
 # Supabase CLI (arquivos temporários locais)
 supabase/.branches
