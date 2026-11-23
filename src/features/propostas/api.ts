@@ -206,6 +206,27 @@ export function usePropostasAgendadas(de: string, ate: string) {
 export type PropostaAgendada = NonNullable<ReturnType<typeof usePropostasAgendadas>['data']>[number]
 
 /**
+ * As OS (não canceladas) já emitidas a partir destas propostas, para a lista de
+ * agendadas mostrar "OS já emitida" e o ADM não emitir duas vezes.
+ */
+export function useOsDasPropostas(propostaIds: string[]) {
+  return useQuery({
+    queryKey: ['os', 'das-propostas', [...propostaIds].sort()],
+    enabled: propostaIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ordens_servico')
+        .select('id, numero, proposta_id, data_agendada, status')
+        .in('proposta_id', propostaIds)
+        .neq('status', 'cancelada')
+        .order('data_agendada', { ascending: false })
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+/**
  * Vendas do mês: propostas aprovadas com a data da aprovação dentro do mês
  * ("2026-11"). Sem vendedor, traz de todos (o banco já limita o que cada um vê).
  */

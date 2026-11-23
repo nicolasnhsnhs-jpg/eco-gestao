@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, ClipboardList, Clock, MapPin } from 'lucide-react'
+import { CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Clock, MapPin } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router'
 
 import { Aviso } from '@/components/ui/Aviso'
@@ -12,7 +12,7 @@ import { PAPEIS_GESTAO } from '@/lib/papeis'
 import { cn } from '@/lib/utils'
 
 import { usePerfil } from '../auth/useAuth'
-import { horaCurta, usePropostasAgendadas, type PropostaAgendada } from './api'
+import { horaCurta, useOsDasPropostas, usePropostasAgendadas, type PropostaAgendada } from './api'
 
 const diaDaSemana = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', timeZone: 'UTC' })
 const nomeDia = (iso: string) => diaDaSemana.format(new Date(`${iso}T00:00:00Z`))
@@ -29,6 +29,15 @@ export function PropostasAgendadasPage() {
   const ate = semana ? somarDias(dia, 6) : dia
   const agendadas = usePropostasAgendadas(dia, ate)
   const podeEmitirOs = PAPEIS_GESTAO.includes(usePerfil().papel)
+  const osEmitidas = useOsDasPropostas(
+    podeEmitirOs ? (agendadas.data ?? []).map((p) => p.id!) : [],
+  )
+  /** A OS da proposta naquele dia; se não houver, a mais recente dela (outro dia). */
+  function osDa(p: PropostaAgendada) {
+    const daProposta = (osEmitidas.data ?? []).filter((o) => o.proposta_id === p.id)
+    const noDia = daProposta.find((o) => o.data_agendada === p.execucao_data)
+    return noDia ? { os: noDia, noDia: true } : daProposta[0] ? { os: daProposta[0], noDia: false } : null
+  }
 
   function mudar(novo: Record<string, string | null>) {
     const p = new URLSearchParams(parametros)
@@ -160,13 +169,14 @@ export function PropostasAgendadasPage() {
                     <ChevronRight className="mt-1 size-5 shrink-0 text-texto-suave" aria-hidden />
                   </Link>
                   {podeEmitirOs && (
-                    <div className="-mt-1 px-4 pb-3 pl-[5.75rem]">
+                    <div className="-mt-1 flex flex-wrap items-center gap-2 px-4 pb-3 pl-[5.75rem]">
                       <Link
                         to={`/os/nova?proposta=${p.id}`}
                         className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-borda px-3 text-sm font-semibold text-verde-escuro hover:bg-lima-claro"
                       >
                         <ClipboardList className="size-4" aria-hidden /> Emitir OS
                       </Link>
+                      <OsJaEmitida emitida={osDa(p)} />
                     </div>
                   )}
                 </li>
@@ -176,5 +186,32 @@ export function PropostasAgendadasPage() {
         ))}
       </div>
     </>
+  )
+}
+
+/** Selo ao lado de "Emitir OS": a OS daquele dia já existe (ou só uma de outro dia). */
+function OsJaEmitida({
+  emitida,
+}: {
+  emitida: { os: { id: string; numero: string; data_agendada: string }; noDia: boolean } | null
+}) {
+  if (!emitida) return null
+  const { os, noDia } = emitida
+  return (
+    <Link
+      to={`/os/${os.id}`}
+      title="Abrir a ordem de serviço"
+      className={cn(
+        'inline-flex min-h-9 items-center gap-1 rounded-lg px-3 text-sm font-semibold',
+        noDia
+          ? 'bg-verde text-white hover:bg-verde-escuro'
+          : 'border border-alerta/40 bg-amber-50 text-alerta hover:bg-amber-100',
+      )}
+    >
+      <CheckCircle2 className="size-4" aria-hidden />
+      {noDia
+        ? `Já emitida · ${os.numero}`
+        : `${os.numero} emitida para ${formatarData(os.data_agendada)}`}
+    </Link>
   )
 }
