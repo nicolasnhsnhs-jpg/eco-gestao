@@ -1153,6 +1153,7 @@ export type Database = {
           criado_em: string
           criado_por: string | null
           email: string | null
+          email_cronograma: string | null
           emails_extras: string[]
           emails_financeiro: string[]
           id: string
@@ -1177,6 +1178,7 @@ export type Database = {
           criado_em?: string
           criado_por?: string | null
           email?: string | null
+          email_cronograma?: string | null
           emails_extras?: string[]
           emails_financeiro?: string[]
           id?: string
@@ -1201,6 +1203,7 @@ export type Database = {
           criado_em?: string
           criado_por?: string | null
           email?: string | null
+          email_cronograma?: string | null
           emails_extras?: string[]
           emails_financeiro?: string[]
           id?: string
@@ -6493,6 +6496,7 @@ export type Database = {
           criado_em: string
           criado_por: string | null
           email: string | null
+          email_cronograma: string | null
           emails_extras: string[]
           emails_financeiro: string[]
           id: string

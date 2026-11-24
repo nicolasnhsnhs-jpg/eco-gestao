@@ -51,7 +51,8 @@ type Pedido = {
 }
 
 type Item = ItemParaEmail & {
-  cliente: (ItemParaEmail['cliente'] & { email: string | null }) | null
+  cliente:
+    (ItemParaEmail['cliente'] & { email: string | null; email_cronograma: string | null }) | null
 }
 
 function segredo(nome: string): string | undefined {
@@ -138,7 +139,7 @@ Deno.serve(async (req) => {
   const { data: lidos, error: erroItens } = await admin
     .from('cronograma_itens')
     .select(
-      'id, cliente_id, ordem, datas, so_visita, incluido, horario, observacoes, servicos, pede_confirmacao, cliente:clientes(nome, nome_fantasia, cpf_cnpj, email), endereco:enderecos(apelido, logradouro, numero, bairro, cidade, uf)',
+      'id, cliente_id, ordem, datas, so_visita, incluido, horario, observacoes, servicos, pede_confirmacao, cliente:clientes(nome, nome_fantasia, cpf_cnpj, email, email_cronograma), endereco:enderecos(apelido, logradouro, numero, bairro, cidade, uf)',
     )
     .eq('cronograma_id', cronograma.id)
     .in('id', pedido.itemIds)
@@ -161,8 +162,10 @@ Deno.serve(async (req) => {
   for (const { clienteId, nomeCliente, confirmar, itens: comDatas, unidades } of grupos) {
     const c = comDatas[0].cliente
 
-    // E-mail principal do cadastro; sem ele, o do contato principal. Nunca o do financeiro.
-    let para = enderecosEmail(c?.email)
+    // Os e-mails do cronograma (o SAC troca/acrescenta na tela); sem eles, o principal do
+    // cadastro; sem ele, o do contato principal. Nunca o do financeiro.
+    let para = enderecosEmail(c?.email_cronograma)
+    if (para.length === 0) para = enderecosEmail(c?.email)
     if (para.length === 0) {
       const { data: contatos } = await admin
         .from('contatos_cliente')

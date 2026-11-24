@@ -1,4 +1,15 @@
-import { CalendarDays, Eye, Mail, Pencil, Plus, RefreshCw, Send, Trash2, Undo2 } from 'lucide-react'
+import {
+  CalendarDays,
+  Eye,
+  Mail,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Send,
+  Trash2,
+  Undo2,
+  X,
+} from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Aviso } from '@/components/ui/Aviso'
@@ -9,6 +20,7 @@ import { Carregando } from '@/components/ui/Carregando'
 import { Etiqueta } from '@/components/ui/Etiqueta'
 import { Modal } from '@/components/ui/Modal'
 import { formatarDataHora, hojeISO, somarMeses } from '@/lib/datas'
+import { EMAIL_VALIDO, juntarEmails, separarEmails } from '@/lib/emails'
 import { mensagemDeErro } from '@/lib/erros'
 import { UNIDADE } from '@/lib/unidade'
 import { cn } from '@/lib/utils'
@@ -26,6 +38,7 @@ import { useTiposServico } from '../servicos/api'
 import { useRotas } from '../os/api'
 import {
   emailDoAviso,
+  emailDoCadastro,
   useApagarCronograma,
   useCronograma,
   useCronogramasDoMes,
@@ -33,6 +46,7 @@ import {
   useMontarCronograma,
   useSalvarCronograma,
   useAdicionarForaDeRota,
+  useSalvarEmailCronograma,
   useSalvarItem,
   useTirarItem,
   useTrazerNovosDaRota,
@@ -772,6 +786,11 @@ function EditarUnidade({
   aoFechar: () => void
 }) {
   const salvar = useSalvarItem()
+  const salvarEmail = useSalvarEmailCronograma()
+  const doCadastro = emailDoCadastro(i.cliente)
+  const [emails, setEmails] = useState(() => separarEmails(emailDoAviso(i.cliente)))
+  const [novoEmail, setNovoEmail] = useState('')
+  const novoValido = EMAIL_VALIDO.test(novoEmail.trim())
   const [servico, setServico] = useState(i.servicos.join(', '))
   const [pedeConfirmacao, setPedeConfirmacao] = useState(i.pede_confirmacao)
   const mes = c.mes.slice(0, 7)
@@ -797,6 +816,73 @@ function EditarUnidade({
     <Modal aberto aoFechar={aoFechar} titulo={nomeCliente(i.cliente)}>
       <div className="flex flex-col gap-4">
         <p className="text-sm text-texto-suave">{localCurto(i.endereco)}</p>
+        <div className="flex flex-col gap-2 rounded-lg border border-borda p-3">
+          <p className="text-sm font-semibold">E-mail do aviso</p>
+          {emails.length === 0 ? (
+            <p className="text-sm font-semibold text-perigo">
+              Nenhum e-mail: fica “Pendente de envio” para avisar por WhatsApp/telefone.
+            </p>
+          ) : (
+            <ul className="flex flex-wrap gap-2">
+              {emails.map((e) => (
+                <li
+                  key={e}
+                  className="flex items-center gap-1 rounded-full bg-fundo-suave py-1 pr-1 pl-3 text-sm"
+                >
+                  <Mail className="size-3.5 text-texto-suave" aria-hidden />
+                  {e}
+                  <button
+                    type="button"
+                    className="grid size-7 place-items-center rounded-full hover:bg-borda"
+                    aria-label={`Tirar ${e}`}
+                    onClick={() => setEmails(emails.filter((x) => x !== e))}
+                  >
+                    <X className="size-4" aria-hidden />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <form
+            className="flex gap-2"
+            onSubmit={(ev) => {
+              ev.preventDefault()
+              const e = novoEmail.trim().toLowerCase()
+              if (!EMAIL_VALIDO.test(e)) return
+              if (!emails.includes(e)) setEmails([...emails, e])
+              setNovoEmail('')
+            }}
+          >
+            <Input
+              type="email"
+              aria-label="Acrescentar e-mail"
+              placeholder="Acrescentar ou trocar: nome@empresa.com.br"
+              value={novoEmail}
+              onChange={(ev) => setNovoEmail(ev.target.value)}
+            />
+            <Button type="submit" variante="secundario" disabled={!novoValido}>
+              <Plus className="size-4" aria-hidden />
+              Adicionar
+            </Button>
+          </form>
+          <p className="text-xs text-texto-suave">
+            Fica salvo no cliente e vale para os próximos meses (e outras rotas). Para trocar, tire
+            o atual no × e adicione o novo. O e-mail principal do cadastro
+            {doCadastro ? ` (${doCadastro})` : ''} não muda.
+            {juntarEmails(emails) !== juntarEmails(separarEmails(doCadastro)) && doCadastro && (
+              <>
+                {' '}
+                <button
+                  type="button"
+                  className="font-semibold text-verde underline"
+                  onClick={() => setEmails(separarEmails(doCadastro))}
+                >
+                  Voltar ao do cadastro
+                </button>
+              </>
+            )}
+          </p>
+        </div>
         <label className="flex items-center gap-2 text-sm font-semibold">
           <input
             type="checkbox"
@@ -900,15 +986,27 @@ function EditarUnidade({
           </>
         )}
         {salvar.isError && <Aviso tipo="erro">{mensagemDeErro(salvar.error)}</Aviso>}
+        {salvarEmail.isError && <Aviso tipo="erro">{mensagemDeErro(salvarEmail.error)}</Aviso>}
         <div className="flex justify-end gap-2">
           <Button variante="fantasma" onClick={aoFechar}>
             Cancelar
           </Button>
           <Button
             disabled={
-              salvar.isPending || (incluido && modo === 'propria' && proprias.invalidos.length > 0)
+              salvar.isPending ||
+              salvarEmail.isPending ||
+              (incluido && modo === 'propria' && proprias.invalidos.length > 0)
             }
-            onClick={() =>
+            onClick={async () => {
+              const juntos = juntarEmails(emails)
+              const valor = juntos === juntarEmails(separarEmails(doCadastro)) ? null : juntos
+              if (valor !== (i.cliente?.email_cronograma?.trim() || null) && i.cliente) {
+                try {
+                  await salvarEmail.mutateAsync({ clienteId: i.cliente.id, emails: valor })
+                } catch {
+                  return
+                }
+              }
               salvar.mutate(
                 {
                   id: i.id,
@@ -927,7 +1025,7 @@ function EditarUnidade({
                 },
                 { onSuccess: aoFechar },
               )
-            }
+            }}
           >
             {salvar.isPending ? 'Salvando…' : 'Salvar'}
           </Button>

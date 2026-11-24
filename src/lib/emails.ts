@@ -11,3 +11,16 @@ export function juntarEmails(lista: readonly (string | null | undefined)[]): str
     .filter(Boolean)
     .join(SEPARADOR_EMAILS)
 }
+
+/** Um e-mail no formato nome@dominio.ext. */
+export const EMAIL_VALIDO = /^[^@\s;,]+@[^@\s;,]+\.[^@\s;,]+$/
+
+/** Separa uma lista de e-mails (aceita "; ", vírgula ou espaço), sem repetidos. */
+export function separarEmails(texto: string | null | undefined): string[] {
+  const vistos = new Set<string>()
+  for (const e of (texto ?? '').split(/[;,\s]+/)) {
+    const x = e.trim().toLowerCase()
+    if (EMAIL_VALIDO.test(x)) vistos.add(x)
+  }
+  return [...vistos]
+}

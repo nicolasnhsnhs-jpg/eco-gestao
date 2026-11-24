@@ -23,7 +23,7 @@ export function useCronogramasDoMes(mes: string) {
         .from('cronograma_rotas')
         .select(
           `id, rota_id, mes, datas, horario,
-           itens:cronograma_itens(${CAMPOS_ITEM_RESUMO}, cliente:clientes(email, contatos:contatos_cliente(email)))`,
+           itens:cronograma_itens(${CAMPOS_ITEM_RESUMO}, cliente:clientes(email, email_cronograma, contatos:contatos_cliente(email)))`,
         )
         .eq('mes', mes)
       if (error) throw error
@@ -44,7 +44,7 @@ export function useCronograma(id: string | null) {
            rota:os_rotas(id, nome),
            itens:cronograma_itens(${CAMPOS_ITEM_RESUMO}, cliente_id, endereco_id, servicos, ordem,
              observacoes, enviado_para, sem_email_em, aviso_manual_obs, resposta_obs, resposta_em,
-             cliente:clientes(id, nome, nome_fantasia, cpf_cnpj, email,
+             cliente:clientes(id, nome, nome_fantasia, cpf_cnpj, email, email_cronograma,
                contatos:contatos_cliente(email, principal)),
              endereco:enderecos(id, apelido, logradouro, numero, bairro, cidade, uf))`,
         )
@@ -62,6 +62,19 @@ export type ItemCronograma = Cronograma['itens'][number]
 
 /** O e-mail para onde o aviso vai: o principal do cadastro; sem ele, o de um contato. */
 export function emailDoAviso(
+  cliente: {
+    email: string | null
+    email_cronograma?: string | null
+    contatos: { email: string | null; principal?: boolean }[]
+  } | null,
+): string | null {
+  if (!cliente) return null
+  if (cliente.email_cronograma?.trim()) return cliente.email_cronograma.trim()
+  return emailDoCadastro(cliente)
+}
+
+/** O e-mail do cadastro (principal; sem ele, o do contato principal), sem o do cronograma. */
+export function emailDoCadastro(
   cliente: {
     email: string | null
     contatos: { email: string | null; principal?: boolean }[]
@@ -302,6 +315,24 @@ export type ResultadoEnvio = {
   enviados: { cliente: string; para: string[] }[]
   semEmail: string[]
   falhas: { cliente: string; erro: string }[]
+}
+
+/**
+ * Os e-mails do aviso do cronograma deste cliente (ficam no cadastro dele e valem para
+ * os próximos meses e as outras rotas). `null` volta a usar o e-mail principal.
+ */
+export function useSalvarEmailCronograma() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ clienteId, emails }: { clienteId: string; emails: string | null }) => {
+      const { error } = await supabase
+        .from('clientes')
+        .update({ email_cronograma: emails })
+        .eq('id', clienteId)
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cronograma'] }),
+  })
 }
 
 export function useEnviarCronograma() {
