@@ -1090,7 +1090,6 @@ function AdicionarForaDeRota({ cronogramaId, mes }: { cronogramaId: string | nul
     ? enderecoEscolhido
     : (enderecos[0]?.id ?? '')
 
-
   if (!aberto)
     return (
       <div className="flex flex-wrap items-center gap-3">

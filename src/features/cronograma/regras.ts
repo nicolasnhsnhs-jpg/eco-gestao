@@ -158,7 +158,15 @@ export function precisaEnviar(s: Situacao): boolean {
 
 /** Ainda falta algo do SAC (enviar, avisar à mão, cobrar a resposta, remarcar). */
 export function pendente(s: Situacao): boolean {
-  return ['conferir', 'a_enviar', 'alterado', 'sem_email', 'sem_datas', 'aguardando', 'outra_data'].includes(s)
+  return [
+    'conferir',
+    'a_enviar',
+    'alterado',
+    'sem_email',
+    'sem_datas',
+    'aguardando',
+    'outra_data',
+  ].includes(s)
 }
 
 export type ModeloDaRota = {
