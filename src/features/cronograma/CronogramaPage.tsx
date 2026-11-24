@@ -354,7 +354,8 @@ function DetalheCronograma({ id }: { id: string }) {
   const [texto, setTexto] = useState('')
   const [horario, setHorario] = useState('')
   const [editando, setEditando] = useState<ItemCronograma | null>(null)
-  const [enviarAberto, setEnviarAberto] = useState(false)
+  // As unidades da prévia de envio: a rota toda (botão grande) ou um cliente só.
+  const [enviarItens, setEnviarItens] = useState<ItemCronograma[] | null>(null)
   const [resultado, setResultado] = useState<ResultadoEnvio | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
 
@@ -382,6 +383,8 @@ function DetalheCronograma({ id }: { id: string }) {
   const algumEnviado = c.itens.some((i) => i.enviado_em)
   const ativos = situacoes.filter((s) => s !== 'fora').length
   const foraDeRota = !c.rota_id
+  // Com dias ou horário da rota digitados e não salvos, nada sai (o e-mail iria com os antigos).
+  const podeEnviar = !!UNIDADE.cronograma && !mudouDias && !mudouHorario
 
   return (
     <div className="flex flex-col gap-4">
@@ -504,14 +507,15 @@ function DetalheCronograma({ id }: { id: string }) {
           )}
         </div>
         <Button
-          disabled={!UNIDADE.cronograma || aEnviar.length === 0 || mudouDias || mudouHorario}
+          className="min-h-12 px-5 text-base"
+          disabled={!podeEnviar || aEnviar.length === 0}
           onClick={() => {
             setResultado(null)
-            setEnviarAberto(true)
+            setEnviarItens(aEnviar)
           }}
         >
-          <Send className="size-4" aria-hidden />
-          Enviar e-mails
+          <Send className="size-5" aria-hidden />
+          Enviar para toda a rota
         </Button>
       </Card>
       {resultado && <ResumoEnvio r={resultado} />}
@@ -534,6 +538,19 @@ function DetalheCronograma({ id }: { id: string }) {
             situacao={situacoes[n]}
             foraDeRota={foraDeRota}
             aoEditar={() => setEditando(i)}
+            aoEnviar={
+              podeEnviar && precisaEnviar(situacoes[n])
+                ? () => {
+                    setResultado(null)
+                    // O e-mail é por cliente: vão juntas as unidades dele que faltam avisar.
+                    setEnviarItens(
+                      c.itens.filter(
+                        (x, k) => x.cliente_id === i.cliente_id && precisaEnviar(situacoes[k]),
+                      ),
+                    )
+                  }
+                : undefined
+            }
           />
         ))}
       </Card>
@@ -546,14 +563,14 @@ function DetalheCronograma({ id }: { id: string }) {
           aoFechar={() => setEditando(null)}
         />
       )}
-      {enviarAberto && (
+      {enviarItens && (
         <PreviaEnvio
           crono={c}
-          itens={aEnviar}
-          aoFechar={() => setEnviarAberto(false)}
+          itens={enviarItens}
+          aoFechar={() => setEnviarItens(null)}
           aoEnviar={(r) => {
             setResultado(r)
-            setEnviarAberto(false)
+            setEnviarItens(null)
           }}
         />
       )}
@@ -567,12 +584,15 @@ function LinhaUnidade({
   situacao: s,
   foraDeRota,
   aoEditar,
+  aoEnviar,
 }: {
   item: ItemCronograma
   crono: Cronograma
   situacao: Situacao
   foraDeRota: boolean
   aoEditar: () => void
+  /** Só quando a unidade tem o que enviar (abre a prévia só deste cliente). */
+  aoEnviar?: () => void
 }) {
   const perfil = usePerfil()
   const salvar = useSalvarItem()
@@ -626,6 +646,12 @@ function LinhaUnidade({
         </div>
         <div className="flex items-center gap-2">
           <Etiqueta cor={COR_SITUACAO[s]}>{NOME_SITUACAO[s]}</Etiqueta>
+          {aoEnviar && (
+            <Button variante="secundario" className="min-h-9 px-3" onClick={aoEnviar}>
+              <Send className="size-4" aria-hidden />
+              {s === 'alterado' ? 'Reenviar' : 'Enviar'}
+            </Button>
+          )}
           <Button variante="fantasma" className="min-h-9 px-2" onClick={aoEditar}>
             <Pencil className="size-4" aria-hidden />
             <span className="sr-only sm:not-sr-only">Editar</span>
@@ -740,14 +766,20 @@ function LinhaUnidade({
               Desfazer aviso à mão
             </Button>
           ) : (
-            <Button
-              variante="secundario"
-              className="min-h-9"
-              disabled={salvar.isPending}
-              onClick={marcarManual}
-            >
-              Avisei por WhatsApp/telefone
-            </Button>
+            <>
+              <Button variante="secundario" className="min-h-9" onClick={aoEditar}>
+                <Mail className="size-4" aria-hidden />
+                Cadastrar e-mail
+              </Button>
+              <Button
+                variante="fantasma"
+                className="min-h-9"
+                disabled={salvar.isPending}
+                onClick={marcarManual}
+              >
+                Avisei por WhatsApp/telefone
+              </Button>
+            </>
           )}
         </div>
       )}
