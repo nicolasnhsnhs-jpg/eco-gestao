@@ -106,6 +106,7 @@ function Formulario({
   descricao: DescricaoContrato | null
 }) {
   const navegar = useNavigate()
+  const perfil = usePerfil()
   const salvar = useSalvarDescricaoContrato(clienteId)
   const apagar = useApagarDescricaoContrato(clienteId)
   const voltar = `/clientes/${clienteId}`
