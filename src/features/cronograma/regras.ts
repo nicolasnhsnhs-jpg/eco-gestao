@@ -65,6 +65,7 @@ export { datasDaUnidade, horarioDaUnidade }
 
 export type Situacao =
   | 'fora'
+  | 'conferir'
   | 'sem_datas'
   | 'sem_email'
   | 'a_enviar'
@@ -77,6 +78,7 @@ export type Situacao =
 
 export const NOME_SITUACAO: Record<Situacao, string> = {
   fora: 'Fora deste mês',
+  conferir: 'Precisa conferir',
   sem_datas: 'Sem datas',
   sem_email: 'Pendente de envio: sem e-mail',
   a_enviar: 'A enviar',
@@ -88,8 +90,9 @@ export const NOME_SITUACAO: Record<Situacao, string> = {
   outra_data: 'Pediu outra data',
 }
 
-export const COR_SITUACAO: Record<Situacao, 'verde' | 'cinza' | 'alerta' | 'perigo'> = {
+export const COR_SITUACAO: Record<Situacao, 'verde' | 'cinza' | 'alerta' | 'perigo' | 'amarelo'> = {
   fora: 'cinza',
+  conferir: 'amarelo',
   sem_datas: 'alerta',
   sem_email: 'perigo',
   a_enviar: 'alerta',
@@ -108,6 +111,8 @@ export type ItemSituacao = DiasDaUnidade & {
   datas_enviadas: string[] | null
   horario_enviado: string | null
   aviso_manual_em: string | null
+  /** Motivo para conferir antes de enviar (não vai no e-mail enquanto preenchido). */
+  conferir?: string | null
   /** Serviço de contrato: o e-mail pergunta se a data serve. */
   pede_confirmacao?: boolean
   resposta?: string | null
@@ -126,6 +131,7 @@ export function situacaoDoItem(
   temEmail: boolean,
 ): Situacao {
   if (!item.incluido) return 'fora'
+  if (item.conferir) return 'conferir'
   const datas = datasDaUnidade(item, rota.datas)
   if (datas.length === 0) return 'sem_datas'
   const resposta: Situacao | null =
@@ -152,7 +158,7 @@ export function precisaEnviar(s: Situacao): boolean {
 
 /** Ainda falta algo do SAC (enviar, avisar à mão, cobrar a resposta, remarcar). */
 export function pendente(s: Situacao): boolean {
-  return ['a_enviar', 'alterado', 'sem_email', 'sem_datas', 'aguardando', 'outra_data'].includes(s)
+  return ['conferir', 'a_enviar', 'alterado', 'sem_email', 'sem_datas', 'aguardando', 'outra_data'].includes(s)
 }
 
 export type ModeloDaRota = {

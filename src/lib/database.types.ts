@@ -1640,6 +1640,7 @@ export type Database = {
           aviso_manual_obs: string | null
           aviso_manual_por: string | null
           cliente_id: string
+          conferir: string | null
           criado_em: string
           criado_por: string | null
           cronograma_id: string
@@ -1670,6 +1671,7 @@ export type Database = {
           aviso_manual_obs?: string | null
           aviso_manual_por?: string | null
           cliente_id: string
+          conferir?: string | null
           criado_em?: string
           criado_por?: string | null
           cronograma_id: string
@@ -1700,6 +1702,7 @@ export type Database = {
           aviso_manual_obs?: string | null
           aviso_manual_por?: string | null
           cliente_id?: string
+          conferir?: string | null
           criado_em?: string
           criado_por?: string | null
           cronograma_id?: string

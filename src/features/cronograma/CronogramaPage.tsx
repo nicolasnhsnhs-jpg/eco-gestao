@@ -128,7 +128,7 @@ export function CronogramaPage() {
   function resumo(rota: string) {
     const c = porRota.get(rota)
     if (!c) return null
-    const contagem = { total: 0, pendentes: 0, semEmail: 0 }
+    const contagem = { total: 0, pendentes: 0, semEmail: 0, conferir: 0 }
     for (const i of c.itens) {
       const s = situacaoDoItem(
         i,
@@ -139,6 +139,7 @@ export function CronogramaPage() {
       contagem.total++
       if (pendente(s)) contagem.pendentes++
       if (s === 'sem_email') contagem.semEmail++
+      if (s === 'conferir') contagem.conferir++
     }
     return contagem
   }
@@ -164,6 +165,8 @@ export function CronogramaPage() {
         </span>
         {!s ? (
           <Etiqueta>{id === FORA ? 'Vazio' : 'Não montada'}</Etiqueta>
+        ) : s.conferir ? (
+          <Etiqueta cor="amarelo">{s.conferir} a conferir</Etiqueta>
         ) : s.pendentes ? (
           <Etiqueta cor={s.semEmail ? 'perigo' : 'alerta'}>
             {s.pendentes} pendente{s.pendentes > 1 ? 's' : ''}
@@ -361,6 +364,7 @@ function DetalheCronograma({ id }: { id: string }) {
   const situacoes = c.itens.map((i) => situacao(i, c))
   const aEnviar = c.itens.filter((_, n) => precisaEnviar(situacoes[n]))
   const semEmail = c.itens.filter((_, n) => situacoes[n] === 'sem_email')
+  const aConferir = situacoes.filter((s) => s === 'conferir').length
   const algumEnviado = c.itens.some((i) => i.enviado_em)
   const ativos = situacoes.filter((s) => s !== 'fora').length
   const foraDeRota = !c.rota_id
@@ -374,6 +378,12 @@ function DetalheCronograma({ id }: { id: string }) {
             <p className="text-sm text-texto-suave">
               {nomeDoMes(c.mes)} · {ativos} unidade{ativos === 1 ? '' : 's'} no mês
             </p>
+            {aConferir > 0 && (
+              <p className="mt-1 inline-block rounded-md bg-yellow-300 px-2 py-1 text-sm font-semibold text-yellow-950">
+                ⚠ {aConferir} unidade{aConferir > 1 ? 's' : ''} para conferir: não{' '}
+                {aConferir > 1 ? 'serão enviadas' : 'será enviada'} até marcar “Conferido”
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             {!foraDeRota && (
@@ -585,7 +595,13 @@ function LinhaUnidade({
   }
 
   return (
-    <div className={cn('flex flex-col gap-2 p-4', s === 'fora' && 'opacity-60')}>
+    <div
+      className={cn(
+        'flex flex-col gap-2 p-4',
+        s === 'fora' && 'opacity-60',
+        s === 'conferir' && 'border-l-8 border-yellow-400 bg-yellow-100',
+      )}
+    >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="font-semibold">{nomeCliente(i.cliente)}</p>
@@ -612,6 +628,21 @@ function LinhaUnidade({
           ) : null}
           {horario && <span className="text-texto-suave">🕘 {horario}</span>}
           {i.observacoes && <span className="text-texto-suave">“{i.observacoes}”</span>}
+        </div>
+      )}
+      {s === 'conferir' && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg bg-yellow-300 px-3 py-2 text-sm font-semibold text-yellow-950">
+          <span className="flex-1">
+            ⚠ {i.conferir} · Não será enviado até conferir: veja os dias e o endereço (pelo CNPJ).
+          </span>
+          <Button
+            variante="secundario"
+            className="min-h-9"
+            disabled={salvar.isPending}
+            onClick={() => salvar.mutate({ id: i.id, conferir: null })}
+          >
+            Conferido
+          </Button>
         </div>
       )}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-texto-suave">
@@ -886,6 +917,7 @@ function EditarUnidade({
                   so_visita: modo.startsWith('so') ? Number(modo.slice(2)) : null,
                   horario: horario.trim() || null,
                   observacoes: obs.trim() || null,
+                  conferir: null,
                   ...(foraDeRota
                     ? {
                         servicos: servico.trim() ? [servico.trim()] : [],

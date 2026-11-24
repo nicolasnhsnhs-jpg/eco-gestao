@@ -142,6 +142,8 @@ Deno.serve(async (req) => {
     )
     .eq('cronograma_id', cronograma.id)
     .in('id', pedido.itemIds)
+    // "Precisa conferir" (ex.: nome repetido na rota) nunca sai até alguém conferir.
+    .is('conferir', null)
   if (erroItens) return resposta(500, { erro: 'Não foi possível ler as unidades da rota.' })
   // Um e-mail por cliente (CNPJ), na ordem da rota (aviso e pergunta separados).
   const grupos = gruposDeEmail((lidos ?? []) as unknown as Item[], cronograma)

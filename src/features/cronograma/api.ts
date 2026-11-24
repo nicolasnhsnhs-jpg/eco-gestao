@@ -12,7 +12,7 @@ import { unidadesDaRota, type ModeloDaRota } from './regras'
  */
 
 const CAMPOS_ITEM_RESUMO =
-  'id, incluido, datas, so_visita, horario, enviado_em, datas_enviadas, horario_enviado, aviso_manual_em, pede_confirmacao, resposta'
+  'id, incluido, datas, so_visita, horario, enviado_em, datas_enviadas, horario_enviado, aviso_manual_em, pede_confirmacao, resposta, conferir'
 
 /** Os cronogramas montados no mês (com as unidades, para o resumo de cada rota). */
 export function useCronogramasDoMes(mes: string) {
@@ -283,6 +283,7 @@ export type CamposItem = Pick<
   | 'aviso_manual_em'
   | 'aviso_manual_por'
   | 'aviso_manual_obs'
+  | 'conferir'
 >
 
 export function useSalvarItem() {

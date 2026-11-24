@@ -2,13 +2,14 @@ import type { ReactNode } from 'react'
 
 import { cn } from '@/lib/utils'
 
-type Cor = 'verde' | 'cinza' | 'alerta' | 'perigo'
+type Cor = 'verde' | 'cinza' | 'alerta' | 'perigo' | 'amarelo'
 
 const CORES: Record<Cor, string> = {
   verde: 'bg-lima-claro text-verde-escuro',
   cinza: 'bg-fundo-suave text-texto-suave border border-borda',
   alerta: 'bg-amber-50 text-alerta',
   perigo: 'bg-red-50 text-perigo',
+  amarelo: 'bg-yellow-300 text-yellow-950 ring-1 ring-yellow-500',
 }
 
 /** Pequena etiqueta de status (ex.: "PJ", "Inativo"). */

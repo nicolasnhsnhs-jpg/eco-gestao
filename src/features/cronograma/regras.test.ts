@@ -11,6 +11,7 @@ import {
   datasDaUnidade,
   diaCurto,
   diasDoTexto,
+  precisaEnviar,
   situacaoDoItem,
   textoDosDias,
   unidadesDaRota,
@@ -67,6 +68,12 @@ describe('situacaoDoItem', () => {
     expect(situacaoDoItem({ ...base, incluido: false }, rota, true)).toBe('fora')
     expect(situacaoDoItem(base, { datas: [], horario: null }, true)).toBe('sem_datas')
     expect(situacaoDoItem({ ...base, aviso_manual_em: 'x' }, rota, false)).toBe('manual')
+  })
+  it('precisa conferir: não entra no envio até conferir', () => {
+    const s = situacaoDoItem({ ...base, conferir: 'Nome repetido na rota' }, rota, true)
+    expect(s).toBe('conferir')
+    expect(precisaEnviar(s)).toBe(false)
+    expect(situacaoDoItem({ ...base, incluido: false, conferir: 'x' }, rota, true)).toBe('fora')
   })
   it('enviado e depois alterado', () => {
     const enviado = { ...base, enviado_em: 'x', datas_enviadas: ['2026-12-25', '2026-12-10'] }
