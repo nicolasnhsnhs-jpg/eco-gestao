@@ -1655,6 +1655,10 @@ export type Database = {
           incluido: boolean
           observacoes: string | null
           ordem: number
+          pede_confirmacao: boolean
+          resposta: string | null
+          resposta_em: string | null
+          resposta_obs: string | null
           sem_email_em: string | null
           servicos: string[]
           so_visita: number | null
@@ -1681,6 +1685,10 @@ export type Database = {
           incluido?: boolean
           observacoes?: string | null
           ordem?: number
+          pede_confirmacao?: boolean
+          resposta?: string | null
+          resposta_em?: string | null
+          resposta_obs?: string | null
           sem_email_em?: string | null
           servicos?: string[]
           so_visita?: number | null
@@ -1707,6 +1715,10 @@ export type Database = {
           incluido?: boolean
           observacoes?: string | null
           ordem?: number
+          pede_confirmacao?: boolean
+          resposta?: string | null
+          resposta_em?: string | null
+          resposta_obs?: string | null
           sem_email_em?: string | null
           servicos?: string[]
           so_visita?: number | null
@@ -1774,7 +1786,7 @@ export type Database = {
           id: string
           mes: string
           observacoes: string | null
-          rota_id: string
+          rota_id: string | null
         }
         Insert: {
           atualizado_em?: string
@@ -1786,7 +1798,7 @@ export type Database = {
           id?: string
           mes: string
           observacoes?: string | null
-          rota_id: string
+          rota_id?: string | null
         }
         Update: {
           atualizado_em?: string
@@ -1798,7 +1810,7 @@ export type Database = {
           id?: string
           mes?: string
           observacoes?: string | null
-          rota_id?: string
+          rota_id?: string | null
         }
         Relationships: [
           {

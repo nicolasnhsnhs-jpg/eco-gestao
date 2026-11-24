@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  assuntoCronograma,
+  gruposDeEmail,
+  htmlCronograma,
+  type ItemParaEmail,
+} from '../../../supabase/functions/_shared/emailCronograma'
+
+import {
   datasDaUnidade,
   diaCurto,
   diasDoTexto,
@@ -91,5 +98,86 @@ describe('unidadesDaRota', () => {
       { cliente_id: 'a', endereco_id: 'e1', servicos: ['Pragas', 'Moscas'], ordem: 0 },
       { cliente_id: 'b', endereco_id: 'e2', servicos: ['Pragas'], ordem: 1 },
     ])
+  })
+})
+
+describe('e-mails do cronograma', () => {
+  const end = {
+    apelido: null,
+    logradouro: 'Av. A',
+    numero: '1',
+    bairro: 'Centro',
+    cidade: 'Esteio',
+    uf: 'RS',
+  }
+  const item = (
+    id: string,
+    cliente: string,
+    extra: Partial<ItemParaEmail> = {},
+  ): ItemParaEmail => ({
+    id,
+    cliente_id: cliente,
+    ordem: Number(id),
+    datas: null,
+    so_visita: null,
+    incluido: true,
+    horario: null,
+    observacoes: null,
+    servicos: ['Controle de pragas'],
+    pede_confirmacao: false,
+    cliente: { nome: `Cliente ${cliente}`, nome_fantasia: null, cpf_cnpj: '11222333000181' },
+    endereco: end,
+    ...extra,
+  })
+  const crono = { datas: ['2026-12-10', '2026-12-25'], horario: null }
+
+  it('um e-mail por cliente; aviso e pergunta separados; sem datas fica de fora', () => {
+    const g = gruposDeEmail(
+      [
+        item('1', 'a'),
+        item('2', 'a', { endereco: { ...end, logradouro: 'Rua B' } }),
+        item('3', 'b', { so_visita: 3 }),
+        item('4', 'a', {
+          pede_confirmacao: true,
+          servicos: ['Limpeza de coifa'],
+          datas: ['2026-12-15'],
+        }),
+      ],
+      crono,
+    )
+    expect(g.map((x) => [x.clienteId, x.confirmar, x.unidades.length])).toEqual([
+      ['a', false, 2],
+      ['a', true, 1],
+    ])
+    expect(g[0].unidades[0].cnpj).toBe('11.222.333/0001-81')
+    expect(g[1].unidades[0].servico).toBe('Limpeza de coifa')
+  })
+
+  it('o texto avisa (pragas) ou pergunta (contrato)', () => {
+    const base = {
+      site: '',
+      empresa: 'Eco Ambiental RS',
+      cliente: 'X',
+      mes: 'dezembro de 2026',
+      emailSac: 's@x.com',
+    }
+    const [aviso] = gruposDeEmail([item('1', 'a')], crono)
+    const [pergunta] = gruposDeEmail(
+      [
+        item('1', 'a', {
+          pede_confirmacao: true,
+          servicos: ['Limpeza de coifa'],
+          datas: ['2026-12-15'],
+        }),
+      ],
+      crono,
+    )
+    const html1 = htmlCronograma({ ...base, unidades: aviso.unidades, confirmar: false })
+    const html2 = htmlCronograma({ ...base, unidades: pergunta.unidades, confirmar: true })
+    expect(html1).toContain('Não é preciso confirmar')
+    expect(html2).toContain('Pode ser nesta data?')
+    expect(assuntoCronograma({ ...base, unidades: pergunta.unidades, confirmar: true })).toContain(
+      'Agendamento de limpeza de coifa',
+    )
   })
 })

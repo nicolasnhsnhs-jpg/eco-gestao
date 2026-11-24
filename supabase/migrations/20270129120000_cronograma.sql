@@ -11,9 +11,15 @@
 -- de cada unidade dele (função "cronograma"). Sem e-mail cadastrado, a unidade fica
 -- "pendente de envio": o SAC avisa por outro meio (WhatsApp, telefone) e marca aqui.
 --
---   cronograma_rotas  uma rota num mês: dias da rota, turno/horário e observação
+--   cronograma_rotas  uma rota num mês: dias da rota, turno/horário e observação;
+--                     sem rota (rota_id vazio): o "Fora de rota" do mês, com os
+--                     serviços de contrato avulsos (coifa, reservatório, sucção…)
 --   cronograma_itens  cada unidade da rota no mês: dias próprios, fora do mês, e o
 --                     registro do envio (quando, para quem e quais dias foram)
+--
+-- Controle de pragas só avisa. Os serviços de espaçamento maior (coifa, reservatório…)
+-- pedem confirmação: o e-mail pergunta se a data serve e o SAC marca a resposta
+-- (confirmou / pediu outra data). Mudou a data e reenviou, volta a aguardar.
 --
 -- O envio só é gravado pela função (service role); pela tela, o escritório mexe nas
 -- datas e marca o aviso feito à mão.
@@ -21,7 +27,8 @@
 
 create table public.cronograma_rotas (
   id             uuid primary key default gen_random_uuid(),
-  rota_id        uuid not null references public.os_rotas (id) on delete cascade,
+  -- Vazio: o "Fora de rota" do mês (um por mês).
+  rota_id        uuid references public.os_rotas (id) on delete cascade,
   -- Primeiro dia do mês do cronograma.
   mes            date not null check (extract(day from mes) = 1),
   -- Dias de atendimento da rota no mês (cada unidade usa estes, se não tiver os seus).
@@ -33,7 +40,7 @@ create table public.cronograma_rotas (
   criado_por     uuid references public.perfis (id),
   atualizado_em  timestamptz not null default now(),
   atualizado_por uuid references public.perfis (id),
-  constraint uma_vez_por_mes unique (rota_id, mes)
+  constraint uma_vez_por_mes unique nulls not distinct (rota_id, mes)
 );
 
 create index cronograma_rotas_mes_idx on public.cronograma_rotas (mes);
@@ -57,6 +64,12 @@ create table public.cronograma_itens (
   horario           text check (char_length(horario) <= 80),
   -- Vai no e-mail do cliente (ex.: "entre 25 e 27").
   observacoes       text check (char_length(observacoes) <= 500),
+  -- O e-mail pergunta se a data serve (coifa, reservatório…) em vez de só avisar.
+  pede_confirmacao  boolean not null default false,
+  -- Resposta do cliente, marcada pelo SAC (vazio: aguardando).
+  resposta          text check (resposta in ('confirmado', 'outra_data')),
+  resposta_obs      text check (char_length(resposta_obs) <= 300),
+  resposta_em       timestamptz,
   -- Envio por e-mail (gravado pela função).
   enviado_em        timestamptz,
   enviado_para      text,
@@ -117,9 +130,10 @@ grant select, insert, update, delete on public.cronograma_rotas to authenticated
 grant select, delete on public.cronograma_itens to authenticated;
 -- Pela tela não se grava o envio por e-mail (só a função): só estas colunas.
 grant insert (id, cronograma_id, cliente_id, endereco_id, servicos, ordem, datas, so_visita, incluido,
-              horario, observacoes)
+              horario, observacoes, pede_confirmacao)
   on public.cronograma_itens to authenticated;
 grant update (servicos, ordem, datas, so_visita, incluido, horario, observacoes,
+              pede_confirmacao, resposta, resposta_obs, resposta_em,
               aviso_manual_em, aviso_manual_por, aviso_manual_obs)
   on public.cronograma_itens to authenticated;
 grant all on public.cronograma_rotas, public.cronograma_itens to service_role;

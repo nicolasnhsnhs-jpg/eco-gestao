@@ -7,6 +7,11 @@
  * a data mudou, avisar à mão porque o cliente não tem e-mail…
  */
 
+import {
+  datasDaUnidade,
+  horarioDaUnidade,
+} from '../../../supabase/functions/_shared/emailCronograma'
+
 const SEMANA_CURTA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb']
 
 /** "2026-12" → quantos dias o mês tem. */
@@ -55,24 +60,20 @@ export function fimDeSemana(iso: string): boolean {
 
 export type DiasDaUnidade = { datas: string[] | null; so_visita: number | null }
 
-/** Os dias da unidade: os próprios; senão os da rota (ou só a Nª visita dela). */
-export function datasDaUnidade(item: DiasDaUnidade, daRota: readonly string[]): string[] {
-  if (item.datas) return [...item.datas].sort()
-  const rota = [...daRota].sort()
-  if (item.so_visita) return rota[item.so_visita - 1] ? [rota[item.so_visita - 1]] : []
-  return rota
-}
-
-/** O turno/horário que vai no e-mail (o da unidade, senão o da rota; vazio = comercial). */
-export function horarioDaUnidade(
-  item: { horario: string | null },
-  daRota: string | null,
-): string | null {
-  return item.horario?.trim() || daRota?.trim() || null
-}
+// Os mesmos cálculos do e-mail (a função "cronograma" usa o mesmo arquivo).
+export { datasDaUnidade, horarioDaUnidade }
 
 export type Situacao =
-  'fora' | 'sem_datas' | 'sem_email' | 'a_enviar' | 'enviado' | 'alterado' | 'manual'
+  | 'fora'
+  | 'sem_datas'
+  | 'sem_email'
+  | 'a_enviar'
+  | 'enviado'
+  | 'alterado'
+  | 'manual'
+  | 'aguardando'
+  | 'confirmado'
+  | 'outra_data'
 
 export const NOME_SITUACAO: Record<Situacao, string> = {
   fora: 'Fora deste mês',
@@ -82,6 +83,9 @@ export const NOME_SITUACAO: Record<Situacao, string> = {
   enviado: 'Enviado',
   alterado: 'Datas alteradas: reenviar',
   manual: 'Avisado à mão',
+  aguardando: 'Aguardando resposta',
+  confirmado: 'Cliente confirmou',
+  outra_data: 'Pediu outra data',
 }
 
 export const COR_SITUACAO: Record<Situacao, 'verde' | 'cinza' | 'alerta' | 'perigo'> = {
@@ -92,6 +96,9 @@ export const COR_SITUACAO: Record<Situacao, 'verde' | 'cinza' | 'alerta' | 'peri
   enviado: 'verde',
   alterado: 'perigo',
   manual: 'verde',
+  aguardando: 'alerta',
+  confirmado: 'verde',
+  outra_data: 'perigo',
 }
 
 export type ItemSituacao = DiasDaUnidade & {
@@ -101,6 +108,9 @@ export type ItemSituacao = DiasDaUnidade & {
   datas_enviadas: string[] | null
   horario_enviado: string | null
   aviso_manual_em: string | null
+  /** Serviço de contrato: o e-mail pergunta se a data serve. */
+  pede_confirmacao?: boolean
+  resposta?: string | null
 }
 
 const iguais = (a: readonly string[], b: readonly string[]) =>
@@ -118,18 +128,31 @@ export function situacaoDoItem(
   if (!item.incluido) return 'fora'
   const datas = datasDaUnidade(item, rota.datas)
   if (datas.length === 0) return 'sem_datas'
+  const resposta: Situacao | null =
+    item.resposta === 'confirmado'
+      ? 'confirmado'
+      : item.resposta === 'outra_data'
+        ? 'outra_data'
+        : null
   if (item.enviado_em) {
     const mesmoHorario =
       (item.horario_enviado ?? null) === (horarioDaUnidade(item, rota.horario) ?? null)
-    return iguais(datas, item.datas_enviadas ?? []) && mesmoHorario ? 'enviado' : 'alterado'
+    if (!iguais(datas, item.datas_enviadas ?? []) || !mesmoHorario) return 'alterado'
+    if (!item.pede_confirmacao) return 'enviado'
+    return resposta ?? 'aguardando'
   }
-  if (item.aviso_manual_em) return 'manual'
+  if (item.aviso_manual_em) return item.pede_confirmacao ? (resposta ?? 'aguardando') : 'manual'
   return temEmail ? 'a_enviar' : 'sem_email'
 }
 
 /** Quem entra no botão "Enviar": nunca enviado ou com datas alteradas, e com e-mail. */
 export function precisaEnviar(s: Situacao): boolean {
   return s === 'a_enviar' || s === 'alterado'
+}
+
+/** Ainda falta algo do SAC (enviar, avisar à mão, cobrar a resposta, remarcar). */
+export function pendente(s: Situacao): boolean {
+  return ['a_enviar', 'alterado', 'sem_email', 'sem_datas', 'aguardando', 'outra_data'].includes(s)
 }
 
 export type ModeloDaRota = {

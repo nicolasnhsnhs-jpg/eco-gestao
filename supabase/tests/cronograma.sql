@@ -6,6 +6,7 @@
 --  3. Vendedor e operador não veem nem mexem.
 --  4. A mesma rota não é montada duas vezes no mesmo mês; o mês começa no dia 1.
 --  5. O registro de e-mail aceita o tipo "cronograma".
+--  6. Um só "Fora de rota" (cronograma sem rota) por mês.
 --
 -- Rodar:  npm run test:db   (transação desfeita no final)
 -- =============================================================================
@@ -65,6 +66,12 @@ do $$ begin
     insert into public.cronograma_rotas (rota_id, mes) values
       ('00000000-0000-0000-0000-0000000c7201', '2099-12-01');
     raise exception 'a rota não pode ser montada duas vezes no mês';
+  exception when unique_violation then null;
+  end;
+  insert into public.cronograma_rotas (rota_id, mes) values (null, '2099-12-01');
+  begin
+    insert into public.cronograma_rotas (rota_id, mes) values (null, '2099-12-01');
+    raise exception 'um só "Fora de rota" por mês';
   exception when unique_violation then null;
   end;
   begin

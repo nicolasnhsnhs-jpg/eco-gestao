@@ -20,11 +20,13 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 
 import {
   assuntoCronograma,
-  documentoFormatado,
+  datasDaUnidade,
+  gruposDeEmail,
+  horarioDaUnidade,
   htmlCronograma,
   nomeDoMes,
   textoCronograma,
-  type UnidadeCronograma,
+  type ItemParaEmail,
 } from '../_shared/emailCronograma.ts'
 import { enderecosEmail } from '../_shared/enviarNota.ts'
 import { registrarEmailEnviado } from '../_shared/registrarEmail.ts'
@@ -48,29 +50,8 @@ type Pedido = {
   itemIds: string[]
 }
 
-type Item = {
-  id: string
-  cliente_id: string
-  ordem: number
-  datas: string[] | null
-  so_visita: number | null
-  incluido: boolean
-  horario: string | null
-  observacoes: string | null
-  cliente: {
-    nome: string
-    nome_fantasia: string | null
-    cpf_cnpj: string | null
-    email: string | null
-  } | null
-  endereco: {
-    apelido: string | null
-    logradouro: string
-    numero: string | null
-    bairro: string | null
-    cidade: string
-    uf: string
-  } | null
+type Item = ItemParaEmail & {
+  cliente: (ItemParaEmail['cliente'] & { email: string | null }) | null
 }
 
 function segredo(nome: string): string | undefined {
@@ -89,21 +70,6 @@ const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms))
 function emailDoSac(): string | null {
   const projeto = /https:\/\/([a-z0-9]+)\./.exec(Deno.env.get('SUPABASE_URL') ?? '')?.[1] ?? ''
   return enderecosEmail(segredo('EMAIL_CRONOGRAMA') ?? SAC_DO_PROJETO[projeto])[0] ?? null
-}
-
-/** Os dias da unidade: os próprios; senão os da rota (ou só a Nª visita dela). */
-function datasDaUnidade(i: Item, daRota: string[]): string[] {
-  if (i.datas) return [...i.datas].sort()
-  const rota = [...daRota].sort()
-  if (i.so_visita) return rota[i.so_visita - 1] ? [rota[i.so_visita - 1]] : []
-  return rota
-}
-
-function localDaUnidade(e: Item['endereco']): string {
-  if (!e) return 'Endereço principal'
-  const rua = `${e.logradouro}, ${e.numero || 's/n'}`
-  const partes = [rua, e.bairro, `${e.cidade}/${e.uf}`].filter(Boolean).join(' – ')
-  return e.apelido?.trim() ? `${e.apelido.trim()} – ${partes}` : partes
 }
 
 Deno.serve(async (req) => {
@@ -172,18 +138,13 @@ Deno.serve(async (req) => {
   const { data: lidos, error: erroItens } = await admin
     .from('cronograma_itens')
     .select(
-      'id, cliente_id, ordem, datas, so_visita, incluido, horario, observacoes, cliente:clientes(nome, nome_fantasia, cpf_cnpj, email), endereco:enderecos(apelido, logradouro, numero, bairro, cidade, uf)',
+      'id, cliente_id, ordem, datas, so_visita, incluido, horario, observacoes, servicos, pede_confirmacao, cliente:clientes(nome, nome_fantasia, cpf_cnpj, email), endereco:enderecos(apelido, logradouro, numero, bairro, cidade, uf)',
     )
     .eq('cronograma_id', cronograma.id)
     .in('id', pedido.itemIds)
   if (erroItens) return resposta(500, { erro: 'Não foi possível ler as unidades da rota.' })
-  const itens = ((lidos ?? []) as unknown as Item[])
-    .filter((i) => i.incluido)
-    .sort((a, b) => a.ordem - b.ordem)
-
-  // Um e-mail por cliente (CNPJ), na ordem da rota.
-  const porCliente = new Map<string, Item[]>()
-  for (const i of itens) porCliente.set(i.cliente_id, [...(porCliente.get(i.cliente_id) ?? []), i])
+  // Um e-mail por cliente (CNPJ), na ordem da rota (aviso e pergunta separados).
+  const grupos = gruposDeEmail((lidos ?? []) as unknown as Item[], cronograma)
 
   const empresa = nomeDaEmpresa()
   const site = (segredo('SITE_URL') || req.headers.get('origin') || '').replace(/\/+$/, '')
@@ -195,17 +156,8 @@ Deno.serve(async (req) => {
   const falhas: { cliente: string; erro: string }[] = []
   let primeiro = true
 
-  for (const [clienteId, unidades] of porCliente) {
-    const c = unidades[0].cliente
-    const nomeCliente = c?.nome_fantasia || c?.nome || 'Cliente'
-    const datasDe = (i: Item) => datasDaUnidade(i, cronograma.datas)
-    const horarioDe = (i: Item) => i.horario?.trim() || cronograma.horario?.trim() || null
-
-    const comDatas = unidades.filter((i) => datasDe(i).length > 0)
-    if (comDatas.length === 0) {
-      falhas.push({ cliente: nomeCliente, erro: 'sem datas no mês' })
-      continue
-    }
+  for (const { clienteId, nomeCliente, confirmar, itens: comDatas, unidades } of grupos) {
+    const c = comDatas[0].cliente
 
     // E-mail principal do cadastro; sem ele, o do contato principal. Nunca o do financeiro.
     let para = enderecosEmail(c?.email)
@@ -232,20 +184,7 @@ Deno.serve(async (req) => {
       continue
     }
 
-    const dados = {
-      site,
-      empresa,
-      cliente: nomeCliente,
-      mes,
-      emailSac: sac,
-      unidades: comDatas.map((i): UnidadeCronograma => ({
-        local: localDaUnidade(i.endereco),
-        cnpj: documentoFormatado(c?.cpf_cnpj ?? null),
-        datas: datasDe(i),
-        horario: horarioDe(i),
-        observacoes: i.observacoes,
-      })),
-    }
+    const dados = { site, empresa, cliente: nomeCliente, mes, emailSac: sac, unidades, confirmar }
     const copia = [sac].filter((e) => !para.includes(e))
     const assunto = assuntoCronograma(dados)
 
@@ -296,7 +235,14 @@ Deno.serve(async (req) => {
       copiaOculta: copia,
       remetente,
       assunto,
-      descricao: `Cronograma ${mes} · ${cronograma.rota?.nome ?? 'rota'}`,
+      descricao: confirmar
+        ? `Agendamento (confirmar data) · ${
+            unidades
+              .map((u) => u.servico)
+              .filter(Boolean)
+              .join(', ') || 'serviço'
+          }`
+        : `Cronograma ${mes} · ${cronograma.rota?.nome ?? 'fora de rota'}`,
       anexos: [],
       enviadoPor: quem.user.id,
       respostaResend: await envio.json().catch(() => null),
@@ -309,10 +255,14 @@ Deno.serve(async (req) => {
         .update({
           enviado_em: agora,
           enviado_para: para.join('; '),
-          datas_enviadas: datasDe(i),
-          horario_enviado: horarioDe(i),
+          datas_enviadas: datasDaUnidade(i, cronograma.datas),
+          horario_enviado: horarioDaUnidade(i, cronograma.horario),
           email_id: emailId,
           sem_email_em: null,
+          // Reenviado (data nova): volta a aguardar a resposta do cliente.
+          resposta: null,
+          resposta_obs: null,
+          resposta_em: null,
         })
         .eq('id', i.id)
     }

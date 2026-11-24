@@ -1,4 +1,4 @@
-import { CalendarDays, Mail, Pencil, RefreshCw, Send, Trash2, Undo2 } from 'lucide-react'
+import { CalendarDays, Eye, Mail, Pencil, Plus, RefreshCw, Send, Trash2, Undo2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Aviso } from '@/components/ui/Aviso'
@@ -13,7 +13,16 @@ import { mensagemDeErro } from '@/lib/erros'
 import { UNIDADE } from '@/lib/unidade'
 import { cn } from '@/lib/utils'
 
+import {
+  assuntoCronograma,
+  gruposDeEmail,
+  htmlCronograma,
+  nomeDoMes as nomeDoMesEmail,
+} from '../../../supabase/functions/_shared/emailCronograma'
 import { usePerfil } from '../auth/useAuth'
+import { useCliente } from '../clientes/api'
+import { ClienteSeletor, type ClienteEscolhido } from '../clientes/ClienteSeletor'
+import { useTiposServico } from '../servicos/api'
 import { useRotas } from '../os/api'
 import {
   emailDoAviso,
@@ -23,7 +32,9 @@ import {
   useEnviarCronograma,
   useMontarCronograma,
   useSalvarCronograma,
+  useAdicionarForaDeRota,
   useSalvarItem,
+  useTirarItem,
   useTrazerNovosDaRota,
   type Cronograma,
   type ItemCronograma,
@@ -32,6 +43,7 @@ import {
 import {
   COR_SITUACAO,
   NOME_SITUACAO,
+  pendente,
   datasDaUnidade,
   diaCurto,
   diasDoTexto,
@@ -59,6 +71,9 @@ function nomeDoMes(mes: string): string {
   const t = NOME_MES.format(new Date(`${mes}T12:00:00Z`))
   return t.charAt(0).toUpperCase() + t.slice(1)
 }
+
+/** Na lista de rotas, o "Fora de rota" do mês (cronograma sem rota). */
+const FORA = 'fora-de-rota'
 
 const primeiroDoMes = (iso: string) => `${iso.slice(0, 7)}-01`
 
@@ -106,7 +121,7 @@ export function CronogramaPage() {
   const doMes = useCronogramasDoMes(mes)
 
   const porRota = useMemo(
-    () => new Map((doMes.data ?? []).map((c) => [c.rota_id, c])),
+    () => new Map((doMes.data ?? []).map((c) => [c.rota_id ?? FORA, c])),
     [doMes.data],
   )
 
@@ -122,7 +137,7 @@ export function CronogramaPage() {
       )
       if (s === 'fora') continue
       contagem.total++
-      if (precisaEnviar(s) || s === 'sem_datas') contagem.pendentes++
+      if (pendente(s)) contagem.pendentes++
       if (s === 'sem_email') contagem.semEmail++
     }
     return contagem
@@ -131,13 +146,43 @@ export function CronogramaPage() {
   const cronogramaId = rotaId ? (porRota.get(rotaId)?.id ?? null) : null
   const rotaEscolhida = rotas.data?.find((r) => r.id === rotaId) ?? null
 
+  function itemDaLista(id: string, nome: string, dica?: string) {
+    const s = resumo(id)
+    return (
+      <button
+        key={id}
+        type="button"
+        onClick={() => setRotaId(id)}
+        className={cn(
+          'flex min-h-11 items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm',
+          id === rotaId ? 'bg-lima-claro font-semibold' : 'hover:bg-fundo-suave',
+        )}
+      >
+        <span className="flex flex-col">
+          <span>{nome}</span>
+          {dica && <span className="text-xs font-normal text-texto-suave">{dica}</span>}
+        </span>
+        {!s ? (
+          <Etiqueta>{id === FORA ? 'Vazio' : 'Não montada'}</Etiqueta>
+        ) : s.pendentes ? (
+          <Etiqueta cor={s.semEmail ? 'perigo' : 'alerta'}>
+            {s.pendentes} pendente{s.pendentes > 1 ? 's' : ''}
+          </Etiqueta>
+        ) : (
+          <Etiqueta cor="verde">Em dia</Etiqueta>
+        )}
+      </button>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Cronograma</h1>
           <p className="text-sm text-texto-suave">
-            Datas do controle de pragas de cada rota no mês, e o aviso a cada cliente por e-mail.
+            Datas do mês de cada rota de controle de pragas e dos serviços de contrato fora de rota
+            (coifa, reservatório…), e o e-mail a cada cliente pelo SAC.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -180,6 +225,9 @@ export function CronogramaPage() {
           <p className="px-2 py-1 text-xs font-semibold tracking-wide text-texto-suave uppercase">
             Rotas · {nomeDoMes(mes)}
           </p>
+          {!rotas.isPending &&
+            !doMes.isPending &&
+            itemDaLista(FORA, 'Fora de rota', 'Coifa, reservatório, sucção… (pede confirmação)')}
           {rotas.isPending || doMes.isPending ? (
             <Carregando />
           ) : rotas.data?.length === 0 ? (
@@ -187,36 +235,28 @@ export function CronogramaPage() {
               Nenhuma rota cadastrada (Serviços › Ordens de serviço › Rotas).
             </p>
           ) : (
-            rotas.data?.map((r) => {
-              const s = resumo(r.id)
-              return (
-                <button
-                  key={r.id}
-                  type="button"
-                  onClick={() => setRotaId(r.id)}
-                  className={cn(
-                    'flex min-h-11 items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm',
-                    r.id === rotaId ? 'bg-lima-claro font-semibold' : 'hover:bg-fundo-suave',
-                  )}
-                >
-                  <span>{r.nome}</span>
-                  {!s ? (
-                    <Etiqueta>Não montada</Etiqueta>
-                  ) : s.pendentes ? (
-                    <Etiqueta cor={s.semEmail ? 'perigo' : 'alerta'}>
-                      {s.pendentes} pendente{s.pendentes > 1 ? 's' : ''}
-                    </Etiqueta>
-                  ) : (
-                    <Etiqueta cor="verde">Avisada</Etiqueta>
-                  )}
-                </button>
-              )
-            })
+            rotas.data?.map((r) => itemDaLista(r.id, r.nome))
           )}
         </Card>
 
         <div className="min-w-0">
-          {!rotaEscolhida ? (
+          {rotaId === FORA ? (
+            cronogramaId ? (
+              <DetalheCronograma key={cronogramaId} id={cronogramaId} />
+            ) : (
+              <Card className="flex flex-col gap-4 p-4">
+                <div>
+                  <h2 className="text-lg font-bold">Fora de rota</h2>
+                  <p className="text-sm text-texto-suave">
+                    Serviços de contrato com espaçamento maior (coifa, reservatório, sucção,
+                    bebedouro…) em {nomeDoMes(mes).toLowerCase()}. O e-mail pergunta ao cliente se a
+                    data serve.
+                  </p>
+                </div>
+                <AdicionarForaDeRota key={mes} cronogramaId={null} mes={mes} />
+              </Card>
+            )
+          ) : !rotaEscolhida ? (
             <Card className="p-6 text-sm text-texto-suave">
               Escolha uma rota para montar ou conferir as datas de {nomeDoMes(mes).toLowerCase()}.
             </Card>
@@ -323,36 +363,39 @@ function DetalheCronograma({ id }: { id: string }) {
   const semEmail = c.itens.filter((_, n) => situacoes[n] === 'sem_email')
   const algumEnviado = c.itens.some((i) => i.enviado_em)
   const ativos = situacoes.filter((s) => s !== 'fora').length
+  const foraDeRota = !c.rota_id
 
   return (
     <div className="flex flex-col gap-4">
       <Card className="flex flex-col gap-4 p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <h2 className="text-lg font-bold">{c.rota?.nome}</h2>
+            <h2 className="text-lg font-bold">{c.rota?.nome ?? 'Fora de rota'}</h2>
             <p className="text-sm text-texto-suave">
               {nomeDoMes(c.mes)} · {ativos} unidade{ativos === 1 ? '' : 's'} no mês
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button
-              variante="secundario"
-              className="min-h-10"
-              disabled={trazer.isPending}
-              onClick={() =>
-                trazer.mutate(c, {
-                  onSuccess: (n) =>
-                    setAviso(
-                      n
-                        ? `${n} unidade${n > 1 ? 's' : ''} nova${n > 1 ? 's' : ''} da rota entrou no mês.`
-                        : 'Nenhuma unidade nova na rota.',
-                    ),
-                })
-              }
-            >
-              <RefreshCw className="size-4" aria-hidden />
-              Trazer novos da rota
-            </Button>
+            {!foraDeRota && (
+              <Button
+                variante="secundario"
+                className="min-h-10"
+                disabled={trazer.isPending}
+                onClick={() =>
+                  trazer.mutate(c, {
+                    onSuccess: (n) =>
+                      setAviso(
+                        n
+                          ? `${n} unidade${n > 1 ? 's' : ''} nova${n > 1 ? 's' : ''} da rota entrou no mês.`
+                          : 'Nenhuma unidade nova na rota.',
+                      ),
+                  })
+                }
+              >
+                <RefreshCw className="size-4" aria-hidden />
+                Trazer novos da rota
+              </Button>
+            )}
             {!algumEnviado && (
               <Button
                 variante="fantasma"
@@ -370,43 +413,51 @@ function DetalheCronograma({ id }: { id: string }) {
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Campo
-            rotulo="Dias da rota"
-            htmlFor="dias-rota"
-            dica="Ex.: 10 e 25. Vale para todos, menos quem tem dias próprios."
-            erro={invalidos.length ? `O mês não tem: ${invalidos.join(', ')}` : undefined}
-          >
-            <Input id="dias-rota" value={texto} onChange={(e) => setTexto(e.target.value)} />
-          </Campo>
-          <Campo
-            rotulo="Turno ou horário (opcional)"
-            htmlFor="horario-rota"
-            dica="Vazio: horário comercial (o normal)."
-          >
-            <Input
-              id="horario-rota"
-              value={horario}
-              maxLength={80}
-              placeholder="Ex.: Manhã"
-              onChange={(e) => setHorario(e.target.value)}
-            />
-          </Campo>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Dias datas={datas} />
-          {(mudouDias || mudouHorario) && (
-            <Button
-              className="min-h-10"
-              disabled={salvar.isPending || invalidos.length > 0}
-              onClick={() => salvar.mutate({ id: c.id, datas, horario: horario.trim() || null })}
-            >
-              {salvar.isPending ? 'Salvando…' : 'Salvar dias'}
-            </Button>
-          )}
-        </div>
-        {(mudouDias || mudouHorario) && algumEnviado && (
-          <Aviso>Quem já recebeu o aviso vai aparecer como “Datas alteradas: reenviar”.</Aviso>
+        {foraDeRota ? (
+          <AdicionarForaDeRota cronogramaId={c.id} mes={c.mes} />
+        ) : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Campo
+                rotulo="Dias da rota"
+                htmlFor="dias-rota"
+                dica="Ex.: 10 e 25. Vale para todos, menos quem tem dias próprios."
+                erro={invalidos.length ? `O mês não tem: ${invalidos.join(', ')}` : undefined}
+              >
+                <Input id="dias-rota" value={texto} onChange={(e) => setTexto(e.target.value)} />
+              </Campo>
+              <Campo
+                rotulo="Turno ou horário (opcional)"
+                htmlFor="horario-rota"
+                dica="Vazio: horário comercial (o normal)."
+              >
+                <Input
+                  id="horario-rota"
+                  value={horario}
+                  maxLength={80}
+                  placeholder="Ex.: Manhã"
+                  onChange={(e) => setHorario(e.target.value)}
+                />
+              </Campo>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Dias datas={datas} />
+              {(mudouDias || mudouHorario) && (
+                <Button
+                  className="min-h-10"
+                  disabled={salvar.isPending || invalidos.length > 0}
+                  onClick={() =>
+                    salvar.mutate({ id: c.id, datas, horario: horario.trim() || null })
+                  }
+                >
+                  {salvar.isPending ? 'Salvando…' : 'Salvar dias'}
+                </Button>
+              )}
+            </div>
+            {(mudouDias || mudouHorario) && algumEnviado && (
+              <Aviso>Quem já recebeu o aviso vai aparecer como “Datas alteradas: reenviar”.</Aviso>
+            )}
+          </>
         )}
         {salvar.isError && <Aviso tipo="erro">{mensagemDeErro(salvar.error)}</Aviso>}
         {trazer.isError && <Aviso tipo="erro">{mensagemDeErro(trazer.error)}</Aviso>}
@@ -442,7 +493,10 @@ function DetalheCronograma({ id }: { id: string }) {
       {resultado && <ResumoEnvio r={resultado} />}
 
       <Card className="divide-y divide-borda">
-        {c.itens.length === 0 && (
+        {c.itens.length === 0 && foraDeRota && (
+          <p className="p-4 text-sm text-texto-suave">Nenhum cliente fora de rota neste mês.</p>
+        )}
+        {c.itens.length === 0 && !foraDeRota && (
           <p className="p-4 text-sm text-texto-suave">
             A rota não tem O.S salvas ativas. Inclua os clientes na rota (Ordens de serviço › Rotas)
             e toque em “Trazer novos da rota”.
@@ -454,12 +508,20 @@ function DetalheCronograma({ id }: { id: string }) {
             item={i}
             crono={c}
             situacao={situacoes[n]}
+            foraDeRota={foraDeRota}
             aoEditar={() => setEditando(i)}
           />
         ))}
       </Card>
 
-      {editando && <EditarUnidade item={editando} crono={c} aoFechar={() => setEditando(null)} />}
+      {editando && (
+        <EditarUnidade
+          item={editando}
+          crono={c}
+          foraDeRota={foraDeRota}
+          aoFechar={() => setEditando(null)}
+        />
+      )}
       {enviarAberto && (
         <PreviaEnvio
           crono={c}
@@ -479,15 +541,34 @@ function LinhaUnidade({
   item: i,
   crono: c,
   situacao: s,
+  foraDeRota,
   aoEditar,
 }: {
   item: ItemCronograma
   crono: Cronograma
   situacao: Situacao
+  foraDeRota: boolean
   aoEditar: () => void
 }) {
   const perfil = usePerfil()
   const salvar = useSalvarItem()
+  const tirar = useTirarItem()
+
+  function marcarResposta(resposta: 'confirmado' | 'outra_data' | null) {
+    const obs =
+      resposta === 'outra_data'
+        ? prompt('Qual data o cliente pediu? (depois mude os dias e reenvie)')
+        : resposta === 'confirmado'
+          ? ''
+          : null
+    if (obs === null && resposta) return
+    salvar.mutate({
+      id: i.id,
+      resposta,
+      resposta_obs: obs?.trim().slice(0, 300) || null,
+      resposta_em: resposta ? new Date().toISOString() : null,
+    })
+  }
   const email = emailDoAviso(i.cliente)
   const datas = datasDaUnidade(i, c.datas)
   const horario = horarioDaUnidade(i, c.horario)
@@ -553,7 +634,47 @@ function LinhaUnidade({
             {i.aviso_manual_obs ? ` (${i.aviso_manual_obs})` : ''}
           </span>
         )}
+        {i.resposta_em && (
+          <span>
+            Resposta marcada em {formatarDataHora(i.resposta_em)}
+            {i.resposta_obs ? `: ${i.resposta_obs}` : ''}
+          </span>
+        )}
       </div>
+      {(s === 'aguardando' || s === 'confirmado' || s === 'outra_data') && (
+        <div className="flex flex-wrap gap-2">
+          {s === 'aguardando' ? (
+            <>
+              <Button
+                variante="secundario"
+                className="min-h-9"
+                disabled={salvar.isPending}
+                onClick={() => marcarResposta('confirmado')}
+              >
+                Cliente confirmou
+              </Button>
+              <Button
+                variante="secundario"
+                className="min-h-9"
+                disabled={salvar.isPending}
+                onClick={() => marcarResposta('outra_data')}
+              >
+                Pediu outra data
+              </Button>
+            </>
+          ) : (
+            <Button
+              variante="fantasma"
+              className="min-h-9"
+              disabled={salvar.isPending}
+              onClick={() => marcarResposta(null)}
+            >
+              <Undo2 className="size-4" aria-hidden />
+              Desfazer resposta
+            </Button>
+          )}
+        </div>
+      )}
       {(s === 'sem_email' || s === 'manual' || (s === 'alterado' && !email)) && (
         <div className="flex flex-wrap gap-2">
           {i.aviso_manual_em ? (
@@ -585,7 +706,23 @@ function LinhaUnidade({
           )}
         </div>
       )}
+      {foraDeRota && !i.enviado_em && !i.aviso_manual_em && (
+        <div>
+          <Button
+            variante="fantasma"
+            className="min-h-9 text-perigo"
+            disabled={tirar.isPending}
+            onClick={() => {
+              if (confirm(`Tirar ${nomeCliente(i.cliente)} deste mês?`)) tirar.mutate(i.id)
+            }}
+          >
+            <Trash2 className="size-4" aria-hidden />
+            Tirar do mês
+          </Button>
+        </div>
+      )}
       {salvar.isError && <Aviso tipo="erro">{mensagemDeErro(salvar.error)}</Aviso>}
+      {tirar.isError && <Aviso tipo="erro">{mensagemDeErro(tirar.error)}</Aviso>}
     </div>
   )
 }
@@ -595,18 +732,22 @@ type ModoDias = 'rota' | 'propria' | `so${number}`
 function EditarUnidade({
   item: i,
   crono: c,
+  foraDeRota,
   aoFechar,
 }: {
   item: ItemCronograma
   crono: Cronograma
+  foraDeRota: boolean
   aoFechar: () => void
 }) {
   const salvar = useSalvarItem()
+  const [servico, setServico] = useState(i.servicos.join(', '))
+  const [pedeConfirmacao, setPedeConfirmacao] = useState(i.pede_confirmacao)
   const mes = c.mes.slice(0, 7)
   const visitasDaRota = [...c.datas].sort()
   const [incluido, setIncluido] = useState(i.incluido)
   const [modo, setModo] = useState<ModoDias>(
-    i.datas ? 'propria' : i.so_visita ? `so${i.so_visita}` : 'rota',
+    i.datas || foraDeRota ? 'propria' : i.so_visita ? `so${i.so_visita}` : 'rota',
   )
   const [texto, setTexto] = useState(textoDosDias(i.datas ?? []))
   const [horario, setHorario] = useState(i.horario ?? '')
@@ -636,21 +777,46 @@ function EditarUnidade({
         </label>
         {incluido && (
           <>
-            <Campo rotulo="Dias" htmlFor="modo-dias">
-              <Select
-                id="modo-dias"
-                value={modo}
-                onChange={(e) => setModo(e.target.value as ModoDias)}
-              >
-                <option value="rota">Os dias da rota ({textoDosDias(visitasDaRota) || '—'})</option>
-                {visitasDaRota.map((d, n) => (
-                  <option key={d} value={`so${n + 1}`}>
-                    Só a {n + 1}ª visita ({diaCurto(d)})
+            {foraDeRota && (
+              <>
+                <Campo rotulo="Serviço" htmlFor="servico-unidade">
+                  <Input
+                    id="servico-unidade"
+                    value={servico}
+                    maxLength={120}
+                    onChange={(e) => setServico(e.target.value)}
+                  />
+                </Campo>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="size-5 accent-verde"
+                    checked={pedeConfirmacao}
+                    onChange={(e) => setPedeConfirmacao(e.target.checked)}
+                  />
+                  Perguntar ao cliente se a data serve
+                </label>
+              </>
+            )}
+            {!foraDeRota && (
+              <Campo rotulo="Dias" htmlFor="modo-dias">
+                <Select
+                  id="modo-dias"
+                  value={modo}
+                  onChange={(e) => setModo(e.target.value as ModoDias)}
+                >
+                  <option value="rota">
+                    Os dias da rota ({textoDosDias(visitasDaRota) || '—'})
                   </option>
-                ))}
-                <option value="propria">Dias próprios</option>
-              </Select>
-            </Campo>
+                  {visitasDaRota.map((d, n) => (
+                    <option key={d} value={`so${n + 1}`}>
+                      Só a {n + 1}ª visita ({diaCurto(d)})
+                    </option>
+                  ))}
+                  <option value="propria">Dias próprios</option>
+                </Select>
+              </Campo>
+            )}
             {modo === 'propria' && (
               <Campo
                 rotulo="Dias próprios"
@@ -720,6 +886,12 @@ function EditarUnidade({
                   so_visita: modo.startsWith('so') ? Number(modo.slice(2)) : null,
                   horario: horario.trim() || null,
                   observacoes: obs.trim() || null,
+                  ...(foraDeRota
+                    ? {
+                        servicos: servico.trim() ? [servico.trim()] : [],
+                        pede_confirmacao: pedeConfirmacao,
+                      }
+                    : {}),
                 },
                 { onSuccess: aoFechar },
               )
@@ -749,44 +921,73 @@ function PreviaEnvio({
   aoEnviar: (r: ResultadoEnvio) => void
 }) {
   const enviar = useEnviarCronograma()
-  // Um e-mail por cliente (CNPJ), com as unidades dele.
-  const porCliente = useMemo(() => {
-    const m = new Map<string, ItemCronograma[]>()
-    for (const i of itens) m.set(i.cliente_id, [...(m.get(i.cliente_id) ?? []), i])
-    return [...m.entries()]
-  }, [itens])
-  const [marcados, setMarcados] = useState(() => new Set(porCliente.map(([id]) => id)))
+  // Os mesmos e-mails que a função vai mandar: um por cliente (CNPJ).
+  const grupos = useMemo(() => gruposDeEmail(itens, c), [itens, c])
+  const chave = (g: (typeof grupos)[number]) => `${g.clienteId}|${g.confirmar}`
+  const [marcados, setMarcados] = useState(() => new Set(grupos.map(chave)))
+  const [vendo, setVendo] = useState<string | null>(null)
 
-  const escolhidos = itens.filter((i) => marcados.has(i.cliente_id)).map((i) => i.id)
+  const escolhidos = grupos.filter((g) => marcados.has(chave(g))).flatMap((g) => g.itens)
+  const emailSac = UNIDADE.cronograma?.emailSac ?? ''
+  const dadosDe = (g: (typeof grupos)[number]) => ({
+    site: window.location.origin,
+    empresa: UNIDADE.nome,
+    cliente: g.nomeCliente,
+    mes: nomeDoMesEmail(c.mes),
+    emailSac,
+    unidades: g.unidades,
+    confirmar: g.confirmar,
+  })
 
   return (
-    <Modal aberto aoFechar={aoFechar} titulo="Enviar os avisos">
+    <Modal aberto aoFechar={aoFechar} titulo="Enviar os e-mails">
       <div className="flex flex-col gap-4">
         <p className="text-sm text-texto-suave">
-          Um e-mail para cada cliente, saindo de <strong>{UNIDADE.cronograma?.emailSac}</strong>{' '}
-          (com cópia oculta para o SAC). A resposta do cliente vai para o SAC.
+          Um e-mail para cada cliente, saindo de <strong>{emailSac}</strong> (com cópia oculta para
+          o SAC). A resposta do cliente vai para o SAC. Toque em “Ver e-mail” para ver exatamente o
+          que o cliente recebe.
         </p>
-        <ul className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto">
-          {porCliente.map(([clienteId, unidades]) => {
-            const cli = unidades[0].cliente
+        <ul className="flex max-h-[55vh] flex-col gap-2 overflow-y-auto">
+          {grupos.map((g) => {
+            const k = chave(g)
+            const cli = g.itens[0].cliente
             return (
-              <li key={clienteId} className="rounded-xl border border-borda p-3">
-                <label className="flex items-start gap-2">
+              <li key={k} className="rounded-xl border border-borda p-3">
+                <div className="flex items-start gap-2">
                   <input
                     type="checkbox"
+                    aria-label={`Enviar para ${g.nomeCliente}`}
                     className="mt-1 size-5 accent-verde"
-                    checked={marcados.has(clienteId)}
+                    checked={marcados.has(k)}
                     onChange={(e) => {
                       const novo = new Set(marcados)
-                      if (e.target.checked) novo.add(clienteId)
-                      else novo.delete(clienteId)
+                      if (e.target.checked) novo.add(k)
+                      else novo.delete(k)
                       setMarcados(novo)
                     }}
                   />
-                  <span className="flex min-w-0 flex-col gap-1">
-                    <span className="font-semibold">{nomeCliente(cli)}</span>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-semibold">{g.nomeCliente}</span>
+                      <span className="flex items-center gap-2">
+                        <Etiqueta cor={g.confirmar ? 'alerta' : 'verde'}>
+                          {g.confirmar ? 'Pergunta se a data serve' : 'Só avisa'}
+                        </Etiqueta>
+                        <Button
+                          variante="fantasma"
+                          className="min-h-8 px-2 text-sm"
+                          onClick={() => setVendo(vendo === k ? null : k)}
+                        >
+                          <Eye className="size-4" aria-hidden />
+                          {vendo === k ? 'Fechar' : 'Ver e-mail'}
+                        </Button>
+                      </span>
+                    </div>
                     <span className="text-xs text-texto-suave">Para: {emailDoAviso(cli)}</span>
-                    {unidades.map((u) => (
+                    <span className="text-xs text-texto-suave">
+                      Assunto: {assuntoCronograma(dadosDe(g))}
+                    </span>
+                    {g.itens.map((u) => (
                       <span key={u.id} className="flex flex-col gap-1 text-sm">
                         <span className="text-texto-suave">{localCurto(u.endereco)}</span>
                         <Dias datas={datasDaUnidade(u, c.datas)} />
@@ -797,8 +998,16 @@ function PreviaEnvio({
                         )}
                       </span>
                     ))}
-                  </span>
-                </label>
+                    {vendo === k && (
+                      <iframe
+                        title={`E-mail para ${g.nomeCliente}`}
+                        srcDoc={htmlCronograma(dadosDe(g))}
+                        sandbox=""
+                        className="mt-2 h-[560px] w-full rounded-lg border border-borda bg-white"
+                      />
+                    )}
+                  </div>
+                </div>
               </li>
             )
           })}
@@ -811,7 +1020,10 @@ function PreviaEnvio({
           <Button
             disabled={enviar.isPending || escolhidos.length === 0}
             onClick={() =>
-              enviar.mutate({ cronogramaId: c.id, itemIds: escolhidos }, { onSuccess: aoEnviar })
+              enviar.mutate(
+                { cronogramaId: c.id, itemIds: escolhidos.map((i) => i.id) },
+                { onSuccess: aoEnviar },
+              )
             }
           >
             <Send className="size-4" aria-hidden />
@@ -822,6 +1034,163 @@ function PreviaEnvio({
         </div>
       </div>
     </Modal>
+  )
+}
+
+/** Põe um cliente avulso (coifa, reservatório…) no "Fora de rota" do mês. */
+function AdicionarForaDeRota({ cronogramaId, mes }: { cronogramaId: string | null; mes: string }) {
+  const [aberto, setAberto] = useState(!cronogramaId)
+  const [cliente, setCliente] = useState<ClienteEscolhido | null>(null)
+  const [enderecoEscolhido, setEnderecoId] = useState('')
+  const [servico, setServico] = useState('')
+  const [texto, setTexto] = useState('')
+  const [horario, setHorario] = useState('')
+  const [obs, setObs] = useState('')
+  const [pedeConfirmacao, setPedeConfirmacao] = useState(true)
+  const [ok, setOk] = useState<string | null>(null)
+  const ficha = useCliente(cliente?.id ?? '')
+  const tipos = useTiposServico()
+  const adicionar = useAdicionarForaDeRota()
+  const { datas, invalidos } = diasDoTexto(texto, mes.slice(0, 7))
+  const enderecos = (cliente && ficha.data?.enderecos.filter((e) => e.ativo)) || []
+  // Sem escolha, o endereço principal (vem primeiro).
+  const enderecoId = enderecos.some((e) => e.id === enderecoEscolhido)
+    ? enderecoEscolhido
+    : (enderecos[0]?.id ?? '')
+
+
+  if (!aberto)
+    return (
+      <div className="flex flex-wrap items-center gap-3">
+        <Button variante="secundario" className="min-h-10" onClick={() => setAberto(true)}>
+          <Plus className="size-4" aria-hidden />
+          Adicionar cliente
+        </Button>
+        {ok && <span className="text-sm text-verde-escuro">{ok}</span>}
+      </div>
+    )
+
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-borda bg-fundo-suave p-3">
+      <Campo rotulo="Cliente" htmlFor="cliente-fora">
+        <ClienteSeletor id="cliente-fora" valor={cliente} aoMudar={setCliente} />
+      </Campo>
+      {cliente && enderecos.length > 1 && (
+        <Campo rotulo="Unidade (endereço)" htmlFor="endereco-fora">
+          <Select
+            id="endereco-fora"
+            value={enderecoId}
+            onChange={(e) => setEnderecoId(e.target.value)}
+          >
+            {enderecos.map((e) => (
+              <option key={e.id} value={e.id}>
+                {localCurto(e)}
+              </option>
+            ))}
+          </Select>
+        </Campo>
+      )}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Campo rotulo="Serviço" htmlFor="servico-fora">
+          <Select
+            id="servico-fora"
+            value={servico}
+            onChange={(e) => {
+              setServico(e.target.value)
+              setPedeConfirmacao(!/praga/i.test(e.target.value))
+            }}
+          >
+            <option value="">Escolha…</option>
+            {tipos.data
+              ?.filter((t) => t.ativo)
+              .map((t) => (
+                <option key={t.id} value={t.nome}>
+                  {t.nome}
+                </option>
+              ))}
+          </Select>
+        </Campo>
+        <Campo
+          rotulo="Dia(s)"
+          htmlFor="dias-fora"
+          dica="Ex.: 15"
+          erro={invalidos.length ? `O mês não tem: ${invalidos.join(', ')}` : undefined}
+        >
+          <Input id="dias-fora" value={texto} onChange={(e) => setTexto(e.target.value)} />
+        </Campo>
+        <Campo rotulo="Turno ou horário (opcional)" htmlFor="horario-fora">
+          <Input
+            id="horario-fora"
+            value={horario}
+            maxLength={80}
+            placeholder="Ex.: Após as 15h"
+            onChange={(e) => setHorario(e.target.value)}
+          />
+        </Campo>
+        <Campo rotulo="Observação para o cliente (opcional)" htmlFor="obs-fora">
+          <Input
+            id="obs-fora"
+            value={obs}
+            maxLength={500}
+            onChange={(e) => setObs(e.target.value)}
+          />
+        </Campo>
+      </div>
+      <Dias datas={datas} />
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          className="size-5 accent-verde"
+          checked={pedeConfirmacao}
+          onChange={(e) => setPedeConfirmacao(e.target.checked)}
+        />
+        Perguntar ao cliente se a data serve (serviço de contrato)
+      </label>
+      {adicionar.isError && <Aviso tipo="erro">{mensagemDeErro(adicionar.error)}</Aviso>}
+      <div className="flex flex-wrap justify-end gap-2">
+        {cronogramaId && (
+          <Button variante="fantasma" onClick={() => setAberto(false)}>
+            Cancelar
+          </Button>
+        )}
+        <Button
+          disabled={
+            adicionar.isPending ||
+            !cliente ||
+            !servico ||
+            datas.length === 0 ||
+            invalidos.length > 0
+          }
+          onClick={() =>
+            adicionar.mutate(
+              {
+                cronogramaId,
+                mes,
+                clienteId: cliente!.id,
+                enderecoId: enderecoId || null,
+                servico,
+                datas,
+                horario: horario.trim() || null,
+                observacoes: obs.trim() || null,
+                pedeConfirmacao,
+              },
+              {
+                onSuccess: () => {
+                  setOk(`${cliente!.nome} entrou no mês.`)
+                  setCliente(null)
+                  setTexto('')
+                  setHorario('')
+                  setObs('')
+                  setAberto(false)
+                },
+              },
+            )
+          }
+        >
+          {adicionar.isPending ? 'Adicionando…' : 'Adicionar'}
+        </Button>
+      </div>
+    </div>
   )
 }
 

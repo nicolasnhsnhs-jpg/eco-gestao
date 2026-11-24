@@ -12,7 +12,7 @@ import { unidadesDaRota, type ModeloDaRota } from './regras'
  */
 
 const CAMPOS_ITEM_RESUMO =
-  'id, incluido, datas, so_visita, horario, enviado_em, datas_enviadas, horario_enviado, aviso_manual_em'
+  'id, incluido, datas, so_visita, horario, enviado_em, datas_enviadas, horario_enviado, aviso_manual_em, pede_confirmacao, resposta'
 
 /** Os cronogramas montados no mês (com as unidades, para o resumo de cada rota). */
 export function useCronogramasDoMes(mes: string) {
@@ -43,7 +43,7 @@ export function useCronograma(id: string | null) {
           `id, rota_id, mes, datas, horario, observacoes,
            rota:os_rotas(id, nome),
            itens:cronograma_itens(${CAMPOS_ITEM_RESUMO}, cliente_id, endereco_id, servicos, ordem,
-             observacoes, enviado_para, sem_email_em, aviso_manual_obs,
+             observacoes, enviado_para, sem_email_em, aviso_manual_obs, resposta_obs, resposta_em,
              cliente:clientes(id, nome, nome_fantasia, cpf_cnpj, email,
                contatos:contatos_cliente(email, principal)),
              endereco:enderecos(id, apelido, logradouro, numero, bairro, cidade, uf))`,
@@ -154,6 +154,7 @@ export function useTrazerNovosDaRota() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (c: Cronograma) => {
+      if (!c.rota_id) return 0
       const unidades = await unidadesAtuaisDaRota(c.rota_id)
       const ja = new Set(c.itens.map((i) => `${i.cliente_id}|${i.endereco_id ?? ''}`))
       const ultimaOrdem = c.itens.reduce((m, i) => Math.max(m, i.ordem), -1)
@@ -193,6 +194,80 @@ export function useApagarCronograma() {
   })
 }
 
+/**
+ * Põe um cliente no "Fora de rota" do mês (serviço de contrato avulso: coifa,
+ * reservatório…), criando o "Fora de rota" do mês se ainda não existir.
+ */
+export function useAdicionarForaDeRota() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: {
+      cronogramaId: string | null
+      mes: string
+      clienteId: string
+      enderecoId: string | null
+      servico: string
+      datas: string[]
+      horario: string | null
+      observacoes: string | null
+      pedeConfirmacao: boolean
+    }) => {
+      let id = v.cronogramaId
+      if (!id) {
+        const { data, error } = await supabase
+          .from('cronograma_rotas')
+          .insert({ rota_id: null, mes: v.mes })
+          .select('id')
+          .single()
+        if (error) {
+          if (!/uma_vez_por_mes/.test(error.message)) throw error
+          const { data: ja, error: e2 } = await supabase
+            .from('cronograma_rotas')
+            .select('id')
+            .is('rota_id', null)
+            .eq('mes', v.mes)
+            .single()
+          if (e2) throw e2
+          id = ja.id
+        } else id = data.id
+      }
+      const { count } = await supabase
+        .from('cronograma_itens')
+        .select('id', { count: 'exact', head: true })
+        .eq('cronograma_id', id)
+      const { error } = await supabase.from('cronograma_itens').insert({
+        cronograma_id: id,
+        cliente_id: v.clienteId,
+        endereco_id: v.enderecoId,
+        servicos: [v.servico],
+        ordem: count ?? 0,
+        datas: v.datas,
+        horario: v.horario,
+        observacoes: v.observacoes,
+        pede_confirmacao: v.pedeConfirmacao,
+      })
+      if (error) {
+        throw /unidade_uma_vez/.test(error.message)
+          ? new Error('Este cliente (neste endereço) já está no mês. Edite a linha dele.')
+          : error
+      }
+      return id
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cronograma'] }),
+  })
+}
+
+export function useTirarItem() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('cronograma_itens').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cronograma'] }),
+  })
+}
+
 export type CamposItem = Pick<
   TablesUpdate<'cronograma_itens'>,
   | 'datas'
@@ -200,6 +275,11 @@ export type CamposItem = Pick<
   | 'incluido'
   | 'horario'
   | 'observacoes'
+  | 'servicos'
+  | 'pede_confirmacao'
+  | 'resposta'
+  | 'resposta_obs'
+  | 'resposta_em'
   | 'aviso_manual_em'
   | 'aviso_manual_por'
   | 'aviso_manual_obs'
