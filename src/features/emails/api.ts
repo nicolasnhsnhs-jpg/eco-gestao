@@ -22,6 +22,7 @@ export const NOME_TIPO_EMAIL: Record<string, string> = {
   proposta: 'Proposta',
   certificado: 'Certificado',
   os: 'Ordem de serviço',
+  cronograma: 'Cronograma',
 }
 
 /** Quantos e-mails a lista carrega de cada vez. */

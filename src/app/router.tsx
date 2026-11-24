@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate, Outlet } from 'react-router'
 
 import { AgendaDiaPage } from '@/features/agenda/AgendaDiaPage'
 import { PresencaPage } from '@/features/agenda/PresencaPage'
+import { CronogramaPage } from '@/features/cronograma/CronogramaPage'
 import { AgendaTvPage } from '@/features/agenda/AgendaTvPage'
 import { AdministrativoLayout } from '@/features/administrativo/AdministrativoLayout'
 import { AssinaturaPage } from '@/features/administrativo/assinatura/AssinaturaPage'
@@ -311,6 +312,14 @@ export const router = createBrowserRouter([
               { index: true, element: <AgendaPage /> },
               { path: 'dia', element: <AgendaDiaPage /> },
               { path: 'presenca', element: <PresencaPage /> },
+              {
+                path: 'cronograma',
+                element: (
+                  <ExigePapel papeis={PAPEIS_ESCRITORIO_OS}>
+                    <CronogramaPage />
+                  </ExigePapel>
+                ),
+              },
               { path: 'vencimentos', element: <VencimentosPage /> },
               {
                 path: 'tipos',

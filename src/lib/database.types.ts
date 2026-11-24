@@ -1632,6 +1632,198 @@ export type Database = {
           },
         ]
       }
+      cronograma_itens: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          aviso_manual_em: string | null
+          aviso_manual_obs: string | null
+          aviso_manual_por: string | null
+          cliente_id: string
+          criado_em: string
+          criado_por: string | null
+          cronograma_id: string
+          datas: string[] | null
+          datas_enviadas: string[] | null
+          email_id: string | null
+          endereco_id: string | null
+          enviado_em: string | null
+          enviado_para: string | null
+          horario: string | null
+          horario_enviado: string | null
+          id: string
+          incluido: boolean
+          observacoes: string | null
+          ordem: number
+          sem_email_em: string | null
+          servicos: string[]
+          so_visita: number | null
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          aviso_manual_em?: string | null
+          aviso_manual_obs?: string | null
+          aviso_manual_por?: string | null
+          cliente_id: string
+          criado_em?: string
+          criado_por?: string | null
+          cronograma_id: string
+          datas?: string[] | null
+          datas_enviadas?: string[] | null
+          email_id?: string | null
+          endereco_id?: string | null
+          enviado_em?: string | null
+          enviado_para?: string | null
+          horario?: string | null
+          horario_enviado?: string | null
+          id?: string
+          incluido?: boolean
+          observacoes?: string | null
+          ordem?: number
+          sem_email_em?: string | null
+          servicos?: string[]
+          so_visita?: number | null
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          aviso_manual_em?: string | null
+          aviso_manual_obs?: string | null
+          aviso_manual_por?: string | null
+          cliente_id?: string
+          criado_em?: string
+          criado_por?: string | null
+          cronograma_id?: string
+          datas?: string[] | null
+          datas_enviadas?: string[] | null
+          email_id?: string | null
+          endereco_id?: string | null
+          enviado_em?: string | null
+          enviado_para?: string | null
+          horario?: string | null
+          horario_enviado?: string | null
+          id?: string
+          incluido?: boolean
+          observacoes?: string | null
+          ordem?: number
+          sem_email_em?: string | null
+          servicos?: string[]
+          so_visita?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'cronograma_itens_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cronograma_itens_aviso_manual_por_fkey'
+            columns: ['aviso_manual_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cronograma_itens_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cronograma_itens_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cronograma_itens_cronograma_id_fkey'
+            columns: ['cronograma_id']
+            isOneToOne: false
+            referencedRelation: 'cronograma_rotas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cronograma_itens_email_id_fkey'
+            columns: ['email_id']
+            isOneToOne: false
+            referencedRelation: 'emails_enviados'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cronograma_itens_endereco_id_fkey'
+            columns: ['endereco_id']
+            isOneToOne: false
+            referencedRelation: 'enderecos'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      cronograma_rotas: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          criado_em: string
+          criado_por: string | null
+          datas: string[]
+          horario: string | null
+          id: string
+          mes: string
+          observacoes: string | null
+          rota_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          datas?: string[]
+          horario?: string | null
+          id?: string
+          mes: string
+          observacoes?: string | null
+          rota_id: string
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          datas?: string[]
+          horario?: string | null
+          id?: string
+          mes?: string
+          observacoes?: string | null
+          rota_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'cronograma_rotas_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cronograma_rotas_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cronograma_rotas_rota_id_fkey'
+            columns: ['rota_id']
+            isOneToOne: false
+            referencedRelation: 'os_rotas'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       custos_orcamento: {
         Row: {
           atualizado_em: string

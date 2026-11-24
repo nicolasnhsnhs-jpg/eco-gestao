@@ -6,7 +6,7 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 
 export type RegistroEmail = {
   setor: 'financeiro' | 'administrativo' | 'comercial'
-  tipo: 'nota' | 'proposta' | 'certificado' | 'os'
+  tipo: 'nota' | 'proposta' | 'certificado' | 'os' | 'cronograma'
   clienteId: string | null
   clienteNome: string
   para: string[]
@@ -26,30 +26,39 @@ export type RegistroEmail = {
   respostaResend?: unknown
 }
 
-export async function registrarEmailEnviado(admin: SupabaseClient, r: RegistroEmail) {
+/** Devolve o id do registro (null se a gravação falhou). */
+export async function registrarEmailEnviado(
+  admin: SupabaseClient,
+  r: RegistroEmail,
+): Promise<string | null> {
   const resendId =
     r.respostaResend && typeof r.respostaResend === 'object' && 'id' in r.respostaResend
       ? String((r.respostaResend as { id: unknown }).id)
       : null
-  const { error } = await admin.from('emails_enviados').insert({
-    setor: r.setor,
-    tipo: r.tipo,
-    cliente_id: r.clienteId,
-    cliente_nome: r.clienteNome,
-    para: r.para.join('; '),
-    copia_oculta: r.copiaOculta?.length ? r.copiaOculta.join('; ') : null,
-    remetente: r.remetente ?? null,
-    assunto: r.assunto,
-    descricao: r.descricao,
-    valor: r.valor ?? null,
-    anexos: r.anexos,
-    nota_id: r.notaId ?? null,
-    proposta_id: r.propostaId ?? null,
-    certificado_id: r.certificadoId ?? null,
-    os_ids: r.osIds ?? [],
-    enviado_por: r.enviadoPor ?? null,
-    automatico: r.automatico ?? false,
-    resend_id: resendId,
-  })
+  const { data, error } = await admin
+    .from('emails_enviados')
+    .insert({
+      setor: r.setor,
+      tipo: r.tipo,
+      cliente_id: r.clienteId,
+      cliente_nome: r.clienteNome,
+      para: r.para.join('; '),
+      copia_oculta: r.copiaOculta?.length ? r.copiaOculta.join('; ') : null,
+      remetente: r.remetente ?? null,
+      assunto: r.assunto,
+      descricao: r.descricao,
+      valor: r.valor ?? null,
+      anexos: r.anexos,
+      nota_id: r.notaId ?? null,
+      proposta_id: r.propostaId ?? null,
+      certificado_id: r.certificadoId ?? null,
+      os_ids: r.osIds ?? [],
+      enviado_por: r.enviadoPor ?? null,
+      automatico: r.automatico ?? false,
+      resend_id: resendId,
+    })
+    .select('id')
+    .single()
   if (error) console.error('emails_enviados', error.message)
+  return data?.id ?? null
 }

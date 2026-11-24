@@ -16,6 +16,12 @@ export const UNIDADES = {
     bancosBoleto: ['asaas'],
     /** CRM do WhatsApp (número comercial ligado à Meta). Veja docs/CONFIGURACAO-WHATSAPP.md. */
     crm: true,
+    /**
+     * Cronograma (Serviços > Cronograma): e-mail do SAC que avisa os clientes das datas.
+     * PENDENTE: SC ainda não definiu; sem ele, a aba funciona mas não envia e-mail.
+     * (Na função "cronograma", SAC_DO_PROJETO, ou o segredo EMAIL_CRONOGRAMA.)
+     */
+    cronograma: null as { emailSac: string } | null,
     /** Cópia automática dos PDFs no Google Drive (pasta SC). Veja docs/CONFIGURACAO-DRIVE.md. */
     drive: true,
     /**
@@ -103,6 +109,8 @@ export const UNIDADES = {
     bancosBoleto: ['asaas', 'sicredi'],
     /** Sem número de WhatsApp ligado nesta unidade: o CRM não aparece. */
     crm: false,
+    /** Cronograma: os avisos de datas saem do SAC, com ele em cópia oculta. */
+    cronograma: { emailSac: 'sac@ecoambientalrs.com.br' } as { emailSac: string } | null,
     /** Cópia automática dos PDFs no Google Drive (pasta RS), além do servidor próprio. */
     drive: true,
     responsavelTecnico: {
