@@ -12,7 +12,12 @@ import { Etiqueta } from '@/components/ui/Etiqueta'
 import { formatarData, formatarDataHora } from '@/lib/datas'
 import { formatarDocumento } from '@/lib/documentos'
 import { mensagemDeErro } from '@/lib/erros'
-import { PAPEIS_ACESSO_TOTAL, PAPEIS_CERTIFICADOS, PAPEIS_ESCRITORIO_OS } from '@/lib/papeis'
+import {
+  PAPEIS_ACESSO_TOTAL,
+  PAPEIS_CERTIFICADOS,
+  PAPEIS_ESCRITORIO_OS,
+  podeApagar,
+} from '@/lib/papeis'
 
 import { ListaArquivos } from '../arquivos/ListaArquivos'
 import { EnviarOsAoCliente } from '../certificados/EnviarOsAoCliente'
@@ -211,8 +216,9 @@ export function OsPage() {
                 Editar OS
               </Button>
             )}
-            {/* Só o Administrador e o ADM cancelam (o operador avisa o escritório). */}
-            {(perfil.papel === 'admin' || perfil.papel === 'administrativo') &&
+            {/* Só o Administrador e o ADM principal cancelam (o operador avisa o escritório). */}
+            {(perfil.papel === 'admin' ||
+              (perfil.papel === 'administrativo' && podeApagar(perfil))) &&
               o.status !== 'cancelada' && (
                 <Button
                   variante="fantasma"
@@ -256,6 +262,17 @@ export function OsPage() {
           <Aviso tipo="info">
             OS de teste (treinamento): só para o técnico aprender. Não vai para o cliente, não gera
             PDF nem serviço realizado. Apague em Ordens de serviço → Treinamento.
+          </Aviso>
+        </div>
+      )}
+
+      {o.implantacao && (
+        <div className="mb-4">
+          <Aviso tipo="info">
+            <strong>OS de implantação.</strong> O técnico cadastra em campo os pontos que instalar;
+            eles já vão para a O.S salva deste local.
+            {o.status === 'concluida' &&
+              ' Revise os pontos no escopo abaixo (área, número, forma e tipo de isca) antes de conferir: é com eles que saem os próximos atendimentos.'}
           </Aviso>
         </div>
       )}

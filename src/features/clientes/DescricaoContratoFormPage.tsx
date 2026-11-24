@@ -10,7 +10,7 @@ import { Campo, Input, Textarea } from '@/components/ui/Campo'
 import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
 import { mensagemDeErro } from '@/lib/erros'
-import { PAPEIS_GESTAO } from '@/lib/papeis'
+import { PAPEIS_GESTAO, podeApagar } from '@/lib/papeis'
 
 import { usePerfil } from '../auth/useAuth'
 import { useCliente } from './api'
@@ -429,7 +429,7 @@ function Formulario({
         </Card>
 
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-          {d ? (
+          {d && podeApagar(perfil) ? (
             <Button variante="fantasma" onClick={() => void aoApagar()} disabled={apagar.isPending}>
               <Trash2 className="size-4" aria-hidden /> Apagar descrição
             </Button>

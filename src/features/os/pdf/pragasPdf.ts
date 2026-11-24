@@ -22,6 +22,7 @@ import {
   sugerirNivelRoedores,
   type ChecklistPragas,
   type EscopoPragas,
+  ordenarPontos,
 } from '../tipos/pragas'
 import { dosesMarcadas, type ChecklistProgramas, type EscopoProgramas } from '../tipos/programas'
 
@@ -39,7 +40,7 @@ export async function buscarDadosPragas(osId: string): Promise<DadosPragas> {
     supabase.from('os_insetos').select('*').eq('os_id', osId).order('criado_em'),
   ])
   for (const r of [pontos, produtos, insetos]) if (r.error) throw r.error
-  return { pontos: pontos.data ?? [], produtos: produtos.data ?? [], insetos: insetos.data ?? [] }
+  return { pontos: ordenarPontos(pontos.data ?? []), produtos: produtos.data ?? [], insetos: insetos.data ?? [] }
 }
 
 /** O que o PDF precisa do escritor de páginas (ver gerarPdfOs.ts). */
@@ -515,7 +516,9 @@ export function escreverPragas(
     w.campo('Pragas combatidas', escopo.pragas_insetos)
     w.campo(
       'Monitoramento',
-      checklist.monitoramento_insetos ? 'Realizado nas áreas descritas' : 'Não realizado',
+      checklist.monitoramento_insetos
+        ? 'Realizado nas áreas descritas'
+        : 'Realizado, porém sem necessidade de aplicação conforme avaliação técnica',
     )
     for (const i of dados.insetos) {
       w.campo(

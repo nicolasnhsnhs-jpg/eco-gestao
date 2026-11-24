@@ -10,7 +10,10 @@ import { Etiqueta } from '@/components/ui/Etiqueta'
 import { Modal } from '@/components/ui/Modal'
 import { formatarCep } from '@/lib/documentos'
 import { mensagemDeErro } from '@/lib/erros'
+import { linkMapa } from '@/lib/mapa'
+import { podeApagar } from '@/lib/papeis'
 
+import { usePerfil } from '../../auth/useAuth'
 import { useRemoverEndereco, useSalvarEndereco, type Endereco } from '../api'
 import { EnderecoCampos } from '../EnderecoCampos'
 import { ENDERECO_VAZIO, enderecoParaBanco, esquemaEndereco, type FormEndereco } from '../esquemas'
@@ -19,6 +22,7 @@ import { Secao, Vazio } from './Secao'
 type Props = { clienteId: string; enderecos: Endereco[]; podeEditar: boolean }
 
 export function SecaoEnderecos({ clienteId, enderecos, podeEditar }: Props) {
+  const apaga = podeApagar(usePerfil())
   // undefined = fechado; null = novo; Endereco = editando
   const [editando, setEditando] = useState<Endereco | null | undefined>(undefined)
   const remover = useRemoverEndereco(clienteId)
@@ -64,9 +68,7 @@ export function SecaoEnderecos({ clienteId, enderecos, podeEditar }: Props) {
                 className="text-sm font-semibold text-verde underline"
                 target="_blank"
                 rel="noreferrer"
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                  `${e.logradouro} ${e.numero ?? ''}, ${e.cidade} - ${e.uf}`,
-                )}`}
+                href={linkMapa(e)}
               >
                 Abrir no mapa
               </a>
@@ -76,9 +78,11 @@ export function SecaoEnderecos({ clienteId, enderecos, podeEditar }: Props) {
                 <BotaoIcone rotulo="Editar endereço" onClick={() => setEditando(e)}>
                   <Pencil className="size-4" />
                 </BotaoIcone>
-                <BotaoIcone rotulo="Remover endereço" onClick={() => void aoRemover(e)}>
-                  <Trash2 className="size-4" />
-                </BotaoIcone>
+                {apaga && (
+                  <BotaoIcone rotulo="Remover endereço" onClick={() => void aoRemover(e)}>
+                    <Trash2 className="size-4" />
+                  </BotaoIcone>
+                )}
               </div>
             )}
           </li>

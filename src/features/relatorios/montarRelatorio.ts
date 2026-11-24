@@ -238,7 +238,9 @@ function textoInsetos(os: OsParaRelatorio, checklist: ChecklistPragas) {
 
   const linhas: string[] = []
   if (checklist.monitoramento_insetos === false && os.insetos.length === 0 && !programas.length) {
-    linhas.push('Controle de Insetos: Monitoramento de insetos não realizado nesta visita.')
+    linhas.push(
+      'Controle de Insetos: Realizado o monitoramento, porém sem necessidade de aplicação conforme avaliação técnica.',
+    )
     return linhas
   }
   linhas.push('Controle de Insetos:')

@@ -13,7 +13,7 @@ import { CadastroPage } from '@/features/auth/CadastroPage'
 import { DefinirSenhaPage } from '@/features/auth/DefinirSenhaPage'
 import { EntrarPage } from '@/features/auth/EntrarPage'
 import { EsqueciSenhaPage } from '@/features/auth/EsqueciSenhaPage'
-import { ExigePapel, RotaProtegida } from '@/features/auth/RotaProtegida'
+import { ExigePapel, ExigeVerValores, RotaProtegida } from '@/features/auth/RotaProtegida'
 import { ClienteFichaPage } from '@/features/clientes/ClienteFichaPage'
 import { ClienteFormPage } from '@/features/clientes/ClienteFormPage'
 import { ClientesPage } from '@/features/clientes/ClientesPage'
@@ -267,13 +267,34 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <PropostasPage /> },
               { path: 'agendadas', element: <PropostasAgendadasPage /> },
-              { path: 'vendas', element: <VendasDoMesPage /> },
+              {
+                path: 'vendas',
+                element: (
+                  <ExigeVerValores>
+                    <VendasDoMesPage />
+                  </ExigeVerValores>
+                ),
+              },
               { path: 'emails', element: <EmailsEnviadosPage setor="comercial" /> },
-              { path: 'nova', element: <PropostaFormPage /> },
+              {
+                path: 'nova',
+                element: (
+                  <ExigeVerValores>
+                    <PropostaFormPage />
+                  </ExigeVerValores>
+                ),
+              },
             ],
           },
           { path: ':id', element: <PropostaPage /> },
-          { path: ':id/editar', element: <PropostaFormPage /> },
+          {
+            path: ':id/editar',
+            element: (
+              <ExigeVerValores>
+                <PropostaFormPage />
+              </ExigeVerValores>
+            ),
+          },
         ],
       },
       {
@@ -315,16 +336,32 @@ export const router = createBrowserRouter([
         ),
         children: [
           { index: true, element: <ContratosPage /> },
-          { path: 'novo', element: <ContratoFormPage /> },
+          {
+            path: 'novo',
+            element: (
+              <ExigeVerValores>
+                <ContratoFormPage />
+              </ExigeVerValores>
+            ),
+          },
           { path: ':id', element: <ContratoPage /> },
-          { path: ':id/editar', element: <ContratoFormPage /> },
+          {
+            path: ':id/editar',
+            element: (
+              <ExigeVerValores>
+                <ContratoFormPage />
+              </ExigeVerValores>
+            ),
+          },
         ],
       },
       {
         path: 'orcamentos',
         element: (
           <ExigePapel papeis={['admin', 'administrativo', 'vendedor']}>
-            <OrcamentosLayout />
+            <ExigeVerValores>
+              <OrcamentosLayout />
+            </ExigeVerValores>
           </ExigePapel>
         ),
         children: [

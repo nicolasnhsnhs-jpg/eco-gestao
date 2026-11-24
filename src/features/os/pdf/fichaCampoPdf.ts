@@ -38,6 +38,7 @@ import {
   NIVEIS,
   nomeModeloArmadilha,
   OCORRENCIAS,
+  ordenarPontos,
   PRAGAS_ALVO,
   PRAGAS_INSETOS,
   PROCEDIMENTOS,
@@ -427,7 +428,7 @@ function documento(valor: string | null | undefined) {
 /** Agrupa os porta-iscas por área e tipo de isca, na ordem dos números. */
 function porArea(pontos: PontoOs[]) {
   const grupos = new Map<string, number[]>()
-  for (const p of [...pontos].sort((a, b) => a.numero - b.numero)) {
+  for (const p of ordenarPontos(pontos)) {
     const isca = [p.forma_iscagem, p.tipo_isca].filter(Boolean).join(' · ')
     const chave = isca ? `${p.area} (${isca})` : p.area
     grupos.set(chave, [...(grupos.get(chave) ?? []), p.numero])
@@ -574,7 +575,7 @@ function escreverPragas(f: Folha, os: OsCompleta, pontos: PontoOs[]) {
     f.secao('Controle de insetos')
     f.dado('Áreas do cliente', escopo.areas_insetos)
     f.dado('Pragas combatidas', escopo.pragas_insetos)
-    f.opcoes('Monitoramento', ['Realizado nas áreas descritas', 'Não realizado'])
+    f.opcoes('Monitoramento', ['Realizado nas áreas descritas', 'Realizado, sem necessidade de aplicação'])
     f.legenda('Praga', PRAGAS_INSETOS)
     f.legenda('Nível', NIVEIS)
     f.legenda('Condições', CONDICOES)

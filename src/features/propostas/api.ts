@@ -237,14 +237,37 @@ export function useVendasDoMes(mes: string, vendedorId?: string) {
       const inicio = `${mes}-01`
       const [ano, m] = mes.split('-').map(Number)
       const fim = new Date(Date.UTC(ano, m, 1)).toISOString().slice(0, 10)
+      // A venda conta no mês em que o serviço está agendado (aprovada em novembro
+      // para executar em dezembro conta em dezembro). Sem agendamento, ainda não conta.
       let consulta = supabase
         .from('v_propostas')
         .select(`*, ${RELACOES}`)
         .eq('status', 'aprovada')
-        .gte('data_resposta', inicio)
-        .lt('data_resposta', fim)
-        .order('data_resposta', { ascending: true })
+        .gte('execucao_data', inicio)
+        .lt('execucao_data', fim)
+        .order('execucao_data', { ascending: true })
+        .order('execucao_hora', { ascending: true, nullsFirst: false })
         .order('numero', { ascending: true })
+      if (vendedorId) consulta = consulta.eq('vendedor_id', vendedorId)
+      const { data, error } = await consulta
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+/** Aprovadas que ainda não têm dia agendado: não entram em mês nenhum até agendar. */
+export function useVendasSemAgendamento(vendedorId?: string) {
+  return useQuery({
+    queryKey: ['propostas', 'vendas', 'sem-agendamento', vendedorId ?? 'todos'],
+    queryFn: async () => {
+      let consulta = supabase
+        .from('v_propostas')
+        .select(`*, ${RELACOES}`)
+        .eq('status', 'aprovada')
+        .is('execucao_data', null)
+        .order('data_resposta', { ascending: false })
+        .limit(200)
       if (vendedorId) consulta = consulta.eq('vendedor_id', vendedorId)
       const { data, error } = await consulta
       if (error) throw error

@@ -30,6 +30,7 @@ import {
   type PagamentoFixo,
   type PropostaCompleta,
 } from './api'
+import { escreverExecucao, lerExecucao } from './execucao'
 import { introducaoContrato, textoContratoPadrao, textoTaxaContrato } from './contratual'
 import {
   esquemaProposta,
@@ -801,6 +802,8 @@ function ItemServico({
         </SelectForm>
       </Campo>
 
+      <TempoEOperadores form={form} i={i} />
+
       <TaxasAdicionais form={form} i={i} />
 
       {completo && <TextoContrato form={form} i={i} modelo={modeloAtual} />}
@@ -836,6 +839,66 @@ function ItemServico({
         )}
       </div>
     </fieldset>
+  )
+}
+
+/**
+ * Tempo de execução e quantidade de operadores: reescrevem a linha "Execução do
+ * serviço: …" dos recursos (o texto que vai ao PDF), sem abrir o texto todo.
+ */
+function TempoEOperadores({ form, i }: { form: UseFormReturn<FormProposta>; i: number }) {
+  const recursos = useWatch({ control: form.control, name: `itens.${i}.recursos` }) ?? ''
+  const execucao = lerExecucao(recursos)
+  // O tempo fica num estado próprio para o espaço no fim (enquanto digita) não sumir.
+  const [tempo, setTempo] = useState(execucao.tempo)
+  useEffect(() => {
+    if (execucao.tempo !== tempo.trim()) setTempo(execucao.tempo)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [execucao.tempo])
+
+  function gravar(mudanca: Partial<typeof execucao>) {
+    const atual = lerExecucao(form.getValues(`itens.${i}.recursos`) ?? '')
+    form.setValue(
+      `itens.${i}.recursos`,
+      escreverExecucao(form.getValues(`itens.${i}.recursos`) ?? '', { ...atual, ...mudanca }),
+      { shouldDirty: true },
+    )
+  }
+
+  return (
+    <>
+      <Campo
+        rotulo="Tempo de execução"
+        htmlFor={`tempo-${i}`}
+        className="sm:col-span-6"
+        dica="Ex.: 02 horas, 01h30. Vai no PDF em “Execução do serviço”."
+      >
+        <Input
+          id={`tempo-${i}`}
+          value={tempo}
+          placeholder="02 horas"
+          onChange={(e) => {
+            setTempo(e.target.value)
+            gravar({ tempo: e.target.value })
+          }}
+        />
+      </Campo>
+      <Campo rotulo="Operadores" htmlFor={`operadores-${i}`} className="sm:col-span-6">
+        <Input
+          id={`operadores-${i}`}
+          type="number"
+          inputMode="numeric"
+          min={0}
+          max={50}
+          value={execucao.operadores ?? ''}
+          placeholder="2"
+          onChange={(e) => {
+            const n = Number.parseInt(e.target.value, 10)
+            gravar({ operadores: Number.isFinite(n) && n > 0 ? Math.min(n, 50) : null })
+          }}
+        />
+      </Campo>
+    </>
   )
 }
 

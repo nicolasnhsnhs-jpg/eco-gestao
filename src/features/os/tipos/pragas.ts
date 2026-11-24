@@ -168,6 +168,45 @@ export function escreverFaixas(numeros: number[]): string {
   return partes.join(', ')
 }
 
+type PontoNumerado = { tipo: string; numero: number; forma_iscagem?: string | null }
+
+const ORDEM_FORMA: Record<string, number> = { PIE: 0, IE: 1, PII: 2 }
+
+/**
+ * Cliente que numera os porta-iscas externos e os internos cada um a partir do 01
+ * (Neovia: externos 01-66, internos 01-40)? Os números se repetem entre as formas
+ * de iscagem, mas não dentro de cada uma.
+ */
+export function numeracaoPorForma(pontos: PontoNumerado[]): boolean {
+  const porNumero = new Set<string>()
+  const porForma = new Set<string>()
+  let repete = false
+  for (const p of pontos) {
+    if (p.tipo !== 'porta_isca') continue
+    const n = `${p.numero}`
+    const f = `${p.forma_iscagem ?? ''}-${p.numero}`
+    if (porForma.has(f)) return false
+    if (porNumero.has(n)) repete = true
+    porNumero.add(n)
+    porForma.add(f)
+  }
+  return repete
+}
+
+/**
+ * Ordem dos pontos (tipo e número). Quando externos e internos têm cada um a sua
+ * numeração, vêm primeiro todos os externos e depois todos os internos, como na
+ * ordem de serviço em papel, em vez de "01 externo, 01 interno, 02 externo…".
+ */
+export function ordenarPontos<T extends PontoNumerado>(lista: T[]): T[] {
+  const porForma = numeracaoPorForma(lista)
+  const forma = (p: T) =>
+    porForma && p.tipo === 'porta_isca' ? (ORDEM_FORMA[p.forma_iscagem ?? ''] ?? 3) : 0
+  return [...lista].sort(
+    (a, b) => a.tipo.localeCompare(b.tipo) || forma(a) - forma(b) || a.numero - b.numero,
+  )
+}
+
 // Captura na mecânica também é sinal de roedor.
 const COM_CONSUMO = new Set(['MC', 'CT', 'DT', 'CAP'])
 const NAO_VISITADO = new Set(['SA', 'NE'])

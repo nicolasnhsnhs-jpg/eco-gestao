@@ -11,7 +11,9 @@ import { Etiqueta } from '@/components/ui/Etiqueta'
 import { Modal } from '@/components/ui/Modal'
 import { ehCelular, formatarTelefone, linkWhatsapp } from '@/lib/documentos'
 import { mensagemDeErro } from '@/lib/erros'
+import { podeApagar } from '@/lib/papeis'
 
+import { usePerfil } from '../../auth/useAuth'
 import { useRemoverContato, useSalvarContato, type Contato } from '../api'
 import { contatoParaBanco, esquemaContato, type FormContato } from '../esquemas'
 import { Secao, Vazio } from './Secao'
@@ -20,6 +22,7 @@ type Props = { clienteId: string; contatos: Contato[]; podeEditar: boolean }
 
 /** Pessoas de contato dentro do cliente (ex.: gerente, responsável pela manutenção). */
 export function SecaoContatos({ clienteId, contatos, podeEditar }: Props) {
+  const apaga = podeApagar(usePerfil())
   const [editando, setEditando] = useState<Contato | null | undefined>(undefined)
   const remover = useRemoverContato(clienteId)
 
@@ -92,9 +95,11 @@ export function SecaoContatos({ clienteId, contatos, podeEditar }: Props) {
                 <BotaoIcone rotulo="Editar contato" onClick={() => setEditando(c)}>
                   <Pencil className="size-4" />
                 </BotaoIcone>
-                <BotaoIcone rotulo="Remover contato" onClick={() => void aoRemover(c)}>
-                  <Trash2 className="size-4" />
-                </BotaoIcone>
+                {apaga && (
+                  <BotaoIcone rotulo="Remover contato" onClick={() => void aoRemover(c)}>
+                    <Trash2 className="size-4" />
+                  </BotaoIcone>
+                )}
               </div>
             )}
           </li>

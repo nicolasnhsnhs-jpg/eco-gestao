@@ -201,6 +201,7 @@ export function OsFormPage() {
                   enderecoId={unidade || null}
                   tipoId={tipoId}
                   modelo={modelo.data}
+                  pragas={tipos.data?.find((t) => t.id === tipoId)?.formulario_os === 'pragas'}
                   propostaId={p?.id ?? null}
                   sugestao={
                     p
@@ -228,6 +229,7 @@ function FormAgendamento({
   enderecoId,
   tipoId,
   modelo,
+  pragas,
   propostaId,
   sugestao,
 }: {
@@ -236,6 +238,8 @@ function FormAgendamento({
   enderecoId: string | null
   tipoId: string
   modelo: Tables<'os_modelos'> | null
+  /** Controle de pragas: pode ser OS de implantação (o técnico cadastra os pontos). */
+  pragas: boolean
   /** Proposta aberta ao lado: fica gravada na OS. */
   propostaId: string | null
   /** Da proposta aprovada aberta ao lado: dia/horário combinados e o serviço. */
@@ -254,6 +258,7 @@ function FormAgendamento({
   const abertas = useOcorrenciasAbertas(clienteId, enderecoId, tipoId)
   const [ocorrencias, setOcorrencias] = useState<ItemOcorrencia[]>([])
   const [salvarComoPadrao, setSalvarComoPadrao] = useState(!modelo)
+  const [implantacao, setImplantacao] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
   async function enviar(e: React.FormEvent) {
@@ -282,6 +287,7 @@ function FormAgendamento({
         ocorrencias: ocorrencias.map((o) => o.texto),
         propostaId,
         salvarComoPadrao,
+        implantacao: pragas && implantacao,
       })
       navigate(`/os/${id}`)
     } catch (err) {
@@ -320,6 +326,25 @@ function FormAgendamento({
           </Aviso>
         )}
         {erro && <Aviso tipo="erro">{erro}</Aviso>}
+
+        {pragas && (
+          <label className="flex items-start gap-3 rounded-xl border border-borda p-3">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-5 shrink-0 accent-verde"
+              checked={implantacao}
+              onChange={(e) => setImplantacao(e.target.checked)}
+            />
+            <span>
+              <span className="font-semibold">OS de implantação</span>
+              <span className="block text-sm text-texto-suave">
+                O técnico cadastra em campo os porta-iscas e armadilhas que instalar (área, número,
+                forma de iscagem e tipo de isca). Eles vão para a O.S salva deste local: depois da
+                conferência, ela fica pronta para os próximos atendimentos.
+              </span>
+            </span>
+          </label>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <Campo rotulo="Data" htmlFor="os-data" obrigatorio>
@@ -402,9 +427,7 @@ function FormAgendamento({
 
         {(abertas.data?.length ?? 0) > 0 && (
           <Aviso tipo="info">
-            <p className="font-semibold">
-              Ocorrências em aberto deste local (vão junto nesta OS):
-            </p>
+            <p className="font-semibold">Ocorrências em aberto deste local (vão junto nesta OS):</p>
             <ul className="mt-1 list-disc pl-5">
               {abertas.data!.map((o) => (
                 <li key={o.id} className="whitespace-pre-line">

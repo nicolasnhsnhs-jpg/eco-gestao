@@ -8,20 +8,24 @@ import { Button } from '@/components/ui/Button'
 import { Campo, Input, Select, Textarea } from '@/components/ui/Campo'
 import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
-import { hojeISO } from '@/lib/datas'
+import { formatarData, hojeISO, mesDe } from '@/lib/datas'
 import { mensagemDeErro } from '@/lib/erros'
+import { podeApagar } from '@/lib/papeis'
 import { useValorAtrasado } from '@/lib/useValorAtrasado'
 
+import { usePerfil } from '../auth/useAuth'
 import {
   useAgendarRota,
   useCriarRota,
   useBuscaModelos,
+  useInformarEmissao,
   useOperadores,
   usePorNaRota,
   useRota,
   useRotas,
   useTirarDaRota,
   useTrocarOrdemRota,
+  useUltimasEmissoes,
   useVeiculos,
   type RotaCompleta,
 } from './api'
@@ -121,7 +125,9 @@ function Rota({ rota }: { rota: RotaCompleta }) {
     setDesmarcados(new Set(itens.map((i) => i.modelo!.id).filter((id) => !novos.has(id))))
   const [obs, setObs] = useState<Record<string, string>>({})
   const tirar = useTirarDaRota()
+  const perfil = usePerfil()
   const trocar = useTrocarOrdemRota()
+  const emissoes = useUltimasEmissoes(itens.map((i) => i.modelo!.id))
   const [erro, setErro] = useState<string | null>(null)
 
   const alternar = (modeloId: string, sim: boolean) =>
@@ -208,6 +214,11 @@ function Rota({ rota }: { rota: RotaCompleta }) {
                           {m.tipo?.nome}
                           {contagem.length > 0 && ` · ${contagem.join(' · ')}`}
                         </p>
+                        <UltimaEmissao
+                          modeloId={m.id}
+                          informada={m.ultima_emissao_informada}
+                          doSistema={emissoes.data?.get(m.id)}
+                        />
                       </div>
                       <div className="flex shrink-0 gap-1">
                         <Button
@@ -230,19 +241,21 @@ function Rota({ rota }: { rota: RotaCompleta }) {
                           <ArrowDown className="size-4" aria-hidden />
                           <span className="sr-only">Descer</span>
                         </Button>
-                        <Button
-                          variante="fantasma"
-                          className="min-h-9 px-2"
-                          title="Tirar da rota"
-                          disabled={tirar.isPending}
-                          onClick={() => {
-                            if (confirm(`Tirar ${nomeCliente(m.cliente)} desta rota?`))
-                              void acao(() => tirar.mutateAsync(item.id))
-                          }}
-                        >
-                          <Trash2 className="size-4" aria-hidden />
-                          <span className="sr-only">Tirar da rota</span>
-                        </Button>
+                        {podeApagar(perfil) && (
+                          <Button
+                            variante="fantasma"
+                            className="min-h-9 px-2"
+                            title="Tirar da rota"
+                            disabled={tirar.isPending}
+                            onClick={() => {
+                              if (confirm(`Tirar ${nomeCliente(m.cliente)} desta rota?`))
+                                void acao(() => tirar.mutateAsync(item.id))
+                            }}
+                          >
+                            <Trash2 className="size-4" aria-hidden />
+                            <span className="sr-only">Tirar da rota</span>
+                          </Button>
+                        )}
                       </div>
                     </div>
                     {marcado && (
@@ -274,6 +287,113 @@ function Rota({ rota }: { rota: RotaCompleta }) {
         />
       </div>
     </>
+  )
+}
+
+/** Dia (Brasília) de um carimbo de data e hora: "2026-11-24". */
+const diaDe = (carimbo: string) => hojeISO(new Date(carimbo))
+
+/**
+ * Última OS emitida para o cliente: sai sozinha das OS do sistema; o ADM pode
+ * informar à mão (OS feita por fora). Vale a mais recente das duas.
+ */
+function UltimaEmissao({
+  modeloId,
+  informada,
+  doSistema,
+}: {
+  modeloId: string
+  informada: string | null
+  doSistema?: { emitida: string; agendada: string; numero: string }
+}) {
+  const informar = useInformarEmissao()
+  const [editando, setEditando] = useState(false)
+  const [data, setData] = useState(informada ?? hojeISO())
+  const [erro, setErro] = useState<string | null>(null)
+
+  const sistema = doSistema ? diaDe(doSistema.emitida) : null
+  const vale =
+    informada && (!sistema || informada > sistema) ? 'informada' : sistema ? 'sistema' : null
+  const dia = vale === 'informada' ? informada : sistema
+  const desteMes = !!dia && mesDe(dia) === mesDe(hojeISO())
+
+  async function salvar(valor: string | null) {
+    setErro(null)
+    try {
+      await informar.mutateAsync({ modeloId, data: valor })
+      setEditando(false)
+    } catch (e) {
+      setErro(mensagemDeErro(e))
+    }
+  }
+
+  return (
+    <div className="mt-1 flex flex-col gap-1 text-sm">
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className={desteMes ? 'font-semibold text-verde-escuro' : 'text-texto-suave'}>
+          Última emissão:{' '}
+          {dia ? (
+            <>
+              {formatarData(dia)}
+              {vale === 'sistema' && doSistema
+                ? ` (${doSistema.numero}, para ${formatarData(doSistema.agendada)})`
+                : ' (informada à mão)'}
+            </>
+          ) : (
+            'nenhuma'
+          )}
+        </span>
+        {desteMes && (
+          <span className="rounded-md bg-lima-claro px-1.5 text-xs font-semibold text-verde-escuro">
+            este mês
+          </span>
+        )}
+        {!editando && (
+          <button
+            type="button"
+            className="font-semibold text-verde hover:underline"
+            onClick={() => {
+              setData(informada ?? hojeISO())
+              setEditando(true)
+            }}
+          >
+            Informar data
+          </button>
+        )}
+      </p>
+      {editando && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            type="date"
+            aria-label="Data da última emissão"
+            className="w-auto"
+            value={data}
+            onChange={(e) => setData(e.target.value)}
+          />
+          <Button
+            className="min-h-9"
+            disabled={!data || informar.isPending}
+            onClick={() => void salvar(data)}
+          >
+            Salvar
+          </Button>
+          {informada && (
+            <Button
+              variante="fantasma"
+              className="min-h-9"
+              disabled={informar.isPending}
+              onClick={() => void salvar(null)}
+            >
+              Apagar a informada
+            </Button>
+          )}
+          <Button variante="fantasma" className="min-h-9" onClick={() => setEditando(false)}>
+            Cancelar
+          </Button>
+        </div>
+      )}
+      {erro && <Aviso tipo="erro">{erro}</Aviso>}
+    </div>
   )
 }
 

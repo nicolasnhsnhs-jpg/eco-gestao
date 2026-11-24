@@ -13,6 +13,7 @@ import { Etiqueta } from '@/components/ui/Etiqueta'
 import { formatarData, hojeISO } from '@/lib/datas'
 import { formatarTelefone } from '@/lib/documentos'
 import { mensagemDeErro } from '@/lib/erros'
+import { linkRotaMapa } from '@/lib/mapa'
 import { cn } from '@/lib/utils'
 
 import { useArquivos } from '../../arquivos/api'
@@ -393,7 +394,7 @@ function Execucao({ os }: { os: OsCompleta }) {
         {ficha.unidade && (
           <a
             className="flex min-h-11 items-center gap-2 text-verde underline"
-            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoDaFicha(ficha))}`}
+            href={linkRotaMapa(ficha.unidade)}
             target="_blank"
             rel="noreferrer"
           >

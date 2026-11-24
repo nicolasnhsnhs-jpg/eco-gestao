@@ -3204,6 +3204,7 @@ export type Database = {
           ficha_cliente: Json
           hora_agendada: string | null
           id: string
+          implantacao: boolean
           modelo_id: string | null
           motivo_cancelamento: string | null
           motivo_reabertura: string | null
@@ -3236,6 +3237,7 @@ export type Database = {
           ficha_cliente?: Json
           hora_agendada?: string | null
           id?: string
+          implantacao?: boolean
           modelo_id?: string | null
           motivo_cancelamento?: string | null
           motivo_reabertura?: string | null
@@ -3268,6 +3270,7 @@ export type Database = {
           ficha_cliente?: Json
           hora_agendada?: string | null
           id?: string
+          implantacao?: boolean
           modelo_id?: string | null
           motivo_cancelamento?: string | null
           motivo_reabertura?: string | null
@@ -3741,6 +3744,7 @@ export type Database = {
           observacoes_adm_padrao: string | null
           operadores_padrao: string[]
           tipo_servico_id: string
+          ultima_emissao_informada: string | null
           veiculo_padrao_id: string | null
         }
         Insert: {
@@ -3758,6 +3762,7 @@ export type Database = {
           observacoes_adm_padrao?: string | null
           operadores_padrao?: string[]
           tipo_servico_id: string
+          ultima_emissao_informada?: string | null
           veiculo_padrao_id?: string | null
         }
         Update: {
@@ -3775,6 +3780,7 @@ export type Database = {
           observacoes_adm_padrao?: string | null
           operadores_padrao?: string[]
           tipo_servico_id?: string
+          ultima_emissao_informada?: string | null
           veiculo_padrao_id?: string | null
         }
         Relationships: [
@@ -4273,6 +4279,7 @@ export type Database = {
       }
       perfis: {
         Row: {
+          adm_principal: boolean
           aguardando_aprovacao: boolean
           atende_whatsapp: boolean
           ativo: boolean
@@ -4289,6 +4296,7 @@ export type Database = {
           telefone: string | null
         }
         Insert: {
+          adm_principal?: boolean
           aguardando_aprovacao?: boolean
           atende_whatsapp?: boolean
           ativo?: boolean
@@ -4305,6 +4313,7 @@ export type Database = {
           telefone?: string | null
         }
         Update: {
+          adm_principal?: boolean
           aguardando_aprovacao?: boolean
           atende_whatsapp?: boolean
           ativo?: boolean
@@ -6463,6 +6472,14 @@ export type Database = {
           veiculo?: string
         }
         Returns: string
+      }
+      implantacao_adicionar_pontos: {
+        Args: { os: string; pontos: Json }
+        Returns: number
+      }
+      implantacao_remover_ponto: {
+        Args: { os: string; ponto: string }
+        Returns: undefined
       }
       iniciar_os: { Args: { os: string }; Returns: undefined }
       lembretes_agenda: {

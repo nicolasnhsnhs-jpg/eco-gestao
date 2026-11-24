@@ -8,7 +8,7 @@ import { Carregando } from '@/components/ui/Carregando'
 import { ACCEPT, formatarTamanho } from '@/lib/arquivos'
 import { formatarDataHora } from '@/lib/datas'
 import { mensagemDeErro } from '@/lib/erros'
-import { PAPEIS_GESTAO } from '@/lib/papeis'
+import { PAPEIS_GESTAO, podeApagar as podeApagarAlgo } from '@/lib/papeis'
 
 import { usePerfil } from '../auth/useAuth'
 import { useEquipe } from '../clientes/api'
@@ -107,7 +107,9 @@ export function ListaArquivos({
 
   // Lista só de leitura (ex.: OS concluída) também não deixa apagar.
   const podeApagar = (a: Arquivo) =>
-    podeApagarLista && (a.enviado_por === perfil.id || PAPEIS_GESTAO.includes(perfil.papel))
+    podeApagarLista &&
+    podeApagarAlgo(perfil) &&
+    (a.enviado_por === perfil.id || PAPEIS_GESTAO.includes(perfil.papel))
   const nomeDe = (id: string) => equipe.data?.find((p) => p.id === id)?.nome ?? ''
 
   return (

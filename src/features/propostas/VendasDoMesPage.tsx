@@ -12,11 +12,13 @@ import { PAPEIS_GESTAO } from '@/lib/papeis'
 
 import { usePerfil } from '../auth/useAuth'
 import { equipeComercial, useEquipe } from '../clientes/api'
-import { horaCurta, useVendasDoMes } from './api'
+import { horaCurta, useVendasDoMes, useVendasSemAgendamento } from './api'
 
 /**
- * Tabela de vendas do mês: as propostas aprovadas no mês, com o dia agendado e o
- * valor total. O vendedor vê as dele; a gestão escolhe o vendedor (ou todos).
+ * Tabela de vendas do mês: as propostas aprovadas com o serviço agendado no mês
+ * (vale a data de agendamento, não a da aprovação) e o valor total. As aprovadas
+ * sem agendamento ficam à parte e não contam até ganharem o dia. O vendedor vê as
+ * dele; a gestão escolhe o vendedor (ou todos).
  */
 export function VendasDoMesPage() {
   const perfil = usePerfil()
@@ -27,6 +29,7 @@ export function VendasDoMesPage() {
   // Gestão: todos por padrão; vendedor: sempre ele mesmo.
   const escolhido = gestao ? parametros.get('vendedor') || '' : perfil.id
   const vendas = useVendasDoMes(mes, escolhido || undefined)
+  const semAgendamento = useVendasSemAgendamento(escolhido || undefined)
   const equipe = useEquipe()
   const vendedores = equipeComercial(equipe.data)
 
@@ -39,7 +42,7 @@ export function VendasDoMesPage() {
 
   const lista = vendas.data ?? []
   const total = lista.reduce((s, p) => s + Number(p.valor_total), 0)
-  const agendadas = lista.filter((p) => p.execucao_data).length
+  const pendentes = semAgendamento.data ?? []
 
   // Resumo por vendedor quando a gestão olha todos.
   const porVendedor = new Map<string, { nome: string; qtd: number; valor: number }>()
@@ -100,9 +103,15 @@ export function VendasDoMesPage() {
 
       {vendas.isSuccess && (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <Numero rotulo={`Vendido em ${formatarMes(`${mes}-01`)}`} valor={formatarReais(total)} />
-          <Numero rotulo="Propostas aprovadas" valor={String(lista.length)} />
-          <Numero rotulo="Já agendadas" valor={`${agendadas} de ${lista.length}`} />
+          <Numero
+            rotulo={`Vendas de ${formatarMes(`${mes}-01`)} (pela data agendada)`}
+            valor={formatarReais(total)}
+          />
+          <Numero rotulo="Propostas agendadas no mês" valor={String(lista.length)} />
+          <Numero
+            rotulo="Aprovadas sem agendamento (não contam)"
+            valor={semAgendamento.isSuccess ? String(pendentes.length) : '…'}
+          />
         </div>
       )}
 
@@ -141,7 +150,7 @@ export function VendasDoMesPage() {
 
       {vendas.isSuccess && lista.length === 0 && (
         <Card className="py-10 text-center text-texto-suave">
-          Nenhuma proposta aprovada neste mês.
+          Nenhuma proposta aprovada com serviço agendado neste mês.
         </Card>
       )}
 
@@ -150,18 +159,21 @@ export function VendasDoMesPage() {
           <table className="w-full min-w-[640px] text-sm">
             <thead className="bg-fundo-suave text-left text-texto-suave">
               <tr>
-                <th className="px-4 py-2 font-semibold">Aprovada</th>
+                <th className="px-4 py-2 font-semibold">Agendada</th>
                 <th className="px-4 py-2 font-semibold">Proposta</th>
                 <th className="px-4 py-2 font-semibold">Cliente</th>
                 {!escolhido && <th className="px-4 py-2 font-semibold">Vendedor</th>}
-                <th className="px-4 py-2 font-semibold">Execução</th>
+                <th className="px-4 py-2 font-semibold">Aprovada</th>
                 <th className="px-4 py-2 text-right font-semibold">Valor</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-borda">
               {lista.map((p) => (
                 <tr key={p.id} className="hover:bg-fundo-suave">
-                  <td className="px-4 py-2 whitespace-nowrap">{formatarData(p.data_resposta)}</td>
+                  <td className="px-4 py-2 whitespace-nowrap">
+                    {formatarData(p.execucao_data)}
+                    {p.execucao_hora ? ` ${horaCurta(p.execucao_hora)}` : ''}
+                  </td>
                   <td className="px-4 py-2 whitespace-nowrap">
                     <Link to={`/propostas/${p.id}`} className="font-semibold text-verde underline">
                       {p.numero}
@@ -169,13 +181,7 @@ export function VendasDoMesPage() {
                   </td>
                   <td className="px-4 py-2">{p.cliente?.nome_fantasia || p.cliente?.nome}</td>
                   {!escolhido && <td className="px-4 py-2">{p.vendedor?.nome}</td>}
-                  <td className="px-4 py-2 whitespace-nowrap">
-                    {p.execucao_data ? (
-                      `${formatarData(p.execucao_data)}${p.execucao_hora ? ` ${horaCurta(p.execucao_hora)}` : ''}`
-                    ) : (
-                      <span className="font-semibold text-alerta">Sem agendamento</span>
-                    )}
-                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap">{formatarData(p.data_resposta)}</td>
                   <td className="px-4 py-2 text-right whitespace-nowrap">
                     {formatarReais(p.valor_total)}
                   </td>
@@ -191,6 +197,36 @@ export function VendasDoMesPage() {
               </tr>
             </tfoot>
           </table>
+        </Card>
+      )}
+
+      {pendentes.length > 0 && (
+        <Card className="flex flex-col gap-2">
+          <h2 className="font-bold">
+            Aprovadas sem agendamento{' '}
+            <span className="font-normal text-texto-suave">
+              · ainda não contam em mês nenhum; entram no mês do dia agendado
+            </span>
+          </h2>
+          <ul className="divide-y divide-borda text-sm">
+            {pendentes.map((p) => (
+              <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
+                <Link to={`/propostas/${p.id}`} className="font-semibold text-verde underline">
+                  {p.numero}
+                </Link>
+                <span className="min-w-0 flex-1">
+                  {p.cliente?.nome_fantasia || p.cliente?.nome}
+                  {!escolhido && p.vendedor?.nome && (
+                    <span className="text-texto-suave"> · {p.vendedor.nome}</span>
+                  )}
+                </span>
+                <span className="text-texto-suave">aprovada {formatarData(p.data_resposta)}</span>
+                <span className="font-semibold whitespace-nowrap">
+                  {formatarReais(p.valor_total)}
+                </span>
+              </li>
+            ))}
+          </ul>
         </Card>
       )}
     </div>

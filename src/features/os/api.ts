@@ -109,7 +109,7 @@ export function useOrdensServico(filtro: FiltroOs) {
       let consulta = supabase
         .from('ordens_servico')
         .select(
-          `id, numero, status, data_agendada, hora_agendada, concluida_em, ficha_cliente, cliente_id, treinamento, observacoes_adm, ${RELACOES},
+          `id, numero, status, data_agendada, hora_agendada, concluida_em, ficha_cliente, cliente_id, treinamento, implantacao, observacoes_adm, ${RELACOES},
           conferencia:os_conferencia(certificado, cronograma, liberada_financeiro_em, taxa_faturada),
           modelo:os_modelos(categoria),
           ocorrencias:os_ocorrencias(ocorrencia:ocorrencias(id, texto, criado_em, os_origem_id, sanada_em))`,
@@ -277,6 +277,8 @@ export type DadosAgendamento = {
   propostaId?: string | null
   /** Gravar operadores, veículo e observações como padrão das próximas visitas. */
   salvarComoPadrao: boolean
+  /** OS de implantação: o técnico cadastra em campo os pontos da O.S salva. */
+  implantacao?: boolean
 }
 
 /** Cria (ou atualiza) o modelo do cliente/unidade/tipo e gera a OS a partir dele. */
@@ -333,10 +335,13 @@ export function useAgendarOs() {
         observacoes_adm: d.observacoesAdm || undefined,
       })
       if (error) throw error
-      if (d.propostaId) {
+      if (d.propostaId || d.implantacao) {
         const r = await supabase
           .from('ordens_servico')
-          .update({ proposta_id: d.propostaId })
+          .update({
+            ...(d.propostaId ? { proposta_id: d.propostaId } : {}),
+            ...(d.implantacao ? { implantacao: true } : {}),
+          })
           .eq('id', osId)
         if (r.error) throw r.error
       }
@@ -964,7 +969,7 @@ export function useRota(id: string) {
         .select(
           `id, nome, observacoes, ativo,
            itens:os_rota_modelos(id, ordem, modelo:os_modelos(id, ativo, descricao, categoria,
-             operadores_padrao, veiculo_padrao_id, observacoes_adm_padrao, ${RELACOES_MODELO},
+             operadores_padrao, veiculo_padrao_id, observacoes_adm_padrao, ultima_emissao_informada, ${RELACOES_MODELO},
              pontos:pontos_controle(tipo, ativo)))`,
         )
         .eq('id', id)
@@ -977,6 +982,53 @@ export function useRota(id: string) {
 }
 
 export type RotaCompleta = NonNullable<ReturnType<typeof useRota>['data']>
+
+/**
+ * Última OS emitida de cada O.S salva da rota (a mais recente pela criação; as
+ * canceladas não contam), para o ADM ver quem já recebeu a OS no mês.
+ */
+export function useUltimasEmissoes(modeloIds: string[]) {
+  return useQuery({
+    queryKey: ['os', 'ultimas-emissoes', [...modeloIds].sort()],
+    enabled: modeloIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ordens_servico')
+        .select('modelo_id, criado_em, data_agendada, numero')
+        .in('modelo_id', modeloIds)
+        .neq('status', 'cancelada')
+        .eq('treinamento', false)
+        .order('criado_em', { ascending: false })
+        .limit(2000)
+      if (error) throw error
+      const ultima = new Map<string, { emitida: string; agendada: string; numero: string }>()
+      for (const o of data) {
+        if (o.modelo_id && !ultima.has(o.modelo_id))
+          ultima.set(o.modelo_id, {
+            emitida: o.criado_em,
+            agendada: o.data_agendada,
+            numero: o.numero,
+          })
+      }
+      return ultima
+    },
+  })
+}
+
+/** O ADM informa à mão a última emissão (OS feita fora do sistema); null apaga. */
+export function useInformarEmissao() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ modeloId, data }: { modeloId: string; data: string | null }) => {
+      const { error } = await supabase
+        .from('os_modelos')
+        .update({ ultima_emissao_informada: data })
+        .eq('id', modeloId)
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['os'] }),
+  })
+}
 
 export function useCriarRota() {
   const queryClient = useQueryClient()

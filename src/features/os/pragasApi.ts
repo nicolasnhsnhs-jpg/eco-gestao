@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 
 import { enfileirar } from './offline/fila'
 
-import type { EscopoPragas } from './tipos/pragas'
+import { ordenarPontos, type EscopoPragas } from './tipos/pragas'
 
 /*
  * Dados do controle de pragas. Pontos do modelo: só o escritório. Pontos, produtos
@@ -17,8 +17,6 @@ export type PontoOs = Tables<'os_pontos'>
 export type ProdutoOs = Tables<'os_produtos'>
 export type InsetoOs = Tables<'os_insetos'>
 
-const ordenarPontos = <T extends { tipo: string; numero: number }>(lista: T[]) =>
-  [...lista].sort((a, b) => a.tipo.localeCompare(b.tipo) || a.numero - b.numero)
 
 // -----------------------------------------------------------------------------
 // Escritório: pontos do modelo e escopo
@@ -117,6 +115,49 @@ export function useSalvarEscopo(osId: string | undefined, modeloId: string | nul
     },
     onSuccess: atualizar,
   })
+}
+
+// -----------------------------------------------------------------------------
+// OS de implantação: o técnico cadastra os pontos da O.S salva em campo
+// -----------------------------------------------------------------------------
+
+export type PontoImplantacao = {
+  tipo: 'porta_isca' | 'armadilha_luminosa' | 'feromonio' | 'armadilha_moscas'
+  numero: number
+  area: string
+  forma_iscagem?: string | null
+  tipo_isca?: string | null
+  modelo_armadilha?: string | null
+}
+
+/** Precisa de sinal: grava direto na O.S salva e na OS (não entra na fila offline). */
+export function useImplantacao(osId: string) {
+  const atualizar = useAtualizarTudo()
+  const adicionar = useMutation({
+    mutationFn: async (pontos: PontoImplantacao[]) => {
+      const { error } = await supabase.rpc('implantacao_adicionar_pontos', {
+        os: osId,
+        pontos: pontos as unknown as Json,
+      })
+      if (error) {
+        throw /numero_por_area|duplicate key/.test(error.message)
+          ? new Error('Algum desses números já existe nesta área. Use outros números.')
+          : error
+      }
+    },
+    onSuccess: atualizar,
+  })
+  const remover = useMutation({
+    mutationFn: async (pontoId: string) => {
+      const { error } = await supabase.rpc('implantacao_remover_ponto', {
+        os: osId,
+        ponto: pontoId,
+      })
+      if (error) throw error
+    },
+    onSuccess: atualizar,
+  })
+  return { adicionar, remover }
 }
 
 // -----------------------------------------------------------------------------

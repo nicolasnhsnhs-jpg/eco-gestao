@@ -278,6 +278,21 @@ export function useAlterarAtendeWhatsapp() {
   })
 }
 
+/** Marca (ou tira) o ADM principal: o ADM que pode apagar, cancelar, reabrir e ver valores. */
+export function useAlterarAdmPrincipal() {
+  const atualizar = useAtualizarListas()
+  return useMutation({
+    mutationFn: async ({ usuarioId, principal }: { usuarioId: string; principal: boolean }) => {
+      const { error } = await supabase
+        .from('perfis')
+        .update({ adm_principal: principal })
+        .eq('id', usuarioId)
+      if (error) throw error
+    },
+    onSuccess: atualizar,
+  })
+}
+
 export function useTransferirCarteira() {
   const atualizar = useAtualizarListas()
   return useMutation({

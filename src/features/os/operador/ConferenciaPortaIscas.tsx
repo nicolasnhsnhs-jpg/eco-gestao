@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
 
 import type { PontoOs } from '../pragasApi'
-import { situacaoPadrao } from '../tipos/pragas'
+import { ordenarPontos, situacaoPadrao } from '../tipos/pragas'
 
 /*
  * Lista de conferência dos porta-iscas: o técnico abre, vê todos por setor, com
@@ -35,7 +35,7 @@ function gravarConferidos(osId: string, ids: Set<string>) {
 /** Setores na ordem dos números (o primeiro porta-isca de cada setor manda). */
 function agruparPorSetor(pontos: PontoOs[]) {
   const grupos = new Map<string, PontoOs[]>()
-  for (const p of [...pontos].sort((a, b) => a.numero - b.numero)) {
+  for (const p of ordenarPontos(pontos)) {
     grupos.set(p.area, [...(grupos.get(p.area) ?? []), p])
   }
   return [...grupos]

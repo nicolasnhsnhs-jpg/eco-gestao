@@ -28,12 +28,15 @@ import {
   DILUENTES,
   escreverFaixas,
   ESPECIES,
+  FORMAS_ISCAGEM,
   FORMAS_PRODUTO,
   HIGIENE,
   lerFaixas,
   nomeModeloArmadilha,
+  numeracaoPorForma,
   NIVEIS,
   OCORRENCIAS,
+  ordenarPontos,
   PRAGAS_ALVO,
   PRAGAS_INSETOS,
   PROCEDIMENTOS,
@@ -52,6 +55,7 @@ import {
 import { capturasCompletas } from '../offline/pendencias'
 import { MarcarProdutosProgramados } from '../ProdutosProgramados'
 import type { ChecklistProgramas } from '../tipos/programas'
+import { CadastroImplantacao } from './CadastroImplantacao'
 import { ConferenciaPortaIscas } from './ConferenciaPortaIscas'
 
 type Props = {
@@ -85,13 +89,17 @@ export function ExecucaoPragas({ os, campos, alterar, aberta, primeira }: Props)
       <Etapa numero={primeira} titulo="Porta-iscas">
         {pontos.isPending && <Carregando />}
         {pontos.isError && <Aviso tipo="erro">{mensagemDeErro(pontos.error)}</Aviso>}
+        {os.implantacao && pontos.isSuccess && (
+          <CadastroImplantacao osId={os.id} pontos={pontos.data} aberta={aberta} />
+        )}
         {portaIscas.length > 0 ? (
           <>
+            <ObservacoesFixas pontos={portaIscas} />
             <ConferenciaPortaIscas osId={os.id} pontos={portaIscas} aberta={aberta} />
             <ExcecoesPortaIscas osId={os.id} pontos={portaIscas} aberta={aberta} />
           </>
         ) : (
-          <p className="text-texto-suave">Nenhum porta-isca neste local.</p>
+          !os.implantacao && <p className="text-texto-suave">Nenhum porta-isca neste local.</p>
         )}
 
         <fieldset className="flex flex-wrap gap-x-4">
@@ -177,6 +185,7 @@ export function ExecucaoPragas({ os, campos, alterar, aberta, primeira }: Props)
 
       {armadilhas.length > 0 && (
         <Etapa numero={primeira + 2} titulo="Armadilhas luminosas">
+          <ObservacoesFixas pontos={armadilhas} />
           {armadilhas.map((a) => (
             <Armadilha key={a.id} osId={os.id} ponto={a} aberta={aberta} />
           ))}
@@ -233,7 +242,7 @@ export function ExecucaoPragas({ os, campos, alterar, aberta, primeira }: Props)
             <BotoesCodigo
               opcoes={{
                 sim: 'Realizado monitoramento programado nas áreas',
-                nao: 'Não realizado controle de insetos',
+                nao: 'Realizado monitoramento, sem necessidade de aplicação',
               }}
               valor={
                 checklist.monitoramento_insetos == null
@@ -375,6 +384,30 @@ export function ExecucaoPragas({ os, campos, alterar, aberta, primeira }: Props)
 }
 
 /**
+ * Observações fixas do escritório (ex.: "retirada pelo cliente em 10/11", "em
+ * manutenção pelo cliente"), juntas no alto da etapa para o técnico não passar batido.
+ */
+function ObservacoesFixas({ pontos }: { pontos: PontoOs[] }) {
+  const com = pontos.filter((p) => p.observacao_fixa?.trim())
+  if (com.length === 0) return null
+  return (
+    <div className="rounded-xl border border-alerta/40 bg-amber-50 p-3 text-alerta">
+      <p className="font-bold">Observações do escritório</p>
+      <ul className="mt-1 flex flex-col gap-1">
+        {com.map((p) => (
+          <li key={p.id}>
+            <strong>
+              Nº {String(p.numero).padStart(2, '0')} · {p.area}:
+            </strong>{' '}
+            {p.observacao_fixa}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/**
  * Exceções por número: todos começam MS (placa: M). Para cada código o operador
  * digita só os números ("12, 15, 40-45"); o resto continua no padrão.
  */
@@ -391,19 +424,26 @@ function ExcecoesPortaIscas({
   const contagem = new Map<string, number>()
   for (const p of todos) contagem.set(p.situacao ?? '—', (contagem.get(p.situacao ?? '—') ?? 0) + 1)
 
-  // Cliente que recomeça a numeração em cada área (Cozinha 1-5, Saguão 1-10):
-  // o técnico escolhe a área e digita os números dela.
-  const areas = [...new Set(todos.map((p) => p.area))]
+  // Cliente que recomeça a numeração: o técnico escolhe o grupo e digita os
+  // números dele. Externos e internos numerados cada um a partir do 01 (Neovia):
+  // o grupo é a forma de iscagem. Numeração que recomeça em cada área (Cozinha 1-5,
+  // Saguão 1-10): o grupo é a área.
+  const porForma = numeracaoPorForma(todos)
+  const grupoDe = (p: PontoOs) =>
+    porForma ? (FORMAS_ISCAGEM[p.forma_iscagem as keyof typeof FORMAS_ISCAGEM] ?? 'Outros') : p.area
+  const grupos = [...new Set(ordenarPontos(todos).map(grupoDe))]
   const vistos = new Set<string>()
-  const repete = todos.some((p) => {
-    const chave = `${p.tipo_isca === 'CO'}-${p.numero}`
-    if (vistos.has(chave)) return true
-    vistos.add(chave)
-    return false
-  })
+  const repete =
+    porForma ||
+    todos.some((p) => {
+      const chave = `${p.tipo_isca === 'CO'}-${p.numero}`
+      if (vistos.has(chave)) return true
+      vistos.add(chave)
+      return false
+    })
   const [areaEscolhida, setAreaEscolhida] = useState('')
-  const area = repete ? areaEscolhida || areas[0] : ''
-  const pontos = area ? todos.filter((p) => p.area === area) : todos
+  const area = repete ? (grupos.includes(areaEscolhida) ? areaEscolhida : grupos[0]) : ''
+  const pontos = area ? todos.filter((p) => grupoDe(p) === area) : todos
   const temPlaca = pontos.some((p) => p.tipo_isca === 'CO')
   const temIsca = pontos.some((p) => p.tipo_isca !== 'CO')
 
@@ -416,12 +456,14 @@ function ExcecoesPortaIscas({
       {repete && (
         <label className="flex flex-col gap-1">
           <span className="font-semibold">
-            Área (a numeração recomeça em cada área: escolha a área e digite os números dela)
+            {porForma
+              ? 'Externos ou internos (cada um tem a sua numeração: escolha e digite os números dele)'
+              : 'Área (a numeração recomeça em cada área: escolha a área e digite os números dela)'}
           </span>
           <Select value={area} onChange={(e) => setAreaEscolhida(e.target.value)}>
-            {areas.map((a) => (
+            {grupos.map((a) => (
               <option key={a} value={a}>
-                {a} ({todos.filter((p) => p.area === a).length})
+                {a} ({todos.filter((p) => grupoDe(p) === a).length})
               </option>
             ))}
           </Select>
@@ -652,8 +694,8 @@ function Armadilha({ osId, ponto, aberta }: { osId: string; ponto: PontoOs; aber
         {ponto.ultima_troca_lampada ? formatarData(ponto.ultima_troca_lampada) : 'sem registro'}
       </p>
       {ponto.observacao_fixa && (
-        <p className="-mt-2 rounded-lg bg-fundo-suave px-2 py-1 text-sm">
-          <strong>Obs.:</strong> {ponto.observacao_fixa}
+        <p className="rounded-lg border border-alerta/40 bg-amber-50 px-3 py-2 text-alerta">
+          <strong>Obs. do escritório:</strong> {ponto.observacao_fixa}
         </p>
       )}
       {anotar.isError && <Aviso tipo="erro">{mensagemDeErro(anotar.error)}</Aviso>}

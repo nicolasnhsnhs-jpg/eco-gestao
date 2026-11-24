@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 
 import { definirGuardarNoCelular, estaOnline, limparGuardado, sessaoGuardada } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
+import { definirOcultarValores } from '@/lib/dinheiro'
+import { admNormal } from '@/lib/papeis'
 
 import { AuthContext, type Auth } from './contexto'
 
@@ -60,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Só o celular do operador guarda dados para trabalhar sem internet.
   definirGuardarNoCelular(perfil.data?.papel === 'operador')
+  definirOcultarValores(!!perfil.data && admNormal(perfil.data))
 
   const valor: Auth = {
     sessao,

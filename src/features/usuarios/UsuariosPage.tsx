@@ -32,6 +32,7 @@ import {
   useAlterarTelefone,
   useReenviarAcesso,
   useAlterarAtendeWhatsapp,
+  useAlterarAdmPrincipal,
   useAlterarPapel,
   useAlternarAtivo,
   useClientesPorVendedor,
@@ -64,6 +65,7 @@ export function UsuariosPage() {
   const alterarTelefone = useAlterarTelefone()
   const alterarComissao = useAlterarComissao()
   const alterarAtende = useAlterarAtendeWhatsapp()
+  const alterarAdmPrincipal = useAlterarAdmPrincipal()
   const alternarAtivo = useAlternarAtivo()
   const definirSenha = useDefinirSenha()
   const alterarEmail = useAlterarEmail()
@@ -271,6 +273,29 @@ export function UsuariosPage() {
                       />
                       Atende WhatsApp
                       {u.papel === 'admin' && ' (o administrador sempre atende)'}
+                    </label>
+                  )}
+                  {u.papel === 'administrativo' && (
+                    <label className="mt-1 flex min-h-9 items-center gap-2 text-sm text-texto-suave">
+                      <input
+                        type="checkbox"
+                        className="size-4 accent-verde"
+                        checked={u.adm_principal}
+                        disabled={!u.ativo || alterarAdmPrincipal.isPending}
+                        onChange={(e) => {
+                          const principal = e.target.checked
+                          void executar(
+                            () => alterarAdmPrincipal.mutateAsync({ usuarioId: u.id, principal }),
+                            principal
+                              ? `${u.nome} agora é ADM principal (apaga, cancela e vê valores).`
+                              : `${u.nome} agora é ADM normal (não apaga nem vê valores).`,
+                          )
+                        }}
+                      />
+                      ADM principal
+                      <span className="text-xs">
+                        (apaga, cancela, reabre e vê valores; o ADM normal só consulta)
+                      </span>
                     </label>
                   )}
                 </div>

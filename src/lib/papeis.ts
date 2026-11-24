@@ -87,3 +87,19 @@ export const DOMINIO_OPERADOR = UNIDADE.dominioOperador
 export function veValorDeContrato(papel: Papel): boolean {
   return papel !== 'administrativo'
 }
+
+/** O que o perfil precisa ter para as regras de ADM principal x ADM normal. */
+type PerfilAdm = { papel: Papel; adm_principal?: boolean | null }
+
+/**
+ * ADM normal (administrativo que não é o ADM principal): trabalha normalmente, mas
+ * não apaga, cancela, reabre nem desativa nada, e não vê valores. O banco também
+ * barra (perfis.adm_principal, migração 20270128120300).
+ */
+export const admNormal = (p: PerfilAdm) => p.papel === 'administrativo' && !p.adm_principal
+
+/** Pode apagar, cancelar, reabrir e desativar (todos, menos o ADM normal). */
+export const podeApagar = (p: PerfilAdm) => !admNormal(p)
+
+/** Vê valores (propostas, contratos, serviços, conferência): todos, menos o ADM normal. */
+export const veValores = (p: PerfilAdm) => !admNormal(p)

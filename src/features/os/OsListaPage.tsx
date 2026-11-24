@@ -287,6 +287,7 @@ export function CartaoOs({ os, para }: { os: OsResumo; para: string }) {
         </span>
         <Etiqueta cor={COR_STATUS_OS[os.status]}>{NOME_STATUS_OS[os.status]}</Etiqueta>
         {os.treinamento && <Etiqueta cor="perigo">Teste (treinamento)</Etiqueta>}
+        {os.implantacao && <Etiqueta cor="verde">Implantação</Etiqueta>}
         <EtiquetasConferencia os={os} />
         <span className="ml-auto text-sm text-texto-suave">{os.numero}</span>
       </div>

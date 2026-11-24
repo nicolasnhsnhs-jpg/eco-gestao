@@ -6,8 +6,18 @@
 
 const formatoReais = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
+/**
+ * ADM normal não vê valores (perfis.adm_principal): o login liga isto e os valores
+ * mostrados na tela saem como "R$ •••".
+ */
+let ocultarValores = false
+export function definirOcultarValores(ocultar: boolean) {
+  ocultarValores = ocultar
+}
+
 /** 1234.5 → "R$ 1.234,50" */
 export function formatarReais(valor: number | string | null | undefined): string {
+  if (ocultarValores) return 'R$ •••'
   // O Intl separa "R$" do número com um espaço especial (não separável); trocamos por um comum.
   return formatoReais.format(Number(valor ?? 0)).replace(/\s/g, ' ')
 }

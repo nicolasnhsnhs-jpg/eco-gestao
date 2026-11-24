@@ -5,7 +5,7 @@ import { Navigate, useLocation } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
-import type { Papel } from '@/lib/papeis'
+import { veValores, type Papel } from '@/lib/papeis'
 
 import { useAuth } from './useAuth'
 
@@ -60,6 +60,23 @@ export function ExigePapel({
         <ShieldOff className="mx-auto mb-3 size-10 text-texto-suave" aria-hidden />
         <h1 className="text-lg font-bold">Sem acesso</h1>
         <p className="mt-2 text-texto-suave">O seu perfil não tem acesso a esta área.</p>
+      </Card>
+    )
+  }
+  return children
+}
+
+/** Telas que editam valores: o ADM normal (que não vê valores) não entra. */
+export function ExigeVerValores({ children }: { children: ReactNode }) {
+  const { perfil } = useAuth()
+  if (!perfil || !veValores(perfil)) {
+    return (
+      <Card className="py-12 text-center">
+        <ShieldOff className="mx-auto mb-3 size-10 text-texto-suave" aria-hidden />
+        <h1 className="text-lg font-bold">Sem acesso</h1>
+        <p className="mt-2 text-texto-suave">
+          Esta tela mostra valores: só o ADM principal, a gestão e o vendedor acessam.
+        </p>
       </Card>
     )
   }
