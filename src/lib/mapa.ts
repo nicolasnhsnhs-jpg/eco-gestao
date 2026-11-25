@@ -35,6 +35,16 @@ export function enderecoParaMapa(e: EnderecoMapa) {
 export const linkRotaMapa = (e: EnderecoMapa) =>
   `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(enderecoParaMapa(e))}`
 
+/**
+ * Toque no endereço da O.S: abre o GPS que o técnico usa. No Android, o link "geo:"
+ * abre o app de mapas padrão dele (ou pergunta: Maps, Waze…); no iPhone e no
+ * computador, a rota do Google Maps (abre o app, se tiver).
+ */
+export function linkGps(e: EnderecoMapa, agente = globalThis.navigator?.userAgent ?? '') {
+  if (/android/i.test(agente)) return `geo:0,0?q=${encodeURIComponent(enderecoParaMapa(e))}`
+  return linkRotaMapa(e)
+}
+
 /** Abre o Maps mostrando o endereço. */
 export const linkMapa = (e: EnderecoMapa) =>
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoParaMapa(e))}`

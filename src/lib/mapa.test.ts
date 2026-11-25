@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { enderecoParaMapa, linkRotaMapa } from './mapa'
+import { enderecoParaMapa, linkGps, linkRotaMapa } from './mapa'
 
 describe('endereço para o GPS', () => {
   it('vai com bairro, cidade, CEP e sem complemento', () => {
@@ -43,5 +43,15 @@ describe('endereço para o GPS', () => {
     expect(linkRotaMapa({ logradouro: 'A', cidade: 'B', uf: 'SC' })).toBe(
       'https://www.google.com/maps/dir/?api=1&destination=A%2C%20B%20-%20SC%2C%20Brasil',
     )
+  })
+})
+
+describe('linkGps', () => {
+  const e = { logradouro: 'Rua A', numero: '10', cidade: 'Gravataí', uf: 'RS' }
+  it('no Android abre o app de mapas do técnico; no iPhone, a rota do Google Maps', () => {
+    expect(linkGps(e, 'Mozilla/5.0 (Linux; Android 14)')).toBe(
+      'geo:0,0?q=' + encodeURIComponent('Rua A, 10, Gravataí - RS, Brasil'),
+    )
+    expect(linkGps(e, 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0)')).toBe(linkRotaMapa(e))
   })
 })

@@ -13,7 +13,7 @@ import { Etiqueta } from '@/components/ui/Etiqueta'
 import { formatarData, hojeISO } from '@/lib/datas'
 import { formatarTelefone } from '@/lib/documentos'
 import { mensagemDeErro } from '@/lib/erros'
-import { enderecoParaMapa } from '@/lib/mapa'
+import { enderecoParaMapa, linkGps } from '@/lib/mapa'
 import { cn } from '@/lib/utils'
 
 import { useArquivos } from '../../arquivos/api'
@@ -395,6 +395,7 @@ function Execucao({ os }: { os: OsCompleta }) {
           <EnderecoCopiavel
             texto={enderecoDaFicha(ficha)}
             paraCopiar={enderecoParaMapa(ficha.unidade)}
+            gps={linkGps(ficha.unidade)}
           />
         )}
         {ficha.contatos?.map((c) => (
@@ -957,7 +958,15 @@ function IndicadorEnvio({ estado }: { estado: EstadoEnvio }) {
  * com endereço da Receita mal escrito o Maps levava a outro lugar (ex.: Carrefour
  * Caxias, 24/11/2026). Colando, o técnico vê o que o GPS achou antes de sair.
  */
-function EnderecoCopiavel({ texto, paraCopiar }: { texto: string; paraCopiar: string }) {
+function EnderecoCopiavel({
+  texto,
+  paraCopiar,
+  gps,
+}: {
+  texto: string
+  paraCopiar: string
+  gps: string
+}) {
   const [copiado, setCopiado] = useState(false)
   const [falhou, setFalhou] = useState(false)
 
@@ -987,10 +996,15 @@ function EnderecoCopiavel({ texto, paraCopiar }: { texto: string; paraCopiar: st
 
   return (
     <div className="flex flex-col gap-1">
-      <p className="flex items-start gap-2">
-        <MapPin className="mt-0.5 size-5 shrink-0 text-verde" aria-hidden />
-        <span className="select-all">{texto}</span>
-      </p>
+      {/* Tocar no endereço abre o GPS; o botão abaixo só copia. */}
+      <a
+        className="flex min-h-11 items-start gap-2 text-verde underline"
+        href={gps}
+        target="_blank"
+        rel="noreferrer"
+      >
+        <MapPin className="mt-0.5 size-5 shrink-0" aria-hidden /> {texto}
+      </a>
       <button
         type="button"
         onClick={() => void copiar()}
@@ -1013,7 +1027,7 @@ function EnderecoCopiavel({ texto, paraCopiar }: { texto: string; paraCopiar: st
       )}
       {falhou && (
         <p className="text-sm text-perigo">
-          Não deu para copiar. Toque e segure no endereço acima para copiar.
+          Não deu para copiar. Toque e segure no endereço acima e escolha copiar.
         </p>
       )}
     </div>
