@@ -236,7 +236,9 @@ export function OsPage() {
                   Cancelar OS
                 </Button>
               )}
-            {perfil.papel === 'admin' &&
+            {/* Reabrir: o Administrador e o ADM principal (o ADM normal não). */}
+            {(perfil.papel === 'admin' ||
+              (perfil.papel === 'administrativo' && podeApagar(perfil))) &&
               !o.treinamento &&
               (o.status === 'concluida' || o.status === 'conferida') && (
                 <Button
