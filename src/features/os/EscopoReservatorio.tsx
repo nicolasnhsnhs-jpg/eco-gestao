@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card'
 import { Carregando } from '@/components/ui/Carregando'
 import { formatarData } from '@/lib/datas'
 import { mensagemDeErro } from '@/lib/erros'
+import { supabase } from '@/lib/supabase'
 
 import { DataUltimaLimpeza } from './EscopoBebedouro'
 import { usePontosModelo, useSalvarPontos, type AlvoEscopo } from './pragasApi'
@@ -69,6 +70,7 @@ export function EscopoReservatorio({ alvo }: { alvo: AlvoEscopo }) {
   const [comChuva, setComChuva] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [sucesso, setSucesso] = useState<string | null>(null)
+  const [editando, setEditando] = useState<string | null>(null)
   const todos = (pontos.data ?? []).filter((p) => p.tipo === 'reservatorio')
   const ativos = todos.filter((p) => p.ativo)
 
@@ -93,66 +95,105 @@ export function EscopoReservatorio({ alvo }: { alvo: AlvoEscopo }) {
       {alvo.osId && !antesDeComecar && (
         <Aviso tipo="info">
           A execução já começou: o que for <strong>adicionado</strong> entra nesta OS (o técnico
-          recebe quando tiver sinal). Mudanças no que já está nela valem a partir da próxima visita.
+          recebe quando tiver sinal). Errou a localização, a quantidade ou a capacidade? Use{' '}
+          <strong>Editar</strong>: corrige esta OS e as próximas visitas.
         </Aviso>
       )}
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       {sucesso && <Aviso tipo="sucesso">{sucesso}</Aviso>}
       {pontos.isPending && <Carregando />}
       <ul className="flex flex-col gap-1">
-        {ativos.map((r) => (
-          <li key={r.id} className="flex flex-wrap items-center gap-2">
-            <span className="flex-1">
-              <strong>{r.area}</strong> · {descreverReservatorio(r)}
-            </span>
-            <Select
-              aria-label={`Com chuva: ${r.area}`}
-              className="w-auto"
-              value={r.com_chuva == null ? '' : r.com_chuva ? 'sim' : 'nao'}
-              disabled={salvarPontos.isPending}
-              onChange={(e) => {
-                const v = e.target.value
-                void executar(
-                  () =>
-                    salvarPontos.mutateAsync({
-                      alterar: { id: r.id, dados: { com_chuva: v === '' ? null : v === 'sim' } },
-                    }),
-                  `${r.area}: ${v === '' ? 'chuva não informada' : textoChuva(v === 'sim')}.`,
-                )
-              }}
-            >
-              <option value="">Com chuva?</option>
-              <option value="sim">Com chuva: Sim</option>
-              <option value="nao">Com chuva: Não</option>
-            </Select>
-            <DataUltimaLimpeza
-              ponto={r}
-              ocupado={salvarPontos.isPending}
-              aoSalvar={(data, mensagem) =>
-                executar(
-                  () =>
-                    salvarPontos.mutateAsync({
-                      alterar: { id: r.id, dados: { limpeza_informada: data } },
-                    }),
-                  mensagem,
-                )
-              }
-            />
-            <Button
-              variante="fantasma"
-              disabled={salvarPontos.isPending}
-              onClick={() =>
-                void executar(
-                  () =>
-                    salvarPontos.mutateAsync({ alterar: { id: r.id, dados: { ativo: false } } }),
-                  `${r.area} retirado.`,
-                )
-              }
-            >
-              Retirar
-            </Button>
-          </li>
-        ))}
+        {ativos.map((r) =>
+          editando === r.id ? (
+            <li key={r.id}>
+              <EditarReservatorio
+                reservatorio={r}
+                ocupado={salvarPontos.isPending}
+                aoCancelar={() => setEditando(null)}
+                aoSalvar={(dados) =>
+                  executar(async () => {
+                    await salvarPontos.mutateAsync({ alterar: { id: r.id, dados } })
+                    // OS já começada ou concluída não é recopiada do cadastro: corrige ela também.
+                    if (alvo.osId && !antesDeComecar) {
+                      const { error } = await supabase.rpc('os_corrigir_ponto', {
+                        os: alvo.osId,
+                        ponto: r.id,
+                        area: dados.area,
+                        quantidade: dados.quantidade,
+                        capacidade_litros: dados.capacidade_litros as number,
+                      })
+                      if (error) throw error
+                    }
+                  }, `${dados.area}: corrigido.`).then((ok) => {
+                    if (ok) setEditando(null)
+                  })
+                }
+              />
+            </li>
+          ) : (
+            <li key={r.id} className="flex flex-wrap items-center gap-2">
+              <span className="flex-1">
+                <strong>{r.area}</strong> · {descreverReservatorio(r)}
+              </span>
+              <Button
+                variante="secundario"
+                disabled={salvarPontos.isPending}
+                onClick={() => {
+                  setSucesso(null)
+                  setEditando(r.id)
+                }}
+              >
+                Editar
+              </Button>
+              <Select
+                aria-label={`Com chuva: ${r.area}`}
+                className="w-auto"
+                value={r.com_chuva == null ? '' : r.com_chuva ? 'sim' : 'nao'}
+                disabled={salvarPontos.isPending}
+                onChange={(e) => {
+                  const v = e.target.value
+                  void executar(
+                    () =>
+                      salvarPontos.mutateAsync({
+                        alterar: { id: r.id, dados: { com_chuva: v === '' ? null : v === 'sim' } },
+                      }),
+                    `${r.area}: ${v === '' ? 'chuva não informada' : textoChuva(v === 'sim')}.`,
+                  )
+                }}
+              >
+                <option value="">Com chuva?</option>
+                <option value="sim">Com chuva: Sim</option>
+                <option value="nao">Com chuva: Não</option>
+              </Select>
+              <DataUltimaLimpeza
+                ponto={r}
+                ocupado={salvarPontos.isPending}
+                aoSalvar={(data, mensagem) =>
+                  executar(
+                    () =>
+                      salvarPontos.mutateAsync({
+                        alterar: { id: r.id, dados: { limpeza_informada: data } },
+                      }),
+                    mensagem,
+                  )
+                }
+              />
+              <Button
+                variante="fantasma"
+                disabled={salvarPontos.isPending}
+                onClick={() =>
+                  void executar(
+                    () =>
+                      salvarPontos.mutateAsync({ alterar: { id: r.id, dados: { ativo: false } } }),
+                    `${r.area} retirado.`,
+                  )
+                }
+              >
+                Retirar
+              </Button>
+            </li>
+          ),
+        )}
         {pontos.isSuccess && ativos.length === 0 && (
           <li className="text-texto-suave">Nenhum reservatório cadastrado.</li>
         )}
@@ -221,6 +262,71 @@ export function EscopoReservatorio({ alvo }: { alvo: AlvoEscopo }) {
         </Button>
       </div>
     </Card>
+  )
+}
+
+/** Corrige localização, quantidade e capacidade de um reservatório já cadastrado. */
+function EditarReservatorio({
+  reservatorio: r,
+  ocupado,
+  aoSalvar,
+  aoCancelar,
+}: {
+  reservatorio: {
+    id: string
+    area: string
+    quantidade: number | null
+    capacidade_litros: number | null
+  }
+  ocupado: boolean
+  aoSalvar: (dados: { area: string; quantidade: number; capacidade_litros: number | null }) => void
+  aoCancelar: () => void
+}) {
+  const [area, setArea] = useState(r.area)
+  const [quantidade, setQuantidade] = useState(String(r.quantidade ?? 1))
+  const [capacidade, setCapacidade] = useState(litrosParaM3(r.capacidade_litros))
+  const id = (campo: string) => `res-${campo}-${r.id}`
+
+  return (
+    <div className="grid grid-cols-2 gap-2 rounded-xl border-2 border-verde/40 bg-white p-3 sm:grid-cols-[1fr_5rem_8rem_auto_auto] sm:items-end">
+      <div className="col-span-2 sm:col-span-1">
+        <Campo rotulo="Localização" htmlFor={id('area')}>
+          <Input id={id('area')} value={area} onChange={(e) => setArea(e.target.value)} />
+        </Campo>
+      </div>
+      <Campo rotulo="Qtde" htmlFor={id('qtde')}>
+        <Input
+          id={id('qtde')}
+          inputMode="numeric"
+          value={quantidade}
+          onChange={(e) => setQuantidade(e.target.value.replace(/\D/g, ''))}
+        />
+      </Campo>
+      <Campo rotulo="Capacidade (m³)" htmlFor={id('m3')}>
+        <Input
+          id={id('m3')}
+          inputMode="decimal"
+          placeholder="10"
+          value={capacidade}
+          onChange={(e) => setCapacidade(mascaraM3(e.target.value))}
+        />
+      </Campo>
+      <Button
+        disabled={!area.trim() || ocupado}
+        onClick={() =>
+          aoSalvar({
+            area: area.trim(),
+            quantidade: Math.max(1, Number(quantidade) || 1),
+            capacidade_litros: m3ParaLitros(capacidade),
+          })
+        }
+      >
+        Salvar
+      </Button>
+      <Button variante="fantasma" disabled={ocupado} onClick={aoCancelar}>
+        Cancelar
+      </Button>
+    </div>
   )
 }
 

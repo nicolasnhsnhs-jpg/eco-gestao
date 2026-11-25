@@ -6738,6 +6738,25 @@ export type Database = {
           vendedor: string
         }[]
       }
+      os_corrigir_descricao: {
+        Args: {
+          descricao: string
+          observacoes: string
+          os: string
+          para_proximas?: boolean
+        }
+        Returns: undefined
+      }
+      os_corrigir_ponto: {
+        Args: {
+          area: string
+          capacidade_litros: number
+          os: string
+          ponto: string
+          quantidade: number
+        }
+        Returns: undefined
+      }
       os_corrigir_textos: {
         Args: { checklist?: Json; execucao?: Json; os: string; pontos?: Json }
         Returns: number

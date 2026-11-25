@@ -37,6 +37,7 @@ import { nomeVeiculo } from './nomeVeiculo'
 import { NOME_RESPOSTA, ocorrenciasDaOs, respostasDe } from './ocorrencias'
 import { formatarM3, nomeResiduo, quantidadeValida, residuoDoChecklist } from './tipos/residuo'
 import { ConferenciaOs } from './ConferenciaOs'
+import { CorrigirDescricao } from './CorrigirDescricao'
 import { CorrigirTextos } from './CorrigirTextos'
 import { EditarOs } from './EditarOs'
 import { EscopoAgua } from './EscopoAgua'
@@ -69,6 +70,7 @@ export function OsPage() {
   const [gerandoPdf, setGerandoPdf] = useState(false)
   const [gerandoFicha, setGerandoFicha] = useState(false)
   const [editando, setEditando] = useState(false)
+  const [corrigindoDescricao, setCorrigindoDescricao] = useState(false)
   const queryClient = useQueryClient()
   const financeiro = PAPEIS_ACESSO_TOTAL.includes(perfil.papel)
   const conferencia = useConferencia(id, financeiro)
@@ -217,6 +219,13 @@ export function OsPage() {
                 Editar OS
               </Button>
             )}
+            {/* Depois de começar: só a descrição e as observações do ADM (ex.: tamanho errado). */}
+            {escritorio && !antesDeComecar && o.status !== 'cancelada' && (
+              <Button variante="secundario" onClick={() => setCorrigindoDescricao(true)}>
+                <Pencil className="size-5" aria-hidden />
+                Editar descrição
+              </Button>
+            )}
             {/* Só o Administrador e o ADM principal cancelam (o operador avisa o escritório). */}
             {(perfil.papel === 'admin' ||
               (perfil.papel === 'administrativo' && podeApagar(perfil))) &&
@@ -255,6 +264,14 @@ export function OsPage() {
           </div>
         }
       />
+
+      {escritorio && !antesDeComecar && (
+        <CorrigirDescricao
+          os={o}
+          aberto={corrigindoDescricao}
+          aoFechar={() => setCorrigindoDescricao(false)}
+        />
+      )}
 
       {escritorio && antesDeComecar && (
         <EditarOs os={o} aberto={editando} aoFechar={() => setEditando(false)} />
