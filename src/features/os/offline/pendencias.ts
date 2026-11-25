@@ -16,6 +16,7 @@ import type { ChecklistTelas } from '../tipos/telas'
  */
 
 type Ponto = {
+  observacao?: string | null
   tipo: string
   numero: number
   area: string
@@ -135,10 +136,27 @@ export function pendenciasLocais(
       .sort((a, b) => a - b)
     if (semSituacao.length) falta.push(`situação das armadilhas ${semSituacao.join(', ')}`)
     const semCapturas = pontos
-      .filter((p) => p.tipo === 'armadilha_luminosa' && !capturasCompletas(p.capturas))
+      .filter(
+        (p) =>
+          p.tipo === 'armadilha_luminosa' &&
+          p.situacao_armadilha !== 'NL' &&
+          !capturasCompletas(p.capturas),
+      )
       .map((p) => p.numero)
       .sort((a, b) => a - b)
     if (semCapturas.length) falta.push(`capturas das armadilhas ${semCapturas.join(', ')}`)
+    // Não está no local: só a observação (ex.: "retirada pelo cliente").
+    const foraSemObs = pontos
+      .filter(
+        (p) =>
+          p.tipo === 'armadilha_luminosa' &&
+          p.situacao_armadilha === 'NL' &&
+          !(p.observacao ?? '').trim(),
+      )
+      .map((p) => p.numero)
+      .sort((a, b) => a - b)
+    if (foraSemObs.length)
+      falta.push(`observação das armadilhas fora do local ${foraSemObs.join(', ')}`)
   }
 
   if (formulario === 'coifa') {
@@ -266,7 +284,8 @@ export function etapaDaPendencia(pendencia: string): string | null {
   if (pendencia === 'nível de infestação de roedores') return 'Porta-iscas'
   if (
     pendencia.startsWith('situação das armadilhas') ||
-    pendencia.startsWith('capturas das armadilhas')
+    pendencia.startsWith('capturas das armadilhas') ||
+    pendencia.startsWith('observação das armadilhas')
   ) {
     return 'Armadilhas luminosas'
   }

@@ -43,7 +43,7 @@ import {
   PRAGAS_INSETOS,
   PROCEDIMENTOS,
   REFIL,
-  SITUACOES_ARMADILHA,
+  NOMES_SITUACAO_ARMADILHA,
   SITUACOES_ISCA,
   SITUACOES_PLACA,
   type EscopoPragas,
@@ -488,7 +488,7 @@ function escreverPragas(f: Folha, os: OsCompleta, pontos: PontoOs[]) {
   if (armadilhas.length > 0) {
     const contrato = escopo.armadilhas_contrato ?? armadilhas.length
     f.secao(`Armadilhas luminosas (${contrato} no contrato)`)
-    f.legenda('Situação', SITUACOES_ARMADILHA)
+    f.legenda('Situação', NOMES_SITUACAO_ARMADILHA)
     f.legenda('Refil', REFIL)
     f.legenda('Higiene', HIGIENE)
     f.tabela(

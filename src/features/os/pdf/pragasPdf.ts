@@ -446,7 +446,9 @@ export function totalCapturas(armadilhas: PontoOs[]) {
 }
 
 /** Pizza e tabela do geral de insetos capturados nas armadilhas luminosas. */
-function pizzaInsetos(w: EscritorPdf, fonte: PDFFont, armadilhas: PontoOs[]) {
+function pizzaInsetos(w: EscritorPdf, fonte: PDFFont, todas: PontoOs[]) {
+  // A que não estava no local não entra na conta.
+  const armadilhas = todas.filter((a) => a.situacao_armadilha !== 'NL')
   const fatias = totalCapturas(armadilhas).map(({ codigo, n }) => ({
     rotulo: ESPECIES[codigo],
     n,
@@ -520,6 +522,15 @@ export function escreverPragas(
       fonte,
       negrito,
       armadilhas.map((a) => {
+        if (a.situacao_armadilha === 'NL')
+          return {
+            titulo: `${String(a.numero).padStart(2, '0')} · ${a.area}`,
+            linhas: [
+              `Modelo ${nomeModeloArmadilha(a.modelo_armadilha) || '—'}`,
+              'Não está no local',
+              ...(a.observacao?.trim() ? [`Obs.: ${a.observacao.trim()}`] : []),
+            ],
+          }
         const capturas = Object.entries((a.capturas ?? {}) as Record<string, number>)
           .filter(([, n]) => n > 0)
           .map(([codigo, n]) => `${ESPECIES[codigo as keyof typeof ESPECIES] ?? codigo} ${n}`)

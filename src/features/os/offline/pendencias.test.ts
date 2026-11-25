@@ -105,6 +105,18 @@ describe('pendenciasLocais', () => {
     ).toEqual([])
   })
 
+  it('pragas: armadilha que não está no local pede só a observação', () => {
+    const nivel = { ...comum, checklist: { nivel_infestacao: 'B' } }
+    const fora = { tipo: 'armadilha_luminosa', numero: 4, area: 'B', situacao_armadilha: 'NL' }
+    expect(pendenciasLocais('pragas', nivel, [fora])).toEqual([
+      'observação das armadilhas fora do local 4',
+    ])
+    expect(pendenciasLocais('pragas', nivel, [{ ...fora, observacao: 'Retirada' }])).toEqual([])
+    expect(etapaDaPendencia('observação das armadilhas fora do local 4')).toBe(
+      'Armadilhas luminosas',
+    )
+  })
+
   it('pragas com insetos: exige marcar realizado ou não realizado', () => {
     const c = (checklist: Record<string, string | boolean>) =>
       pendenciasLocais('pragas', { ...comum, checklist }, [], undefined, null, 'insetos_roedores')

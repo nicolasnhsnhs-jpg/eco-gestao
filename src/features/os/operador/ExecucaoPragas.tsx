@@ -41,6 +41,7 @@ import {
   PRAGAS_INSETOS,
   PROCEDIMENTOS,
   REFIL,
+  FORA_DO_LOCAL,
   SITUACOES_ARMADILHA,
   SITUACOES_FEROMONIO,
   SITUACOES_ISCA,
@@ -682,13 +683,34 @@ function Armadilha({ osId, ponto, aberta }: { osId: string; ponto: PontoOs; aber
   const [obs, setObs] = useState(ponto.observacao ?? '')
   const gravar = (campos: Parameters<typeof anotar.mutate>[0]['campos']) =>
     anotar.mutate({ ids: [ponto.id], campos })
+  const fora = ponto.situacao_armadilha === FORA_DO_LOCAL
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-borda p-3">
-      <p className="font-semibold">
-        {String(ponto.numero).padStart(2, '0')} · {ponto.area} ·{' '}
-        {nomeModeloArmadilha(ponto.modelo_armadilha)}
-      </p>
+    <div
+      className={cn(
+        'flex flex-col gap-3 rounded-xl border p-3',
+        fora ? 'border-alerta/50 bg-amber-50/40' : 'border-borda',
+      )}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <p className="font-semibold">
+          {String(ponto.numero).padStart(2, '0')} · {ponto.area} ·{' '}
+          {nomeModeloArmadilha(ponto.modelo_armadilha)}
+        </p>
+        {/* Não encontrou a armadilha: recolhe os campos e pede só a observação. */}
+        <button
+          type="button"
+          disabled={!aberta}
+          aria-pressed={fora}
+          onClick={() => gravar({ situacao_armadilha: fora ? null : FORA_DO_LOCAL })}
+          className={cn(
+            'min-h-9 rounded-lg border px-2 text-xs font-bold',
+            fora ? 'border-alerta bg-alerta text-white' : 'border-borda bg-white text-texto-suave',
+          )}
+        >
+          Não está no local
+        </button>
+      </div>
       <p className="-mt-2 text-sm text-texto-suave">
         Última troca de lâmpada:{' '}
         {ponto.ultima_troca_lampada ? formatarData(ponto.ultima_troca_lampada) : 'sem registro'}
@@ -699,100 +721,127 @@ function Armadilha({ osId, ponto, aberta }: { osId: string; ponto: PontoOs; aber
         </p>
       )}
       {anotar.isError && <Aviso tipo="erro">{mensagemDeErro(anotar.error)}</Aviso>}
-      <Linha rotulo="Situação *">
-        <BotoesCodigo
-          opcoes={SITUACOES_ARMADILHA}
-          valor={ponto.situacao_armadilha}
-          desabilitado={!aberta}
-          aoMudar={(v) => gravar({ situacao_armadilha: v })}
-        />
-      </Linha>
-      <Linha rotulo="Refil">
-        <BotoesCodigo
-          opcoes={REFIL}
-          valor={ponto.refil}
-          desabilitado={!aberta}
-          aoMudar={(v) => gravar({ refil: v })}
-        />
-      </Linha>
-      <Linha rotulo="Lâmpadas trocadas">
-        <BotoesCodigo
-          opcoes={{ nao: 'Não', sim: 'Sim' }}
-          valor={ponto.lampadas_trocadas == null ? null : ponto.lampadas_trocadas ? 'sim' : 'nao'}
-          desabilitado={!aberta}
-          aoMudar={(v) => gravar({ lampadas_trocadas: v === null ? null : v === 'sim' })}
-        />
-      </Linha>
-      <Linha rotulo="Higiene">
-        <BotoesCodigo
-          opcoes={HIGIENE}
-          valor={ponto.higiene}
-          desabilitado={!aberta}
-          aoMudar={(v) => gravar({ higiene: v })}
-        />
-      </Linha>
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-semibold">Capturas *</span>
-          {aberta && !completas && (
-            <Button
-              variante="secundario"
-              onClick={() =>
-                gravar({
-                  capturas: Object.fromEntries(
-                    Object.keys(ESPECIES).map((codigo) => [codigo, capturas[codigo] ?? 0]),
-                  ),
-                })
+      {fora ? (
+        <Campo
+          rotulo="Observação"
+          htmlFor={`arm-obs-${ponto.id}`}
+          obrigatorio
+          dica={aberta ? 'Diga o que houve. Ex.: retirada pelo cliente, área em obra.' : undefined}
+        >
+          <Input
+            id={`arm-obs-${ponto.id}`}
+            disabled={!aberta}
+            placeholder="Ex.: retirada"
+            value={obs}
+            className={aberta && !obs.trim() ? 'border-alerta' : undefined}
+            onChange={(e) => setObs(e.target.value)}
+            onBlur={() => {
+              if (obs.trim() !== (ponto.observacao ?? ''))
+                gravar({ observacao: obs.trim() || null })
+            }}
+          />
+        </Campo>
+      ) : (
+        <>
+          <Linha rotulo="Situação *">
+            <BotoesCodigo
+              opcoes={SITUACOES_ARMADILHA}
+              valor={ponto.situacao_armadilha}
+              desabilitado={!aberta}
+              aoMudar={(v) => gravar({ situacao_armadilha: v })}
+            />
+          </Linha>
+          <Linha rotulo="Refil">
+            <BotoesCodigo
+              opcoes={REFIL}
+              valor={ponto.refil}
+              desabilitado={!aberta}
+              aoMudar={(v) => gravar({ refil: v })}
+            />
+          </Linha>
+          <Linha rotulo="Lâmpadas trocadas">
+            <BotoesCodigo
+              opcoes={{ nao: 'Não', sim: 'Sim' }}
+              valor={
+                ponto.lampadas_trocadas == null ? null : ponto.lampadas_trocadas ? 'sim' : 'nao'
               }
-            >
-              {Object.keys(capturas).length ? 'Zerar o que falta' : 'Nenhuma captura'}
-            </Button>
-          )}
-        </div>
-        <div className="grid grid-cols-4 gap-2">
-          {Object.entries(ESPECIES).map(([codigo, nome]) => (
-            <Campo key={codigo} rotulo={nome} htmlFor={`cap-${ponto.id}-${codigo}`}>
-              <Input
-                // Remonta quando o valor muda por fora (botão "Nenhuma captura").
-                key={capturas[codigo] ?? 'vazio'}
-                id={`cap-${ponto.id}-${codigo}`}
-                inputMode="numeric"
-                disabled={!aberta}
-                defaultValue={capturas[codigo]?.toString() ?? ''}
-                className={aberta && capturas[codigo] == null ? 'border-alerta' : undefined}
-                onBlur={(e) => {
-                  const n = e.target.value.replace(/\D/g, '')
-                  const novo = { ...capturas }
-                  if (n) novo[codigo] = Number(n)
-                  else delete novo[codigo]
-                  if (novo[codigo] !== capturas[codigo]) gravar({ capturas: novo })
-                }}
-              />
-            </Campo>
-          ))}
-        </div>
-        {aberta && !completas && (
-          <p className="text-xs text-texto-suave">
-            Anote a quantidade de cada inseto. Se não pegou nada, coloque 0.
-          </p>
-        )}
-      </div>
-      {/* Vai para o escritório na conferência, para preparar a próxima visita. */}
-      <Campo
-        rotulo="Observação para a próxima visita"
-        htmlFor={`arm-obs-${ponto.id}`}
-        dica={aberta ? 'Ex.: lâmpada queimada, levar lâmpada para trocar.' : undefined}
-      >
-        <Input
-          id={`arm-obs-${ponto.id}`}
-          disabled={!aberta}
-          value={obs}
-          onChange={(e) => setObs(e.target.value)}
-          onBlur={() => {
-            if (obs.trim() !== (ponto.observacao ?? '')) gravar({ observacao: obs.trim() || null })
-          }}
-        />
-      </Campo>
+              desabilitado={!aberta}
+              aoMudar={(v) => gravar({ lampadas_trocadas: v === null ? null : v === 'sim' })}
+            />
+          </Linha>
+          <Linha rotulo="Higiene">
+            <BotoesCodigo
+              opcoes={HIGIENE}
+              valor={ponto.higiene}
+              desabilitado={!aberta}
+              aoMudar={(v) => gravar({ higiene: v })}
+            />
+          </Linha>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-semibold">Capturas *</span>
+              {aberta && !completas && (
+                <Button
+                  variante="secundario"
+                  onClick={() =>
+                    gravar({
+                      capturas: Object.fromEntries(
+                        Object.keys(ESPECIES).map((codigo) => [codigo, capturas[codigo] ?? 0]),
+                      ),
+                    })
+                  }
+                >
+                  {Object.keys(capturas).length ? 'Zerar o que falta' : 'Nenhuma captura'}
+                </Button>
+              )}
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {Object.entries(ESPECIES).map(([codigo, nome]) => (
+                <Campo key={codigo} rotulo={nome} htmlFor={`cap-${ponto.id}-${codigo}`}>
+                  <Input
+                    // Remonta quando o valor muda por fora (botão "Nenhuma captura").
+                    key={capturas[codigo] ?? 'vazio'}
+                    id={`cap-${ponto.id}-${codigo}`}
+                    inputMode="numeric"
+                    disabled={!aberta}
+                    defaultValue={capturas[codigo]?.toString() ?? ''}
+                    className={aberta && capturas[codigo] == null ? 'border-alerta' : undefined}
+                    onBlur={(e) => {
+                      const n = e.target.value.replace(/\D/g, '')
+                      const novo = { ...capturas }
+                      if (n) novo[codigo] = Number(n)
+                      else delete novo[codigo]
+                      if (novo[codigo] !== capturas[codigo]) gravar({ capturas: novo })
+                    }}
+                  />
+                </Campo>
+              ))}
+            </div>
+            {aberta && !completas && (
+              <p className="text-xs text-texto-suave">
+                Anote a quantidade de cada inseto. Se não pegou nada, coloque 0.
+              </p>
+            )}
+          </div>
+          {/* Vai para o escritório na conferência, para preparar a próxima visita. */}
+          <Campo
+            rotulo="Observação para a próxima visita"
+            htmlFor={`arm-obs-${ponto.id}`}
+            dica={aberta ? 'Ex.: lâmpada queimada, levar lâmpada para trocar.' : undefined}
+          >
+            <Input
+              id={`arm-obs-${ponto.id}`}
+              disabled={!aberta}
+              value={obs}
+              onChange={(e) => setObs(e.target.value)}
+              onBlur={() => {
+                if (obs.trim() !== (ponto.observacao ?? ''))
+                  gravar({ observacao: obs.trim() || null })
+              }}
+            />
+          </Campo>
+        </>
+      )}
     </div>
   )
 }

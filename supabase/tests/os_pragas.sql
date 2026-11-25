@@ -175,7 +175,25 @@ begin
     end if;
   end;
 end $$;
-update public.os_pontos set capturas = '{"M": 3, "MQ": 2, "MA": 0, "B": 0}'
+-- Não está no local: sem capturas, mas com a observação obrigatória.
+update public.os_pontos set situacao_armadilha = 'NL', capturas = '{}', observacao = null
+ where os_id = (select id from ids where nome = 'os1') and tipo = 'armadilha_luminosa';
+do $$
+declare v_msg text;
+begin
+  begin
+    perform public.concluir_os((select id from ids where nome = 'os1'));
+    raise exception 'FALHOU: concluiu armadilha fora do local sem observação';
+  exception when check_violation then
+    get stacked diagnostics v_msg = message_text;
+    if v_msg not like '%observação das armadilhas fora do local 1%'
+       or v_msg like '%capturas das armadilhas%' then
+      raise exception 'FALHOU: pendências erradas da armadilha fora do local: %', v_msg;
+    end if;
+  end;
+end $$;
+update public.os_pontos set situacao_armadilha = 'LT', observacao = null,
+       capturas = '{"M": 3, "MQ": 2, "MA": 0, "B": 0}'
  where os_id = (select id from ids where nome = 'os1') and tipo = 'armadilha_luminosa';
 select public.concluir_os((select id from ids where nome = 'os1'));
 

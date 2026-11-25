@@ -290,6 +290,8 @@ function textoArmadilhas(pontos: PontoOs[]) {
   const desligadas = als.filter((a) => a.situacao_armadilha === 'DL').map((a) => a.numero)
   if (danificadas.length) linhas.push(`- Armadilhas danificadas: ${nomear(danificadas)}.`)
   if (desligadas.length) linhas.push(`- Armadilhas desligadas: ${nomear(desligadas)}.`)
+  const fora = als.filter((a) => a.situacao_armadilha === 'NL').map((a) => a.numero)
+  if (fora.length) linhas.push(`- Não estavam no local: ${nomear(fora)}.`)
   const higiene = als.filter((a) => a.higiene === 'I').map((a) => a.numero)
   if (higiene.length) linhas.push(`- Higiene insuficiente no local: ${nomear(higiene)}.`)
 

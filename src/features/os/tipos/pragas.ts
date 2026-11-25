@@ -51,6 +51,16 @@ export const SITUACOES_ARMADILHA = {
   LT: 'Lâmpada trocada',
 } as const
 
+/**
+ * Armadilha que o técnico não encontrou no local (retirada, obra…): no lugar dos
+ * campos, só a observação (obrigatória). Fica fora das opções de situação.
+ */
+export const FORA_DO_LOCAL = 'NL'
+export const NOMES_SITUACAO_ARMADILHA = {
+  ...SITUACOES_ARMADILHA,
+  NL: 'Não está no local',
+} as const
+
 /** Modelos de armadilha luminosa (P branca, M, G inox, AL-15, AL-30, Slip-115). */
 export const MODELOS_ARMADILHA = {
   P: 'Branca (P)',
