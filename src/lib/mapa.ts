@@ -20,7 +20,12 @@ function cepFormatado(cep: string | null | undefined) {
 
 /** "Rua X, 123 - Centro, Gravataí - RS, 94000-000, Brasil" */
 export function enderecoParaMapa(e: EnderecoMapa) {
-  const rua = [e.logradouro.trim(), e.numero?.trim()].filter(Boolean).join(', ')
+  // Endereço vindo da Receita às vezes já traz o número na rua ("RODOVIA RSC-453 2780
+  // QUILOMETRO 3,5"): não repete o número.
+  const numero = e.numero?.trim()
+  const digitos = (numero ?? '').replace(/\D/g, '')
+  const jaTemNumero = digitos !== '' && new RegExp(`(^|\\D)${digitos}(\\D|$)`).test(e.logradouro)
+  const rua = [e.logradouro.trim(), jaTemNumero ? null : numero].filter(Boolean).join(', ')
   const ruaBairro = [rua, e.bairro?.trim()].filter(Boolean).join(' - ')
   const cidade = [e.cidade.trim(), e.uf.trim()].filter(Boolean).join(' - ')
   return [ruaBairro, cidade, cepFormatado(e.cep), 'Brasil'].filter(Boolean).join(', ')

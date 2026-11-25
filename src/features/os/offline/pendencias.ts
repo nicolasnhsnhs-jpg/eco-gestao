@@ -107,8 +107,12 @@ export function pendenciasLocais(
   }
   if (vazio(e.operador_nome)) falta.push('nome do operador')
   if (!e.assinatura_operador_id) falta.push('visto do operador')
-  // Quem acompanhou: nome, setor e assinatura, a não ser que ninguém tenha acompanhado.
-  if (!e.sem_acompanhamento) {
+  // Quem acompanhou: nome, setor e assinatura. Sem acompanhamento, só a assinatura de
+  // quem recebeu na saída, a não ser que não haja ninguém para assinar.
+  if (e.sem_acompanhamento) {
+    if (!e.ninguem_para_assinar && !e.assinatura_cliente_id)
+      falta.push('assinatura de quem recebeu')
+  } else {
     if (vazio(e.responsavel_nome)) falta.push('nome de quem acompanhou')
     if (vazio(e.responsavel_setor)) falta.push('setor de quem acompanhou')
     if (!e.assinatura_cliente_id) falta.push('assinatura de quem acompanhou')
@@ -200,6 +204,9 @@ export function pendenciasLocais(
   if (formulario === 'agua') {
     const c = (e.checklist ?? {}) as ChecklistAgua
     if (c.procedimento !== true) falta.push('confirmação do procedimento de coleta')
+    if (!pontos.some((p) => p.tipo === 'ponto_coleta' && p.coletado)) {
+      falta.push('ponto de coleta (onde foi coletado)')
+    }
     const semColeta = pontos
       .filter(
         (p) => p.tipo === 'ponto_coleta' && (p.coletado == null || (p.coletado && !p.hora_coleta)),
@@ -252,7 +259,9 @@ export function etapaDaPendencia(pendencia: string): string | null {
     return 'Serviço realizado'
   }
   if (pendencia === 'nome do operador' || pendencia === 'visto do operador') return 'Operador'
-  if (pendencia.includes('quem acompanhou')) return 'Quem acompanhou (cliente)'
+  if (pendencia.includes('quem acompanhou') || pendencia.includes('quem recebeu')) {
+    return 'Quem acompanhou (cliente)'
+  }
   if (pendencia === 'confirmação da ocorrência') return 'Ocorrência'
   if (pendencia === 'nível de infestação de roedores') return 'Porta-iscas'
   if (
@@ -282,7 +291,9 @@ export function etapaDaPendencia(pendencia: string): string | null {
   if (pendencia === 'preventivo ou corretivo') return 'Trabalho a ser realizado'
   if (pendencia.startsWith('limpeza de:')) return 'Bebedouros'
   if (pendencia === 'confirmação do procedimento de coleta') return 'Procedimento de coleta'
-  if (pendencia.startsWith('coleta de:')) return 'Pontos de coleta'
+  if (pendencia.startsWith('coleta de:') || pendencia.startsWith('ponto de coleta')) {
+    return 'Pontos de coleta'
+  }
   if (pendencia === 'conservação das amostras') return 'Amostras'
   if (pendencia.startsWith('reservatórios:')) return 'Reservatórios'
   if (pendencia.startsWith('ar-condicionado:')) return 'Aparelhos de ar-condicionado'

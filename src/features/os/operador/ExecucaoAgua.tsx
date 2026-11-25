@@ -1,13 +1,15 @@
+import { Pencil, Plus, X } from 'lucide-react'
 import { useState } from 'react'
 
 import { Aviso } from '@/components/ui/Aviso'
+import { Button } from '@/components/ui/Button'
 import { Campo, Input, Textarea } from '@/components/ui/Campo'
 import { Carregando } from '@/components/ui/Carregando'
 import { formatarData } from '@/lib/datas'
 import { mensagemDeErro } from '@/lib/erros'
 
 import type { CamposExecucao, OsCompleta } from '../api'
-import { useAnotarPontos, usePontosOs, type PontoOs } from '../pragasApi'
+import { useAnotarPontos, usePontosColeta, usePontosOs, type PontoOs } from '../pragasApi'
 import {
   AVISO_PONTOS,
   PARAMETROS_PADRAO,
@@ -40,6 +42,25 @@ export function ExecucaoAgua({ os, campos, alterar, aberta, primeira }: Props) {
   const mudar = (parcial: ChecklistAgua) => alterar({ checklist: { ...c, ...parcial } })
   const escopo = (os.escopo ?? {}) as EscopoAgua
   const lista = pontos.data?.filter((p) => p.tipo === 'ponto_coleta') ?? []
+  const coleta = usePontosColeta(os.id)
+  const [novo, setNovo] = useState('')
+  const [erro, setErro] = useState<string | null>(null)
+
+  /** Ação que precisa de sinal (grava direto na O.S salva). */
+  async function comSinal(acao: () => Promise<unknown>) {
+    setErro(null)
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setErro('Sem sinal agora. Cadastrar ou mudar ponto de coleta precisa de internet.')
+      return false
+    }
+    try {
+      await acao()
+      return true
+    } catch (e) {
+      setErro(mensagemDeErro(e))
+      return false
+    }
+  }
 
   return (
     <>
@@ -75,16 +96,57 @@ export function ExecucaoAgua({ os, campos, alterar, aberta, primeira }: Props) {
         {pontos.isPending && <Carregando />}
         {pontos.isError && <Aviso tipo="erro">{mensagemDeErro(pontos.error)}</Aviso>}
         {anotar.isError && <Aviso tipo="erro">{mensagemDeErro(anotar.error)}</Aviso>}
+        {erro && <Aviso tipo="erro">{erro}</Aviso>}
         {lista.map((p) => (
           <PontoColeta
             key={p.id}
             ponto={p}
             aberta={aberta}
             anotar={(campos) => anotar.mutate({ ids: [p.id], campos })}
+            renomear={(area) =>
+              comSinal(() => coleta.renomear.mutateAsync({ ponto: p.ponto_id!, area }))
+            }
+            tirar={() => {
+              const pergunta = `Tirar o ponto "${p.area}"? Ele não aparece mais nas próximas coletas.`
+              if (!window.confirm(pergunta)) return
+              void comSinal(() => coleta.remover.mutateAsync(p.ponto_id!))
+            }}
           />
         ))}
         {pontos.isSuccess && lista.length === 0 && (
-          <p className="text-texto-suave">Nenhum ponto de coleta cadastrado neste local.</p>
+          <p className="text-texto-suave">
+            Nenhum ponto ainda. Escreva abaixo onde você coletou a amostra.
+          </p>
+        )}
+        {aberta && (
+          <form
+            className="flex flex-col gap-2 rounded-xl border-2 border-dashed border-borda p-3"
+            onSubmit={(e) => {
+              e.preventDefault()
+              const nome = novo.trim()
+              if (!nome) return
+              void comSinal(() => coleta.adicionar.mutateAsync(nome)).then((ok) => {
+                if (ok) setNovo('')
+              })
+            }}
+          >
+            <Campo
+              rotulo="Onde foi coletado?"
+              htmlFor="coleta-novo"
+              dica='Ex.: "Torneira da cozinha", "Banheiro", "Reservatório superior".'
+            >
+              <Input
+                id="coleta-novo"
+                maxLength={80}
+                value={novo}
+                onChange={(e) => setNovo(e.target.value)}
+              />
+            </Campo>
+            <Button type="submit" disabled={!novo.trim() || coleta.adicionar.isPending}>
+              <Plus className="size-4" aria-hidden />
+              {coleta.adicionar.isPending ? 'Adicionando…' : 'Adicionar ponto de coleta'}
+            </Button>
+          </form>
         )}
       </Etapa>
 
@@ -114,7 +176,11 @@ function PontoColeta({
   ponto,
   aberta,
   anotar,
+  renomear,
+  tirar,
 }: {
+  renomear: (area: string) => Promise<boolean>
+  tirar: () => void
   ponto: PontoOs
   aberta: boolean
   anotar: (campos: {
@@ -124,11 +190,68 @@ function PontoColeta({
   }) => void
 }) {
   const [obs, setObs] = useState(ponto.observacao ?? '')
+  const [editando, setEditando] = useState(false)
+  const [nome, setNome] = useState(ponto.area)
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-borda p-3">
-      <p className="font-semibold">
-        {String(ponto.numero).padStart(2, '0')} · {ponto.area}
-      </p>
+      {editando ? (
+        <form
+          className="flex flex-col gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (!nome.trim() || nome.trim() === ponto.area) return setEditando(false)
+            void renomear(nome.trim()).then((ok) => ok && setEditando(false))
+          }}
+        >
+          <Campo rotulo="Nome do ponto" htmlFor={`nome-${ponto.id}`}>
+            <Input
+              id={`nome-${ponto.id}`}
+              maxLength={80}
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+            />
+          </Campo>
+          <div className="flex gap-2">
+            <Button type="submit">Salvar</Button>
+            <Button
+              type="button"
+              variante="secundario"
+              onClick={() => {
+                setNome(ponto.area)
+                setEditando(false)
+              }}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <div className="flex items-start justify-between gap-2">
+          <p className="font-semibold">
+            {String(ponto.numero).padStart(2, '0')} · {ponto.area}
+          </p>
+          {aberta && ponto.ponto_id && (
+            <span className="flex shrink-0 gap-1">
+              <button
+                type="button"
+                className="flex size-10 items-center justify-center rounded-lg border border-borda"
+                aria-label={`Mudar o nome de ${ponto.area}`}
+                onClick={() => setEditando(true)}
+              >
+                <Pencil className="size-4" aria-hidden />
+              </button>
+              <button
+                type="button"
+                className="flex size-10 items-center justify-center rounded-lg border border-borda text-perigo"
+                aria-label={`Tirar ${ponto.area}`}
+                onClick={tirar}
+              >
+                <X className="size-4" aria-hidden />
+              </button>
+            </span>
+          )}
+        </div>
+      )}
       <p className="text-sm text-texto-suave">
         Coleta anterior:{' '}
         {ponto.ultima_limpeza ? formatarData(ponto.ultima_limpeza) : 'sem registro'}

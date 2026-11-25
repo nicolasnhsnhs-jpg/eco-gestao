@@ -17,7 +17,6 @@ export type PontoOs = Tables<'os_pontos'>
 export type ProdutoOs = Tables<'os_produtos'>
 export type InsetoOs = Tables<'os_insetos'>
 
-
 // -----------------------------------------------------------------------------
 // Escritório: pontos do modelo e escopo
 // -----------------------------------------------------------------------------
@@ -158,6 +157,41 @@ export function useImplantacao(osId: string) {
     onSuccess: atualizar,
   })
   return { adicionar, remover }
+}
+
+// -----------------------------------------------------------------------------
+// Análise de água: o técnico nomeia os pontos de coleta em campo
+// -----------------------------------------------------------------------------
+
+/** Precisa de sinal: grava direto na O.S salva e na OS (não entra na fila offline). */
+export function usePontosColeta(osId: string) {
+  const atualizar = useAtualizarTudo()
+  const repetido = (error: { message: string }) =>
+    /duplicate key|numero_por_area/.test(error.message)
+      ? new Error('Já tem um ponto com esse nome nesta coleta.')
+      : error
+  const adicionar = useMutation({
+    mutationFn: async (area: string) => {
+      const { error } = await supabase.rpc('coleta_adicionar_ponto', { os: osId, area })
+      if (error) throw repetido(error)
+    },
+    onSuccess: atualizar,
+  })
+  const renomear = useMutation({
+    mutationFn: async ({ ponto, area }: { ponto: string; area: string }) => {
+      const { error } = await supabase.rpc('coleta_renomear_ponto', { os: osId, ponto, area })
+      if (error) throw repetido(error)
+    },
+    onSuccess: atualizar,
+  })
+  const remover = useMutation({
+    mutationFn: async (ponto: string) => {
+      const { error } = await supabase.rpc('coleta_remover_ponto', { os: osId, ponto })
+      if (error) throw error
+    },
+    onSuccess: atualizar,
+  })
+  return { adicionar, renomear, remover }
 }
 
 // -----------------------------------------------------------------------------

@@ -307,6 +307,26 @@ describe('contaParaAntecipar', () => {
       }),
     ).toBeNull()
   })
+  it('com retenções, antecipa o líquido (o valor do boleto)', () => {
+    const comRetencao = {
+      ...nota,
+      valor_servico: 150,
+      iss_retido: true,
+      aliquota_iss: 2,
+      pis_cofins_retidos: false,
+      tp_ret_piscofins: null,
+      valor_pis: null,
+      valor_cofins: null,
+      valor_csll: null,
+      valor_irrf: 2.25,
+      valor_inss: null,
+    }
+    expect(contaParaAntecipar(comRetencao)).toEqual({ id: 'l1', valor: 144.75 })
+    expect(contaParaAntecipar({ ...comRetencao, tipo: 'avulsa', lancamento: null })).toEqual({
+      id: null,
+      valor: 144.75,
+    })
+  })
   it('recusa nota sem conta, cancelada, rascunho ou já recebida', () => {
     expect(contaParaAntecipar({ ...nota, lancamento: null })).toBeNull()
     expect(

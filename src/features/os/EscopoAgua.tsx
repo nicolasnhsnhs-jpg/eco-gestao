@@ -110,7 +110,10 @@ export function EscopoAgua({ alvo }: { alvo: AlvoEscopo }) {
             </li>
           ))}
           {pontos.isSuccess && ativos.length === 0 && (
-            <li className="text-texto-suave">Nenhum ponto de coleta cadastrado.</li>
+            <li className="text-texto-suave">
+              Nenhum ponto de coleta cadastrado. O técnico cadastra em campo, com o nome de onde
+              coletou.
+            </li>
           )}
         </ul>
         <div className="grid gap-2 rounded-xl bg-fundo-suave p-3 sm:grid-cols-[1fr_auto] sm:items-end">

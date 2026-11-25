@@ -469,7 +469,9 @@ export async function gerarPdfOs(os: OsCompleta, arquivos: Arquivo[], pragas?: D
     ? 'Acompanhou pelo cliente'
     : quemAssinou
       ? 'Recebeu pelo cliente (não houve acompanhamento)'
-      : 'Não houve acompanhamento'
+      : e?.ninguem_para_assinar
+        ? 'Não houve acompanhamento (ninguém para assinar)'
+        : 'Não houve acompanhamento'
   for (const [arquivo, rotulo, nome] of [
     [assinaturaCliente, rotuloCliente, quemAssinou],
     [assinaturaOperador, 'Operador', e?.operador_nome ?? ''],

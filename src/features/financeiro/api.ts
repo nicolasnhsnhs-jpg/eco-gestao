@@ -566,6 +566,29 @@ export function useAntecipar() {
   })
 }
 
+/**
+ * Quanto cada conta escolhida antecipa: o líquido da nota ligada (valor menos retenções),
+ * pela mesma conta do banco. Conta ainda sem id (avulsa sem conta) fica com o valor dado.
+ */
+export function useValoresAAntecipar<
+  C extends { id: string | null; valor: number | string | null },
+>(contas: C[]): C[] {
+  const ids = contas.map((c) => c.id).filter((id): id is string => !!id)
+  const valores = useQuery({
+    queryKey: ['financeiro', 'valores-a-antecipar', [...ids].sort()],
+    enabled: ids.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('valores_a_antecipar', { p_lancamentos: ids })
+      if (error) throw error
+      return new Map(data.map((v) => [v.id, Number(v.valor)]))
+    },
+  })
+  return contas.map((c) => {
+    const v = c.id ? valores.data?.get(c.id) : undefined
+    return v === undefined ? c : { ...c, valor: v }
+  })
+}
+
 export function useAntecipacoes() {
   return useQuery({
     queryKey: ['financeiro', 'antecipacoes'],

@@ -102,12 +102,28 @@ begin
   end;
 end $$;
 
--- Ninguém acompanhou: conclui sem nome, setor e assinatura do cliente.
+-- Ninguém acompanhou: pede a assinatura de quem recebeu na saída…
 update public.os_execucao set checklist = '{
   "autorizado": {"sim": true},
   "instaladas": {"sim": false, "texto": "Fritadeira em uso, volta amanhã"}
 }', sem_acompanhamento = true, responsavel_nome = null, responsavel_setor = null,
     assinatura_cliente_id = null
+ where os_id = (select id from ids where nome = 'os');
+do $$
+declare v_msg text;
+begin
+  begin
+    perform public.concluir_os((select id from ids where nome = 'os'));
+    raise exception 'FALHOU: concluiu sem assinatura de quem recebeu';
+  exception when others then
+    get stacked diagnostics v_msg = message_text;
+    if v_msg not like '%assinatura de quem recebeu%' or v_msg like '%setor de quem acompanhou%' then
+      raise exception 'FALHOU: sem acompanhamento, pendências erradas: %', v_msg;
+    end if;
+  end;
+end $$;
+-- …a não ser que não tenha ninguém para assinar: aí conclui sem nome, setor e assinatura.
+update public.os_execucao set ninguem_para_assinar = true
  where os_id = (select id from ids where nome = 'os');
 select public.concluir_os((select id from ids where nome = 'os'));
 reset role;

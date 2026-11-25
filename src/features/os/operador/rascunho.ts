@@ -50,18 +50,16 @@ export function mesclarComRascunho(
  * que o rascunho era enviado e apagado, reabrir a OS mostrava a cópia antiga —
  * baixada de manhã, sem chegada e início — e os horários pareciam ter sumido.
  */
-export function aplicarNaOsGuardada(
-  queryClient: QueryClient,
-  osId: string,
-  novos: CamposExecucao,
-) {
+export function aplicarNaOsGuardada(queryClient: QueryClient, osId: string, novos: CamposExecucao) {
   // Uma busca da OS que saiu antes desta alteração traria a versão antiga.
   // Cancela antes de gravar: o cancelamento devolve a cópia ao estado anterior.
-  void queryClient.cancelQueries({ queryKey: ['os', osId], exact: true }).then(() =>
-    queryClient.setQueryData<OsCompleta | null>(['os', osId], (os) =>
-      os?.execucao ? { ...os, execucao: { ...os.execucao, ...novos } } : os,
-    ),
-  )
+  void queryClient
+    .cancelQueries({ queryKey: ['os', osId], exact: true })
+    .then(() =>
+      queryClient.setQueryData<OsCompleta | null>(['os', osId], (os) =>
+        os?.execucao ? { ...os, execucao: { ...os.execucao, ...novos } } : os,
+      ),
+    )
 }
 
 /**

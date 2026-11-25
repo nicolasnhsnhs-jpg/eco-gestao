@@ -575,7 +575,10 @@ function escreverPragas(f: Folha, os: OsCompleta, pontos: PontoOs[]) {
     f.secao('Controle de insetos')
     f.dado('Áreas do cliente', escopo.areas_insetos)
     f.dado('Pragas combatidas', escopo.pragas_insetos)
-    f.opcoes('Monitoramento', ['Realizado nas áreas descritas', 'Realizado, sem necessidade de aplicação'])
+    f.opcoes('Monitoramento', [
+      'Realizado nas áreas descritas',
+      'Realizado, sem necessidade de aplicação',
+    ])
     f.legenda('Praga', PRAGAS_INSETOS)
     f.legenda('Nível', NIVEIS)
     f.legenda('Condições', CONDICOES)

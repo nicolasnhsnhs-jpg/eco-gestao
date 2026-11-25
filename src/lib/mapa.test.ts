@@ -18,6 +18,24 @@ describe('endereço para o GPS', () => {
     )
   })
 
+  it('não repete o número que já está na rua', () => {
+    expect(
+      enderecoParaMapa({
+        logradouro: 'RODOVIA RSC-453 2780 QUILOMETRO 3,5',
+        numero: '2780',
+        bairro: 'CIDADE NOVA',
+        cidade: 'CAXIAS DO SUL',
+        uf: 'RS',
+        cep: '95110900',
+      }),
+    ).toBe(
+      'RODOVIA RSC-453 2780 QUILOMETRO 3,5 - CIDADE NOVA, CAXIAS DO SUL - RS, 95110-900, Brasil',
+    )
+    expect(
+      enderecoParaMapa({ logradouro: 'Rua 12780', numero: '2780', cidade: 'X', uf: 'RS' }),
+    ).toBe('Rua 12780, 2780, X - RS, Brasil')
+  })
+
   it('sem número, bairro nem CEP', () => {
     expect(
       enderecoParaMapa({ logradouro: 'Estrada X', cidade: 'Vacaria', uf: 'RS', cep: '123' }),

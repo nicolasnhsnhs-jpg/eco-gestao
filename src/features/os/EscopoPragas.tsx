@@ -19,6 +19,7 @@ import {
   escreverFaixas,
   FORMAS_ISCAGEM,
   lerFaixas,
+  MODELOS_ARMADILHA,
   nomeModeloArmadilha,
   PRAGAS_ALVO,
   TIPOS_ISCA,
@@ -783,9 +784,11 @@ function FormArmadilha({
       </Campo>
       <Campo rotulo="Modelo" htmlFor="arm-modelo">
         <Select id="arm-modelo" value={modelo} onChange={(e) => setModelo(e.target.value)}>
-          <option value="P">P · Branca</option>
-          <option value="M">M</option>
-          <option value="G">G · Inox</option>
+          {Object.entries(MODELOS_ARMADILHA).map(([codigo, nome]) => (
+            <option key={codigo} value={codigo}>
+              {nome}
+            </option>
+          ))}
         </Select>
       </Campo>
       <Button disabled={ocupado} onClick={() => void adicionar()}>

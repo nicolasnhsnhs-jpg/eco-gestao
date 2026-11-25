@@ -3749,6 +3749,7 @@ export type Database = {
           km_chegada: number | null
           motivo_nao_realizado: string | null
           nao_realizado: boolean
+          ninguem_para_assinar: boolean
           observacoes: string | null
           ocorrencia_resolvida: boolean
           ocorrencias_resultado: Json
@@ -3776,6 +3777,7 @@ export type Database = {
           km_chegada?: number | null
           motivo_nao_realizado?: string | null
           nao_realizado?: boolean
+          ninguem_para_assinar?: boolean
           observacoes?: string | null
           ocorrencia_resolvida?: boolean
           ocorrencias_resultado?: Json
@@ -3803,6 +3805,7 @@ export type Database = {
           km_chegada?: number | null
           motivo_nao_realizado?: string | null
           nao_realizado?: boolean
+          ninguem_para_assinar?: boolean
           observacoes?: string | null
           ocorrencia_resolvida?: boolean
           ocorrencias_resultado?: Json
@@ -6534,6 +6537,18 @@ export type Database = {
         }[]
       }
       cancelar_os: { Args: { motivo: string; os: string }; Returns: undefined }
+      coleta_adicionar_ponto: {
+        Args: { area: string; os: string }
+        Returns: string
+      }
+      coleta_remover_ponto: {
+        Args: { os: string; ponto: string }
+        Returns: undefined
+      }
+      coleta_renomear_ponto: {
+        Args: { area: string; os: string; ponto: string }
+        Returns: undefined
+      }
       concluir_os: { Args: { os: string }; Returns: undefined }
       conferir_lembrete_agenda: {
         Args: { proposta: string }
@@ -6705,6 +6720,10 @@ export type Database = {
           vendedor: string
         }[]
       }
+      os_corrigir_textos: {
+        Args: { checklist?: Json; execucao?: Json; os: string; pontos?: Json }
+        Returns: number
+      }
       painel_financeiro: { Args: never; Returns: Json }
       pendencias_os: { Args: { os: string }; Returns: string[] }
       reabrir_os: { Args: { motivo: string; os: string }; Returns: undefined }
@@ -6763,6 +6782,13 @@ export type Database = {
       }
       travar_boleto_nota: { Args: { p_nota_id: string }; Returns: boolean }
       travar_emissao_nota: { Args: { p_nota_id: string }; Returns: boolean }
+      valores_a_antecipar: {
+        Args: { p_lancamentos: string[] }
+        Returns: {
+          id: string
+          valor: number
+        }[]
+      }
     }
     Enums: {
       abrangencia_feriado: 'estadual' | 'municipal' | 'outro'

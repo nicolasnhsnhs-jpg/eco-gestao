@@ -37,6 +37,7 @@ import { nomeVeiculo } from './nomeVeiculo'
 import { NOME_RESPOSTA, ocorrenciasDaOs, respostasDe } from './ocorrencias'
 import { formatarM3, nomeResiduo, quantidadeValida, residuoDoChecklist } from './tipos/residuo'
 import { ConferenciaOs } from './ConferenciaOs'
+import { CorrigirTextos } from './CorrigirTextos'
 import { EditarOs } from './EditarOs'
 import { EscopoAgua } from './EscopoAgua'
 import { EscopoReservatorio } from './EscopoReservatorio'
@@ -386,6 +387,7 @@ export function OsPage() {
               </Linha>
               <Linha rotulo="Acompanhou">
                 {e.sem_acompanhamento && 'Não houve acompanhamento'}
+                {e.sem_acompanhamento && e.ninguem_para_assinar && ' · ninguém para assinar'}
                 {e.sem_acompanhamento &&
                   (e.responsavel_nome || e.responsavel_setor || e.assinatura_cliente_id) &&
                   ' · recebeu: '}
@@ -457,6 +459,10 @@ export function OsPage() {
             Abrir a O.S de contrato deste local
           </Link>
         </p>
+      )}
+
+      {escritorio && (o.status === 'concluida' || o.status === 'conferida') && (
+        <CorrigirTextos os={o} />
       )}
 
       {escritorio && (

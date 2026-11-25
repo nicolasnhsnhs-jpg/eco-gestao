@@ -20,6 +20,7 @@ import { encodeBase64 } from 'jsr:@std/encoding@1/base64'
 import { assuntoNota, htmlNota, textoNota, type DadosEmailNota } from './emailNota.ts'
 import { registrarEmailEnviado } from './registrarEmail.ts'
 import { nomeDaEmpresa } from './servidor.ts'
+import { nomesDosAnexos } from './nomesAnexos.ts'
 
 const FORMAS: Record<string, string> = {
   pix: 'PIX',
@@ -157,7 +158,7 @@ export async function enviarNotaPorEmail(
   const { data: nota } = await admin
     .from('notas_fiscais')
     .select(
-      '*, cliente:clientes(nome, nome_fantasia), contrato:contratos(descricao), pdf:arquivos!arquivo_pdf_id(caminho_storage, nome_original), boleto:arquivos!arquivo_boleto_id(caminho_storage)',
+      '*, cliente:clientes(nome, nome_fantasia), contrato:contratos(descricao), pdf:arquivos!arquivo_pdf_id(caminho_storage, nome_original), boleto:arquivos!arquivo_boleto_id(caminho_storage, nome_original)',
     )
     .eq('id', notaId)
     .single()
@@ -183,16 +184,18 @@ export async function enviarNotaPorEmail(
     .download(nota.pdf.caminho_storage)
   if (erroArquivo || !arquivo) return falhar('Não foi possível abrir o PDF da nota.')
   // O boleto principal e os anexados à mão (emitidos por fora, outros prazos).
-  const caminhos: string[] = nota.boleto ? [nota.boleto.caminho_storage] : []
+  const caminhos: { caminho_storage: string; nome_original: string | null }[] = nota.boleto
+    ? [nota.boleto]
+    : []
   const extras: string[] = nota.boletos_extras ?? []
   if (extras.length) {
     const { data: arqs } = await admin
       .from('arquivos')
-      .select('id, caminho_storage')
+      .select('id, caminho_storage, nome_original')
       .in('id', extras)
     for (const id of extras) {
       const a = arqs?.find((x) => x.id === id)
-      if (a) caminhos.push(a.caminho_storage)
+      if (a) caminhos.push(a)
     }
   }
   // Nota de boleto marcada para ir com o boleto: sem boleto, não vai a nota sozinha
@@ -202,8 +205,8 @@ export async function enviarNotaPorEmail(
       'Esta nota é paga por boleto e ainda não tem boleto. Gere ou anexe o boleto e clique em Enviar nota e boleto.',
     )
   const boletos: Blob[] = []
-  for (const caminho of caminhos) {
-    const r = await admin.storage.from('arquivos').download(caminho)
+  for (const { caminho_storage } of caminhos) {
+    const r = await admin.storage.from('arquivos').download(caminho_storage)
     if (r.error || !r.data) return falhar('Não foi possível abrir o PDF do boleto.')
     boletos.push(r.data)
   }
@@ -234,10 +237,14 @@ export async function enviarNotaPorEmail(
       : enderecosEmail(copiaSegredo ?? de.match(/<([^>]+)>/)?.[1] ?? de).filter(
           (e) => !para.includes(e),
         )
-  const nomePdf = `NF ${nomeNota}.pdf`
-  const nomesBoletos = boletos.map(
-    (_, i) => `Boleto${boletos.length > 1 ? ` ${i + 1}` : ''} NF ${nomeNota}.pdf`,
-  )
+  // O mesmo nome do arquivo que o financeiro anexou (ex.: "BL4477.pdf").
+  const [nomePdf, ...nomesBoletos] = nomesDosAnexos([
+    { nomeOriginal: nota.pdf.nome_original, padrao: `NF ${nomeNota}.pdf` },
+    ...caminhos.map((c, i) => ({
+      nomeOriginal: c.nome_original,
+      padrao: `Boleto${caminhos.length > 1 ? ` ${i + 1}` : ''} NF ${nomeNota}.pdf`,
+    })),
+  ])
   const assunto = assuntoNota(dados)
   const envio = await fetch('https://api.resend.com/emails', {
     method: 'POST',

@@ -310,7 +310,7 @@ export function LinhaNota({
   /** Com valor, a linha ganha a caixa de marcar (emissão em lote). */
   marcada?: boolean
   aoMarcar?: (sim: boolean) => void
-  /** Na antecipação mostra o valor da conta a receber (é ele que é antecipado). */
+  /** Na antecipação mostra o líquido da nota (o valor do boleto, que é o antecipado). */
   antecipacao?: boolean
 }) {
   const cancelada = n.status === 'cancelada'
@@ -358,7 +358,9 @@ export function LinhaNota({
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           <strong className="text-sm">
-            {formatarReais(antecipacao && n.lancamento ? n.lancamento.valor : n.valor_servico)}
+            {formatarReais(
+              antecipacao ? (contaParaAntecipar(n)?.valor ?? n.valor_servico) : n.valor_servico,
+            )}
           </strong>
           <span className="flex gap-1">
             {cancelada && <Etiqueta cor="perigo">Cancelada</Etiqueta>}

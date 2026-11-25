@@ -1,5 +1,6 @@
 import type { ComponentProps, ReactNode } from 'react'
 
+import { avisosOrtografia } from '@/lib/ortografia'
 import { cn } from '@/lib/utils'
 
 const ESTILO_CAMPO =
@@ -47,8 +48,38 @@ export function Campo({
 // No React 19 o "ref" chega como uma propriedade comum, então os campos
 // funcionam direto com o register() do React Hook Form.
 
+/** Campos de texto: o celular/navegador sublinha o que estiver errado, em português. */
+const TEXTO_LIVRE = { spellCheck: true, lang: 'pt-BR' } as const
+
+/**
+ * Embaixo do campo, as trocas comuns ("humildade" → "umidade") que o corretor do
+ * celular não pega, porque a palavra existe. Só avisa; quem escreve decide.
+ */
+export function DicaOrtografia({ texto }: { texto: unknown }) {
+  const avisos = typeof texto === 'string' ? avisosOrtografia(texto) : []
+  if (!avisos.length) return null
+  return (
+    <p className="text-sm text-alerta" role="status">
+      Verifique a ortografia: {avisos.map((a) => `“${a.escrito}” → ${a.sugestao}`).join(' · ')}
+    </p>
+  )
+}
+
+const TIPOS_TEXTO = [undefined, 'text', 'search']
+
 export function Input({ className, ...props }: ComponentProps<'input'>) {
-  return <input className={cn(ESTILO_CAMPO, className)} {...props} />
+  const texto = TIPOS_TEXTO.includes(props.type)
+  const campo = (
+    <input className={cn(ESTILO_CAMPO, className)} {...(texto ? TEXTO_LIVRE : {})} {...props} />
+  )
+  if (!texto || typeof props.value !== 'string' || !avisosOrtografia(props.value).length)
+    return campo
+  return (
+    <>
+      {campo}
+      <DicaOrtografia texto={props.value} />
+    </>
+  )
 }
 
 export function Select({ className, ...props }: ComponentProps<'select'>) {
@@ -56,5 +87,20 @@ export function Select({ className, ...props }: ComponentProps<'select'>) {
 }
 
 export function Textarea({ className, ...props }: ComponentProps<'textarea'>) {
-  return <textarea className={cn(ESTILO_CAMPO, 'min-h-24 py-2', className)} {...props} />
+  const campo = (
+    <textarea
+      className={cn(ESTILO_CAMPO, 'min-h-24 py-2', className)}
+      autoCapitalize="sentences"
+      autoCorrect="on"
+      {...TEXTO_LIVRE}
+      {...props}
+    />
+  )
+  if (typeof props.value !== 'string' || !avisosOrtografia(props.value).length) return campo
+  return (
+    <>
+      {campo}
+      <DicaOrtografia texto={props.value} />
+    </>
+  )
 }

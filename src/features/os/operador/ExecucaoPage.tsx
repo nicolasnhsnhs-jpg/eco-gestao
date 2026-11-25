@@ -1,5 +1,5 @@
 import { nomeVeiculo } from '../nomeVeiculo'
-import { CheckCircle2, CloudOff, MapPin, Phone, RefreshCw } from 'lucide-react'
+import { Check, CheckCircle2, CloudOff, Copy, MapPin, Phone, RefreshCw } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router'
 
@@ -13,7 +13,7 @@ import { Etiqueta } from '@/components/ui/Etiqueta'
 import { formatarData, hojeISO } from '@/lib/datas'
 import { formatarTelefone } from '@/lib/documentos'
 import { mensagemDeErro } from '@/lib/erros'
-import { linkRotaMapa } from '@/lib/mapa'
+import { enderecoParaMapa } from '@/lib/mapa'
 import { cn } from '@/lib/utils'
 
 import { useArquivos } from '../../arquivos/api'
@@ -392,14 +392,10 @@ function Execucao({ os }: { os: OsCompleta }) {
           {ficha.unidade?.apelido && ` · ${ficha.unidade.apelido}`}
         </p>
         {ficha.unidade && (
-          <a
-            className="flex min-h-11 items-center gap-2 text-verde underline"
-            href={linkRotaMapa(ficha.unidade)}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <MapPin className="size-5 shrink-0" aria-hidden /> {enderecoDaFicha(ficha)}
-          </a>
+          <EnderecoCopiavel
+            texto={enderecoDaFicha(ficha)}
+            paraCopiar={enderecoParaMapa(ficha.unidade)}
+          />
         )}
         {ficha.contatos?.map((c) => (
           <p key={`${c.nome}-${c.telefone}`} className="flex flex-wrap items-center gap-2">
@@ -705,7 +701,13 @@ function Execucao({ os }: { os: OsCompleta }) {
               type="button"
               disabled={!aberta}
               aria-pressed={!!campos.sem_acompanhamento}
-              onClick={() => alterar({ sem_acompanhamento: !campos.sem_acompanhamento })}
+              onClick={() =>
+                alterar(
+                  campos.sem_acompanhamento
+                    ? { sem_acompanhamento: false, ninguem_para_assinar: false }
+                    : { sem_acompanhamento: true },
+                )
+              }
               className={
                 campos.sem_acompanhamento
                   ? 'min-h-12 rounded-xl border-2 border-verde bg-verde px-4 font-bold text-white'
@@ -716,9 +718,10 @@ function Execucao({ os }: { os: OsCompleta }) {
             </button>
             {campos.sem_acompanhamento && (
               <Aviso tipo="info">
-                Ninguém do cliente acompanhou o serviço. Se der, peça na saída a assinatura de quem
-                recebeu (portaria, recepção…) para mostrar que você esteve lá; não é obrigatório. Se
-                alguém acompanhou, toque de novo no botão para desmarcar.
+                Ninguém do cliente acompanhou o serviço. Peça na saída a assinatura de quem recebeu
+                (portaria, recepção…) para mostrar que você esteve lá. Se não tiver ninguém para
+                assinar, toque em “Não tem ninguém para assinar”. Se alguém acompanhou, toque de
+                novo no botão para desmarcar.
               </Aviso>
             )}
             <div className="grid grid-cols-2 gap-3">
@@ -744,18 +747,35 @@ function Execucao({ os }: { os: OsCompleta }) {
                 />
               </Campo>
             </div>
-            <QuadroAssinatura
-              titulo={
-                campos.sem_acompanhamento
-                  ? 'Assinatura de quem recebeu na saída (opcional)'
-                  : 'Assinatura de quem acompanhou'
-              }
-              feita={!!campos.assinatura_cliente_id}
-              aberta={aberta}
-              ocupado={assinando === 'cliente'}
-              aoConfirmar={(img) => assinar('cliente', img)}
-              aoRefazer={() => alterar({ assinatura_cliente_id: null })}
-            />
+            {campos.sem_acompanhamento && (
+              <button
+                type="button"
+                disabled={!aberta}
+                aria-pressed={!!campos.ninguem_para_assinar}
+                onClick={() => alterar({ ninguem_para_assinar: !campos.ninguem_para_assinar })}
+                className={
+                  campos.ninguem_para_assinar
+                    ? 'min-h-12 rounded-xl border-2 border-verde bg-verde px-4 font-bold text-white'
+                    : 'min-h-12 rounded-xl border-2 border-borda bg-white px-4 font-bold'
+                }
+              >
+                Não tem ninguém para assinar
+              </button>
+            )}
+            {!(campos.sem_acompanhamento && campos.ninguem_para_assinar) && (
+              <QuadroAssinatura
+                titulo={
+                  campos.sem_acompanhamento
+                    ? 'Assinatura de quem recebeu na saída (obrigatória)'
+                    : 'Assinatura de quem acompanhou'
+                }
+                feita={!!campos.assinatura_cliente_id}
+                aberta={aberta}
+                ocupado={assinando === 'cliente'}
+                aoConfirmar={(img) => assinar('cliente', img)}
+                aoRefazer={() => alterar({ assinatura_cliente_id: null })}
+              />
+            )}
           </Etapa>
 
           <Etapa numero={depois + 2} titulo="Operador">
@@ -929,5 +949,73 @@ function IndicadorEnvio({ estado }: { estado: EstadoEnvio }) {
     <span className="flex items-center gap-1 text-sm text-alerta">
       <CloudOff className="size-4" aria-hidden /> Salvo no celular
     </span>
+  )
+}
+
+/**
+ * Endereço do cliente com o botão Copiar (para colar no GPS). Não abre o mapa direto:
+ * com endereço da Receita mal escrito o Maps levava a outro lugar (ex.: Carrefour
+ * Caxias, 24/11/2026). Colando, o técnico vê o que o GPS achou antes de sair.
+ */
+function EnderecoCopiavel({ texto, paraCopiar }: { texto: string; paraCopiar: string }) {
+  const [copiado, setCopiado] = useState(false)
+  const [falhou, setFalhou] = useState(false)
+
+  async function copiar() {
+    setFalhou(false)
+    try {
+      await navigator.clipboard.writeText(paraCopiar)
+    } catch {
+      // Navegador antigo ou sem permissão: copia pelo jeito antigo.
+      const campo = document.createElement('textarea')
+      campo.value = paraCopiar
+      campo.setAttribute('readonly', '')
+      campo.style.position = 'fixed'
+      campo.style.opacity = '0'
+      document.body.appendChild(campo)
+      campo.select()
+      const ok = document.execCommand('copy')
+      campo.remove()
+      if (!ok) {
+        setFalhou(true)
+        return
+      }
+    }
+    setCopiado(true)
+    window.setTimeout(() => setCopiado(false), 2500)
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="flex items-start gap-2">
+        <MapPin className="mt-0.5 size-5 shrink-0 text-verde" aria-hidden />
+        <span className="select-all">{texto}</span>
+      </p>
+      <button
+        type="button"
+        onClick={() => void copiar()}
+        className="flex min-h-11 w-fit items-center gap-2 rounded-xl border-2 border-verde px-4 font-bold text-verde"
+      >
+        {copiado ? (
+          <>
+            <Check className="size-5" aria-hidden /> Endereço copiado
+          </>
+        ) : (
+          <>
+            <Copy className="size-5" aria-hidden /> Copiar endereço
+          </>
+        )}
+      </button>
+      {copiado && (
+        <p className="text-sm text-texto-suave">
+          Cole no Maps ou no Waze e confira se o lugar é o certo antes de sair.
+        </p>
+      )}
+      {falhou && (
+        <p className="text-sm text-perigo">
+          Não deu para copiar. Toque e segure no endereço acima para copiar.
+        </p>
+      )}
+    </div>
   )
 }

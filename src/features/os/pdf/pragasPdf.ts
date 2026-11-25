@@ -19,6 +19,9 @@ import {
   REFIL,
   PROCEDIMENTOS,
   SITUACOES_ISCA,
+  SITUACOES_PLACA,
+  nomeModeloArmadilha,
+  situacaoPadrao,
   sugerirNivelRoedores,
   type ChecklistPragas,
   type EscopoPragas,
@@ -40,7 +43,11 @@ export async function buscarDadosPragas(osId: string): Promise<DadosPragas> {
     supabase.from('os_insetos').select('*').eq('os_id', osId).order('criado_em'),
   ])
   for (const r of [pontos, produtos, insetos]) if (r.error) throw r.error
-  return { pontos: ordenarPontos(pontos.data ?? []), produtos: produtos.data ?? [], insetos: insetos.data ?? [] }
+  return {
+    pontos: ordenarPontos(pontos.data ?? []),
+    produtos: produtos.data ?? [],
+    insetos: insetos.data ?? [],
+  }
 }
 
 /** O que o PDF precisa do escritor de páginas (ver gerarPdfOs.ts). */
@@ -332,23 +339,90 @@ function desenharPizza(
   w.y = Math.min(cy - raio - 12, y - 10)
 }
 
+const CORES_PLACA: Record<keyof typeof SITUACOES_PLACA, ReturnType<typeof rgb>> = {
+  M: rgb(0.643, 0.839, 0.369),
+  SC: rgb(0.122, 0.302, 0.102),
+  T: rgb(0.45, 0.65, 0.85),
+  I: rgb(0.8, 0.55, 0.15),
+  Q: rgb(0.55, 0.35, 0.2),
+  SA: rgb(0.6, 0.6, 0.6),
+  NE: rgb(0.8, 0.3, 0.3),
+}
+
+/** Quantos pontos em cada situação (só as que aparecem), na ordem da legenda. */
+export function contarSituacoes<C extends string>(
+  pontos: PontoOs[],
+  situacoes: Record<C, string>,
+): { codigo: C; nome: string; n: number }[] {
+  return (Object.keys(situacoes) as C[])
+    .map((codigo) => ({
+      codigo,
+      nome: situacoes[codigo],
+      n: pontos.filter((p) => (p.situacao ?? situacaoPadrao(p.tipo_isca)) === codigo).length,
+    }))
+    .filter((s) => s.n > 0)
+}
+
+/**
+ * Resumo para o cliente: "De 150 iscas parafinadas, 130 MS (mantido sem consumo),
+ * 15 MC (mantido com consumo) e 5 CT (consumido e trocado)."
+ */
+export function resumoSituacoes(
+  contagem: { codigo: string; nome: string; n: number }[],
+  total: number,
+  nome: string,
+): string {
+  const partes = contagem.map((s) => `${s.n} ${s.codigo} (${s.nome.toLowerCase()})`)
+  const lista =
+    partes.length > 1
+      ? `${partes.slice(0, -1).join(', ')} e ${partes[partes.length - 1]}`
+      : partes[0]
+  return `De ${total} ${nome}, ${lista}.`
+}
+
 /** Pizza do consumo da isca parafinada (MS / MC / CT…). */
 function pizzaIscas(w: EscritorPdf, fonte: PDFFont, pontos: PontoOs[]) {
   const parafinadas = pontos.filter((p) => p.tipo_isca === 'IP')
+  if (parafinadas.length === 0) return
   // Todas as situações das iscas parafinadas, para a pizza fechar 100%.
-  const fatias = (Object.keys(SITUACOES_ISCA) as (keyof typeof SITUACOES_ISCA)[])
-    .map((codigo) => ({
-      rotulo: `${codigo} · ${SITUACOES_ISCA[codigo]}`,
-      n: parafinadas.filter((p) => p.situacao === codigo).length,
-      cor: CORES_PIZZA[codigo] ?? rgb(0.75, 0.75, 0.75),
-    }))
-    .filter((f) => f.n > 0)
+  const contagem = contarSituacoes(parafinadas, SITUACOES_ISCA)
   desenharPizza(
     w,
     fonte,
     'Consumo da isca parafinada',
-    fatias,
+    contagem.map((s) => ({
+      rotulo: `${s.codigo} · ${s.nome}`,
+      n: s.n,
+      cor: CORES_PIZZA[s.codigo] ?? rgb(0.75, 0.75, 0.75),
+    })),
     `${parafinadas.length} iscas parafinadas`,
+  )
+  w.campo('Resumo das iscas', resumoSituacoes(contagem, parafinadas.length, 'iscas parafinadas'))
+}
+
+/** Pizza das placas de cola (M / SC / T…), igual à da isca parafinada. */
+function pizzaColas(w: EscritorPdf, fonte: PDFFont, pontos: PontoOs[]) {
+  const colas = pontos.filter((p) => p.tipo_isca === 'CO')
+  if (colas.length === 0) return
+  const contagem = contarSituacoes(colas, SITUACOES_PLACA)
+  desenharPizza(
+    w,
+    fonte,
+    'Placas de cola',
+    contagem.map((s) => ({
+      rotulo: `${s.codigo} · ${s.nome}`,
+      n: s.n,
+      cor: CORES_PLACA[s.codigo],
+    })),
+    `${colas.length} ${colas.length === 1 ? 'placa de cola' : 'placas de cola'}`,
+  )
+  w.campo(
+    'Resumo das colas',
+    resumoSituacoes(
+      contagem,
+      colas.length,
+      colas.length === 1 ? 'placa de cola' : 'placas de cola',
+    ),
   )
 }
 
@@ -427,6 +501,7 @@ export function escreverPragas(
     'Porta-iscas',
   )
   pizzaIscas(w, fonte, portaIscas)
+  pizzaColas(w, fonte, portaIscas)
   w.campo('Sem acesso', checklist.sem_acesso)
   w.campo('Quebrados', checklist.quebrados)
   w.campo('Comentários', checklist.comentarios_roedores)
@@ -453,7 +528,7 @@ export function escreverPragas(
           titulo: `${String(a.numero).padStart(2, '0')} · ${a.area}`,
           // Rótulo e valor ficam juntos (espaço não-quebrável) quando a linha quebra.
           linhas: [
-            `Modelo ${a.modelo_armadilha ?? '—'}`,
+            `Modelo ${nomeModeloArmadilha(a.modelo_armadilha) || '—'}`,
             `Refil ${a.refil ?? '—'} · Higiene ${a.higiene ?? '—'}`,
             `Situação ${a.situacao_armadilha ?? '—'}`,
             `Lâmpadas trocadas: ${a.lampadas_trocadas == null ? '—' : a.lampadas_trocadas ? 'sim' : 'não'}`,

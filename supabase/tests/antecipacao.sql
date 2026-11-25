@@ -167,6 +167,10 @@ insert into public.notas_fiscais (id, tipo, status, cliente_id, numero, data_emi
    'Limpeza de caixa avulsa', 980),
   ('00000000-0000-0000-0000-0000000d1d03', 'avulsa', 'rascunho', '00000000-0000-0000-0000-0000000d1c01',
    null, privado.hoje(), date_trunc('month', privado.hoje())::date, null, 'Rascunho', 50);
+-- Nota 2 com retenções: ISS retido 2% (19,60) + IRRF 14,70 = 34,30 → líquido 945,70.
+update public.notas_fiscais
+   set iss_retido = true, aliquota_iss = 2, valor_irrf = 14.70
+ where id = '00000000-0000-0000-0000-0000000d1d02';
 
 select pg_temp.como('00000000-0000-0000-0000-0000000002f1');
 set local role authenticated;
@@ -194,10 +198,14 @@ begin
     array['00000000-0000-0000-0000-0000000d1d01', '00000000-0000-0000-0000-0000000d1d02']::uuid[]) = v_contas,
     'Segunda chamada devolve as mesmas contas';
 
+  -- A tela e o banco contam o líquido das notas (o valor do boleto), não o bruto.
+  assert (select valor from public.valores_a_antecipar(v_contas) where id = v_contas[2]) = 945.70,
+    'Conta da nota 2 antecipa o líquido';
   v_id := public.antecipar_recebiveis(v_contas, privado.hoje(),
             '00000000-0000-0000-0000-0000000d1a01', 'Sicredi', 60);
-  assert (select valor_bruto from public.antecipacoes where id = v_id) = 1960, 'Bruto das duas notas';
-  assert (select sum(valor_pago) from public.lancamentos where antecipacao_id = v_id) = 1900, 'Líquido';
+  assert (select valor_bruto from public.antecipacoes where id = v_id) = 1925.70,
+    'Total = líquido das duas notas (980 + 945,70)';
+  assert (select sum(valor_pago) from public.lancamentos where antecipacao_id = v_id) = 1865.70, 'Líquido';
 
   begin
     perform public.contas_das_notas(array['00000000-0000-0000-0000-0000000d1d03']::uuid[]);

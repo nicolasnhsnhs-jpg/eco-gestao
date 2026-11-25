@@ -25,7 +25,12 @@ import { cn } from '@/lib/utils'
 
 import { AntecipacaoModal } from './AntecipacaoModal'
 import { totalBruto } from './antecipacao'
-import { useLancamentos, type FiltroLancamentos, type LancamentoCompleto } from './api'
+import {
+  useLancamentos,
+  useValoresAAntecipar,
+  type FiltroLancamentos,
+  type LancamentoCompleto,
+} from './api'
 import { ConfirmarModal } from './ConfirmarModal'
 import { COR_SITUACAO, NOME_SITUACAO, type Situacao } from './rotulos'
 
@@ -75,6 +80,8 @@ export function LancamentosPage() {
   const lista = lancamentos.data ?? []
   // Só valem as marcadas que ainda aparecem na lista (o filtro pode ter mudado).
   const selecionados = antecipando ? lista.filter((l) => marcados.has(l.id!)) : []
+  // Contas com nota entram pelo líquido (o valor do boleto, que é o antecipado).
+  const aAntecipar = useValoresAAntecipar(selecionados)
   const todasMarcadas = lista.length > 0 && selecionados.length === lista.length
 
   function marcar(id: string) {
@@ -234,7 +241,7 @@ export function LancamentosPage() {
           <p className="text-sm">
             {selecionados.length} marcada(s) · Total{' '}
             <strong className="text-verde">
-              {formatarReais(totalBruto(selecionados.map((l) => l.valor ?? 0)))}
+              {formatarReais(totalBruto(aAntecipar.map((l) => l.valor ?? 0)))}
             </strong>
           </p>
           <Button onClick={() => setAntecipacaoAberta(true)}>

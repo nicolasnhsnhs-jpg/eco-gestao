@@ -249,23 +249,44 @@ export function aceitaBoletoEmLote(n: {
 
 /**
  * Nota emitida que dá para antecipar pela tela das notas. Devolve a conta a receber (é ela
- * que o banco antecipa, com o valor dela) ou null. A avulsa ainda sem conta ligada também
- * entra, com o valor da nota e id null: ao antecipar, o sistema acha a conta do cliente ou
- * cria uma no Sicredi (função contas_das_notas).
+ * que o banco antecipa) ou null. O valor é o líquido da nota (o do boleto: valor menos as
+ * retenções), como o banco conta em antecipar_recebiveis. A avulsa ainda sem conta ligada
+ * também entra, com id null: ao antecipar, o sistema acha a conta do cliente ou cria uma no
+ * Sicredi (função contas_das_notas).
  */
 export function contaParaAntecipar<
   L extends { id: string; status: string; valor: number | string | null },
->(n: {
-  status: string
-  tipo?: string
-  valor_servico?: number | string
-  lancamento: L | null
-}): { id: string | null; valor: number | string | null } | null {
+>(
+  n: {
+    status: string
+    tipo?: string
+    valor_servico?: number | string
+    lancamento: L | null
+  } & Partial<Omit<DadosRetencao, 'valor_servico'>>,
+): { id: string | null; valor: number | string | null } | null {
   const l = n.lancamento
   if (n.status !== 'emitida') return null
+  const retido =
+    n.iss_retido === undefined || n.valor_servico == null
+      ? 0
+      : totalRetido({
+          iss_retido: n.iss_retido,
+          aliquota_iss: n.aliquota_iss ?? null,
+          valor_servico: Number(n.valor_servico),
+          pis_cofins_retidos: n.pis_cofins_retidos ?? false,
+          tp_ret_piscofins: n.tp_ret_piscofins ?? null,
+          valor_pis: n.valor_pis ?? null,
+          valor_cofins: n.valor_cofins ?? null,
+          valor_csll: n.valor_csll ?? null,
+          valor_irrf: n.valor_irrf ?? null,
+          valor_inss: n.valor_inss ?? null,
+        })
+  const liquido = (valor: number | string | null) =>
+    retido > 0 ? Math.max(0, Math.round((Number(valor ?? 0) - retido) * 100) / 100) : valor
   if (!l)
     return n.tipo === 'avulsa' && n.valor_servico != null
-      ? { id: null, valor: n.valor_servico }
+      ? { id: null, valor: liquido(n.valor_servico) }
       : null
-  return l.status === 'pendente' || l.status === 'agendado' ? l : null
+  if (l.status !== 'pendente' && l.status !== 'agendado') return null
+  return retido > 0 ? { id: l.id, valor: liquido(l.valor) } : l
 }

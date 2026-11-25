@@ -16,7 +16,7 @@ import {
   totalBruto,
   type ModoDesconto,
 } from './antecipacao'
-import { useAntecipar, useContas } from './api'
+import { useAntecipar, useContas, useValoresAAntecipar } from './api'
 
 /** A conta a receber que vai ser antecipada (vinda dos lançamentos ou das notas). */
 export type ContaParaAntecipar = { id: string | null; valor: number | string | null }
@@ -61,7 +61,8 @@ function Formulario({
   const [erro, setErro] = useState('')
 
   const conta = contaEscolhida || ativas[0]?.id || ''
-  const bruto = totalBruto(selecionados.map((l) => l.valor ?? 0))
+  const aAntecipar = useValoresAAntecipar(selecionados)
+  const bruto = totalBruto(aAntecipar.map((l) => l.valor ?? 0))
   const descontoDigitado =
     modo === 'reais' ? lerValor(descontoTexto) : Number(descontoTexto.replace(',', '.'))
   const descontoValido =

@@ -36,7 +36,7 @@ describe('pendenciasLocais', () => {
     ])
   })
 
-  it('quem acompanhou: setor obrigatório, ou "não houve acompanhamento"', () => {
+  it('quem acompanhou: setor obrigatório; sem acompanhamento, assinatura de quem recebeu', () => {
     const semSetor = { ...comum, resultado: 'ok', responsavel_setor: ' ' }
     expect(pendenciasLocais('generico', semSetor, [])).toEqual(['setor de quem acompanhou'])
     const ninguem = {
@@ -47,8 +47,14 @@ describe('pendenciasLocais', () => {
       assinatura_cliente_id: null,
       sem_acompanhamento: true,
     }
-    expect(pendenciasLocais('generico', ninguem, [])).toEqual([])
+    // Sem acompanhamento: pede a assinatura de quem recebeu, a não ser que não haja ninguém.
+    expect(pendenciasLocais('generico', ninguem, [])).toEqual(['assinatura de quem recebeu'])
+    expect(pendenciasLocais('generico', { ...ninguem, assinatura_cliente_id: 'a1' }, [])).toEqual(
+      [],
+    )
+    expect(pendenciasLocais('generico', { ...ninguem, ninguem_para_assinar: true }, [])).toEqual([])
     expect(etapaDaPendencia('setor de quem acompanhou')).toBe('Quem acompanhou (cliente)')
+    expect(etapaDaPendencia('assinatura de quem recebeu')).toBe('Quem acompanhou (cliente)')
   })
 
   it('ocorrências do escritório: cada uma precisa de sanado ou reforço', () => {
@@ -212,6 +218,19 @@ describe('pendenciasLocais', () => {
     ).toEqual([])
     expect(etapaDaPendencia('coleta de: Cozinha')).toBe('Pontos de coleta')
     expect(etapaDaPendencia('conservação das amostras')).toBe('Amostras')
+  })
+
+  it('água: o técnico precisa dizer onde coletou (pelo menos um ponto coletado)', () => {
+    const checklist = { procedimento: true, refrigeradas: { sim: true } }
+    expect(pendenciasLocais('agua', { ...comum, checklist }, [])).toEqual([
+      'ponto de coleta (onde foi coletado)',
+    ])
+    expect(
+      pendenciasLocais('agua', { ...comum, checklist }, [
+        { tipo: 'ponto_coleta', numero: 1, area: 'Portaria', coletado: false },
+      ]),
+    ).toEqual(['ponto de coleta (onde foi coletado)'])
+    expect(etapaDaPendencia('ponto de coleta (onde foi coletado)')).toBe('Pontos de coleta')
   })
 
   it('ar-condicionado: limpezas e fotos de cada aparelho e quantidade de produto', () => {

@@ -9,6 +9,8 @@
 --     conservação das amostras, e não pede nada de outro formulário;
 --   - ar: concluir exige as três limpezas e as duas fotos de cada aparelho e a
 --     quantidade de produto;
+--   - o técnico adiciona, renomeia e tira pontos de coleta em campo;
+--   - o escritório corrige o português da OS concluída (só texto);
 --   - a próxima OS traz a data anterior da coleta e da limpeza.
 -- Transação desfeita no final (rollback).
 --
@@ -119,6 +121,50 @@ begin
   end if;
 end $$;
 
+-- O técnico nomeia os pontos em campo: adiciona, corrige o nome e tira.
+do $$
+declare
+  v_os    uuid := (select id from ids where nome = 'agua');
+  v_ponto uuid;
+begin
+  v_ponto := public.coleta_adicionar_ponto(v_os, '  Banheiro ');
+  perform pg_temp.conferir('ponto novo na OS com o nome dado',
+    (select count(*) from public.os_pontos
+      where os_id = v_os and ponto_id = v_ponto and area = 'Banheiro' and numero = 3), 1);
+  perform pg_temp.conferir('ponto novo sem o aviso de ponto novo',
+    (select count(*) from public.os_pontos where os_id = v_os and incluido_na_execucao), 0);
+  begin
+    perform public.coleta_adicionar_ponto(v_os, 'banheiro');
+    raise exception 'FALHOU: aceitou dois pontos com o mesmo nome';
+  exception when unique_violation then null;
+  end;
+  begin
+    perform public.coleta_adicionar_ponto(v_os, ' ');
+    raise exception 'FALHOU: aceitou ponto sem nome';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    perform public.coleta_adicionar_ponto((select id from ids where nome = 'ar'), 'Banheiro');
+    raise exception 'FALHOU: cadastrou ponto de coleta na OS de ar-condicionado';
+  exception when insufficient_privilege then null;
+  end;
+
+  perform public.coleta_renomear_ponto(v_os, v_ponto, 'Banheiro social');
+  perform pg_temp.conferir('nome corrigido na OS',
+    (select count(*) from public.os_pontos where ponto_id = v_ponto and area = 'Banheiro social'), 1);
+
+  -- Tirar o ponto novo (sem coleta em outra OS): some de vez.
+  perform public.coleta_remover_ponto(v_os, v_ponto);
+  perform pg_temp.conferir('ponto tirado da OS',
+    (select count(*) from public.os_pontos where ponto_id = v_ponto), 0);
+end $$;
+reset role;
+select pg_temp.conferir('ponto novo tirado também da O.S salva',
+  (select count(*) from public.pontos_controle
+    where modelo_id = '00000000-0000-0000-0000-00000000ab10' and area like 'Banheiro%'), 0);
+select pg_temp.como('00000000-0000-0000-0000-000000000ab2');
+set local role authenticated;
+
 update public.os_pontos set coletado = true, hora_coleta = '09:05'
  where os_id = (select id from ids where nome = 'agua') and numero = 2;
 update public.os_pontos set coletado = false
@@ -127,6 +173,56 @@ update public.os_execucao
    set checklist = '{"procedimento": true, "refrigeradas": {"sim": true}}'
  where os_id = (select id from ids where nome = 'agua');
 select public.concluir_os((select id from ids where nome = 'agua'));
+
+-- Português: o técnico não corrige depois de concluída; o escritório corrige só o texto.
+do $$ begin
+  perform public.os_corrigir_textos((select id from ids where nome = 'agua'),
+    '{"observacoes": "x"}'::jsonb);
+  raise exception 'FALHOU: técnico corrigiu texto da OS concluída';
+exception when insufficient_privilege then null;
+end $$;
+reset role;
+update public.os_execucao set observacoes = 'Bloco deteriorado pela humildade',
+       checklist = checklist || '{"instaladas": {"sim": false, "texto": "humido"}}'
+ where os_id = (select id from ids where nome = 'agua');
+update public.os_pontos set observacao = 'Agua da torneira'
+ where os_id = (select id from ids where nome = 'agua') and numero = 2;
+select pg_temp.como('00000000-0000-0000-0000-000000000ab1');
+set local role authenticated;
+do $$
+declare
+  v_os uuid := (select id from ids where nome = 'agua');
+  v_n  integer;
+begin
+  v_n := public.os_corrigir_textos(v_os,
+    '{"observacoes": " Bloco deteriorado pela umidade "}'::jsonb,
+    '[{"caminho": ["instaladas", "texto"], "valor": "úmido"}]'::jsonb,
+    jsonb_build_array(jsonb_build_object(
+      'id', (select id from public.os_pontos where os_id = v_os and numero = 2),
+      'observacao', 'Água da torneira')));
+  perform pg_temp.conferir('textos trocados', v_n, 3);
+  perform pg_temp.conferir('observação corrigida',
+    (select count(*) from public.os_execucao where os_id = v_os
+        and observacoes = 'Bloco deteriorado pela umidade'
+        and checklist -> 'instaladas' ->> 'texto' = 'úmido'
+        and checklist -> 'refrigeradas' ->> 'sim' = 'true'), 1);
+  perform pg_temp.conferir('obs. do ponto corrigida',
+    (select count(*) from public.os_pontos where os_id = v_os and observacao = 'Água da torneira'), 1);
+  begin
+    perform public.os_corrigir_textos(v_os, '{"hora_saida": "10:00"}'::jsonb);
+    raise exception 'FALHOU: corrigiu campo que não é texto';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    perform public.os_corrigir_textos(v_os, '{}'::jsonb,
+      '[{"caminho": ["refrigeradas", "sim"], "valor": "não"}]'::jsonb);
+    raise exception 'FALHOU: trocou sim/não do checklist';
+  exception when invalid_parameter_value then null;
+  end;
+end $$;
+reset role;
+select pg_temp.como('00000000-0000-0000-0000-000000000ab2');
+set local role authenticated;
 
 -- Ar: o primeiro aparelho completo; o segundo sem o dreno; sem produto.
 update public.os_pontos
