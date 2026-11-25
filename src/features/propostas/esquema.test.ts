@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { esquemaProposta, ITEM_VAZIO, totalDosItens } from './esquema'
+import {
+  camposPedidoCompra,
+  esquemaProposta,
+  ITEM_VAZIO,
+  situacaoPedidoCompra,
+  totalDosItens,
+  type FormProposta,
+} from './esquema'
 
 describe('totalDosItens', () => {
   it('soma quantidade × valor sem erro de centavos', () => {
@@ -57,9 +64,35 @@ describe('esquemaProposta', () => {
     acrescimo_fora_horario: '480,00',
     texto_atendimento: '',
     custos_detalhados: true,
+    pedido_compra_situacao: 'nao',
+    pedido_compra: '',
     observacoes: '',
     itens: [{ ...ITEM_VAZIO, descricao: 'Limpeza de coifa', valor_unitario: '500,00' }],
   }
+
+  it('pedido de compra: exige a resposta e, com pedido, o número ou "Aguardando"', () => {
+    const ok = (d: Partial<FormProposta>) => esquemaProposta.safeParse({ ...base, ...d }).success
+    expect(ok({ pedido_compra_situacao: '' })).toBe(false)
+    expect(ok({ pedido_compra_situacao: 'sim', pedido_compra: ' ' })).toBe(false)
+    expect(ok({ pedido_compra_situacao: 'sim', pedido_compra: 'PC 4512' })).toBe(true)
+    expect(ok({ pedido_compra_situacao: 'aguardando' })).toBe(true)
+    expect(camposPedidoCompra('sim', ' PC 4512 ')).toEqual({
+      tem_pedido_compra: true,
+      aguardando_pedido_compra: false,
+      pedido_compra: 'PC 4512',
+    })
+    expect(camposPedidoCompra('aguardando', 'x')).toEqual({
+      tem_pedido_compra: true,
+      aguardando_pedido_compra: true,
+      pedido_compra: null,
+    })
+    expect(situacaoPedidoCompra({ tem_pedido_compra: true, aguardando_pedido_compra: true })).toBe(
+      'aguardando',
+    )
+    expect(situacaoPedidoCompra({ tem_pedido_compra: null, aguardando_pedido_compra: false })).toBe(
+      '',
+    )
+  })
 
   it('aceita uma proposta completa', () => {
     expect(esquemaProposta.safeParse(base).success).toBe(true)

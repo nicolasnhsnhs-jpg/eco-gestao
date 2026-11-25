@@ -4845,6 +4845,7 @@ export type Database = {
       propostas: {
         Row: {
           acrescimo_fora_horario: number | null
+          aguardando_pedido_compra: boolean
           atualizado_em: string
           atualizado_por: string | null
           cartao_juros: boolean | null
@@ -4871,9 +4872,11 @@ export type Database = {
           numero: string
           observacoes: string | null
           pagamento_fixo: boolean
+          pedido_compra: string | null
           prazo_pagamento_dias: number | null
           prazos_pagamento: number[] | null
           status: Database['public']['Enums']['status_proposta']
+          tem_pedido_compra: boolean | null
           texto_atendimento: string | null
           tipo: string
           validade: string | null
@@ -4882,6 +4885,7 @@ export type Database = {
         }
         Insert: {
           acrescimo_fora_horario?: number | null
+          aguardando_pedido_compra?: boolean
           atualizado_em?: string
           atualizado_por?: string | null
           cartao_juros?: boolean | null
@@ -4908,9 +4912,11 @@ export type Database = {
           numero?: string
           observacoes?: string | null
           pagamento_fixo?: boolean
+          pedido_compra?: string | null
           prazo_pagamento_dias?: number | null
           prazos_pagamento?: number[] | null
           status?: Database['public']['Enums']['status_proposta']
+          tem_pedido_compra?: boolean | null
           texto_atendimento?: string | null
           tipo?: string
           validade?: string | null
@@ -4919,6 +4925,7 @@ export type Database = {
         }
         Update: {
           acrescimo_fora_horario?: number | null
+          aguardando_pedido_compra?: boolean
           atualizado_em?: string
           atualizado_por?: string | null
           cartao_juros?: boolean | null
@@ -4945,9 +4952,11 @@ export type Database = {
           numero?: string
           observacoes?: string | null
           pagamento_fixo?: boolean
+          pedido_compra?: string | null
           prazo_pagamento_dias?: number | null
           prazos_pagamento?: number[] | null
           status?: Database['public']['Enums']['status_proposta']
+          tem_pedido_compra?: boolean | null
           texto_atendimento?: string | null
           tipo?: string
           validade?: string | null
@@ -6152,6 +6161,7 @@ export type Database = {
       v_propostas: {
         Row: {
           acrescimo_fora_horario: number | null
+          aguardando_pedido_compra: boolean | null
           atualizado_em: string | null
           atualizado_por: string | null
           cartao_juros: boolean | null
@@ -6179,10 +6189,12 @@ export type Database = {
           numero: string | null
           observacoes: string | null
           pagamento_fixo: boolean | null
+          pedido_compra: string | null
           prazo_pagamento_dias: number | null
           prazos_pagamento: number[] | null
           situacao: string | null
           status: Database['public']['Enums']['status_proposta'] | null
+          tem_pedido_compra: boolean | null
           texto_atendimento: string | null
           tipo: string | null
           validade: string | null
@@ -6191,6 +6203,7 @@ export type Database = {
         }
         Insert: {
           acrescimo_fora_horario?: number | null
+          aguardando_pedido_compra?: boolean | null
           atualizado_em?: string | null
           atualizado_por?: string | null
           cartao_juros?: boolean | null
@@ -6218,10 +6231,12 @@ export type Database = {
           numero?: string | null
           observacoes?: string | null
           pagamento_fixo?: boolean | null
+          pedido_compra?: string | null
           prazo_pagamento_dias?: number | null
           prazos_pagamento?: number[] | null
           situacao?: never
           status?: Database['public']['Enums']['status_proposta'] | null
+          tem_pedido_compra?: boolean | null
           texto_atendimento?: string | null
           tipo?: string | null
           validade?: string | null
@@ -6230,6 +6245,7 @@ export type Database = {
         }
         Update: {
           acrescimo_fora_horario?: number | null
+          aguardando_pedido_compra?: boolean | null
           atualizado_em?: string | null
           atualizado_por?: string | null
           cartao_juros?: boolean | null
@@ -6257,10 +6273,12 @@ export type Database = {
           numero?: string | null
           observacoes?: string | null
           pagamento_fixo?: boolean | null
+          pedido_compra?: string | null
           prazo_pagamento_dias?: number | null
           prazos_pagamento?: number[] | null
           situacao?: never
           status?: Database['public']['Enums']['status_proposta'] | null
+          tem_pedido_compra?: boolean | null
           texto_atendimento?: string | null
           tipo?: string | null
           validade?: string | null

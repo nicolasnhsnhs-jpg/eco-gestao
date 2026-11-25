@@ -37,6 +37,7 @@ import {
   formParaBase,
   ITEM_VAZIO,
   propostaParaBanco,
+  situacaoPedidoCompra,
   TAXA_VAZIA,
   totalDoItem,
   totalDosItens,
@@ -119,6 +120,8 @@ function valoresIniciais(
           : valorParaCampo(Number(proposta.acrescimo_fora_horario)),
       texto_atendimento: proposta.texto_atendimento ?? '',
       custos_detalhados: proposta.custos_detalhados ?? true,
+      pedido_compra_situacao: situacaoPedidoCompra(proposta),
+      pedido_compra: proposta.pedido_compra ?? '',
       observacoes: proposta.observacoes ?? '',
       itens: proposta.itens.map((i) => ({
         modelo: i.modelo ?? '',
@@ -164,6 +167,8 @@ function valoresIniciais(
     acrescimo_fora_horario: valorParaCampo(UNIDADE.proposta.acrescimoPadrao),
     texto_atendimento: '',
     custos_detalhados: true,
+    pedido_compra_situacao: '',
+    pedido_compra: '',
     observacoes: '',
     itens: [{ ...ITEM_VAZIO }],
   }
@@ -618,6 +623,8 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
             </Campo>
           </Card>
 
+          <PedidoDeCompra form={form} />
+
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <Link
               to={editando ? `/propostas/${proposta.id}` : '/propostas'}
@@ -641,6 +648,101 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
         )}
       </div>
     </div>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// Pedido de compra: o vendedor responde antes de salvar
+// -----------------------------------------------------------------------------
+
+/**
+ * "O cliente tem pedido de compra?" em destaque, junto do botão de salvar. Com
+ * pedido, o número já entra aqui ou fica "Aguardando o pedido de compra". A O.S
+ * feita a partir da proposta já nasce com essa resposta na conferência.
+ */
+function PedidoDeCompra({ form }: { form: UseFormReturn<FormProposta> }) {
+  const situacao = useWatch({ control: form.control, name: 'pedido_compra_situacao' })
+  const erros = form.formState.errors
+  const mudar = { shouldDirty: true, shouldValidate: form.formState.isSubmitted }
+  const escolher = (v: FormProposta['pedido_compra_situacao']) =>
+    form.setValue('pedido_compra_situacao', v, mudar)
+  const tem = situacao === 'sim' || situacao === 'aguardando'
+  const botao = (ativo: boolean) =>
+    cn(
+      'min-h-11 rounded-xl border-2 px-4 font-bold',
+      ativo ? 'border-alerta bg-alerta text-white' : 'border-alerta/40 bg-white text-alerta',
+    )
+
+  return (
+    <Card
+      className={cn(
+        'flex flex-col gap-3 border-2',
+        situacao === '' ? 'border-alerta bg-amber-50' : 'border-alerta/40 bg-amber-50/50',
+      )}
+    >
+      <p id="pedido-compra-pergunta" className="text-base font-bold text-alerta">
+        O cliente tem pedido de compra? *
+      </p>
+      <div role="group" aria-labelledby="pedido-compra-pergunta" className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          aria-pressed={tem}
+          className={botao(tem)}
+          onClick={() => escolher(situacao === 'aguardando' ? 'aguardando' : 'sim')}
+        >
+          Sim, tem pedido de compra
+        </button>
+        <button
+          type="button"
+          aria-pressed={situacao === 'nao'}
+          className={botao(situacao === 'nao')}
+          onClick={() => escolher('nao')}
+        >
+          Não tem
+        </button>
+      </div>
+      {erros.pedido_compra_situacao && (
+        <p className="text-sm font-semibold text-perigo">{erros.pedido_compra_situacao.message}</p>
+      )}
+      {tem && (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <Campo
+            rotulo="Número do pedido de compra"
+            htmlFor="pedido_compra"
+            className="flex-1"
+            erro={situacao === 'sim' ? erros.pedido_compra?.message : undefined}
+          >
+            <Input
+              id="pedido_compra"
+              maxLength={60}
+              disabled={situacao === 'aguardando'}
+              placeholder={
+                situacao === 'aguardando' ? 'Aguardando o cliente mandar' : 'Ex.: PC 4512'
+              }
+              {...form.register('pedido_compra')}
+            />
+          </Campo>
+          <label className="flex min-h-11 items-center gap-2 rounded-xl border border-borda bg-white px-3">
+            <input
+              type="checkbox"
+              className="size-5 accent-verde"
+              checked={situacao === 'aguardando'}
+              onChange={(e) => {
+                if (e.target.checked) form.setValue('pedido_compra', '', mudar)
+                escolher(e.target.checked ? 'aguardando' : 'sim')
+              }}
+            />
+            <span className="text-sm font-semibold">Aguardando o pedido de compra</span>
+          </label>
+        </div>
+      )}
+      {tem && (
+        <p className="text-sm text-texto-suave">
+          A O.S desta proposta já vai para o financeiro com essa resposta. Chegou o número depois?
+          Edite a proposta e preencha: as O.S que aguardavam recebem o número.
+        </p>
+      )}
+    </Card>
   )
 }
 

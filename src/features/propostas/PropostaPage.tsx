@@ -261,6 +261,18 @@ function Detalhe({ p }: { p: PropostaCompleta }) {
                 valor={p.texto_atendimento.replace(/\*\*/g, '')}
               />
             )}
+            <Dado
+              rotulo="Pedido de compra"
+              valor={
+                p.tem_pedido_compra == null
+                  ? 'Não informado'
+                  : !p.tem_pedido_compra
+                    ? 'Não tem'
+                    : p.aguardando_pedido_compra
+                      ? 'Aguardando o pedido de compra'
+                      : `Nº ${p.pedido_compra}`
+              }
+            />
             {p.observacoes && <Dado rotulo="Observações" valor={p.observacoes} />}
           </dl>
         </Card>

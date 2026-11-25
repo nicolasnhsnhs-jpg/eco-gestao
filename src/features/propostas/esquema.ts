@@ -86,12 +86,21 @@ export const esquemaProposta = z
     /** Texto próprio do atendimento fora do horário; vazio = texto padrão. */
     texto_atendimento: textoAte(2000),
     custos_detalhados: z.boolean(),
+    /** O cliente tem pedido de compra? Vazio = o vendedor ainda não respondeu. */
+    pedido_compra_situacao: z
+      .enum(['', 'nao', 'sim', 'aguardando'])
+      .refine((v) => v.length > 0, 'Responda se o cliente tem pedido de compra.'),
+    pedido_compra: textoAte(60),
     observacoes: z.string().trim(),
     itens: z.array(esquemaItem).min(1, 'Adicione pelo menos um serviço.'),
   })
   .refine((d) => !d.validade || d.validade >= d.data_envio, {
     path: ['validade'],
     message: 'A validade não pode ser antes do envio.',
+  })
+  .refine((d) => d.pedido_compra_situacao !== 'sim' || d.pedido_compra.trim() !== '', {
+    path: ['pedido_compra'],
+    message: 'Informe o número do pedido de compra ou marque "Aguardando".',
   })
 
 export type FormProposta = z.infer<typeof esquemaProposta>
@@ -182,6 +191,29 @@ export function camposPrazo(texto: string) {
   }
 }
 
+export type SituacaoPedidoCompra = FormProposta['pedido_compra_situacao']
+
+/** Sim / Não / Aguardando → as três colunas do banco (iguais às da conferência da O.S). */
+export function camposPedidoCompra(situacao: SituacaoPedidoCompra, numero: string) {
+  if (situacao === '')
+    return { tem_pedido_compra: null, aguardando_pedido_compra: false, pedido_compra: null }
+  return {
+    tem_pedido_compra: situacao !== 'nao',
+    aguardando_pedido_compra: situacao === 'aguardando',
+    pedido_compra: situacao === 'sim' ? numero.trim() || null : null,
+  }
+}
+
+/** O que está gravado → a resposta no formulário. */
+export function situacaoPedidoCompra(p: {
+  tem_pedido_compra: boolean | null
+  aguardando_pedido_compra: boolean | null
+}): SituacaoPedidoCompra {
+  if (p.tem_pedido_compra == null) return ''
+  if (!p.tem_pedido_compra) return 'nao'
+  return p.aguardando_pedido_compra ? 'aguardando' : 'sim'
+}
+
 export function propostaParaBanco(f: FormProposta) {
   const acrescimo = f.acrescimo_fora_horario.trim() ? lerValor(f.acrescimo_fora_horario) : null
   return {
@@ -203,6 +235,7 @@ export function propostaParaBanco(f: FormProposta) {
       acrescimo_fora_horario: acrescimo,
       texto_atendimento: ouNulo(f.texto_atendimento),
       custos_detalhados: f.custos_detalhados,
+      ...camposPedidoCompra(f.pedido_compra_situacao, f.pedido_compra),
       observacoes: ouNulo(f.observacoes),
     },
     itens: f.itens.map((i) => ({

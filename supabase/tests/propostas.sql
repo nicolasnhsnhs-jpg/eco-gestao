@@ -220,6 +220,45 @@ do $$ begin
   assert privado.cliente_do_caminho('outra-pasta/a.pdf') is null, 'Caminho fora do padrão não tem cliente';
 end $$;
 
+-- =============================================================================
+-- Pedido de compra da proposta vai para a conferência da O.S
+-- =============================================================================
+do $$ begin
+  begin
+    update public.propostas set tem_pedido_compra = true, aguardando_pedido_compra = false,
+           pedido_compra = null
+     where id = '00000000-0000-0000-0000-0000000aa001';
+    raise exception 'FALHOU: aceitou "tem pedido" sem número e sem aguardando';
+  exception when check_violation then null;
+  end;
+end $$;
+
+update public.propostas set tem_pedido_compra = true, aguardando_pedido_compra = true
+ where id = '00000000-0000-0000-0000-0000000aa001';
+
+insert into public.ordens_servico (id, cliente_id, tipo_servico_id, data_agendada, status)
+select '00000000-0000-0000-0000-0000000ab001', '00000000-0000-0000-0000-00000000c0a1', t.id,
+       privado.hoje(), 'rascunho'
+  from public.tipos_servico t where t.nome = 'Limpeza de coifa';
+update public.ordens_servico set proposta_id = '00000000-0000-0000-0000-0000000aa001'
+ where id = '00000000-0000-0000-0000-0000000ab001';
+
+do $$ declare c public.os_conferencia; begin
+  select * into c from public.os_conferencia where os_id = '00000000-0000-0000-0000-0000000ab001';
+  assert c.tem_pedido_compra and c.aguardando_pedido_compra and c.pedido_compra is null,
+    'A O.S da proposta deveria nascer aguardando o pedido de compra';
+end $$;
+
+-- O número chegou na proposta: a O.S que aguardava recebe.
+update public.propostas set aguardando_pedido_compra = false, pedido_compra = ' PC 4512 '
+ where id = '00000000-0000-0000-0000-0000000aa001';
+
+do $$ declare c public.os_conferencia; begin
+  select * into c from public.os_conferencia where os_id = '00000000-0000-0000-0000-0000000ab001';
+  assert c.tem_pedido_compra and not c.aguardando_pedido_compra and c.pedido_compra = 'PC 4512',
+    'A O.S deveria receber o número do pedido de compra, veio ' || coalesce(c.pedido_compra, 'nada');
+end $$;
+
 select 'Todos os testes de propostas e arquivos passaram.' as resultado;
 
 rollback;
