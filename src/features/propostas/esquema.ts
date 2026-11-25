@@ -125,6 +125,25 @@ export const ITEM_VAZIO: FormItem = {
   texto_contrato: '',
 }
 
+/** Serviço novo: no contrato (valor anual em parcelas mensais) já vem "Por mês". */
+export const itemNovo = (tipo: FormProposta['tipo']): FormItem => ({
+  ...ITEM_VAZIO,
+  cobranca: tipo === 'contrato' ? 'mensal' : 'unica',
+})
+
+/**
+ * Trocou avulso ↔ contrato: o que estava no padrão do tipo anterior passa para o
+ * padrão do novo ("Valor do serviço" ↔ "Por mês"). "Por visita" fica como está.
+ */
+export function cobrancasDoTipo<T extends Pick<FormItem, 'cobranca'>>(
+  itens: T[],
+  tipo: FormProposta['tipo'],
+): T[] {
+  const de = tipo === 'contrato' ? 'unica' : 'mensal'
+  const para = tipo === 'contrato' ? 'mensal' : 'unica'
+  return itens.map((i) => (i.cobranca === de ? { ...i, cobranca: para } : i))
+}
+
 const ouNulo = (v: string) => (v.trim() === '' ? null : v.trim())
 
 /** Campos do contrato: só valem na proposta de contrato. */

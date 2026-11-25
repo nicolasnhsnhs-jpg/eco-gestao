@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import {
   camposPedidoCompra,
+  cobrancasDoTipo,
   esquemaProposta,
+  itemNovo,
   ITEM_VAZIO,
   situacaoPedidoCompra,
   totalDosItens,
@@ -113,5 +115,22 @@ describe('esquemaProposta', () => {
   it('recusa periodicidade fora de 1 a 60 meses', () => {
     const item = { ...base.itens[0], periodicidade_meses: '0' }
     expect(esquemaProposta.safeParse({ ...base, itens: [item] }).success).toBe(false)
+  })
+})
+
+describe('contrato pago por mês', () => {
+  it('serviço novo do contrato já vem "Por mês"', () => {
+    expect(itemNovo('contrato').cobranca).toBe('mensal')
+    expect(itemNovo('avulsa').cobranca).toBe('unica')
+  })
+
+  it('trocar avulso ↔ contrato muda o padrão e deixa "Por visita"', () => {
+    const itens = [{ cobranca: 'unica' as const }, { cobranca: 'por_visita' as const }]
+    const contrato = cobrancasDoTipo(itens, 'contrato')
+    expect(contrato.map((i) => i.cobranca)).toEqual(['mensal', 'por_visita'])
+    expect(cobrancasDoTipo(contrato, 'avulsa').map((i) => i.cobranca)).toEqual([
+      'unica',
+      'por_visita',
+    ])
   })
 })

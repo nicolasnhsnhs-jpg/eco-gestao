@@ -35,7 +35,8 @@ import { introducaoContrato, textoContratoPadrao, textoTaxaContrato } from './co
 import {
   esquemaProposta,
   formParaBase,
-  ITEM_VAZIO,
+  cobrancasDoTipo,
+  itemNovo,
   propostaParaBanco,
   situacaoPedidoCompra,
   TAXA_VAZIA,
@@ -144,8 +145,9 @@ function valoresIniciais(
     }
   }
   const hoje = hojeISO()
+  const tipoInicial = parametros.get('tipo') === 'contrato' ? 'contrato' : 'avulsa'
   return {
-    tipo: parametros.get('tipo') === 'contrato' ? 'contrato' : 'avulsa',
+    tipo: tipoInicial,
     contrato_valor_anual: '',
     contrato_parcelas: '12',
     contrato_modelo: 'tradicional',
@@ -170,7 +172,7 @@ function valoresIniciais(
     pedido_compra_situacao: '',
     pedido_compra: '',
     observacoes: '',
-    itens: [{ ...ITEM_VAZIO }],
+    itens: [itemNovo(tipoInicial)],
   }
 }
 
@@ -329,7 +331,14 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
                     type="button"
                     role="radio"
                     aria-checked={marcado}
-                    onClick={() => form.setValue('tipo', valor, { shouldDirty: true })}
+                    onClick={() => {
+                      if (valores.tipo === valor) return
+                      form.setValue('tipo', valor, { shouldDirty: true })
+                      // Contrato é pago por mês: os serviços passam para "Por mês" (e voltam).
+                      form.setValue('itens', cobrancasDoTipo(form.getValues('itens'), valor), {
+                        shouldDirty: true,
+                      })
+                    }}
                     className={`min-h-11 rounded-xl border-2 p-3 text-left ${
                       marcado
                         ? 'border-verde bg-lima-claro text-verde-escuro'
@@ -491,12 +500,21 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
             ))}
 
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <Button variante="secundario" onClick={() => itens.append({ ...ITEM_VAZIO })}>
+              <Button variante="secundario" onClick={() => itens.append(itemNovo(valores.tipo))}>
                 <Plus className="size-4" aria-hidden /> Adicionar outro serviço
               </Button>
-              <p className="text-lg">
-                Total: <strong>{formatarReais(total)}</strong>
-              </p>
+              {contrato ? (
+                <SomaDoContrato
+                  porMes={totalMensal(valores.itens ?? [])}
+                  somaNoAno={valorAnualDosItens(base.itens)}
+                  {...contratoCalculado}
+                  informado={!!valores.contrato_valor_anual?.trim()}
+                />
+              ) : (
+                <p className="text-lg">
+                  Total: <strong>{formatarReais(total)}</strong>
+                </p>
+              )}
             </div>
           </Card>
 
@@ -647,6 +665,50 @@ function Formulario({ proposta }: { proposta?: PropostaCompleta }) {
           </aside>
         )}
       </div>
+    </div>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// Contrato: quanto fica por mês e no ano
+// -----------------------------------------------------------------------------
+
+/** Soma dos serviços cobrados "Por mês". */
+function totalMensal(itens: FormItem[]) {
+  return totalDosItens(itens.filter((i) => i.cobranca === 'mensal'))
+}
+
+function SomaDoContrato({
+  porMes,
+  somaNoAno,
+  anual,
+  parcelas,
+  parcela,
+  informado,
+}: {
+  porMes: number
+  somaNoAno: number
+  anual: number
+  parcelas: number
+  parcela: number
+  informado: boolean
+}) {
+  return (
+    <div className="flex flex-col items-end gap-0.5 text-right">
+      {porMes > 0 && (
+        <p className="text-sm text-texto-suave">
+          Serviços por mês: <strong>{formatarReais(porMes)}</strong>
+        </p>
+      )}
+      <p className="text-lg">
+        No ano: <strong>{formatarReais(anual)}</strong>
+      </p>
+      <p className="text-sm text-texto-suave">
+        {parcelas}× de {formatarReais(parcela)}
+        {informado && Math.abs(anual - somaNoAno) >= 0.01 && (
+          <> · soma dos serviços no ano: {formatarReais(somaNoAno)}</>
+        )}
+      </p>
     </div>
   )
 }
