@@ -7,6 +7,8 @@ import {
   CalendarDays,
   ChartColumn,
   ClipboardList,
+  ClipboardSignature,
+  FileCheck2,
   FileText,
   HandCoins,
   House,
@@ -130,6 +132,14 @@ export const MENU: readonly ItemMenu[] = [
     barraInferior: ['operador'],
   },
   {
+    // O que o técnico precisa assinar no celular (APR).
+    rotulo: 'Pendências',
+    caminho: '/pendencias',
+    icone: ClipboardSignature,
+    papeis: ['operador'],
+    barraInferior: ['operador'],
+  },
+  {
     rotulo: 'Ordens de serviço',
     caminho: '/os',
     icone: ClipboardList,
@@ -150,6 +160,14 @@ export const MENU: readonly ItemMenu[] = [
     caminho: '/relatorios',
     icone: ChartColumn,
     papeis: PAPEIS_RELATORIOS,
+    grupo: 'administrativo',
+  },
+  {
+    // Emissão de APR (Análise Preliminar de Risco), assinada pelos técnicos no celular.
+    rotulo: 'Documentos',
+    caminho: '/documentos',
+    icone: FileCheck2,
+    papeis: PAPEIS_GESTAO,
     grupo: 'administrativo',
   },
   {

@@ -417,6 +417,161 @@ export type Database = {
           },
         ]
       }
+      apr_participantes: {
+        Row: {
+          apr_id: string
+          assinada_em: string | null
+          assinatura_caminho: string | null
+          funcao: string
+          nome: string
+          ordem: number
+          perfil_id: string
+        }
+        Insert: {
+          apr_id: string
+          assinada_em?: string | null
+          assinatura_caminho?: string | null
+          funcao?: string
+          nome: string
+          ordem?: number
+          perfil_id: string
+        }
+        Update: {
+          apr_id?: string
+          assinada_em?: string | null
+          assinatura_caminho?: string | null
+          funcao?: string
+          nome?: string
+          ordem?: number
+          perfil_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'apr_participantes_apr_id_fkey'
+            columns: ['apr_id']
+            isOneToOne: false
+            referencedRelation: 'aprs'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'apr_participantes_perfil_id_fkey'
+            columns: ['perfil_id']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      aprs: {
+        Row: {
+          ano: number
+          atualizado_em: string
+          atualizado_por: string | null
+          cancelada_em: string | null
+          cliente_documento: string | null
+          cliente_id: string
+          cliente_nome: string
+          concluida_em: string | null
+          criado_em: string
+          criado_por: string | null
+          data: string
+          descricao_atividade: string | null
+          endereco_id: string | null
+          endereco_texto: string | null
+          epis: Json
+          etapas: Json
+          id: string
+          local: string | null
+          modelo: string
+          motivo_cancelamento: string | null
+          numero: number
+          observacoes: string | null
+          status: string
+          titulo: string
+        }
+        Insert: {
+          ano: number
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cancelada_em?: string | null
+          cliente_documento?: string | null
+          cliente_id: string
+          cliente_nome: string
+          concluida_em?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data: string
+          descricao_atividade?: string | null
+          endereco_id?: string | null
+          endereco_texto?: string | null
+          epis?: Json
+          etapas: Json
+          id?: string
+          local?: string | null
+          modelo: string
+          motivo_cancelamento?: string | null
+          numero: number
+          observacoes?: string | null
+          status?: string
+          titulo: string
+        }
+        Update: {
+          ano?: number
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cancelada_em?: string | null
+          cliente_documento?: string | null
+          cliente_id?: string
+          cliente_nome?: string
+          concluida_em?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data?: string
+          descricao_atividade?: string | null
+          endereco_id?: string | null
+          endereco_texto?: string | null
+          epis?: Json
+          etapas?: Json
+          id?: string
+          local?: string | null
+          modelo?: string
+          motivo_cancelamento?: string | null
+          numero?: number
+          observacoes?: string | null
+          status?: string
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'aprs_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'aprs_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'aprs_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'aprs_endereco_id_fkey'
+            columns: ['endereco_id']
+            isOneToOne: false
+            referencedRelation: 'enderecos'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       arquivos: {
         Row: {
           caminho_storage: string
@@ -6506,6 +6661,14 @@ export type Database = {
         Returns: string
       }
       apagar_treinamentos_os: { Args: { os?: string }; Returns: string[] }
+      apr_definir_tecnicos: {
+        Args: { apr: string; tecnicos: string[] }
+        Returns: undefined
+      }
+      assinar_apr: {
+        Args: { apr: string; caminho: string }
+        Returns: undefined
+      }
       atualizar_avisos: { Args: never; Returns: number }
       atualizar_pontos_os: { Args: { os: string }; Returns: undefined }
       buscar_clientes: {
@@ -6556,6 +6719,10 @@ export type Database = {
           modelo_id: string
           porta_iscas: number
         }[]
+      }
+      cancelar_apr: {
+        Args: { apr: string; motivo: string }
+        Returns: undefined
       }
       cancelar_os: { Args: { motivo: string; os: string }; Returns: undefined }
       coleta_adicionar_ponto: {

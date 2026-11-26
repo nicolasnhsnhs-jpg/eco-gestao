@@ -38,6 +38,7 @@ describe('menuDoPapel', () => {
       '/os',
       '/certificados',
       '/relatorios',
+      '/documentos',
       '/contratos',
       '/administrativo/emails',
       '/administrativo/assinatura',
@@ -79,7 +80,7 @@ describe('menuDoPapel', () => {
   })
 
   it('operador tem as OS dele (no início), a agenda do dia (só olha) e os avisos', () => {
-    expect(caminhos('operador')).toEqual(['/', '/agenda-do-dia', '/avisos'])
+    expect(caminhos('operador')).toEqual(['/', '/agenda-do-dia', '/pendencias', '/avisos'])
   })
 })
 
@@ -94,7 +95,7 @@ describe('entradasDoPapel', () => {
       '/',
       '/clientes',
       'Propostas: /propostas /orcamentos',
-      'Administrativo: /servicos /os /certificados /relatorios /contratos /administrativo/emails /administrativo/assinatura',
+      'Administrativo: /servicos /os /certificados /relatorios /documentos /contratos /administrativo/emails /administrativo/assinatura',
       '/avisos',
     ])
   })

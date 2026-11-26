@@ -3,6 +3,8 @@ import { createBrowserRouter, Navigate, Outlet } from 'react-router'
 import { AgendaDiaPage } from '@/features/agenda/AgendaDiaPage'
 import { PresencaPage } from '@/features/agenda/PresencaPage'
 import { CronogramaPage } from '@/features/cronograma/CronogramaPage'
+import { AprFormPage, AprPage, AprsPage, DocumentosLayout } from '@/features/documentos/AprPages'
+import { AssinarAprPage, PendenciasPage } from '@/features/documentos/PendenciasPages'
 import { AgendaTvPage } from '@/features/agenda/AgendaTvPage'
 import { AdministrativoLayout } from '@/features/administrativo/AdministrativoLayout'
 import { AssinaturaPage } from '@/features/administrativo/assinatura/AssinaturaPage'
@@ -219,6 +221,35 @@ export const router = createBrowserRouter([
             <AgendaDiaPage />
           </ExigePapel>
         ),
+      },
+      {
+        path: 'pendencias',
+        element: (
+          <ExigePapel papeis={['operador', 'admin', 'administrativo']}>
+            <Outlet />
+          </ExigePapel>
+        ),
+        children: [
+          { index: true, element: <PendenciasPage /> },
+          { path: 'apr/:id', element: <AssinarAprPage /> },
+        ],
+      },
+      {
+        path: 'documentos',
+        element: (
+          <ExigePapel papeis={PAPEIS_GESTAO}>
+            <Outlet />
+          </ExigePapel>
+        ),
+        children: [
+          {
+            element: <DocumentosLayout />,
+            children: [{ index: true, element: <AprsPage /> }],
+          },
+          { path: 'apr/nova', element: <AprFormPage /> },
+          { path: 'apr/:id', element: <AprPage /> },
+          { path: 'apr/:id/editar', element: <AprFormPage /> },
+        ],
       },
       {
         path: 'usuarios',

@@ -82,6 +82,15 @@ export const UNIDADES = {
      * do RS; falta o nome e o registro da responsável técnica de SC para a assinatura.
      */
     relatorio: { assinatura: [] as readonly string[] },
+    /**
+     * APR (Documentos > Emissão de APR): responsáveis no cabeçalho do PDF.
+     * PENDENTE: SC ainda não passou o responsável técnico.
+     */
+    apr: {
+      empresa: 'Eco Ambiental Serviços Ambientais LTDA',
+      responsavelEmpresa: null as string | null,
+      responsavelTecnico: null as string | null,
+    },
     /** Dados que já vêm preenchidos no gerador de assinatura de e-mail (Administrativo). */
     assinatura: {
       email: 'adm@ecoambientalsc.com.br',
@@ -175,6 +184,12 @@ export const UNIDADES = {
       acrescimoPadrao: 480,
     },
     /** Relatório técnico mensal: quem assina no fim (modelo da Naturovos). */
+    /** APR (Documentos > Emissão de APR): responsáveis no cabeçalho do PDF (das APRs em Word). */
+    apr: {
+      empresa: 'Eco Ambiental Controle de Pragas e Higienização Ltda',
+      responsavelEmpresa: 'Luciano Nassiff Semensato' as string | null,
+      responsavelTecnico: 'Andréia Santos Hernandes Semensato · CRQ-V 05407339' as string | null,
+    },
     relatorio: {
       assinatura: [
         'Andréia S. H. Semensato',
