@@ -832,6 +832,8 @@ function ItemServico({
   const erro = form.formState.errors.itens?.[i]
   const modeloAtual = useWatch({ control: form.control, name: `itens.${i}.modelo` })
   const [textosAbertos, setTextosAbertos] = useState(false)
+  /** Cobrado por unidade (ex.: armadilha luminosa): quantidade e valor de cada uma. */
+  const porUnidade = modeloDe(modeloAtual)?.porUnidade
 
   function textosDoModelo(chave: string) {
     const m = modeloDe(chave)
@@ -863,6 +865,8 @@ function ItemServico({
     form.setValue(`itens.${i}.tipo_servico_id`, tipo?.id ?? '')
     if (!form.getValues(`itens.${i}.periodicidade_meses`) && m.periodicidade)
       form.setValue(`itens.${i}.periodicidade_meses`, String(m.periodicidade))
+    // Ex.: armadilha luminosa já vem cobrada por mês.
+    if (m.cobranca) form.setValue(`itens.${i}.cobranca`, m.cobranca)
   }
 
   function restaurarTextos() {
@@ -942,21 +946,26 @@ function ItemServico({
         <Input id={`descricao-${i}`} {...form.register(`itens.${i}.descricao`)} />
       </Campo>
       <Campo
-        rotulo="Qtd."
+        rotulo={porUnidade ? 'Qtd. de armadilhas' : 'Qtd.'}
         htmlFor={`qtd-${i}`}
         erro={erro?.quantidade?.message}
-        className="sm:col-span-2"
+        className={porUnidade ? 'sm:col-span-3' : 'sm:col-span-2'}
       >
         <Input id={`qtd-${i}`} inputMode="decimal" {...form.register(`itens.${i}.quantidade`)} />
       </Campo>
       <CampoValor
         form={form}
         nome={`itens.${i}.valor_unitario`}
-        rotulo="Valor (R$)"
+        rotulo={porUnidade ? `Valor por ${porUnidade.singular} (R$)` : 'Valor (R$)'}
+        dica={porUnidade ? 'O PDF mostra o valor de cada uma e o total.' : undefined}
         erro={erro?.valor_unitario?.message}
         className="sm:col-span-5"
       />
-      <Campo rotulo="Cobrança" htmlFor={`cobranca-${i}`} className="sm:col-span-5">
+      <Campo
+        rotulo="Cobrança"
+        htmlFor={`cobranca-${i}`}
+        className={porUnidade ? 'sm:col-span-4' : 'sm:col-span-5'}
+      >
         <SelectForm id={`cobranca-${i}`} control={form.control} name={`itens.${i}.cobranca`}>
           {COBRANCAS.map((c) => (
             <option key={c.valor} value={c.valor}>

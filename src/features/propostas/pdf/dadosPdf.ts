@@ -16,6 +16,7 @@ import {
   introducaoPadrao,
   juntarLinhas,
   juntarMetodologias,
+  modeloDe,
   nomeFrequencia,
   sufixoCobranca,
   prazosDe,
@@ -129,6 +130,14 @@ export type DadosPdfProposta = {
 }
 
 const centavos = (v: number) => Math.round(v * 100)
+
+/** "4 armadilhas luminosas × R$ 80,00 cada" (serviço cobrado por unidade), ou null. */
+function textoPorUnidade(i: ItemBase): string | null {
+  const u = modeloDe(i.modelo)?.porUnidade
+  if (!u) return null
+  const q = i.quantidade.toLocaleString('pt-BR')
+  return `${q} ${i.quantidade === 1 ? u.singular : u.plural} × ${formatarReais(i.valor_unitario)} cada`
+}
 /** Só quantidade × valor, sem as taxas. */
 const valorBase = (i: ItemBase) => centavos(i.quantidade * i.valor_unitario) / 100
 /** Valor do serviço com as taxas adicionais. */
@@ -209,8 +218,10 @@ export function montarDadosPdf(
   } else if (p.custos_detalhados && (variosItens || comTaxas)) {
     custos.push({ tipo: 'linha', texto: '**Valor dos serviços conforme segue abaixo:**' })
     for (const i of p.itens) {
-      const qtd =
-        i.quantidade !== 1
+      const porUnidade = textoPorUnidade(i)
+      const qtd = porUnidade
+        ? ` (${porUnidade})`
+        : i.quantidade !== 1
           ? ` (${i.quantidade.toLocaleString('pt-BR')} × ${formatarReais(i.valor_unitario)})`
           : ''
       custos.push({
@@ -231,6 +242,20 @@ export function montarDadosPdf(
         texto: `Valor total: **${valorComExtenso(total)}${sufixoTotal}**.`,
       })
     }
+  } else if (!variosItens && !comTaxas && p.itens[0] && modeloDe(p.itens[0].modelo)?.porUnidade) {
+    // Cobrado por unidade (ex.: armadilha luminosa): o valor de cada uma e o total.
+    const i = p.itens[0]
+    const u = modeloDe(i.modelo)!.porUnidade!
+    const sufixo = sufixoCobranca(i.cobranca)
+    custos.push({
+      tipo: 'linha',
+      texto: `Valor por ${u.singular}: **${valorComExtenso(i.valor_unitario)}${sufixo}**.`,
+    })
+    if (i.quantidade !== 1)
+      custos.push({
+        tipo: 'linha',
+        texto: `Total para ${i.quantidade.toLocaleString('pt-BR')} ${u.plural}: **${valorComExtenso(total)}${sufixo}**.`,
+      })
   } else {
     const rotulo = variosItens
       ? 'Valor total para execução dos serviços'
@@ -435,7 +460,9 @@ function custosDoContrato(p: PropostaBase): LinhaCusto[] {
     const valor = p.custos_detalhados
       ? ` - **${formatarReais(valorItem(i))}${sufixoCobranca(i.cobranca)}**`
       : ''
-    linhas.push({ tipo: 'marcador', texto: `${i.descricao}${textoFreq}${valor}` })
+    const porUnidade = textoPorUnidade(i)
+    const qtd = porUnidade ? ` (${porUnidade})` : ''
+    linhas.push({ tipo: 'marcador', texto: `${i.descricao}${qtd}${textoFreq}${valor}` })
   }
   const condicao = textoPagamento(null, p.condicao_pagamento, {
     parcelas: p.cartao_parcelas,

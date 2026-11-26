@@ -182,6 +182,65 @@ describe('montarDadosPdf', () => {
     expect(custos).not.toContain('acréscimo')
   })
 
+  it('armadilha luminosa: valor de cada uma por mês e o total', () => {
+    const m = MODELOS.armadilha_luminosa
+    const d = montarDadosPdf(
+      base({
+        acrescimo_fora_horario: null,
+        itens: [
+          item({
+            modelo: 'armadilha_luminosa',
+            titulo: m.titulo,
+            descricao: m.descricao,
+            quantidade: 4,
+            valor_unitario: 80,
+            cobranca: 'mensal',
+            periodicidade_meses: 1,
+          }),
+        ],
+      }),
+      cliente,
+      null,
+      vendedor,
+    )
+    const custos = d.custos.map((c) => c.texto)
+    expect(custos).toContain('Valor por armadilha luminosa: **R$ 80,00 (oitenta reais) mensais**.')
+    expect(custos).toContain(
+      'Total para 4 armadilhas luminosas: **R$ 320,00 (trezentos e vinte reais) mensais**.',
+    )
+  })
+
+  it('armadilha luminosa junto com outro serviço: quantidade e valor de cada na linha', () => {
+    const d = montarDadosPdf(
+      base({
+        acrescimo_fora_horario: null,
+        itens: [
+          item({ descricao: 'Desinsetização', valor_unitario: 500, cobranca: 'mensal' }),
+          item({
+            modelo: 'armadilha_luminosa',
+            descricao: 'Inclusão de armadilhas luminosas',
+            quantidade: 3,
+            valor_unitario: 75,
+            cobranca: 'mensal',
+          }),
+        ],
+      }),
+      cliente,
+      null,
+      vendedor,
+    )
+    const custos = d.custos.map((c) => c.texto).join('\n')
+    expect(custos).toContain(
+      'Inclusão de armadilhas luminosas (3 armadilhas luminosas × R$ 75,00 cada) - **R$ 225,00 mensais**',
+    )
+    expect(custos).toContain('R$ 725,00')
+  })
+
+  it('armadilha luminosa já vem cobrada por mês, mensal', () => {
+    expect(MODELOS.armadilha_luminosa.cobranca).toBe('mensal')
+    expect(MODELOS.armadilha_luminosa.periodicidade).toBe(1)
+  })
+
   it('mostra as taxas adicionais e soma no total', () => {
     const d = montarDadosPdf(
       base({

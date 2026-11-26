@@ -34,6 +34,13 @@ export type ModeloServico = {
   recursos: (u: DadosUnidade) => (string | null | false | undefined)[]
   /** Frequência sugerida (meses); vazio = avulso. */
   periodicidade?: number
+  /** Cobrança que o serviço já vem (ex.: "Por mês"). */
+  cobranca?: Cobranca
+  /**
+   * Cobrado por unidade (ex.: por armadilha): a quantidade é o número de unidades e o
+   * valor é o de cada uma. O PDF mostra o valor de cada e o total.
+   */
+  porUnidade?: { singular: string; plural: string }
 }
 
 // -----------------------------------------------------------------------------
@@ -292,6 +299,29 @@ export const MODELOS = {
       'Mão de obra especializada, com equipamentos próprios para o serviço;',
       'Execução do serviço: 02 operadores técnicos.',
     ],
+  },
+  armadilha_luminosa: {
+    nome: 'Inclusão de armadilha luminosa',
+    tipo: 'Controle de pragas',
+    assunto: ASSUNTO_PRAGAS,
+    titulo: 'Inclusão de armadilhas luminosas',
+    descricao: 'Inclusão de armadilhas luminosas',
+    escopo:
+      'Inclusão de ... armadilhas luminosas para captura de insetos voadores (moscas, mosquitos e mariposas).\n' +
+      'Locais de instalação: ...\n' +
+      'Monitoramento das armadilhas nas visitas, com troca das placas adesivas e registro das capturas.',
+    metodologia:
+      '**Armadilhas luminosas:** atraem os insetos voadores pela luz ultravioleta e os prendem em placa adesiva, sem choque elétrico e sem produto químico, seguras para áreas de produção e manipulação de alimentos. As capturas de cada armadilha são registradas e analisadas a cada visita, indicando os pontos de maior incidência.',
+    recursos: (u) => [
+      'Mão de obra especializada;',
+      'Instalação, manutenção e monitoramento das armadilhas luminosas;',
+      'Troca das placas adesivas e registro das capturas em cada visita;',
+      u.responsavel && `Responsável técnica - ${u.responsavel};`,
+      u.alvara && `${u.alvara};`,
+    ],
+    periodicidade: 1,
+    cobranca: 'mensal',
+    porUnidade: { singular: 'armadilha luminosa', plural: 'armadilhas luminosas' },
   },
   outro: {
     nome: 'Outro serviço',
