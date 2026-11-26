@@ -56,6 +56,7 @@ import {
   recursosDoModelo,
   valorFrequencia,
   ehCartao,
+  ehNoContrato,
   ehPix,
   descreverPrazos,
   lerPrazos,
@@ -1244,6 +1245,8 @@ function CampoValor({
 }
 
 const FORMAS_RAPIDAS = ['boleto bancário', 'PIX', 'cartão de crédito']
+/** Só aparecem quando algum serviço é cobrado por mês. */
+const FORMAS_MENSAIS = ['aditivo no contrato', 'contrato mensal']
 
 /**
  * Prazo e forma de pagamento. A forma é escrita à mão (com atalhos). Com PIX ou
@@ -1264,8 +1267,11 @@ function CamposPagamento({
     control: form.control,
     name: ['condicao_pagamento', 'prazo_pagamento_dias', 'cartao_parcelas', 'cartao_juros'],
   })
+  const itens = useWatch({ control: form.control, name: 'itens' })
+  const temMensal = itens.some((i) => i.cobranca === 'mensal')
+  const formas = temMensal ? [...FORMAS_RAPIDAS, ...FORMAS_MENSAIS] : FORMAS_RAPIDAS
   const cartao = ehCartao(condicao)
-  const podeSemPrazo = cartao || ehPix(condicao)
+  const podeSemPrazo = cartao || ehPix(condicao) || ehNoContrato(condicao)
   const semPrazo = podeSemPrazo && prazo.trim() === ''
   const mudar = { shouldDirty: true, shouldValidate: true } as const
 
@@ -1282,11 +1288,14 @@ function CamposPagamento({
           {...form.register('condicao_pagamento')}
         />
         <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {FORMAS_RAPIDAS.map((f) => (
+          {formas.map((f) => (
             <button
               key={f}
               type="button"
-              onClick={() => form.setValue('condicao_pagamento', f, mudar)}
+              onClick={() => {
+                form.setValue('condicao_pagamento', f, mudar)
+                if (ehNoContrato(f)) form.setValue('prazo_pagamento_dias', '', mudar)
+              }}
               className={cn(
                 'rounded-full border px-2.5 py-0.5 text-xs font-semibold',
                 condicao.trim().toLowerCase() === f.toLowerCase()

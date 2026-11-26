@@ -460,6 +460,9 @@ export function assuntoDosItens(itens: { modelo?: string | null }[]) {
 /** A forma de pagamento escrita fala em PIX ou cartão (aí o prazo pode sair). */
 export const ehPix = (condicao: string | null | undefined) => /\bpix\b/i.test(condicao ?? '')
 export const ehCartao = (condicao: string | null | undefined) => /cart[aã]o/i.test(condicao ?? '')
+/** Pago junto com o contrato (aditivo no contrato, contrato mensal): sem prazo próprio. */
+export const ehNoContrato = (condicao: string | null | undefined) =>
+  /aditivo|contrato mensal/i.test(condicao ?? '')
 
 /** "3" + sem juros → "em **3x sem juros**"; 1 → "**à vista**". */
 export function textoCartao(

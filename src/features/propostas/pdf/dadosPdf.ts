@@ -112,6 +112,19 @@ export type LinhaCusto = {
   texto: string
 }
 
+/**
+ * Texto escrito num campo de várias linhas: cada linha vira um parágrafo no PDF (como no
+ * campo) e uma ou mais linhas em branco viram um espaço.
+ */
+export function linhasDoTexto(texto: string): LinhaCusto[] {
+  const linhas: LinhaCusto[] = []
+  for (const l of texto.trim().split(/\r?\n/)) {
+    if (l.trim()) linhas.push({ tipo: 'paragrafo', texto: l.trim() })
+    else if (linhas.at(-1)?.tipo !== 'espaco') linhas.push({ tipo: 'espaco', texto: '' })
+  }
+  return linhas
+}
+
 export type DadosPdfProposta = {
   numero: string | null
   /** "PROPOSTA Nº" ou "MEMORIAL DESCRITIVO Nº". */
@@ -279,12 +292,10 @@ export function montarDadosPdf(
   }
   if (p.observacoes?.trim()) {
     custos.push({ tipo: 'espaco', texto: '' })
-    for (const l of p.observacoes.split('\n').filter((x) => x.trim())) {
-      custos.push({ tipo: 'paragrafo', texto: l.trim() })
-    }
+    custos.push(...linhasDoTexto(p.observacoes))
   }
   custos.push({ tipo: 'espaco', texto: '' })
-  custos.push({ tipo: 'paragrafo', texto: textoAtendimentoDaProposta(p) })
+  custos.push(...linhasDoTexto(textoAtendimentoDaProposta(p)))
   if (p.validade) {
     custos.push({ tipo: 'espaco', texto: '' })
     custos.push({ tipo: 'linha', texto: `Proposta válida até **${formatarData(p.validade)}**.` })
@@ -380,9 +391,7 @@ function memorialDescritivo(p: PropostaBase, cliente: string) {
   })
   if (p.observacoes?.trim()) {
     custos.push({ tipo: 'espaco', texto: '' })
-    for (const l of p.observacoes.split('\n').filter((x) => x.trim())) {
-      custos.push({ tipo: 'paragrafo', texto: l.trim() })
-    }
+    custos.push(...linhasDoTexto(p.observacoes))
   }
   const taxa = p.texto_atendimento?.trim()
     ? p.texto_atendimento.trim()
@@ -391,7 +400,7 @@ function memorialDescritivo(p: PropostaBase, cliente: string) {
       : null
   if (taxa) {
     custos.push({ tipo: 'espaco', texto: '' })
-    custos.push({ tipo: 'paragrafo', texto: taxa })
+    custos.push(...linhasDoTexto(taxa))
   }
   custos.push({ tipo: 'espaco', texto: '' })
   custos.push({ tipo: 'linha', texto: 'Prazo de entrega: **imediato**.' })

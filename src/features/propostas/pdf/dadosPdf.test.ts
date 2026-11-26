@@ -4,6 +4,7 @@ import {
   textoPagamento,
   lerPrazos,
   ehCartao,
+  ehNoContrato,
   ehPix,
   MODELOS,
   recursosDoModelo,
@@ -11,7 +12,13 @@ import {
   tituloComFrequencia,
   valorFrequencia,
 } from '../modelos'
-import { montarDadosPdf, valorAnualDosItens, type ItemBase, type PropostaBase } from './dadosPdf'
+import {
+  linhasDoTexto,
+  montarDadosPdf,
+  valorAnualDosItens,
+  type ItemBase,
+  type PropostaBase,
+} from './dadosPdf'
 
 const item = (x: Partial<ItemBase>): ItemBase => ({
   modelo: null,
@@ -492,5 +499,27 @@ describe('prazo parcelado e texto do atendimento', () => {
     expect(custos).toContain('**21/42 dias** boleto bancário, em 2 parcelas')
     expect(custos).toContain('Valor já considera o atendimento aos sábados.')
     expect(custos).not.toContain('acréscimo de')
+  })
+})
+
+describe('linhasDoTexto (observações e texto do atendimento)', () => {
+  it('cada linha do campo vira uma linha no PDF e linha em branco vira espaço', () => {
+    expect(
+      linhasDoTexto('**Obs.:** serviço em conjunto.\nValor em horário comercial.\n\n\nOutra'),
+    ).toEqual([
+      { tipo: 'paragrafo', texto: '**Obs.:** serviço em conjunto.' },
+      { tipo: 'paragrafo', texto: 'Valor em horário comercial.' },
+      { tipo: 'espaco', texto: '' },
+      { tipo: 'paragrafo', texto: 'Outra' },
+    ])
+  })
+})
+
+describe('pagamento junto com o contrato', () => {
+  it('aditivo e contrato mensal saem sem prazo', () => {
+    expect(ehNoContrato('aditivo no contrato')).toBe(true)
+    expect(ehNoContrato('Contrato mensal')).toBe(true)
+    expect(ehNoContrato('boleto bancário')).toBe(false)
+    expect(textoPagamento(null, 'aditivo no contrato')).toBe('aditivo no contrato')
   })
 })
