@@ -15,20 +15,20 @@ import { supabase } from '@/lib/supabase'
 import { paraBase64, useEmailsDocumentos } from '../certificados/api'
 import type { PropostaCompleta } from './api'
 
-/** Começos prontos do e-mail; o texto continua editável na janela. */
+/** Começos prontos do e-mail (o primeiro é o padrão); o texto continua editável na janela. */
 const MODELOS = {
+  nova: {
+    nome: 'Proposta nova',
+    texto:
+      'Conforme conversamos, estou encaminhando em anexo a nossa proposta para o serviço ' +
+      'solicitado.\n\nAguardo seu retorno para seguirmos com o agendamento ou esclarecer dúvidas.',
+  },
   vencimento: {
     nome: 'Certificado vencendo ou vencido',
     texto:
       'Verificamos que o certificado está próximo do vencimento ou já venceu. Por conta disso, ' +
       'estou encaminhando em anexo uma proposta atualizada para refazermos o serviço.\n\n' +
       'Aguardo seu retorno para seguirmos com o agendamento ou esclarecer dúvidas.',
-  },
-  nova: {
-    nome: 'Proposta nova',
-    texto:
-      'Conforme conversamos, estou encaminhando em anexo a nossa proposta para o serviço ' +
-      'solicitado.\n\nAguardo seu retorno para seguirmos com o agendamento ou esclarecer dúvidas.',
   },
   livre: { nome: 'Escrever do zero', texto: '' },
 } as const
@@ -89,8 +89,8 @@ function Formulario({
 }) {
   const emails = useEmailsDocumentos(p.cliente_id ?? undefined)
   const remetente = useRemetente(p.vendedor_id)
-  const [modelo, setModelo] = useState<Modelo>('vencimento')
-  const [mensagem, setMensagem] = useState<string>(MODELOS.vencimento.texto)
+  const [modelo, setModelo] = useState<Modelo>('nova')
+  const [mensagem, setMensagem] = useState<string>(MODELOS.nova.texto)
   const [para, setPara] = useState<string | null>(null)
   const [etapa, setEtapa] = useState<string | null>(null)
   const [resultado, setResultado] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(
