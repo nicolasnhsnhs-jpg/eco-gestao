@@ -38,6 +38,7 @@ import {
   type CamposExecucao,
   type OsCompleta,
 } from '../api'
+import { FotoOcorrencia } from '../FotoOcorrencia'
 import { ocorrenciasDaOs, respostasDe, type RespostaOcorrencia } from '../ocorrencias'
 import { usePontosOs } from '../pragasApi'
 import { ETAPAS_AGUA } from '../tipos/agua'
@@ -440,6 +441,7 @@ function Execucao({ os }: { os: OsCompleta }) {
                     {ocorrencias.length > 1 && <strong>{i + 1}. </strong>}
                     {oc.texto}
                   </p>
+                  {oc.foto_caminho && <FotoOcorrencia caminho={oc.foto_caminho} />}
                   <div className="grid gap-2 sm:grid-cols-2">
                     <button
                       type="button"

@@ -13,6 +13,8 @@ export type OcorrenciaDaOs = {
   texto: string
   criado_em: string
   os_origem_id: string | null
+  /** Foto anexada pelo escritório (caminho no Storage). */
+  foto_caminho?: string | null
 }
 
 export const NOME_RESPOSTA: Record<RespostaOcorrencia, string> = {

@@ -3309,6 +3309,7 @@ export type Database = {
           criado_em: string
           criado_por: string | null
           endereco_id: string | null
+          foto_caminho: string | null
           id: string
           os_origem_id: string | null
           sanada_em: string | null
@@ -3323,6 +3324,7 @@ export type Database = {
           criado_em?: string
           criado_por?: string | null
           endereco_id?: string | null
+          foto_caminho?: string | null
           id?: string
           os_origem_id?: string | null
           sanada_em?: string | null
@@ -3337,6 +3339,7 @@ export type Database = {
           criado_em?: string
           criado_por?: string | null
           endereco_id?: string | null
+          foto_caminho?: string | null
           id?: string
           os_origem_id?: string | null
           sanada_em?: string | null

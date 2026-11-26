@@ -34,6 +34,7 @@ import {
   useReabrirOs,
 } from './api'
 import { nomeVeiculo } from './nomeVeiculo'
+import { FotoOcorrencia } from './FotoOcorrencia'
 import { NOME_RESPOSTA, ocorrenciasDaOs, respostasDe } from './ocorrencias'
 import { formatarM3, nomeResiduo, quantidadeValida, residuoDoChecklist } from './tipos/residuo'
 import { ConferenciaOs } from './ConferenciaOs'
@@ -342,6 +343,9 @@ export function OsPage() {
                   <li key={oc.id} className="whitespace-pre-line">
                     {ocorrencias.length > 1 && '• '}
                     {oc.texto}
+                    {oc.foto_caminho && (
+                      <FotoOcorrencia caminho={oc.foto_caminho} className="mt-1" />
+                    )}
                   </li>
                 ))}
               </ul>

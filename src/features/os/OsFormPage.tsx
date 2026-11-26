@@ -284,7 +284,7 @@ function FormAgendamento({
         veiculoId: veiculoId || null,
         descricao: descricao.trim(),
         observacoesAdm: observacoes.trim(),
-        ocorrencias: ocorrencias.map((o) => o.texto),
+        ocorrencias,
         propostaId,
         salvarComoPadrao,
         implantacao: pragas && implantacao,
@@ -437,7 +437,12 @@ function FormAgendamento({
             </ul>
           </Aviso>
         )}
-        <CampoOcorrencias itens={ocorrencias} aoMudar={setOcorrencias} prefixoId="os-ocorrencia" />
+        <CampoOcorrencias
+          itens={ocorrencias}
+          aoMudar={setOcorrencias}
+          prefixoId="os-ocorrencia"
+          clienteId={clienteId}
+        />
 
         <label className="flex min-h-11 items-center gap-3">
           <input

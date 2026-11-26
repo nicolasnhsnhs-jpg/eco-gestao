@@ -7,7 +7,7 @@ import { Carregando } from '@/components/ui/Carregando'
 import { mensagemDeErro } from '@/lib/erros'
 
 import { useOcorrenciasAbertas, useSalvarOcorrenciasLocal, type ModeloCompleto } from './api'
-import { CampoOcorrencias, type ItemOcorrencia } from './CampoOcorrencias'
+import { CampoOcorrencias, itensParaSalvar, type ItemOcorrencia } from './CampoOcorrencias'
 
 /**
  * Na O.S salva, antes de agendar: as ocorrências em aberto do local. O ADM escreve
@@ -25,14 +25,15 @@ export function OcorrenciasOsSalva({ modelo }: { modelo: ModeloCompleto }) {
 
   // Carrega da lista do banco (e de novo depois de salvar).
   useEffect(() => {
-    if (abertas.data) setItens(abertas.data.map((o) => ({ id: o.id, texto: o.texto })))
+    if (abertas.data)
+      setItens(abertas.data.map((o) => ({ id: o.id, texto: o.texto, foto: o.foto_caminho })))
   }, [abertas.data])
 
   async function enviar() {
     if (!itens) return
     setAviso(null)
     try {
-      await salvar.mutateAsync(itens.map((o) => ({ id: o.id, texto: o.texto })))
+      await salvar.mutateAsync(itensParaSalvar(itens))
       setAviso({
         tipo: 'sucesso',
         texto: 'Ocorrências salvas. A próxima visita agendada já vem com elas.',
@@ -55,7 +56,12 @@ export function OcorrenciasOsSalva({ modelo }: { modelo: ModeloCompleto }) {
       {abertas.isError && <Aviso tipo="erro">{mensagemDeErro(abertas.error)}</Aviso>}
       {itens && (
         <div className="flex flex-col gap-3">
-          <CampoOcorrencias itens={itens} aoMudar={setItens} prefixoId="mod-ocorrencia" />
+          <CampoOcorrencias
+            itens={itens}
+            aoMudar={setItens}
+            prefixoId="mod-ocorrencia"
+            clienteId={modelo.cliente_id}
+          />
           {aviso && <Aviso tipo={aviso.tipo}>{aviso.texto}</Aviso>}
           <Button className="self-start" disabled={salvar.isPending} onClick={() => void enviar()}>
             {salvar.isPending ? 'Salvando…' : 'Salvar ocorrências'}

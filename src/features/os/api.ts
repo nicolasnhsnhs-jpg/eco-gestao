@@ -112,7 +112,7 @@ export function useOrdensServico(filtro: FiltroOs) {
           `id, numero, status, data_agendada, hora_agendada, concluida_em, ficha_cliente, cliente_id, treinamento, implantacao, observacoes_adm, ${RELACOES},
           conferencia:os_conferencia(certificado, cronograma, liberada_financeiro_em, taxa_faturada),
           modelo:os_modelos(categoria),
-          ocorrencias:os_ocorrencias(ocorrencia:ocorrencias(id, texto, criado_em, os_origem_id, sanada_em))`,
+          ocorrencias:os_ocorrencias(ocorrencia:ocorrencias(id, texto, criado_em, os_origem_id, sanada_em, foto_caminho))`,
         )
         .order('data_agendada', { ascending: !filtro.recentesPrimeiro })
         .order('hora_agendada', { ascending: !filtro.recentesPrimeiro, nullsFirst: false })
@@ -144,7 +144,7 @@ export const consultaOs = (id: string) =>
         .from('ordens_servico')
         .select(
           `*, ${RELACOES}, execucao:os_execucao(*),
-          ocorrencias:os_ocorrencias(ocorrencia:ocorrencias(id, texto, criado_em, os_origem_id))`,
+          ocorrencias:os_ocorrencias(ocorrencia:ocorrencias(id, texto, criado_em, os_origem_id, foto_caminho))`,
         )
         .eq('id', id)
         .maybeSingle()
@@ -272,7 +272,7 @@ export type DadosAgendamento = {
   descricao: string
   observacoesAdm: string
   /** Ocorrências novas (o técnico responde: sanado ou reforço na próxima visita). */
-  ocorrencias?: string[]
+  ocorrencias?: { texto: string; foto?: string | null }[]
   /** Proposta aprovada de onde a OS saiu (o financeiro vê o valor no "A faturar"). */
   propostaId?: string | null
   /** Gravar operadores, veículo e observações como padrão das próximas visitas. */
@@ -345,7 +345,7 @@ export function useAgendarOs() {
           .eq('id', osId)
         if (r.error) throw r.error
       }
-      const novas = (d.ocorrencias ?? []).map((t) => t.trim()).filter(Boolean)
+      const novas = (d.ocorrencias ?? []).filter((o) => o.texto.trim())
       if (novas.length) {
         // A OS já nasce com as abertas do local: elas ficam, e as novas entram junto.
         const { data: abertas, error: erroAbertas } = await supabase
@@ -357,7 +357,7 @@ export function useAgendarOs() {
           os: osId,
           itens: [
             ...abertas.flatMap((l) => (l.ocorrencia ? [l.ocorrencia] : [])),
-            ...novas.map((texto) => ({ texto })),
+            ...novas.map((o) => ({ texto: o.texto.trim(), foto: o.foto ?? null })),
           ],
         })
         if (r.error) throw r.error
@@ -409,11 +409,13 @@ export function useAtualizarOs(id: string) {
   })
 }
 
+type ItemParaSalvar = { id?: string; texto: string; foto?: string | null }
+
 /** Grava a lista de ocorrências da OS (com id: muda o texto; sem id: nova; fora: sai). */
 export function useSalvarOcorrencias(osId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (itens: { id?: string; texto: string }[]) => {
+    mutationFn: async (itens: ItemParaSalvar[]) => {
       const { error } = await supabase.rpc('salvar_ocorrencias_os', { os: osId, itens })
       if (error) throw error
     },
@@ -428,7 +430,7 @@ export function useSalvarOcorrencias(osId: string) {
 export function useSalvarOcorrenciasLocal(modeloId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (itens: { id?: string; texto: string }[]) => {
+    mutationFn: async (itens: ItemParaSalvar[]) => {
       const { error } = await supabase.rpc('salvar_ocorrencias_local', {
         modelo: modeloId,
         itens,
@@ -451,7 +453,7 @@ export function useOcorrenciasAbertas(
     queryFn: async () => {
       let consulta = supabase
         .from('ocorrencias')
-        .select('id, texto, criado_em')
+        .select('id, texto, criado_em, foto_caminho')
         .is('sanada_em', null)
         .eq('cliente_id', clienteId)
         .eq('tipo_servico_id', tipoId)

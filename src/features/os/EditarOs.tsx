@@ -14,7 +14,7 @@ import {
   useVeiculos,
   type OsCompleta,
 } from './api'
-import { CampoOcorrencias, type ItemOcorrencia } from './CampoOcorrencias'
+import { CampoOcorrencias, itensParaSalvar, type ItemOcorrencia } from './CampoOcorrencias'
 import { ocorrenciasDaOs } from './ocorrencias'
 import { nomeVeiculo } from './nomeVeiculo'
 
@@ -57,6 +57,7 @@ function Formulario({ os, aoFechar }: { os: OsCompleta; aoFechar: () => void }) 
     ocorrenciasDaOs(os).map((o) => ({
       id: o.id,
       texto: o.texto,
+      foto: o.foto_caminho ?? null,
       anterior: o.os_origem_id !== os.id,
     })),
   )
@@ -84,11 +85,7 @@ function Formulario({ os, aoFechar }: { os: OsCompleta; aoFechar: () => void }) 
         },
         operadores: escolhidos,
       })
-      await salvarOcorrencias.mutateAsync(
-        ocorrencias
-          .filter((o) => o.texto.trim())
-          .map((o) => ({ ...(o.id ? { id: o.id } : {}), texto: o.texto.trim() })),
-      )
+      await salvarOcorrencias.mutateAsync(itensParaSalvar(ocorrencias))
       if (paraProximas && os.modelo_id) {
         await salvarModelo.mutateAsync({
           descricao: descricao.trim() || null,
@@ -176,7 +173,12 @@ function Formulario({ os, aoFechar }: { os: OsCompleta; aoFechar: () => void }) 
         />
       </Campo>
 
-      <CampoOcorrencias itens={ocorrencias} aoMudar={setOcorrencias} prefixoId="ed-ocorrencia" />
+      <CampoOcorrencias
+        itens={ocorrencias}
+        aoMudar={setOcorrencias}
+        prefixoId="ed-ocorrencia"
+        clienteId={os.cliente_id}
+      />
 
       {os.modelo_id && (
         <label className="flex items-start gap-3 rounded-xl border border-borda bg-fundo-suave p-3">
