@@ -34,6 +34,8 @@ type Pedido = {
   para?: string
   /** Início do texto do e-mail, escrito na tela. */
   mensagem: string
+  /** Nome depois do "Olá," (corrigido na tela, ex.: "Sr. Paulo"); sem ele, usa o A/C. */
+  saudacao?: string
   /** PDF da proposta, em base64. */
   pdf: string
 }
@@ -152,6 +154,7 @@ Deno.serve(async (req) => {
     site: (segredo('SITE_URL') || req.headers.get('origin') || '').replace(/\/+$/, ''),
     empresa,
     cliente:
+      (typeof pedido.saudacao === 'string' ? pedido.saudacao.trim().slice(0, 120) : '') ||
       proposta.contato_nome?.trim() ||
       proposta.cliente?.nome_fantasia ||
       proposta.cliente?.nome ||

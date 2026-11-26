@@ -14,6 +14,7 @@ import { supabase } from '@/lib/supabase'
 
 import { paraBase64, useEmailsDocumentos } from '../certificados/api'
 import type { PropostaCompleta } from './api'
+import { tratamentoDe, trocarTratamento, type Tratamento } from './saudacao'
 
 /** Começos prontos do e-mail (o primeiro é o padrão); o texto continua editável na janela. */
 const MODELOS = {
@@ -92,6 +93,7 @@ function Formulario({
   const [modelo, setModelo] = useState<Modelo>('nova')
   const [mensagem, setMensagem] = useState<string>(MODELOS.nova.texto)
   const [para, setPara] = useState<string | null>(null)
+  const [saudacao, setSaudacao] = useState<string | null>(null)
   const [etapa, setEtapa] = useState<string | null>(null)
   const [resultado, setResultado] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(
     null,
@@ -104,6 +106,8 @@ function Formulario({
     : juntarEmails(emails.data?.emails ?? [])
   const destinatarios = para ?? padrao
   const nomeCliente = p.contato_nome?.trim() || p.cliente?.nome_fantasia || p.cliente?.nome || ''
+  const nome = saudacao ?? nomeCliente
+  const tratamento = tratamentoDe(nome)
 
   function trocarModelo(m: Modelo) {
     setModelo(m)
@@ -122,6 +126,7 @@ function Formulario({
           propostaId: p.id,
           para: destinatarios.trim() || undefined,
           mensagem,
+          saudacao: nome.trim(),
           pdf,
         },
       })
@@ -175,7 +180,37 @@ function Formulario({
       </Campo>
 
       <Campo
-        rotulo={`Texto (vem depois de “Olá${nomeCliente ? `, ${nomeCliente}` : ''}!”)`}
+        rotulo="Saudação"
+        htmlFor="saudacao-email"
+        dica={`O e-mail começa com “Olá${nome.trim() ? `, ${nome.trim()}` : ''}!”. Corrija o nome se precisar.`}
+      >
+        <div className="flex gap-2">
+          <Input
+            id="saudacao-email"
+            type="text"
+            autoComplete="off"
+            className="min-w-0 flex-1"
+            value={nome}
+            disabled={enviando}
+            onChange={(e) => setSaudacao(e.target.value)}
+          />
+          {(['Sr.', 'Sra.'] as Tratamento[]).map((t) => (
+            <Button
+              key={t}
+              type="button"
+              variante={tratamento === t ? 'primario' : 'secundario'}
+              aria-pressed={tratamento === t}
+              disabled={enviando}
+              onClick={() => setSaudacao(trocarTratamento(nome, tratamento === t ? null : t))}
+            >
+              {t}
+            </Button>
+          ))}
+        </div>
+      </Campo>
+
+      <Campo
+        rotulo={`Texto (vem depois de “Olá${nome.trim() ? `, ${nome.trim()}` : ''}!”)`}
         htmlFor="texto-email"
         dica="Pode mudar à vontade. Deixe uma linha em branco para começar outro parágrafo. Abaixo vão os dados da proposta e a sua assinatura."
       >
