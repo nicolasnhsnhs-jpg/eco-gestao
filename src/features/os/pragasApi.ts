@@ -280,7 +280,7 @@ export const consultaCatalogoProdutos = () =>
     queryFn: async () => {
       const { data, error } = await supabase
         .from('produtos_certificado')
-        .select('id, nome_comercial, principio_ativo')
+        .select('id, nome_comercial, principio_ativo, uso')
         .eq('ativo', true)
         .order('nome_comercial', { nullsFirst: false })
         .order('principio_ativo')

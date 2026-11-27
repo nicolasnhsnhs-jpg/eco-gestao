@@ -13,6 +13,8 @@ import { hojeISO } from '@/lib/datas'
 import { mensagemDeErro } from '@/lib/erros'
 import { cn } from '@/lib/utils'
 
+import { lerUso, USOS_PRODUTO, type UsoProduto } from '../os/tipos/usoProduto'
+
 import { useProdutosCatalogo, useSalvarProdutoCatalogo, type ProdutoCatalogo } from './api'
 import { linhasDoProduto } from './modelos'
 
@@ -57,9 +59,45 @@ const comoProduto = (p: ProdutoCatalogo) => ({
   validade: p.validade ?? '',
 })
 
+/** Botões "Roedores e insetos · Só roedores · Só insetos · Outro serviço". */
+function EscolhaUso({
+  valor,
+  aoMudar,
+  desabilitado,
+  rotulo,
+}: {
+  valor: UsoProduto
+  aoMudar: (uso: UsoProduto) => void
+  desabilitado?: boolean
+  rotulo: string
+}) {
+  return (
+    <div role="group" aria-label={rotulo} className="flex flex-wrap gap-1">
+      {(Object.keys(USOS_PRODUTO) as UsoProduto[]).map((u) => (
+        <button
+          key={u}
+          type="button"
+          disabled={desabilitado}
+          aria-pressed={valor === u}
+          onClick={() => aoMudar(u)}
+          className={cn(
+            'min-h-9 rounded-lg border px-2.5 text-sm font-semibold disabled:opacity-60',
+            valor === u
+              ? 'border-verde bg-verde text-white'
+              : 'border-borda bg-white text-texto-suave hover:bg-lima-claro',
+          )}
+        >
+          {USOS_PRODUTO[u]}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 /** /certificados/produtos: produtos e lotes que aparecem nos certificados. */
 export function ProdutosCertificadoPage() {
   const produtos = useProdutosCatalogo()
+  const salvarUso = useSalvarProdutoCatalogo()
   const [editando, setEditando] = useState<ProdutoCatalogo | 'novo' | null>(null)
   const hoje = hojeISO()
 
@@ -69,7 +107,9 @@ export function ProdutosCertificadoPage() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-texto-suave">
           Cadastre cada produto com o lote em uso. Na emissão, é só escolher e informar a
-          quantidade. Trocar o lote aqui não muda os certificados já emitidos.
+          quantidade. Trocar o lote aqui não muda os certificados já emitidos. Marque para que serve
+          cada um: na OS o técnico vê só os de roedores no controle de roedores e só os de insetos
+          no de insetos; os de outro serviço (ex.: Clorin, DET) não aparecem nas OS de pragas.
         </p>
         <Button onClick={() => setEditando('novo')}>
           <Plus className="size-5" aria-hidden /> Novo produto
@@ -77,6 +117,7 @@ export function ProdutosCertificadoPage() {
       </div>
       {produtos.isPending && <Carregando />}
       {produtos.isError && <Aviso tipo="erro">{mensagemDeErro(produtos.error)}</Aviso>}
+      {salvarUso.isError && <Aviso tipo="erro">{mensagemDeErro(salvarUso.error)}</Aviso>}
       {produtos.isSuccess && produtos.data.length === 0 && (
         <p className="rounded-2xl border border-borda bg-white p-6 text-center text-texto-suave">
           Nenhum produto cadastrado ainda.
@@ -91,7 +132,7 @@ export function ProdutosCertificadoPage() {
             <li
               key={p.id}
               className={cn(
-                'flex items-center gap-3 rounded-2xl border border-borda bg-white p-4',
+                'flex flex-wrap items-center gap-3 rounded-2xl border border-borda bg-white p-4',
                 !p.ativo && 'opacity-60',
               )}
             >
@@ -109,6 +150,20 @@ export function ProdutosCertificadoPage() {
               <BotaoIcone rotulo={`Editar ${p.principio_ativo}`} onClick={() => setEditando(p)}>
                 <Pencil className="size-5" aria-hidden />
               </BotaoIcone>
+              <div className="basis-full">
+                <EscolhaUso
+                  rotulo={`Para que serve ${p.nome_comercial ?? p.principio_ativo}`}
+                  valor={lerUso(p.uso)}
+                  desabilitado={salvarUso.isPending}
+                  aoMudar={(uso) =>
+                    uso !== lerUso(p.uso) &&
+                    salvarUso.mutate({
+                      id: p.id,
+                      dados: { principio_ativo: p.principio_ativo, uso },
+                    })
+                  }
+                />
+              </div>
             </li>
           )
         })}
@@ -153,6 +208,7 @@ function FormProduto({
     quantidade_padrao: produto?.quantidade_padrao ?? '',
     ativo: produto?.ativo ?? true,
   })
+  const [uso, setUso] = useState<UsoProduto>(lerUso(produto?.uso))
   const campo = (nome: keyof typeof v) => ({
     value: v[nome] as string,
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => setV({ ...v, [nome]: e.target.value }),
@@ -178,6 +234,7 @@ function FormProduto({
           validade: doMes(v.validade),
           quantidade_padrao: ouNulo(v.quantidade_padrao),
           ativo: v.ativo,
+          uso,
         },
       })
       aoTerminar()
@@ -216,6 +273,13 @@ function FormProduto({
         <Campo rotulo="Validade (mês)" htmlFor="p-val">
           <Input id="p-val" type="month" {...campo('validade')} />
         </Campo>
+      </div>
+      <div className="flex flex-col gap-1">
+        <p className="font-semibold">Para que serve</p>
+        <EscolhaUso rotulo="Para que serve" valor={uso} aoMudar={setUso} />
+        <p className="text-sm text-texto-suave">
+          Separa a lista que o técnico vê na OS. Outro serviço: limpeza de reservatório, coifa etc.
+        </p>
       </div>
       {produto && (
         <label className="flex items-center gap-2">

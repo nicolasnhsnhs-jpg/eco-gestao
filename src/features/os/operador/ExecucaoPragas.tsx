@@ -54,6 +54,7 @@ import {
   type Ocorrencia,
 } from '../tipos/pragas'
 import { capturasCompletas } from '../offline/pendencias'
+import { FILTROS_USO, produtosPara, type FiltroUso } from '../tipos/usoProduto'
 import { MarcarProdutosProgramados } from '../ProdutosProgramados'
 import type { ChecklistProgramas } from '../tipos/programas'
 import { CadastroImplantacao } from './CadastroImplantacao'
@@ -181,7 +182,7 @@ export function ExecucaoPragas({ os, campos, alterar, aberta, primeira }: Props)
           aberta={aberta}
           mudar={mudar}
         />
-        <Produtos osId={os.id} aberta={aberta} />
+        <Produtos osId={os.id} aberta={aberta} filtroInicial="roedores" />
       </Etapa>
 
       {armadilhas.length > 0 && (
@@ -1036,12 +1037,23 @@ function PlanilhaOcorrencias({
   )
 }
 
-export function Produtos({ osId, aberta }: { osId: string; aberta: boolean }) {
+export function Produtos({
+  osId,
+  aberta,
+  filtroInicial = 'pragas',
+}: {
+  osId: string
+  aberta: boolean
+  /** Lista que abre primeiro (o técnico pode trocar nos botões acima do produto). */
+  filtroInicial?: FiltroUso
+}) {
   const produtos = useProdutos(osId)
   const gravar = useGravarProduto(osId)
   const catalogo = useCatalogoProdutos()
+  const [filtro, setFiltro] = useState<FiltroUso>(filtroInicial)
+  const lista = produtosPara(catalogo.data, filtro)
   const [produtoId, setProdutoId] = useState('')
-  const escolhido = catalogo.data?.find((c) => c.id === produtoId)
+  const escolhido = lista.find((c) => c.id === produtoId)
   const [forma, setForma] = useState('bloco')
   // Uma quantidade e a unidade dela (litro vai para o campo de mL: 1 L = 1.000 mL).
   const [quantidade, setQuantidade] = useState('')
@@ -1076,6 +1088,29 @@ export function Produtos({ osId, aberta }: { osId: string; aberta: boolean }) {
       </ul>
       {aberta && (
         <div className="grid grid-cols-2 gap-2 rounded-xl bg-fundo-suave p-3">
+          <div
+            className="col-span-2 flex gap-1 rounded-lg border border-borda bg-white p-1"
+            role="group"
+            aria-label="Produtos de"
+          >
+            {(Object.keys(FILTROS_USO) as FiltroUso[]).map((f) => (
+              <button
+                key={f}
+                type="button"
+                aria-pressed={filtro === f}
+                onClick={() => {
+                  setFiltro(f)
+                  setProdutoId('')
+                }}
+                className={cn(
+                  'min-h-10 flex-1 rounded-md px-2 text-sm font-semibold',
+                  filtro === f ? 'bg-verde text-white' : 'text-texto-suave',
+                )}
+              >
+                {FILTROS_USO[f]}
+              </button>
+            ))}
+          </div>
           <div className="col-span-2">
             <Campo
               rotulo="Produto"
@@ -1090,7 +1125,7 @@ export function Produtos({ osId, aberta }: { osId: string; aberta: boolean }) {
                 <option value="">
                   {catalogo.isPending ? 'Carregando produtos…' : 'Escolha o produto…'}
                 </option>
-                {catalogo.data?.map((c) => (
+                {lista.map((c) => (
                   <option key={c.id} value={c.id}>
                     {nomeDoProduto(c)}
                   </option>
@@ -1268,7 +1303,7 @@ function Insetos({ osId, aberta }: { osId: string; aberta: boolean }) {
                 <option value="">
                   {catalogo.isPending ? 'Carregando produtos…' : 'Escolha o produto…'}
                 </option>
-                {catalogo.data?.map((c) => (
+                {produtosPara(catalogo.data, 'insetos').map((c) => (
                   <option key={c.id} value={nomeDoProduto(c)}>
                     {nomeDoProduto(c)}
                   </option>

@@ -1481,6 +1481,80 @@ export type Database = {
           },
         ]
       }
+      comunicacoes_servico: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          cliente_id: string
+          cliente_nome: string
+          conteudo: Json
+          criado_em: string
+          criado_por: string | null
+          data: string
+          endereco_id: string | null
+          id: string
+          modelo: string
+          titulo: string
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cliente_id: string
+          cliente_nome: string
+          conteudo: Json
+          criado_em?: string
+          criado_por?: string | null
+          data: string
+          endereco_id?: string | null
+          id?: string
+          modelo: string
+          titulo: string
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          cliente_id?: string
+          cliente_nome?: string
+          conteudo?: Json
+          criado_em?: string
+          criado_por?: string | null
+          data?: string
+          endereco_id?: string | null
+          id?: string
+          modelo?: string
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'comunicacoes_servico_atualizado_por_fkey'
+            columns: ['atualizado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'comunicacoes_servico_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'comunicacoes_servico_criado_por_fkey'
+            columns: ['criado_por']
+            isOneToOne: false
+            referencedRelation: 'perfis'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'comunicacoes_servico_endereco_id_fkey'
+            columns: ['endereco_id']
+            isOneToOne: false
+            referencedRelation: 'enderecos'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       configuracoes: {
         Row: {
           atualizado_em: string
@@ -4869,6 +4943,7 @@ export type Database = {
           principio_ativo: string
           quantidade_padrao: string | null
           registro: string | null
+          uso: string
           validade: string | null
         }
         Insert: {
@@ -4884,6 +4959,7 @@ export type Database = {
           principio_ativo: string
           quantidade_padrao?: string | null
           registro?: string | null
+          uso?: string
           validade?: string | null
         }
         Update: {
@@ -4899,6 +4975,7 @@ export type Database = {
           principio_ativo?: string
           quantidade_padrao?: string | null
           registro?: string | null
+          uso?: string
           validade?: string | null
         }
         Relationships: [
