@@ -100,6 +100,10 @@ export type FiltroOs = {
   recentesPrimeiro?: boolean
   /** Serviço de contrato ou avulso (pelo modelo de onde a OS saiu). */
   categoria?: CategoriaOs
+  /** Só as OS deste tipo de serviço. */
+  tipoId?: string
+  /** Quantas OS no máximo (padrão 200; um período escolhido pode trazer mais). */
+  limite?: number
 }
 
 export function useOrdensServico(filtro: FiltroOs) {
@@ -116,11 +120,12 @@ export function useOrdensServico(filtro: FiltroOs) {
         )
         .order('data_agendada', { ascending: !filtro.recentesPrimeiro })
         .order('hora_agendada', { ascending: !filtro.recentesPrimeiro, nullsFirst: false })
-        .limit(200)
+        .limit(filtro.limite ?? 200)
       if (filtro.de) consulta = consulta.gte('data_agendada', filtro.de)
       if (filtro.ate) consulta = consulta.lte('data_agendada', filtro.ate)
       if (filtro.status) consulta = consulta.eq('status', filtro.status)
       if (filtro.clienteId) consulta = consulta.eq('cliente_id', filtro.clienteId)
+      if (filtro.tipoId) consulta = consulta.eq('tipo_servico_id', filtro.tipoId)
       if (filtro.treinamento !== undefined)
         consulta = consulta.eq('treinamento', filtro.treinamento)
       // O operador não enxerga os modelos (o modelo vem vazio para ele): o filtro é do escritório.

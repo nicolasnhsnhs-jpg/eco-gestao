@@ -14,6 +14,7 @@ import { mensagemDeErro } from '@/lib/erros'
 import { PAPEIS_GESTAO } from '@/lib/papeis'
 
 import { usePerfil } from '../auth/useAuth'
+import { useTiposServico } from '../servicos/api'
 import {
   COR_STATUS_OS,
   fichaDaOs,
@@ -29,9 +30,19 @@ import { Veiculos } from './Veiculos'
 
 type Periodo = 'hoje' | 'semana' | 'proximas' | 'passadas'
 
-function filtroDoPeriodo(periodo: Periodo, dia: string): FiltroOs {
-  // Um dia escolhido vale mais que o período.
-  if (dia) return { de: dia, ate: dia }
+/**
+ * As datas escolhidas valem mais que o período. Só uma das duas preenchida:
+ * aquele dia. As duas: do "de" ao "até" (trocadas se vierem ao contrário).
+ */
+function datasEscolhidas(de: string, ate: string): { de: string; ate: string } | null {
+  if (!de && !ate) return null
+  if (!de || !ate) return { de: de || ate, ate: de || ate }
+  return de <= ate ? { de, ate } : { de: ate, ate: de }
+}
+
+function filtroDoPeriodo(periodo: Periodo, datas: { de: string; ate: string } | null): FiltroOs {
+  // Um período escolhido pode ter muitas OS: traz até 1000.
+  if (datas) return { ...datas, limite: datas.de === datas.ate ? 200 : 1000 }
   const hoje = hojeISO()
   if (periodo === 'hoje') return { de: hoje, ate: hoje }
   if (periodo === 'semana') return { de: hoje, ate: somarDias(hoje, 7) }
@@ -47,13 +58,19 @@ export function OsListaPage() {
   const [periodo, setPeriodo] = useState<Periodo>('hoje')
   const [status, setStatus] = useState<StatusOs | ''>('')
   const [busca, setBusca] = useState('')
-  const [dia, setDia] = useState('')
+  const [dataDe, setDataDe] = useState('')
+  const [dataAte, setDataAte] = useState('')
+  const [tipoId, setTipoId] = useState('')
   const [operadorId, setOperadorId] = useState('')
   const [categoria, setCategoria] = useState<CategoriaOs | ''>('')
   const [veiculosAberto, setVeiculosAberto] = useState(false)
   const operadores = useOperadores()
+  const tipos = useTiposServico()
+  const datas = datasEscolhidas(dataDe, dataAte)
+  const dia = !!datas
   const lista = useOrdensServico({
-    ...filtroDoPeriodo(periodo, dia),
+    ...filtroDoPeriodo(periodo, datas),
+    tipoId: tipoId || undefined,
     status: status || undefined,
     categoria: categoria || undefined,
     treinamento: false,
@@ -170,14 +187,42 @@ export function OsListaPage() {
           <option value="contrato">Serviço de contrato</option>
           <option value="avulsa">Serviço avulso</option>
         </Select>
-        <Input
-          aria-label="Dia"
-          title="Dia da OS (vale mais que o período)"
+        <Select
+          aria-label="Tipo de serviço"
           className="sm:w-auto"
-          type="date"
-          value={dia}
-          onChange={(e) => setDia(e.target.value)}
-        />
+          value={tipoId}
+          onChange={(e) => setTipoId(e.target.value)}
+        >
+          <option value="">Todos os serviços</option>
+          {tipos.data
+            ?.filter((t) => t.ativo || t.id === tipoId)
+            .map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.nome}
+              </option>
+            ))}
+        </Select>
+        <label className="col-span-2 flex items-center gap-2 text-sm text-texto-suave sm:col-span-1">
+          De
+          <Input
+            aria-label="Do dia"
+            title="Primeiro dia (sozinho, mostra só esse dia; vale mais que o período)"
+            className="min-w-0 flex-1 sm:w-auto sm:flex-none"
+            type="date"
+            value={dataDe}
+            onChange={(e) => setDataDe(e.target.value)}
+          />
+          até
+          <Input
+            aria-label="Até o dia"
+            title="Último dia do período"
+            className="min-w-0 flex-1 sm:w-auto sm:flex-none"
+            type="date"
+            value={dataAte}
+            min={dataDe || undefined}
+            onChange={(e) => setDataAte(e.target.value)}
+          />
+        </label>
         <Select
           aria-label="Operador"
           className="sm:w-auto"
@@ -191,12 +236,14 @@ export function OsListaPage() {
             </option>
           ))}
         </Select>
-        {(filtrando || dia || categoria) && (
+        {(filtrando || dia || categoria || tipoId) && (
           <Button
             variante="fantasma"
             onClick={() => {
               setBusca('')
-              setDia('')
+              setDataDe('')
+              setDataAte('')
+              setTipoId('')
               setOperadorId('')
               setCategoria('')
             }}
@@ -219,13 +266,21 @@ export function OsListaPage() {
                 para <strong>{nomeOperador}</strong>
               </>
             )}{' '}
-            {dia ? (
-              <>
-                em <strong>{formatarData(dia)}</strong>
-              </>
+            {datas ? (
+              datas.de === datas.ate ? (
+                <>
+                  em <strong>{formatarData(datas.de)}</strong>
+                </>
+              ) : (
+                <>
+                  de <strong>{formatarData(datas.de)}</strong> a{' '}
+                  <strong>{formatarData(datas.ate)}</strong>
+                </>
+              )
             ) : (
               NOME_PERIODO[periodo]
             )}
+            {tipoId && ` · ${tipos.data?.find((t) => t.id === tipoId)?.nome ?? ''}`}
             {status && ` · ${NOME_STATUS_OS[status]}`}
             {categoria &&
               ` · ${categoria === 'contrato' ? 'serviço de contrato' : 'serviço avulso'}`}
@@ -248,10 +303,12 @@ export function OsListaPage() {
       )}
       {lista.isSuccess && filtradas.length === 0 && (
         <p className="rounded-2xl border border-borda bg-white p-6 text-center text-texto-suave">
-          {filtrando || categoria
+          {filtrando || categoria || tipoId
             ? 'Nenhuma OS encontrada com esses filtros.'
-            : dia
-              ? 'Nenhuma OS neste dia.'
+            : datas
+              ? datas.de === datas.ate
+                ? 'Nenhuma OS neste dia.'
+                : 'Nenhuma OS neste período.'
               : 'Nenhuma OS neste período.'}
         </p>
       )}
