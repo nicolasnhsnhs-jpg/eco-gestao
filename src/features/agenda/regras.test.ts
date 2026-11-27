@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  mapaDosClientes,
+  novaDescricaoDaLinha,
   densidade,
   escalaDoTecnico,
   lerEscalas,
@@ -380,5 +382,71 @@ describe('conferência por serviço', () => {
     expect(resumoConferencia(x, 2, 'R')).toBe('parte')
     expect(resumoConferencia(x, 2, 'F')).toBe('tudo')
     expect(resumoConferencia(item({}), 2, 'F')).toBe('nada')
+  })
+})
+
+describe('dados presos a cada cliente da linha', () => {
+  const linha = {
+    descricao: 'GHC / Unimed',
+    avulso_partes: [1],
+    horarios: ['', '9h'],
+    notas: ['', 'levar escada'],
+    nota_parte: null,
+    taxa: 'Sábado',
+    taxa_motivo: '',
+    taxa_parte: 1,
+    realizado: false,
+    realizado_partes: [1],
+    faturado: false,
+    faturado_partes: [],
+    parcial_partes: [],
+    motivos_parcial: [],
+    horario_cliente: true,
+  }
+
+  it('cliente incluído no meio não herda o que é do vizinho', () => {
+    const p = novaDescricaoDaLinha(linha, 'GHC / IBIS / Unimed')
+    expect(p.avulso_partes).toEqual([2])
+    expect(p.horarios).toEqual(['', '', '9h'])
+    expect(p.notas).toEqual(['', '', 'levar escada'])
+    expect(p.taxa_parte).toBe(2)
+    expect(p.realizado_partes).toEqual([2])
+  })
+
+  it('cliente incluído no fim fica vazio', () => {
+    const p = novaDescricaoDaLinha(linha, 'GHC / Unimed / IBIS')
+    expect(p.avulso_partes).toEqual([1])
+    expect(p.horarios).toEqual(['', '9h'])
+    expect(p.taxa_parte).toBe(1)
+  })
+
+  it('tirar o primeiro cliente leva o resto junto, e o que era dele sai', () => {
+    const p = novaDescricaoDaLinha(
+      { ...linha, avulso_partes: [0, 1], notas: ['só GHC', 'levar escada'] },
+      'Unimed',
+    )
+    expect(p.avulso_partes).toEqual([0])
+    expect(p.notas).toEqual(['levar escada'])
+    expect(p.horarios).toEqual(['9h'])
+    expect(p.realizado).toBe(true)
+  })
+
+  it('taxa de cliente que saiu não vira taxa da linha toda', () => {
+    const p = novaDescricaoDaLinha(linha, 'GHC / IBIS')
+    expect(p).toMatchObject({ taxa: '', taxa_parte: null, avulso_partes: [] })
+  })
+
+  it('nome corrigido e com serviço continua o mesmo cliente', () => {
+    expect(mapaDosClientes('GHC / Unimde', 'GHC / Unimed / IBIS')).toEqual([0, 1])
+    expect(
+      mapaDosClientes('GHC: LR / Unimed: CI', 'IBIS: CI / GHC: LR / Unimed: CI aptos'),
+    ).toEqual([1, 2])
+    expect(mapaDosClientes('Unimed / GHC', 'GHC / Unimed')).toEqual([1, 0])
+  })
+
+  it('sem cliente mudando de lugar, só o texto muda', () => {
+    expect(novaDescricaoDaLinha(linha, 'GHC / Unimed às 9h')).toEqual({
+      descricao: 'GHC / Unimed às 9h',
+    })
   })
 })

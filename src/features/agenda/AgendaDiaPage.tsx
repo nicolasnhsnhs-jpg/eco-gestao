@@ -91,6 +91,7 @@ import {
   lerTecnicos,
   veiculosSemSemParar,
   ordenarItens,
+  novaDescricaoDaLinha,
   almocoPadrao,
   NOME_ALMOCO,
   proximoAlmoco,
@@ -600,12 +601,18 @@ function ExportarImagem({
 type CampoProps = {
   valor: string
   onSalvar: (v: string) => void
+  /**
+   * Ao sair do campo, se o texto mudou: o valor final e o de quando a pessoa
+   * começou a editar (sem os pedaços salvos no meio da digitação).
+   */
+  aoTerminar?: (v: string, inicio: string) => void
   multilinha?: boolean
 } & Omit<ComponentProps<'input'>, 'value' | 'onChange'>
 
-function CampoAuto({ valor, onSalvar, multilinha, className, ...props }: CampoProps) {
+function CampoAuto({ valor, onSalvar, aoTerminar, multilinha, className, ...props }: CampoProps) {
   const [rascunho, setRascunho] = useState(valor)
   const focado = useRef(false)
+  const inicio = useRef(valor)
   const enviado = useRef(valor)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   // Sempre a função da última renderização: a gravação que sai depois da pausa na
@@ -634,10 +641,13 @@ function CampoAuto({ valor, onSalvar, multilinha, className, ...props }: CampoPr
     value: rascunho,
     onFocus: () => {
       focado.current = true
+      inicio.current = enviado.current
     },
     onBlur: () => {
       focado.current = false
       salvar(rascunho)
+      if (aoTerminar && rascunho !== inicio.current) aoTerminar(rascunho, inicio.current)
+      inicio.current = rascunho
     },
   }
 
@@ -849,6 +859,14 @@ function Linhas({
                   placeholder="Empresa: serviço   (várias: GHC: LR / IBIS: CI aptos)"
                   valor={item.descricao}
                   onSalvar={(v) => salvarCampo({ descricao: v })}
+                  // Ao terminar de editar, horário, avulso, observação, taxa, R e F
+                  // seguem cada cliente pelo nome (incluir ou tirar alguém não passa
+                  // o que é de um para o outro).
+                  aoTerminar={(v, inicio) =>
+                    salvar.salvarAtual(item.id, (atual) =>
+                      novaDescricaoDaLinha({ ...atual, descricao: inicio }, v),
+                    )
+                  }
                   className="font-semibold"
                 />
                 <CampoAuto

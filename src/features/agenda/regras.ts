@@ -509,3 +509,135 @@ export function resumoConferencia(
   const algum = marcados > 0 || (letra === 'R' && item.parcial_partes.some((p) => p < n))
   return marcados === n ? 'tudo' : algum ? 'parte' : 'nada'
 }
+
+/* ---------------- Dados de cada cliente presos ao cliente ---------------- */
+
+/** Nome do cliente para comparar: sem acento, minúsculo, espaços simples. */
+const chaveDoCliente = (nome: string) =>
+  nome.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/\s+/g, ' ').trim()
+
+/** Distância de edição (quantas letras trocar para um virar o outro). */
+function distancia(a: string, b: string): number {
+  let antes = Array.from({ length: b.length + 1 }, (_, j) => j)
+  for (let i = 1; i <= a.length; i++) {
+    const agora = [i]
+    for (let j = 1; j <= b.length; j++)
+      agora[j] = Math.min(
+        antes[j] + 1,
+        agora[j - 1] + 1,
+        antes[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+      )
+    antes = agora
+  }
+  return antes[b.length]
+}
+
+/** O nome só foi corrigido (erro de digitação, completou o nome)? */
+function nomeParecido(a: string, b: string): boolean {
+  if (!a || !b) return false
+  if (a.startsWith(b) || b.startsWith(a)) return true
+  return distancia(a, b) <= Math.max(2, Math.floor(Math.min(a.length, b.length) * 0.3))
+}
+
+/**
+ * Para onde foi cada cliente quando o texto da linha mudou: mapa[posição antiga] =
+ * posição nova, ou -1 se o cliente saiu. Vai pelo nome, então incluir, tirar ou
+ * trocar a ordem dos clientes não passa o que é de um para o outro. Nome corrigido
+ * (parecido) continua sendo o mesmo cliente.
+ */
+export function mapaDosClientes(antiga: string, nova: string): number[] {
+  const velhos = partesDaDescricao(antiga).map(([n]) => chaveDoCliente(n))
+  const novos = partesDaDescricao(nova).map(([n]) => chaveDoCliente(n))
+  // Linha de um cliente só continua com o que tinha, mesmo reescrita.
+  if (velhos.length <= 1 && novos.length <= 1) return velhos.map(() => 0)
+  const mapa = velhos.map(() => -1)
+  const usados = new Set<number>()
+  const ligar = (aceita: (v: string, n: string) => boolean) =>
+    velhos.forEach((v, i) => {
+      if (mapa[i] >= 0) return
+      const j = novos.findIndex((n, k) => !usados.has(k) && aceita(v, n))
+      if (j >= 0) {
+        mapa[i] = j
+        usados.add(j)
+      }
+    })
+  ligar((v, n) => v === n)
+  ligar(nomeParecido)
+  return mapa
+}
+
+type DadosPorCliente = Pick<
+  AgendaItem,
+  | 'descricao'
+  | 'avulso_partes'
+  | 'horarios'
+  | 'notas'
+  | 'nota_parte'
+  | 'taxa'
+  | 'taxa_motivo'
+  | 'taxa_parte'
+  | 'realizado'
+  | 'realizado_partes'
+  | 'faturado'
+  | 'faturado_partes'
+  | 'parcial_partes'
+  | 'motivos_parcial'
+  | 'horario_cliente'
+>
+
+/**
+ * O que salvar quando o texto da linha muda: o novo texto e, se os clientes mudaram
+ * de lugar, horário, avulso, observação, taxa, R e F levados junto com cada cliente.
+ * O que era de um cliente que saiu da linha sai com ele.
+ */
+export function novaDescricaoDaLinha(
+  atual: DadosPorCliente,
+  descricao: string,
+): Partial<DadosPorCliente> {
+  const mapa = mapaDosClientes(atual.descricao, descricao)
+  const qtdNova = partesDaDescricao(descricao).length
+  if (mapa.length === qtdNova && mapa.every((j, i) => j === i)) return { descricao }
+
+  const n = servicosDaLinha(descricao).length
+  const nAntes = servicosDaLinha(atual.descricao).length
+  const para = (i: number) => (i >= 0 && i < mapa.length ? mapa[i] : -1)
+  const posicoes = (lista: readonly number[]) =>
+    [...new Set(lista.map(para).filter((j) => j >= 0))].sort((a, b) => a - b)
+  const valores = (lista: readonly string[]) => {
+    let nova: string[] = []
+    lista.forEach((v, i) => {
+      const j = para(i)
+      if (j >= 0 && v.trim()) nova = comValorNaParte(nova, j, v)
+    })
+    return nova
+  }
+  const feitos = posicoes(marcadas(atual.realizado, atual.realizado_partes, nAntes))
+  const faturados = posicoes(marcadas(atual.faturado, atual.faturado_partes, nAntes))
+  const horarios = valores(atual.horarios)
+  const patch: Partial<DadosPorCliente> = {
+    descricao,
+    avulso_partes: posicoes(atual.avulso_partes),
+    horarios,
+    // Ligado sem nenhum horário por cliente (linha antiga): continua ligado.
+    horario_cliente:
+      horarios.some(Boolean) || (atual.horario_cliente && !atual.horarios.some(Boolean)),
+    notas: valores(atual.notas),
+    realizado_partes: feitos,
+    realizado: feitos.length === n,
+    faturado_partes: faturados,
+    faturado: faturados.length === n,
+    parcial_partes: posicoes(atual.parcial_partes),
+    motivos_parcial: valores(atual.motivos_parcial),
+  }
+  if (atual.nota_parte !== null) {
+    const j = para(atual.nota_parte)
+    patch.nota_parte = j >= 0 ? j : null
+  }
+  if (atual.taxa_parte !== null) {
+    const j = para(atual.taxa_parte)
+    // A taxa era de um cliente que saiu: não vira taxa da linha toda.
+    if (j >= 0) patch.taxa_parte = j
+    else Object.assign(patch, { taxa: '', taxa_motivo: '', taxa_parte: null })
+  }
+  return patch
+}
