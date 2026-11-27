@@ -91,6 +91,11 @@ export const UNIDADES = {
       responsavelEmpresa: null as string | null,
       responsavelTecnico: null as string | null,
     },
+    /**
+     * Comunicação de serviço (Documentos): telefones do SAC no fim do aviso.
+     * PENDENTE: SC ainda não passou; fica para preencher em cada comunicação.
+     */
+    comunicacao: { contatos: '' },
     /** Dados que já vêm preenchidos no gerador de assinatura de e-mail (Administrativo). */
     assinatura: {
       email: 'adm@ecoambientalsc.com.br',
@@ -190,6 +195,8 @@ export const UNIDADES = {
       responsavelEmpresa: 'Luciano Nassiff Semensato' as string | null,
       responsavelTecnico: 'Andréia Santos Hernandes Semensato · CRQ-V 05407339' as string | null,
     },
+    /** Comunicação de serviço (Documentos): telefones do SAC (das comunicações em Word). */
+    comunicacao: { contatos: 'SAC: (51) 3458-4133 · (51) 98206-1293 / (51) 98206-1294' },
     relatorio: {
       assinatura: [
         'Andréia S. H. Semensato',

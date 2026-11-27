@@ -44,7 +44,10 @@ import {
 // -----------------------------------------------------------------------------
 
 export function DocumentosLayout() {
-  const abas = [{ rotulo: 'Emissão de APR', caminho: '/documentos' }]
+  const abas = [
+    { rotulo: 'Emissão de APR', caminho: '/documentos', fim: true },
+    { rotulo: 'Comunicação de serviço', caminho: '/documentos/comunicacoes', fim: false },
+  ]
   return (
     <>
       <nav
@@ -55,6 +58,7 @@ export function DocumentosLayout() {
           <NavLink
             key={aba.caminho}
             to={aba.caminho}
+            end={aba.fim}
             className={({ isActive }) =>
               cn(
                 'flex min-h-10 flex-1 items-center justify-center rounded-lg px-3 text-sm font-semibold whitespace-nowrap',

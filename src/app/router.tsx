@@ -4,6 +4,7 @@ import { AgendaDiaPage } from '@/features/agenda/AgendaDiaPage'
 import { PresencaPage } from '@/features/agenda/PresencaPage'
 import { CronogramaPage } from '@/features/cronograma/CronogramaPage'
 import { AprFormPage, AprPage, AprsPage, DocumentosLayout } from '@/features/documentos/AprPages'
+import { ComunicacaoFormPage, ComunicacoesPage } from '@/features/documentos/ComunicacaoPages'
 import { AssinarAprPage, PendenciasPage } from '@/features/documentos/PendenciasPages'
 import { AgendaTvPage } from '@/features/agenda/AgendaTvPage'
 import { AdministrativoLayout } from '@/features/administrativo/AdministrativoLayout'
@@ -244,8 +245,13 @@ export const router = createBrowserRouter([
         children: [
           {
             element: <DocumentosLayout />,
-            children: [{ index: true, element: <AprsPage /> }],
+            children: [
+              { index: true, element: <AprsPage /> },
+              { path: 'comunicacoes', element: <ComunicacoesPage /> },
+            ],
           },
+          { path: 'comunicacoes/nova', element: <ComunicacaoFormPage /> },
+          { path: 'comunicacoes/:id', element: <ComunicacaoFormPage /> },
           { path: 'apr/nova', element: <AprFormPage /> },
           { path: 'apr/:id', element: <AprPage /> },
           { path: 'apr/:id/editar', element: <AprFormPage /> },

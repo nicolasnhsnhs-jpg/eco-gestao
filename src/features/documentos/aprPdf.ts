@@ -43,7 +43,7 @@ const hex = (h: string) =>
     parseInt(h.slice(5, 7), 16) / 255,
   )
 
-const COR = {
+export const COR = {
   noite: hex('#0F2A0D'),
   escuro: hex('#1F4D1A'),
   verde: hex('#3E7B1F'),
@@ -59,9 +59,9 @@ const COR = {
   vermelho: hex('#C62828'),
 }
 
-type Fontes = { normal: PDFFont; medio: PDFFont; negrito: PDFFont; extra: PDFFont }
+export type Fontes = { normal: PDFFont; medio: PDFFont; negrito: PDFFont; extra: PDFFont }
 
-function texto(
+export function texto(
   p: PDFPage,
   t: string,
   x: number,
@@ -86,7 +86,7 @@ function texto(
   }
 }
 
-function cartao(
+export function cartao(
   p: PDFPage,
   x: number,
   y: number,
@@ -118,10 +118,10 @@ function cartao(
   })
 }
 
-const rotulo = (p: PDFPage, f: Fontes, t: string, x: number, y: number, cor: RGB) =>
+export const rotulo = (p: PDFPage, f: Fontes, t: string, x: number, y: number, cor: RGB) =>
   texto(p, t.toUpperCase(), x, y, 6.8, f.negrito, cor, 'esquerda', 1)
 
-async function carregar(caminho: string) {
+export async function carregar(caminho: string) {
   return new Uint8Array(await (await fetch(caminho)).arrayBuffer())
 }
 
