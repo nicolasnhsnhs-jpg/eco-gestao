@@ -300,6 +300,32 @@ export const MODELOS = {
       'Execução do serviço: 02 operadores técnicos.',
     ],
   },
+  tanque_industrial: {
+    nome: 'Limpeza de tanque industrial',
+    // Mesmo serviço da caixa d'água no sistema (OS, certificado de 180 dias).
+    tipo: 'Limpeza de reservatórios',
+    assunto: 'em Limpeza Técnica e Sanitização de Tanques Industriais',
+    titulo: 'Limpeza técnica de tanque industrial',
+    descricao: 'Limpeza técnica de tanque industrial',
+    escopo:
+      '**Limpeza e sanitização de tanque industrial / remoção de biofilme.**\n' +
+      '- 01 tanque de ... de ..., capacidade de ... litros.\n' +
+      'Realizaremos a limpeza técnica conforme padrões de segurança e sanitização adequados ao setor alimentício:\n' +
+      '- Remoção mecânica e manual de biofilme das superfícies internas dos tanques;\n' +
+      '- Aplicação de produto específico de limpeza compatível com alimentos (sem resíduos tóxicos);\n' +
+      '- Lavagem, enxágue e inspeção final, garantindo ausência de impurezas, biofilme ou resíduos.',
+    metodologia: '',
+    recursos: (u: DadosUnidade) => [
+      NR33,
+      CERTIFICADO_180,
+      u.responsavel && `Responsável técnica - ${u.responsavel};`,
+      ...u.normas,
+      u.alvara && `${u.alvara};`,
+      u.licencaSaude && `${u.licencaSaude};`,
+      'Execução do serviço: 1 turno / 02 operadores técnicos.',
+    ],
+    periodicidade: 6,
+  },
   armadilha_luminosa: {
     nome: 'Inclusão de armadilha luminosa',
     tipo: 'Controle de pragas',
