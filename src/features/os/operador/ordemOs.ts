@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { hojeISO } from '@/lib/datas'
 import { estaOnline } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
 
@@ -127,4 +128,46 @@ export function useOrdemDoOperador(operadorId: string) {
   )
 
   return { ordem, salvarOrdem }
+}
+
+/* ---------------- Um dia de cada vez ---------------- */
+
+type OsDoDia = {
+  id: string
+  status: string
+  data_agendada: string
+  concluida_em: string | null
+}
+
+const aberta = (status: string) => status === 'agendada' || status === 'em_execucao'
+
+/**
+ * As OS que o operador vê no dia escolhido. Hoje: as de hoje, as atrasadas que
+ * seguem abertas e as concluídas hoje. Outro dia: só as marcadas para aquele dia.
+ */
+export function osDoDia<T extends OsDoDia>(lista: readonly T[], dia: string, hoje: string): T[] {
+  return lista.filter((os) => {
+    if (os.status === 'cancelada') return false
+    if (dia !== hoje) return os.data_agendada === dia
+    if (os.data_agendada === hoje) return true
+    if (aberta(os.status)) return os.data_agendada < hoje
+    return !!os.concluida_em && hojeISO(new Date(os.concluida_em)) === hoje
+  })
+}
+
+/** Hoje e os próximos dias que têm OS, com quantas OS cada um tem. */
+export function diasComOs(lista: readonly OsDoDia[], hoje: string): { dia: string; qtd: number }[] {
+  const dias = new Set([hoje])
+  for (const os of lista)
+    if (os.status !== 'cancelada' && os.data_agendada > hoje) dias.add(os.data_agendada)
+  return [...dias].sort().map((dia) => ({ dia, qtd: osDoDia(lista, dia, hoje).length }))
+}
+
+/**
+ * Nova ordem depois de mexer nas OS de um dia: as do dia na ordem nova, e a ordem
+ * das OS de outros dias continua guardada.
+ */
+export function ordemComODia(ordem: readonly string[], doDia: readonly string[]): string[] {
+  const doDiaSet = new Set(doDia)
+  return [...doDia, ...ordem.filter((id) => !doDiaSet.has(id))]
 }

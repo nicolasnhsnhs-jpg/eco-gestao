@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { avisosDasOs, chavesDosAvisos, temAvisoNovo } from './avisosGerais'
-import { moverNaOrdem, ordenarPelaEscolha } from './ordemOs'
+import { diasComOs, moverNaOrdem, ordemComODia, ordenarPelaEscolha, osDoDia } from './ordemOs'
 
 const os = (id: string) => ({ id })
 
@@ -82,5 +82,51 @@ describe('quando a caixa de avisos abre sozinha', () => {
     expect(temAvisoNovo([aviso('2', 'b')], vistos)).toBe(false)
     expect(temAvisoNovo([aviso('2', 'b mudou')], vistos)).toBe(true)
     expect(temAvisoNovo([aviso('3', 'c')], vistos)).toBe(true)
+  })
+})
+
+describe('OS do operador um dia de cada vez', () => {
+  const hoje = '2026-11-27'
+  const o = (
+    id: string,
+    data_agendada: string,
+    status = 'agendada',
+    concluida_em: string | null = null,
+  ) => ({
+    id,
+    data_agendada,
+    status,
+    concluida_em,
+  })
+  const lista = [
+    o('atrasada', '2026-11-25'),
+    o('feita-antes', '2026-11-25', 'concluida', '2026-11-25T15:00:00-03:00'),
+    o('feita-hoje', '2026-11-26', 'concluida', '2026-11-27T10:00:00-03:00'),
+    o('hoje', hoje),
+    o('cancelada', hoje, 'cancelada'),
+    o('sabado', '2026-11-28'),
+    o('segunda1', '2026-11-30'),
+    o('segunda2', '2026-11-30', 'em_execucao'),
+  ]
+
+  it('hoje: as de hoje, as atrasadas abertas e as concluídas hoje; nada dos outros dias', () => {
+    expect(osDoDia(lista, hoje, hoje).map((x) => x.id)).toEqual(['atrasada', 'feita-hoje', 'hoje'])
+  })
+
+  it('outro dia: só as marcadas para ele', () => {
+    expect(osDoDia(lista, '2026-11-30', hoje).map((x) => x.id)).toEqual(['segunda1', 'segunda2'])
+    expect(osDoDia(lista, '2026-11-29', hoje)).toEqual([])
+  })
+
+  it('dias com OS a partir de hoje, com a contagem', () => {
+    expect(diasComOs(lista, hoje)).toEqual([
+      { dia: hoje, qtd: 3 },
+      { dia: '2026-11-28', qtd: 1 },
+      { dia: '2026-11-30', qtd: 2 },
+    ])
+  })
+
+  it('mudar a ordem de um dia não perde a ordem dos outros', () => {
+    expect(ordemComODia(['a', 'b', 'x', 'y'], ['y', 'x'])).toEqual(['y', 'x', 'a', 'b'])
   })
 })

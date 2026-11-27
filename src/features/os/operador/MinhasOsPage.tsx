@@ -1,5 +1,6 @@
-import { ArrowDown, ArrowUp, CircleCheck, Megaphone } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, CircleCheck, Megaphone } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router'
 
 import { PageHeader } from '@/components/PageHeader'
 import { Aviso } from '@/components/ui/Aviso'
@@ -8,15 +9,37 @@ import { Carregando } from '@/components/ui/Carregando'
 import { Modal } from '@/components/ui/Modal'
 import { formatarData, hojeISO, somarDias } from '@/lib/datas'
 import { mensagemDeErro } from '@/lib/erros'
+import { cn } from '@/lib/utils'
 
 import { usePerfil } from '../../auth/useAuth'
 import { osAberta, useOrdensServico } from '../api'
 import { useBaixarOsDoDia } from '../offline/baixar'
 import { CartaoOs } from '../OsListaPage'
 import { avisosDasOs, chavesDosAvisos, temAvisoNovo, type AvisoDaOs } from './avisosGerais'
-import { moverNaOrdem, ordenarPelaEscolha, useOrdemDoOperador } from './ordemOs'
+import {
+  diasComOs,
+  moverNaOrdem,
+  ordemComODia,
+  ordenarPelaEscolha,
+  osDoDia,
+  useOrdemDoOperador,
+} from './ordemOs'
 
 const CHAVE_AVISOS_VISTOS = 'eco-os-avisos-vistos'
+
+/** Até quantos dias para trás e para frente o operador navega. */
+const DIAS_ATRAS = 7
+const DIAS_FRENTE = 30
+
+/** "2026-11-27" → { semana: "sex", data: "27/11" } */
+function partesDoDia(dia: string) {
+  const dt = new Date(`${dia}T12:00:00`)
+  return {
+    semana: dt.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''),
+    semanaLonga: dt.toLocaleDateString('pt-BR', { weekday: 'long' }),
+    data: dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+  }
+}
 
 /** Avisos já lidos nesta abertura do app (some ao fechar o app). */
 function avisosVistos(): string[] {
@@ -29,9 +52,10 @@ function avisosVistos(): string[] {
 }
 
 /**
- * Início do operador: as OS dele, da semana passada (para terminar o que ficou
- * aberto) até os próximos 7 dias. O banco só devolve as OS atribuídas a ele.
- * As do dia ficam guardadas no celular para trabalhar sem internet.
+ * Início do operador: as OS dele, um dia de cada vez (abre em hoje, como a agenda).
+ * Hoje mostra também as atrasadas que seguem abertas; as setas e os dias com OS
+ * levam a outro dia. O banco só devolve as OS atribuídas a ele. As do dia ficam
+ * guardadas no celular para trabalhar sem internet.
  *
  * - Ao abrir, mostra numa caixa tudo o que o escritório pediu nas OS dele.
  * - Ele põe as OS na ordem que quiser; a ordem não muda ao concluir: a feita fica
@@ -40,20 +64,31 @@ function avisosVistos(): string[] {
 export function MinhasOsPage() {
   const perfil = usePerfil()
   const hoje = hojeISO()
-  const lista = useOrdensServico({ de: somarDias(hoje, -7), ate: somarDias(hoje, 7) })
+  const lista = useOrdensServico({
+    de: somarDias(hoje, -DIAS_ATRAS),
+    ate: somarDias(hoje, DIAS_FRENTE),
+  })
   const { ordem, salvarOrdem } = useOrdemDoOperador(perfil.id)
   const [organizando, setOrganizando] = useState(false)
 
-  // Abertas + concluídas hoje (passou da meia-noite, as concluídas saem).
-  const visiveis = useMemo(() => {
-    const doDia = (lista.data ?? []).filter(
-      (os) =>
-        osAberta(os.status) ||
-        (os.status !== 'cancelada' &&
-          (os.concluida_em ? hojeISO(new Date(os.concluida_em)) : os.data_agendada) === hoje),
-    )
-    return ordenarPelaEscolha(doDia, ordem)
-  }, [lista.data, ordem, hoje])
+  // O dia escolhido fica no endereço: voltar de uma OS cai no mesmo dia.
+  const [params, setParams] = useSearchParams()
+  const pedido = params.get('dia') ?? ''
+  const primeiro = somarDias(hoje, -DIAS_ATRAS)
+  const ultimo = somarDias(hoje, DIAS_FRENTE)
+  const dia =
+    /^\d{4}-\d{2}-\d{2}$/.test(pedido) && pedido >= primeiro && pedido <= ultimo ? pedido : hoje
+  const irPara = (d: string) => {
+    setOrganizando(false)
+    setParams(d === hoje ? {} : { dia: d }, { replace: true })
+  }
+
+  // Hoje: as de hoje, as atrasadas abertas e as concluídas hoje. Outro dia: só as dele.
+  const visiveis = useMemo(
+    () => ordenarPelaEscolha(osDoDia(lista.data ?? [], dia, hoje), ordem),
+    [lista.data, ordem, dia, hoje],
+  )
+  const proximosDias = useMemo(() => diasComOs(lista.data ?? [], hoje), [lista.data, hoje])
   const faltam = visiveis.filter((os) => osAberta(os.status)).length
 
   const avisos = useMemo(() => avisosDasOs(lista.data ?? []), [lista.data])
@@ -74,10 +109,13 @@ export function MinhasOsPage() {
 
   const mover = (id: string, direcao: -1 | 1) =>
     salvarOrdem(
-      moverNaOrdem(
-        visiveis.map((os) => os.id),
-        id,
-        direcao,
+      ordemComODia(
+        ordem,
+        moverNaOrdem(
+          visiveis.map((os) => os.id),
+          id,
+          direcao,
+        ),
       ),
     )
 
@@ -122,9 +160,71 @@ export function MinhasOsPage() {
         </button>
       )}
 
+      {/* Um dia de cada vez: setas e os dias que têm OS. */}
+      <div className="mb-2 flex items-center gap-2">
+        <Button
+          variante="secundario"
+          aria-label="Dia anterior"
+          disabled={dia <= primeiro}
+          onClick={() => irPara(somarDias(dia, -1))}
+        >
+          <ChevronLeft className="size-5" aria-hidden />
+        </Button>
+        <p className="flex-1 text-center">
+          <span className="block font-titulo text-lg font-bold text-verde-escuro capitalize">
+            {dia === hoje
+              ? 'Hoje'
+              : dia === somarDias(hoje, 1)
+                ? 'Amanhã'
+                : dia === somarDias(hoje, -1)
+                  ? 'Ontem'
+                  : partesDoDia(dia).semanaLonga}
+          </span>
+          <span className="text-sm text-texto-suave">{formatarData(dia)}</span>
+        </p>
+        <Button
+          variante="secundario"
+          aria-label="Próximo dia"
+          disabled={dia >= ultimo}
+          onClick={() => irPara(somarDias(dia, 1))}
+        >
+          <ChevronRight className="size-5" aria-hidden />
+        </Button>
+      </div>
+      {proximosDias.length > 1 && (
+        <nav aria-label="Dias com OS" className="mb-4 flex gap-2 overflow-x-auto pb-1">
+          {proximosDias.map(({ dia: d, qtd }) => {
+            const ativo = d === dia
+            const p = partesDoDia(d)
+            return (
+              <button
+                key={d}
+                type="button"
+                onClick={() => irPara(d)}
+                aria-current={ativo ? 'date' : undefined}
+                className={cn(
+                  'flex min-w-[4.6rem] shrink-0 flex-col items-center rounded-xl border px-2 py-1.5 text-center',
+                  ativo
+                    ? 'border-verde bg-verde text-white'
+                    : 'border-lima bg-lima-claro text-verde-escuro hover:border-verde',
+                )}
+              >
+                <span className="text-[11px] font-bold tracking-wider uppercase">
+                  {d === hoje ? 'Hoje' : p.semana}
+                </span>
+                <span className="text-base leading-tight font-extrabold">{p.data}</span>
+                <span className={cn('text-[11px] font-semibold', ativo && 'text-white/85')}>
+                  {qtd === 1 ? '1 OS' : `${qtd} OS`}
+                </span>
+              </button>
+            )
+          })}
+        </nav>
+      )}
+
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="font-titulo text-lg font-bold text-verde-escuro">
-          Suas OS
+          {dia === hoje ? 'Suas OS de hoje' : `Suas OS de ${formatarData(dia).slice(0, 5)}`}
           {visiveis.length > 0 && (
             <span className="ml-2 text-sm font-normal text-texto-suave">
               {faltam === 0 ? 'todas feitas' : `faltam ${faltam} de ${visiveis.length}`}
@@ -147,7 +247,7 @@ export function MinhasOsPage() {
       )}
       {lista.isSuccess && visiveis.length === 0 && (
         <p className="mb-4 rounded-2xl border border-borda bg-white p-6 text-center text-texto-suave">
-          Nenhuma OS para fazer agora.
+          {dia === hoje ? 'Nenhuma OS para fazer hoje.' : 'Nenhuma OS neste dia.'}
         </p>
       )}
       <ol className="mb-6 flex flex-col gap-2">
